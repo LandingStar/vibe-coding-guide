@@ -1,0 +1,90 @@
+{
+  "name": "doc-loop-vibe-coding",
+  "version": "0.1.0-prototype",
+  "kind": "official-instance",
+  "scope": "Official prototype pack for document-driven vibe coding on the workflow-driver platform.",
+  "provides": [
+    "rules",
+    "document_types",
+    "prompts",
+    "validators",
+    "scripts",
+    "templates",
+    "triggers"
+  ],
+  "document_types": [
+    "project-master-checklist",
+    "global-phase-map",
+    "planning-gate-candidate",
+    "phase-slice",
+    "manual-test-guide",
+    "tooling-standard",
+    "handoff"
+  ],
+  "intents": [
+    "question",
+    "correction",
+    "constraint",
+    "scope-change",
+    "protocol-change",
+    "approval",
+    "rejection",
+    "request-for-writeback",
+    "issue-report",
+    "unknown"
+  ],
+  "gates": [
+    "inform",
+    "review",
+    "approve"
+  ],
+  "always_on": [
+    "SKILL.md",
+    "references/workflow.md",
+    "references/subagent-delegation.md"
+  ],
+  "on_demand": [
+    "scripts/bootstrap_doc_loop.py",
+    "scripts/validate_doc_loop.py",
+    "scripts/validate_instance_pack.py",
+    "assets/bootstrap/design_docs/stages/_templates/Planning Gate Candidate Template.md",
+    "assets/bootstrap/design_docs/stages/_templates/Phase Slice Template.md",
+    "assets/bootstrap/design_docs/stages/_templates/Manual Test Guide Template.md",
+    "assets/bootstrap/.codex/packs/project-local.pack.json",
+    "assets/bootstrap/.codex/contracts/subagent-contract.template.json",
+    "assets/bootstrap/.codex/contracts/subagent-report.template.json",
+    "assets/bootstrap/.codex/contracts/handoff.template.json",
+    "examples/project-local.pack.json",
+    "examples/subagent-contract.worker.json",
+    "examples/subagent-report.worker.json",
+    "examples/handoff.phase-close.json"
+  ],
+  "depends_on": [
+    "platform-core-defaults"
+  ],
+  "overrides": [],
+  "prompts": [
+    "assets/bootstrap/.codex/prompts/doc-loop/01-planning-gate.md",
+    "assets/bootstrap/.codex/prompts/doc-loop/02-execute-by-doc.md",
+    "assets/bootstrap/.codex/prompts/doc-loop/03-writeback.md",
+    "assets/bootstrap/.codex/prompts/doc-loop/04-subagent-contract.md"
+  ],
+  "templates": [
+    "assets/bootstrap/design_docs/",
+    "assets/bootstrap/.codex/packs/",
+    "assets/bootstrap/.codex/contracts/"
+  ],
+  "validators": [
+    "scripts/validate_doc_loop.py",
+    "scripts/validate_instance_pack.py"
+  ],
+  "checks": [],
+  "scripts": [
+    "scripts/bootstrap_doc_loop.py",
+    "scripts/validate_doc_loop.py",
+    "scripts/validate_instance_pack.py"
+  ],
+  "triggers": [
+    "chat"
+  ]
+}

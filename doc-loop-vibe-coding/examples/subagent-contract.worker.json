@@ -1,0 +1,25 @@
+{
+  "contract_id": "contract-doc-loop-worker-001",
+  "task": "Draft the first version of the planning-gate candidate for the next narrow slice.",
+  "mode": "worker",
+  "scope": "Only create or update the targeted planning-gate candidate and its immediately referenced notes.",
+  "allowed_artifacts": [
+    "design_docs/stages/planning-gate/Next Slice Candidate.md"
+  ],
+  "required_refs": [
+    "design_docs/Project Master Checklist.md",
+    "design_docs/Global Phase Map and Current Position.md",
+    "design_docs/stages/README.md"
+  ],
+  "acceptance": [
+    "The candidate states the problem, the narrow scope, explicit out-of-scope items, and the verification gate."
+  ],
+  "verification": [
+    "Confirm the candidate links back to the current status and phase documents."
+  ],
+  "out_of_scope": [
+    "Do not edit platform authority docs.",
+    "Do not change the active handoff."
+  ],
+  "report_schema": "subagent-report-minimal"
+}

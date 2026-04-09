@@ -1,0 +1,22 @@
+{
+  "contract_id": "contract-<stable-id>",
+  "task": "<what the subagent should do>",
+  "mode": "worker",
+  "scope": "<narrow execution boundary>",
+  "allowed_artifacts": [
+    "<artifact path>"
+  ],
+  "required_refs": [
+    "<authoritative ref>"
+  ],
+  "acceptance": [
+    "<acceptance condition>"
+  ],
+  "verification": [
+    "<verification step>"
+  ],
+  "out_of_scope": [
+    "<explicitly not allowed>"
+  ],
+  "report_schema": "subagent-report-minimal"
+}

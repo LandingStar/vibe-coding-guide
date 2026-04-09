@@ -1,0 +1,74 @@
+{
+  "name": "example-project-local-pack",
+  "version": "0.1.0-example",
+  "kind": "project-local",
+  "scope": "Project-local governance overlay for a repository that adopts the doc-loop official instance.",
+  "provides": [
+    "rules",
+    "document_types",
+    "prompts",
+    "templates"
+  ],
+  "document_types": [
+    "project-master-checklist",
+    "global-phase-map",
+    "planning-gate-candidate",
+    "phase-slice",
+    "manual-test-guide",
+    "tooling-standard",
+    "handoff"
+  ],
+  "intents": [
+    "question",
+    "correction",
+    "constraint",
+    "scope-change",
+    "protocol-change",
+    "approval",
+    "rejection",
+    "request-for-writeback",
+    "issue-report",
+    "unknown"
+  ],
+  "gates": [
+    "inform",
+    "review",
+    "approve"
+  ],
+  "always_on": [
+    "AGENTS.md",
+    "design_docs/Project Master Checklist.md",
+    "design_docs/Global Phase Map and Current Position.md",
+    "design_docs/tooling/Document-Driven Workflow Standard.md"
+  ],
+  "on_demand": [
+    "design_docs/stages/README.md",
+    "design_docs/stages/planning-gate/README.md",
+    "design_docs/stages/_templates/Planning Gate Candidate Template.md",
+    "design_docs/stages/_templates/Phase Slice Template.md",
+    "design_docs/stages/_templates/Manual Test Guide Template.md",
+    ".codex/contracts/subagent-contract.template.json",
+    ".codex/contracts/subagent-report.template.json",
+    ".codex/contracts/handoff.template.json"
+  ],
+  "depends_on": [
+    "doc-loop-vibe-coding"
+  ],
+  "overrides": [],
+  "prompts": [
+    ".codex/prompts/doc-loop/01-planning-gate.md",
+    ".codex/prompts/doc-loop/02-execute-by-doc.md",
+    ".codex/prompts/doc-loop/03-writeback.md",
+    ".codex/prompts/doc-loop/04-subagent-contract.md"
+  ],
+  "templates": [
+    "design_docs/stages/_templates/",
+    ".codex/contracts/"
+  ],
+  "validators": [],
+  "checks": [],
+  "scripts": [],
+  "triggers": [
+    "chat"
+  ]
+}

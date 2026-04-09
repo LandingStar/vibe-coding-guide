@@ -1,0 +1,23 @@
+{
+  "handoff_id": "handoff-doc-loop-phase-close-001",
+  "from_role": "main-ai",
+  "to_role": "human-reviewer",
+  "reason": "Phase-close proposal needs explicit approval before write-back is finalized.",
+  "active_scope": "Close the current narrow phase and confirm the next planning-gate candidate.",
+  "authoritative_refs": [
+    "design_docs/Project Master Checklist.md",
+    "design_docs/Global Phase Map and Current Position.md",
+    "design_docs/stages/current-phase.md"
+  ],
+  "carried_constraints": [
+    "Do not widen scope beyond the current phase boundary.",
+    "Do not declare completion without recorded verification."
+  ],
+  "open_items": [
+    "Approve or reject the proposed next-slice direction."
+  ],
+  "current_gate_state": "waiting_review",
+  "intake_requirements": [
+    "Re-read the authoritative refs before approving the phase-close proposal."
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Loop Coding"
+  short_description: "Doc-driven planning, execution, and write-back"
+  default_prompt: "Use $doc-loop-vibe-coding to bootstrap or run a document-driven coding workflow with verified write-back."

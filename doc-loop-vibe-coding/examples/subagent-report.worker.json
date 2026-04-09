@@ -1,0 +1,18 @@
+{
+  "report_id": "report-doc-loop-worker-001",
+  "contract_id": "contract-doc-loop-worker-001",
+  "status": "completed",
+  "changed_artifacts": [
+    "design_docs/stages/planning-gate/Next Slice Candidate.md"
+  ],
+  "verification_results": [
+    "Linked the candidate back to the status board and phase map."
+  ],
+  "unresolved_items": [
+    "The acceptance section still needs the exact automated regression command."
+  ],
+  "assumptions": [
+    "Assumed the next slice remains within the current official instance rather than platform-core work."
+  ],
+  "escalation_recommendation": "review_by_supervisor"
+}

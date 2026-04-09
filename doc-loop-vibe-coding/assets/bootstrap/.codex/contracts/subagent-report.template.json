@@ -1,0 +1,18 @@
+{
+  "report_id": "report-<stable-id>",
+  "contract_id": "contract-<stable-id>",
+  "status": "completed",
+  "changed_artifacts": [
+    "<artifact path>"
+  ],
+  "verification_results": [
+    "<verification result>"
+  ],
+  "unresolved_items": [
+    "<open item>"
+  ],
+  "assumptions": [
+    "<assumption>"
+  ],
+  "escalation_recommendation": "<none|review_by_supervisor|human_review>"
+}

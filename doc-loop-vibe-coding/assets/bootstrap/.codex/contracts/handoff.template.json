@@ -1,0 +1,20 @@
+{
+  "handoff_id": "handoff-<stable-id>",
+  "from_role": "<role>",
+  "to_role": "<role>",
+  "reason": "<why this handoff is needed>",
+  "active_scope": "<current scope>",
+  "authoritative_refs": [
+    "<authoritative ref>"
+  ],
+  "carried_constraints": [
+    "<constraint>"
+  ],
+  "open_items": [
+    "<open item>"
+  ],
+  "current_gate_state": "<proposed|waiting_review|approved|rejected|revised|applied>",
+  "intake_requirements": [
+    "<required intake action>"
+  ]
+}
