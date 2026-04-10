@@ -4,10 +4,13 @@
 
 开始工作前，先读：
 
-1. `design_docs/Project Master Checklist.md`
-2. `design_docs/Global Phase Map and Current Position.md`
-3. 当前 active planning 或 phase 文档
-4. 相关的 `design_docs/tooling/` 长期协议
+1. `docs/README.md`（若项目携带平台权威文档）
+2. `design_docs/Project Master Checklist.md`
+3. `design_docs/Global Phase Map and Current Position.md`
+4. 当前 active planning 或 phase 文档
+5. 相关的 `design_docs/tooling/` 长期协议
+
+若 `docs/` 与 `design_docs/` 冲突，以 `docs/` 为准。
 
 执行规则：
 

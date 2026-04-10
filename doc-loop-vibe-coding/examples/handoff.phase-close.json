@@ -7,7 +7,7 @@
   "authoritative_refs": [
     "design_docs/Project Master Checklist.md",
     "design_docs/Global Phase Map and Current Position.md",
-    "design_docs/stages/current-phase.md"
+    "design_docs/stages/planning-gate/<active-planning-gate>.md"
   ],
   "carried_constraints": [
     "Do not widen scope beyond the current phase boundary.",

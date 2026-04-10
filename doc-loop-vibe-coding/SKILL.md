@@ -7,7 +7,14 @@ description: 文档驱动 vibe coding 的官方实例原型。以规划文档、
 
 ## Overview
 
-This directory currently holds the prototype form of the official `doc-driven vibe coding` instance. It should no longer be read as the definition of the whole project; the platform-level authority now lives in the root `docs/` directory.
+This directory holds the prototype form of the official `doc-driven vibe coding` instance — one pack running on the broader protocol/governance-driven workflow platform. The platform-level authority lives in the root `docs/` directory; this instance should be understood as a concrete pack shape adopted through the platform's `Project Adoption` model (see `docs/project-adoption.md`).
+
+Key platform concepts this instance relies on:
+
+- **Pack**: an instance is delivered as a pack (`pack-manifest.json`) that declares document types, intents, gates, prompts, validators, and scripts.
+- **Adoption**: a real repo adopts this instance through a project-local overlay pack (`.codex/packs/project-local.pack.json`) that binds the instance to the repo's actual document paths and rules.
+- **Review State Machine**: high-impact actions follow the platform's `proposed → waiting_review → approved / rejected / revised → applied` state flow (see `docs/review-state-machine.md`).
+- **Gate levels**: every action is gated at one of three levels — `inform`, `review`, or `approve` — determined by the platform's governance flow (see `docs/governance-flow.md`).
 
 Use this instance to study one concrete pack shape: documents act as the control surface for implementation, the main agent operates the documents, humans review through the agent, and subagents receive narrow written contracts.
 
@@ -45,6 +52,8 @@ If the repo already has the scaffold, start by reading:
 5. `.codex/handoffs/CURRENT.md` only when session transfer matters
 
 ## Instance Workflow
+
+The workflow below operates within the platform's governance flow. Every step that produces a high-impact artifact (e.g., phase-close proposals, design conclusions, scope changes) should pass through the platform's review state machine at the appropriate gate level (`inform`, `review`, or `approve`). Important design nodes must reach `approved` before the next major step begins.
 
 ### 1. Restore Context From Docs
 
@@ -85,6 +94,8 @@ Before declaring completion, run the verification described by the active phase 
 - doc/help/prompt sync for any new surface
 
 Capture what was verified and what was not verified. Do not write unverified conclusions as settled fact.
+
+When the slice reaches a design node that the platform's governance flow classifies as `review` or `approve`, the artifact must enter the review state machine (`proposed → waiting_review → approved`) before the slice can proceed or close.
 
 ### 5. Write Back Into The Doc System
 

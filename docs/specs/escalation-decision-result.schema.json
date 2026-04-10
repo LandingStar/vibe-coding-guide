@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "escalation-decision-result.schema.json",
+  "title": "Escalation Decision Result",
+  "description": "Platform-level schema for an escalation decision result within the PDP Decision Envelope. See docs/escalation-decision.md for full semantics and trigger conditions.",
+  "type": "object",
+  "required": ["escalate"],
+  "properties": {
+    "escalate": {
+      "type": "boolean",
+      "description": "Whether escalation to a higher authority is needed. When false, other fields may be omitted."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for escalation. Should correspond to a platform trigger condition or a custom reason.",
+      "minLength": 1
+    },
+    "target_authority": {
+      "type": "string",
+      "description": "Target authority for escalation. Recommended values: 'main_agent', 'human_reviewer'.",
+      "minLength": 1
+    },
+    "triggering_condition": {
+      "type": "string",
+      "description": "Identifier of the specific condition that triggered escalation."
+    },
+    "context_summary": {
+      "type": "string",
+      "description": "Context summary to pass to the escalation target."
+    },
+    "suggested_action": {
+      "type": "string",
+      "description": "Suggested action for the escalation target to take."
+    }
+  },
+  "if": {
+    "properties": { "escalate": { "const": true } },
+    "required": ["escalate"]
+  },
+  "then": {
+    "required": ["escalate", "reason", "target_authority"]
+  },
+  "additionalProperties": false
+}

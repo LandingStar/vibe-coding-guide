@@ -1,0 +1,25 @@
+# API keys and secrets
+llm-apikey.md
+*.apikey
+*.secret
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

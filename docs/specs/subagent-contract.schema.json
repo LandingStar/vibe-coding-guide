@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "subagent-contract.schema.json",
+  "title": "Subagent Contract",
+  "description": "Platform-level schema for a subagent contract. See docs/subagent-schemas.md for full semantics, invariants, and customization boundaries.",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "task",
+    "mode",
+    "scope",
+    "allowed_artifacts",
+    "required_refs",
+    "acceptance",
+    "verification",
+    "out_of_scope",
+    "report_schema"
+  ],
+  "properties": {
+    "contract_id": {
+      "type": "string",
+      "description": "Unique identifier for the contract. Must start with 'contract-'.",
+      "pattern": "^contract-.+"
+    },
+    "task": {
+      "type": "string",
+      "description": "What the subagent should do. Must be a concrete task statement, not a vague goal.",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "description": "Collaboration mode. Platform default is 'worker'. Other values: 'handoff', 'team', 'swarm', 'subgraph'.",
+      "enum": ["worker", "handoff", "team", "swarm", "subgraph"]
+    },
+    "scope": {
+      "type": "string",
+      "description": "Narrow execution boundary for the subagent. Must be explicit, not broad.",
+      "minLength": 1
+    },
+    "allowed_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Artifacts (file paths) the subagent is allowed to modify or create. If empty, the subagent has no write permission to authoritative documents.",
+      "minItems": 0
+    },
+    "required_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Authoritative references the subagent must re-read before execution.",
+      "minItems": 1
+    },
+    "acceptance": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Acceptance criteria. Each item describes a specific condition for the contract to be considered fulfilled.",
+      "minItems": 1
+    },
+    "verification": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Verification steps the subagent must execute before reporting completion.",
+      "minItems": 1
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Explicitly excluded scope items. Without this, the contract is considered insufficiently specified.",
+      "minItems": 1
+    },
+    "report_schema": {
+      "type": "string",
+      "description": "Identifier for the report structure the subagent should follow when reporting results.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    }
+  },
+  "additionalProperties": false
+}

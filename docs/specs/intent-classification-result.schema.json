@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "intent-classification-result.schema.json",
+  "title": "Intent Classification Result",
+  "description": "Platform-level schema for an interaction intent classification result. See docs/intent-classification.md for full semantics, platform enumeration, and extension rules.",
+  "type": "object",
+  "required": ["intent", "confidence"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "description": "Classified interaction intent. Must be a value from the platform minimum enumeration or an instance-declared extension. Platform minimum set: question, correction, constraint, scope-change, protocol-change, approval, rejection, request-for-writeback, issue-report, unknown, ambiguous.",
+      "minLength": 1
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Classification confidence level. 'unknown' means the AI cannot determine confidence."
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Brief explanation of the classification result. Recommended when confidence is not 'high'."
+    },
+    "high_impact": {
+      "type": "boolean",
+      "description": "Whether this intent is classified as high-impact. When true, PDP must not output 'inform' as gate_level without an explicit override rule."
+    },
+    "alternatives": {
+      "type": "array",
+      "description": "Candidate intent list. Recommended when intent is 'ambiguous' or confidence is 'low'.",
+      "items": {
+        "type": "object",
+        "required": ["intent", "confidence"],
+        "properties": {
+          "intent": {
+            "type": "string",
+            "minLength": 1
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "unknown"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "corrected_by": {
+      "type": "string",
+      "description": "Identifier of the human who corrected the AI classification. Present only after a correction."
+    },
+    "original_intent": {
+      "type": "string",
+      "description": "The AI's original classification before human correction. Present only after a correction."
+    }
+  },
+  "additionalProperties": false
+}

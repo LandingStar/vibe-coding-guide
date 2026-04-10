@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "subagent-report.schema.json",
+  "title": "Subagent Report",
+  "description": "Platform-level schema for a subagent report. See docs/subagent-schemas.md for full semantics, invariants, and customization boundaries.",
+  "type": "object",
+  "required": [
+    "report_id",
+    "contract_id",
+    "status",
+    "changed_artifacts",
+    "verification_results"
+  ],
+  "properties": {
+    "report_id": {
+      "type": "string",
+      "description": "Unique identifier for the report. Must start with 'report-'.",
+      "pattern": "^report-.+"
+    },
+    "contract_id": {
+      "type": "string",
+      "description": "Identifier of the corresponding contract. Must start with 'contract-'.",
+      "pattern": "^contract-.+"
+    },
+    "status": {
+      "type": "string",
+      "description": "Execution outcome status.",
+      "enum": ["completed", "partial", "blocked"]
+    },
+    "changed_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Artifacts actually modified during execution. Should not be vague descriptions."
+    },
+    "verification_results": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Verification steps executed and their results. Should not be empty descriptions."
+    },
+    "unresolved_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Open items that remain unresolved after execution."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Assumptions made during execution that the supervisor should verify."
+    },
+    "escalation_recommendation": {
+      "type": "string",
+      "description": "Whether escalation is recommended and to whom.",
+      "enum": ["none", "review_by_supervisor", "human_review"]
+    }
+  },
+  "additionalProperties": false
+}

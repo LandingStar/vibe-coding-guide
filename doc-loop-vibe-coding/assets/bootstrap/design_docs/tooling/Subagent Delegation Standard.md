@@ -15,6 +15,8 @@
 - 主 agent 负责 planning、权威文档、集成、验证策略与最终 write-back
 - 子 agent 负责被明确授权的窄切片
 - 共享状态文档与 handoff 默认由主 agent 维护
+- 子 agent 不得自行推进 review state machine（如将 artifact 标记为 `approved`）——只有主 agent 或人类审核者可以推进审核状态
+- 若子 agent 的产出涉及重要设计节点，主 agent 必须将其提交用户审核（`waiting_review`）后才能应用
 
 ## 委派合同
 
@@ -46,6 +48,7 @@
 - 子 agent 不擅自改写项目阶段口径
 - 子 agent 摘要不等于已验证事实
 - 若发现 planning doc 与代码现实冲突，应先升级给主 agent
+- 若子 agent 的产出需要 `review` 或 `approve` 级别的 gate，而该 gate 超出子 agent 合同的处理范围，应将 artifact 升级给主 agent 或人类审核者
 
 ## 当前边界
 

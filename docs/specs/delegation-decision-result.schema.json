@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "delegation-decision-result.schema.json",
+  "title": "Delegation Decision Result",
+  "description": "Platform-level schema for a delegation decision result within the PDP Decision Envelope. See docs/delegation-decision.md for full semantics, protection conditions, and customization boundaries.",
+  "type": "object",
+  "required": ["delegate"],
+  "properties": {
+    "delegate": {
+      "type": "boolean",
+      "description": "Whether to delegate to a subagent. When false, other fields may be omitted."
+    },
+    "mode": {
+      "type": "string",
+      "description": "Recommended collaboration mode. Platform default is 'supervisor-worker'. Other values: 'handoff', 'team', 'swarm', 'subgraph'.",
+      "minLength": 1
+    },
+    "scope_summary": {
+      "type": "string",
+      "description": "Brief description of the delegation scope. Should align with the subsequent Subagent Contract's scope field.",
+      "minLength": 1
+    },
+    "worker_only": {
+      "type": "boolean",
+      "description": "Whether the subagent is restricted to bounded worker role. When true, subagent must not modify authoritative docs, global status boards, or active handoffs."
+    },
+    "requires_review": {
+      "type": "boolean",
+      "description": "Whether the subagent output must go through review/approve before integration."
+    },
+    "allow_handoff": {
+      "type": "boolean",
+      "description": "Whether handoff (control transfer) is permitted. Default: false."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Reason for the delegation decision."
+    },
+    "contract_hints": {
+      "type": "object",
+      "description": "Hints for Subagent Contract generation.",
+      "properties": {
+        "suggested_task": {
+          "type": "string",
+          "description": "Recommended contract task description."
+        },
+        "allowed_artifacts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recommended list of artifacts the subagent may modify."
+        },
+        "required_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recommended list of reference documents the subagent must read."
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recommended list of explicitly excluded scope items."
+        }
+      },
+      "additionalProperties": false
+    },
+    "rejection_reason": {
+      "type": "string",
+      "description": "Reason for refusing delegation. Present when delegate is false."
+    },
+    "review_gate_level": {
+      "type": "string",
+      "enum": ["review", "approve"],
+      "description": "Suggested gate level for reviewing subagent output. Only 'review' or 'approve' are valid (inform is not applicable for subagent output review)."
+    }
+  },
+  "if": {
+    "properties": { "delegate": { "const": true } },
+    "required": ["delegate"]
+  },
+  "then": {
+    "required": ["delegate", "mode", "scope_summary", "worker_only", "requires_review"]
+  },
+  "additionalProperties": false
+}

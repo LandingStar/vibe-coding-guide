@@ -16,8 +16,10 @@
 
 ## 权威文档分层
 
-推荐分层如下：
+推荐分层如下。此分层对应平台的三层 adoption 模型：平台权威文档（`docs/`）、官方实例 pack、项目级本地 pack。
 
+- `docs/`
+  - 平台级权威文档（若本项目携带平台 docs）。定义核心对象、gate 语义、review state machine、project adoption、插件模型。若与项目内部文档冲突，以 `docs/` 为准。
 - `Project Master Checklist.md`
   - 状态板与协作入口
 - `Global Phase Map and Current Position.md`
@@ -39,6 +41,9 @@
 - 本轮明确不做什么
 - 通过什么验证来宣布完成
 - 哪些文档和提示词需要同步更新
+- 本轮预期产出物需要哪个 gate 层级（`inform`、`review` 或 `approve`）
+
+若本轮切片涉及重要设计节点，规划文档应明确注明：产出物必须经过用户审核（通过 review state machine 进入 `proposed → waiting_review → approved`）才能应用。
 
 ## 实施规则
 

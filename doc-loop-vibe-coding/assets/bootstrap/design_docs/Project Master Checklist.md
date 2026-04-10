@@ -30,8 +30,8 @@
 
 - 本项目默认采用“生成/更新 doc 规划 -> 按 doc 实施 -> 结果回写 doc”的工作流。
 - 当前还处于 bootstrap 后的规划门，尚未进入第一条正式执行切片。
-- handoff 只负责安全停点交接，不替代正式设计文档。
-
+- handoff 只负责安全停点交接，不替代正式设计文档。- 本项目遵循平台的三层 adoption 模型：平台权威文档（`docs/`）→ 官方实例 pack → 项目级本地 pack。
+- 重要设计节点必须通过 review state machine（`proposed → waiting_review → approved`）进行审核后才能应用。
 ## 当前待办与风险
 
 - `TBD`: 定义第一条窄执行主线并写成 planning-gate 文档。

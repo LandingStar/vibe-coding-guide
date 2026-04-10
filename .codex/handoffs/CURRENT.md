@@ -2,58 +2,51 @@
 
 ## Summary
 
-- Current repo is now bootstrapped into the doc-loop scaffold.
-- The project-local adoption layer has been aligned to this repo's actual authority topology.
-- Root `docs/` is now explicitly treated as the high-level authority for platform and official-instance semantics.
-- The structured authority rereview of `doc-loop-vibe-coding` has produced a first-round conclusion document.
-- The repo is now parked at a user-review checkpoint before any cleanup or formalization slice begins.
+- Phase 21 全部完成（Slice A+B+C）。
+- `src/workflow/checkpoint.py`：write_checkpoint / read_checkpoint / validate_checkpoint 工具函数。
+  - write_checkpoint：结构化 Markdown 写入 `.codex/checkpoints/latest.md`。
+  - read_checkpoint：解析 checkpoint 文件为 dict（phase/todos/direction_candidates/key_files 等）。
+  - validate_checkpoint：检查存在性 + 必填 section + 非空 phase + key_files。
+- `tests/test_checkpoint.py`：17 项 pytest 测试全部通过。
+- `design_docs/stages/_templates/Direction Candidates Template.md`：候选方向文档化模板。
+- `design_docs/tooling/Document-Driven Workflow Standard.md`：新增 Checkpoint 触发时机 + 方向模板段落。
+- `.codex/checkpoints/latest.md`：首个 checkpoint 已生成并通过 round-trip 验证。
+- 431 项 pytest 测试全部通过（2 skipped）。
 
 ## Boundary
 
-- The previous slice `design_docs/stages/planning-gate/2026-04-08-repo-local-adoption-alignment.md` is closed.
-- The planning gate `design_docs/stages/planning-gate/2026-04-08-doc-loop-prototype-authority-rereview.md` has been executed.
-- The current active review artifact is `design_docs/doc-loop-prototype-authority-rereview.md`.
-- No cleanup or runtime-formalization work has started yet.
+- Phase 21 planning gate 已关闭。
+- Checkpoint 触发仍由 AI 手动调用（非 Runtime 自动触发——当前阶段判定为过度工程）。
+- 候选方向模板已就位，Phase 完成后可直接使用。
 
 ## Authoritative Sources
 
 1. `design_docs/Project Master Checklist.md`
 2. `design_docs/Global Phase Map and Current Position.md`
-3. `design_docs/stages/planning-gate/2026-04-08-doc-loop-prototype-authority-rereview.md`
-4. `design_docs/doc-loop-prototype-authority-rereview.md`
-5. `docs/README.md`
-6. `docs/platform-positioning.md`
-7. `docs/core-model.md`
-8. `docs/project-adoption.md`
-9. `.codex/packs/project-local.pack.json`
+3. `design_docs/context-persistence-design.md`
+4. `design_docs/direction-candidates-after-phase-20.md`
 
 ## Verification Snapshot
 
-- Last completed repo-local alignment validation:
-  - `python doc-loop-vibe-coding/scripts/validate_doc_loop.py --target .`
-  - result: pass
-- Post-writeback validation after entering the user-review checkpoint:
-  - `python doc-loop-vibe-coding/scripts/validate_doc_loop.py --target .`
-  - result: pass
+- `pytest tests/test_checkpoint.py`：17 passed
+- 全量回归：431 passed, 2 skipped，零失败
 
 ## Open Items
 
-- Ask the user to review `design_docs/doc-loop-prototype-authority-rereview.md`.
-- After user review, decide whether to prioritize prototype cleanup or runtime/spec formalization.
-- Subagent introduction is still deferred; revisit only after the user confirms the rereview framing and the follow-up work can be split into bounded parallel subtasks.
+- 下一步方向选择（参见 `design_docs/direction-candidates-after-phase-20.md`）。
+- 无当前阻塞项。
 
 ## Next Step Contract
 
-- Start from the current status board and phase map.
-- Read the rereview document before touching prototype implementation details.
-- Keep `docs/` as the top-level authority when derived notes and prototype assets disagree.
-- Keep the main agent responsible for integration and write-back unless the rereview is later split into explicit bounded subagent tasks.
-- Treat important design conclusions as review-gated, not auto-applied.
+- 评估下一阶段方向。
+- 保持主 agent 负责集成与 write-back。
 
 ## Intake Checklist
 
-1. Read `design_docs/Project Master Checklist.md`.
-2. Read `design_docs/Global Phase Map and Current Position.md`.
-3. Read this handoff.
-4. Read `docs/README.md` and the relevant authority docs for the next slice.
-5. Only then draft the next planning-gate document.
+1. 读 `design_docs/Project Master Checklist.md`。
+2. 读 `design_docs/Global Phase Map and Current Position.md`。
+3. 读本 handoff。
+4. 读 `doc-loop-vibe-coding/pack-manifest.json`。
+5. 读 `tests/test_official_instance_e2e.py`。
+6. 跑 `pytest tests/` 确认基线（387 passed）。
+7. 判断下一阶段方向。

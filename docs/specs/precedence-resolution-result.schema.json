@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "precedence-resolution-result.schema.json",
+  "title": "Precedence Resolution Result",
+  "description": "Platform-level schema for a rule precedence resolution result within the PDP Decision Envelope. See docs/precedence-resolution.md for full semantics and default priority hierarchy.",
+  "type": "object",
+  "required": ["evaluated_rules", "winning_rule"],
+  "properties": {
+    "evaluated_rules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "List of rule identifiers that were evaluated."
+    },
+    "winning_rule": {
+      "type": "string",
+      "description": "Identifier of the rule that won precedence.",
+      "minLength": 1
+    },
+    "resolution_strategy": {
+      "type": "string",
+      "description": "Description of the precedence resolution strategy used (e.g. 'project-local override', 'most-specific-match', 'explicit-priority')."
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "List of detected rule conflicts.",
+      "items": {
+        "type": "object",
+        "required": ["rule_a", "rule_b"],
+        "properties": {
+          "rule_a": {
+            "type": "string",
+            "description": "Identifier of conflict rule A.",
+            "minLength": 1
+          },
+          "rule_b": {
+            "type": "string",
+            "description": "Identifier of conflict rule B.",
+            "minLength": 1
+          },
+          "resolution": {
+            "type": "string",
+            "description": "How this conflict was resolved."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "adoption_layer": {
+      "type": "string",
+      "enum": ["platform", "instance", "project-local"],
+      "description": "The adoption layer where the winning rule originates."
+    }
+  },
+  "additionalProperties": false
+}

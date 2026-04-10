@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "handoff.schema.json",
+  "title": "Handoff",
+  "description": "Platform-level schema for a handoff (explicit control transfer). See docs/subagent-schemas.md for full semantics, invariants, and customization boundaries.",
+  "type": "object",
+  "required": [
+    "handoff_id",
+    "from_role",
+    "to_role",
+    "reason",
+    "active_scope",
+    "authoritative_refs",
+    "carried_constraints",
+    "open_items",
+    "current_gate_state",
+    "intake_requirements"
+  ],
+  "properties": {
+    "handoff_id": {
+      "type": "string",
+      "description": "Unique identifier for the handoff. Must start with 'handoff-'.",
+      "pattern": "^handoff-.+"
+    },
+    "from_role": {
+      "type": "string",
+      "description": "The role currently holding control, e.g. 'main-ai', 'worker-ai', 'human-reviewer'.",
+      "minLength": 1
+    },
+    "to_role": {
+      "type": "string",
+      "description": "The role receiving control.",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why this handoff is needed.",
+      "minLength": 1
+    },
+    "active_scope": {
+      "type": "string",
+      "description": "The scope being handed over.",
+      "minLength": 1
+    },
+    "authoritative_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Authoritative documents the receiving role must re-read before proceeding.",
+      "minItems": 1
+    },
+    "carried_constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Constraints that must be carried over and respected by the receiving role."
+    },
+    "open_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Unresolved items transferred with this handoff."
+    },
+    "current_gate_state": {
+      "type": "string",
+      "description": "Current review state machine state at handoff time. Must align with review-state-machine.md.",
+      "enum": ["proposed", "waiting_review", "approved", "rejected", "revised", "applied"]
+    },
+    "intake_requirements": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Minimum verification actions the receiving role must perform before taking over.",
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pdp-decision-envelope.schema.json",
+  "title": "PDP Decision Envelope",
+  "description": "Platform-level schema for the output of a Policy Decision Point evaluation. See docs/pdp-decision-envelope.md for field semantics and design rationale.",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "timestamp",
+    "input_summary",
+    "intent_result",
+    "gate_decision",
+    "rationale"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "description": "Unique identifier for this decision. Recommended: UUID or equivalent globally-unique string.",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date-time when the decision was produced."
+    },
+    "input_summary": {
+      "type": "string",
+      "description": "Brief summary of the input that triggered this decision. Should be concise but traceable to the original input.",
+      "minLength": 1
+    },
+    "intent_result": {
+      "$ref": "intent-classification-result.schema.json",
+      "description": "Interaction intent classification result. See intent-classification-result.schema.json for full schema."
+    },
+    "gate_decision": {
+      "$ref": "gate-decision-result.schema.json",
+      "description": "Gate decision result. See gate-decision-result.schema.json for full schema."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Human-readable explanation of why the current gate level and other decisions were chosen.",
+      "minLength": 1
+    },
+    "precedence_resolution": {
+      "$ref": "precedence-resolution-result.schema.json",
+      "description": "Rule precedence resolution result. See precedence-resolution-result.schema.json for full schema."
+    },
+    "delegation_decision": {
+      "$ref": "delegation-decision-result.schema.json",
+      "description": "Delegation decision result. See delegation-decision-result.schema.json for full schema."
+    },
+    "escalation_decision": {
+      "$ref": "escalation-decision-result.schema.json",
+      "description": "Escalation decision result. See escalation-decision-result.schema.json for full schema."
+    }
+  },
+  "additionalProperties": false
+}

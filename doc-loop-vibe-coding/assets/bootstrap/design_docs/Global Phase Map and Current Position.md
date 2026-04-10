@@ -4,6 +4,8 @@
 
 本文件用于解释 `{{PROJECT_NAME}}` 当前处于哪个阶段，以及历史阶段文档应如何阅读。
 
+本文件的解读应置于平台治理框架之下。平台定义了 gate 层级（`inform` / `review` / `approve`）、review state machine（`proposed → waiting_review → approved / rejected / revised → applied`）和三层 adoption 模型。若本项目携带平台权威文档（`docs/`），阶段判断应与平台治理语义保持一致。
+
 ## 推荐初始阶段划分
 
 下面是一套可直接起步的默认划分，后续应按项目现实更新：

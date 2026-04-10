@@ -17,11 +17,29 @@
 - `pack-manifest.md`
 - `governance-flow.md`
 - `review-state-machine.md`
+- `pdp-decision-envelope.md`
+- `intent-classification.md`
+- `gate-decision.md`
+- `delegation-decision.md`
+- `escalation-decision.md`
+- `precedence-resolution.md`
 - `subagent-management.md`
 - `subagent-schemas.md`
 - `official-instance-doc-loop.md`
 - `project-adoption.md`
 - `current-prototype-status.md`
+
+规格化定义（Specs）：
+
+- `specs/pdp-decision-envelope.schema.json`
+- `specs/intent-classification-result.schema.json`
+- `specs/gate-decision-result.schema.json`
+- `specs/delegation-decision-result.schema.json`
+- `specs/escalation-decision-result.schema.json`
+- `specs/precedence-resolution-result.schema.json`
+- `specs/subagent-contract.schema.json`
+- `specs/subagent-report.schema.json`
+- `specs/handoff.schema.json`
 
 相关的非权威辅助层：
 
@@ -38,8 +56,14 @@
 4. `pack-manifest.md`
 5. `governance-flow.md`
 6. `review-state-machine.md`
-7. `subagent-management.md`
-8. `subagent-schemas.md`
-9. `official-instance-doc-loop.md`
-10. `project-adoption.md`
-11. `current-prototype-status.md`
+7. `pdp-decision-envelope.md`
+8. `intent-classification.md`
+9. `gate-decision.md`
+10. `delegation-decision.md`
+11. `escalation-decision.md`
+12. `precedence-resolution.md`
+13. `subagent-management.md`
+14. `subagent-schemas.md`
+15. `official-instance-doc-loop.md`
+16. `project-adoption.md`
+17. `current-prototype-status.md`

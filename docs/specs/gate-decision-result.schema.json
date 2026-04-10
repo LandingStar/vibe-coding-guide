@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gate-decision-result.schema.json",
+  "title": "Gate Decision Result",
+  "description": "Platform-level schema for a gate decision result within the PDP Decision Envelope. See docs/gate-decision.md for full semantics, mapping rules, and customization boundaries.",
+  "type": "object",
+  "required": ["gate_level", "review_state_entry", "rationale"],
+  "properties": {
+    "gate_level": {
+      "type": "string",
+      "enum": ["inform", "review", "approve"],
+      "description": "Gate level determined by PDP. Semantics defined in gate-decision.md and governance-flow.md."
+    },
+    "review_state_entry": {
+      "type": "string",
+      "enum": ["proposed", "waiting_review"],
+      "description": "Recommended initial review state based on gate level. 'proposed' for inform (fast path) or pending submission; 'waiting_review' for review/approve gates."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Human-readable explanation of why the current gate level was chosen.",
+      "minLength": 1
+    },
+    "triggering_rules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of rule identifiers that influenced this gate decision."
+    },
+    "override": {
+      "type": "object",
+      "description": "Present when the gate decision overrides the default gate level. Records the override for auditability.",
+      "required": ["original_gate_level", "override_source"],
+      "properties": {
+        "original_gate_level": {
+          "type": "string",
+          "enum": ["inform", "review", "approve"],
+          "description": "The default gate level that was overridden."
+        },
+        "override_source": {
+          "type": "string",
+          "description": "Source of the override (e.g., pack rule name, user instruction).",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the override."
+        }
+      },
+      "additionalProperties": false
+    },
+    "fast_path_eligible": {
+      "type": "boolean",
+      "description": "Whether this decision qualifies for the inform fast path (proposed -> applied, skipping waiting_review). Should be true when gate_level is 'inform'."
+    }
+  },
+  "additionalProperties": false
+}

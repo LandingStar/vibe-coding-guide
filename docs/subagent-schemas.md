@@ -76,6 +76,10 @@
 - 若没有 `out_of_scope`，默认说明不充分。
 - 合同默认不转移 authority，只转移工作切片。
 
+### JSON Schema
+
+机器可验证的 schema 定义见 [`docs/specs/subagent-contract.schema.json`](specs/subagent-contract.schema.json)。
+
 ## 2. Subagent Report
 
 ### 文档定位
@@ -119,6 +123,10 @@
 - 若 `status=completed`，不代表系统已经完成，只代表子 agent 任务已收口。
 - `changed_artifacts` 与 `verification_results` 不应为空泛描述。
 
+### JSON Schema
+
+机器可验证的 schema 定义见 [`docs/specs/subagent-report.schema.json`](specs/subagent-report.schema.json)。
+
 ## 3. Handoff
 
 ### 文档定位
@@ -156,6 +164,10 @@
 - handoff 不应替代正式文档本身。
 - 若没有 `authoritative_refs` 与 `intake_requirements`，handoff 不完整。
 - handoff 应带着当前 gate 状态一起转移，而不是把审批语境丢失。
+
+### JSON Schema
+
+机器可验证的 schema 定义见 [`docs/specs/handoff.schema.json`](specs/handoff.schema.json)。
 
 ## Contract 与 Handoff 的边界
 
@@ -203,13 +215,10 @@
 
 本文件尚未固定：
 
-- 最终序列化格式
 - 是否需要 `Worker Task` 与 `Subgraph Task` 进一步拆分
 - 是否需要为 `Handoff` 补专门的 tracing 字段
 
 ## 开放问题
 
-- `mode` 是否应固定枚举
-- `status` 是否应统一成平台枚举
 - `Handoff` 是否需要显式记录 `supersedes`
 - `Subagent Report` 是否需要标准化 diff 摘要字段

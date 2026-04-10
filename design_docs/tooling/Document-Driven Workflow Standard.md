@@ -73,6 +73,21 @@
 
 若某次工作命中这些节点，应先汇总设计结论，再等待用户审核，而不是直接把设计结论当成既成事实推进到下一大步。
 
+## Checkpoint 触发时机
+
+在以下节点，应调用 `write_checkpoint()` 或手动维护 `.codex/checkpoints/latest.md`：
+
+1. **Phase 完成后** — 记录当前阶段、候选方向、关键文件
+2. **上下文即将耗尽前** — 当 conversation 明显变长时，主动写一次 checkpoint
+3. **重要设计决定落地后** — 用户审核通过的设计节点
+4. **会话安全停点** — 与 handoff 同步写入
+
+Checkpoint 不替代 handoff，而是补充 conversation 内的快照恢复。格式定义见 `design_docs/context-persistence-design.md`。
+
+## 方向模板
+
+Phase 完成后的候选方向应使用 `design_docs/stages/_templates/Direction Candidates Template.md` 模板，确保每条候选方向引用具体权威文档。
+
 ## 验证与写回
 
 在宣布当前切片完成前，至少应回写：

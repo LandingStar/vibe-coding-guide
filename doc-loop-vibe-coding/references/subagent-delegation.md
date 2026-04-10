@@ -4,6 +4,8 @@
 
 Use this reference when the main agent needs help from one or more subagents without losing control of scope, documentation, or verification.
 
+Delegation operates within the platform's governance flow (`docs/governance-flow.md`). The gate level (`inform`, `review`, or `approve`) that applies to a subagent's output is determined by the main agent based on the platform's rules, not by the subagent itself.
+
 ## Ownership Model
 
 Keep ownership explicit:
@@ -46,6 +48,8 @@ Use these defaults unless the task demands otherwise:
 - No subagent writes `Project Master Checklist.md`, `Global Phase Map and Current Position.md`, or `.codex/handoffs/CURRENT.md`.
 - No subagent expands phase scope on its own.
 - No subagent claims completion without verification evidence.
+- No subagent changes a review state (e.g., marking an artifact as `approved`) — only the main agent or human reviewer may advance the review state machine.
+- If a subagent's output touches an important design node, the main agent must submit it for user review (`waiting_review`) before applying it.
 
 ## Handoff Discipline
 
@@ -67,5 +71,6 @@ Pull work back to the main agent when:
 - the required docs conflict with the workspace
 - integration crosses multiple write scopes
 - the user decision boundary changed
+- the subagent's output requires a `review` or `approve` gate that only the main agent or human reviewer can grant
 
-In these cases, update the plan doc before sending work back out.
+In these cases, update the plan doc before sending work back out. The escalation corresponds to the platform's governance flow: when the gate level exceeds what can be resolved within the subagent's contract, the artifact must be escalated to the appropriate reviewer.

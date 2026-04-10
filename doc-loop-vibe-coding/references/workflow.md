@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Use this reference when you need the full operating model behind the skill. The goal is to reduce context drift by moving critical decisions out of chat memory and into a small set of authoritative documents.
+Use this reference when you need the full operating model behind this instance pack. The goal is to reduce context drift by moving critical decisions out of chat memory and into a small set of authoritative documents.
+
+This workflow operates on the platform defined in `docs/`. It relies on the platform's governance flow (`docs/governance-flow.md`), review state machine (`docs/review-state-machine.md`), and project adoption model (`docs/project-adoption.md`). The instance does not redefine these platform-level concepts; it consumes them.
 
 ## Core Loop
 
@@ -18,7 +20,10 @@ If the task cannot fit into one narrow slice, stop and split it into multiple ca
 
 ## Authoritative Doc Layers
 
-Use the following layers and do not collapse them into one giant document:
+Use the following layers and do not collapse them into one giant document. These layers implement the platform's three-tier adoption model: platform authority (`docs/`), official instance pack (`doc-loop-vibe-coding/`), and project-local overlay pack (`.codex/packs/project-local.pack.json`).
+
+- `docs/`
+  Platform-level authority. Defines core objects, gate semantics, review state machine, project adoption, and plugin model. Takes precedence when it disagrees with instance-level or project-local docs.
 
 - `design_docs/Project Master Checklist.md`
   Use as the status board and coordination entrypoint.
@@ -55,6 +60,9 @@ Before implementation, ensure the active slice doc says:
 - what is explicitly out of scope
 - what verification is required
 - what docs or prompts must be updated before the slice can close
+- which gate level (`inform`, `review`, or `approve`) applies to the expected outcome
+
+If the slice touches an important design node, the planning doc should explicitly note that user review is required before the outcome can be applied. This aligns with the platform's review state machine: artifacts enter `proposed → waiting_review → approved` before write-back.
 
 If the repo has no scaffold yet, bootstrap one first instead of improvising the document tree.
 
@@ -78,6 +86,8 @@ The write-back step should always record:
 - what was not verified
 - why the slice can stop here
 - what the next narrow slice should be
+
+Before write-back, confirm the artifact's review state. If the platform's governance flow requires `review` or `approve` for this type of change, the artifact must reach `approved` status before being written into the long-lived docs. Do not write unreviewed conclusions as settled fact.
 
 The common sinks are:
 

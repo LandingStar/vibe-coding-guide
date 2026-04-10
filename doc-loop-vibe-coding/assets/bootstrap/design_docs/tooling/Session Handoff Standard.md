@@ -45,6 +45,8 @@ handoff 不是最高真相来源。
 - `Next Step Contract`
 - `Intake Checklist`
 
+若 handoff 涉及需要 review 的 artifact（如设计结论、phase-close proposal），应在 `Open Items` 或 `Next Step Contract` 中注明该 artifact 在 review state machine 中的当前状态（`proposed` / `waiting_review` / `approved` / `rejected` / `revised` / `applied`）。
+
 ## 接手流程
 
 接手方默认按以下顺序恢复上下文：
