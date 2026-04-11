@@ -87,6 +87,8 @@
 
 - `depends_on`
   - 依赖哪些 pack 或能力
+- `runtime_compatibility`
+  - 声明该 pack 兼容的平台 runtime 版本范围
 - `overrides`
   - 显式声明覆盖哪些 pack 或规则来源
 
@@ -97,11 +99,11 @@
 - `templates`
   - 模板与 scaffold
 - `validators`
-  - validator 列表
+  - runtime 可调用的 validator 列表
 - `checks`
-  - AI 审查任务
+  - runtime 可调用的 writeback gate 检查
 - `scripts`
-  - 执行脚本
+  - 独立执行脚本
 - `triggers`
   - 事件输入入口
 
@@ -139,6 +141,21 @@
 
 当前阶段先只要求表达依赖关系，不要求定义复杂求解算法。
 
+### `runtime_compatibility`
+
+当 pack 需要对某个平台 runtime 版本范围作出明确承诺时，应使用 `runtime_compatibility` 表达语义层兼容范围。
+
+当前首版固定为：
+
+- 字段类型为字符串
+- 值表达“此 pack 兼容哪些 runtime 版本范围”
+- 它与发行包依赖中的版本范围应保持一致，但不替代发行包依赖本身
+
+因此：
+
+- `depends_on` 解决的是“逻辑上依赖谁”
+- `runtime_compatibility` 解决的是“与哪个 runtime 版本范围可以稳定协作”
+
 ### `overrides`
 
 用于声明：
@@ -147,6 +164,23 @@
 - 覆盖是否显式
 
 它不应绕开平台的 precedence 规则。
+
+### `validators` / `checks` / `scripts`
+
+这三个字段虽然都可能指向“某段扩展逻辑”，但它们在 runtime 中的消费语义不同，不能混用：
+
+- `validators`
+  - 用于声明会被 runtime 注册进 `ValidatorRegistry` 的 validator。
+  - 这类扩展应能被平台直接调用，并消费 runtime 传入的数据对象。
+  - 当前实现里，它们会在 delegation 后对 report 一类数据执行校验。
+- `checks`
+  - 用于声明会在 writeback 前执行的 gate check。
+  - 这类扩展消费的是 writeback 前的执行上下文，而不是独立 CLI 输入。
+- `scripts`
+  - 用于声明独立的操作型脚本，例如 bootstrap、adoption 自检、实例自检等。
+  - 这类脚本可以只有 CLI `main()` 入口，不应因为名称像 `validate_*` 就自动放进 `validators`。
+
+因此，repo scaffold 校验、官方实例自检、bootstrap 一类命令，默认应归入 `scripts`，而不是归入 runtime `validators`。
 
 ## 不变量
 
@@ -194,13 +228,14 @@
 - `Pack Manifest` 的职责
 - 最小字段集合
 - 基本不变量
+- 官方实例可用 `runtime_compatibility` 声明最小 runtime 兼容范围
 
 本文件尚未固定：
 
 - 目录布局
 - 字段最终类型系统
 - 最终序列化格式
-- 版本兼容策略
+- 更完整的版本兼容矩阵与求解策略
 
 ## 开放问题
 

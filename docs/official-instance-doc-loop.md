@@ -24,6 +24,15 @@
 - 阶段边界、handoff 和子 agent 合同可以被书面化
 - 这套机制能降低上下文漂移和幻觉影响
 
+## 当前仓库中的自用定位
+
+对当前仓库而言，`doc-driven vibe coding` 已经不只是一个示例实例，也承担当前 repo-local doc loop 的 dogfood 入口。
+
+- 文档型成果已经进入日常开发主链：Checklist、Phase Map、planning-gate、Workflow Standard、handoff、checkpoint、方向分析文档
+- Phase 22、Phase 27、Phase 28 已证明 Pipeline / CLI / MCP / Instructions 可以作为真实 dogfood 入口使用
+- 但在首个稳定 release 前，这些运行时入口仍应视为 pre-release 验证面，而不是默认稳定依赖
+- 只有在稳定版收口并经用户确认后，运行时链路才考虑升级为默认 self-hosting 主路径
+
 ## 这个实例当前包含什么
 
 当前原型资产位于：

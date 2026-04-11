@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doc-based-coding-runtime"
+version = "1.0.0"
+description = "Runtime and governance entry points for document-driven coding workflows."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jsonschema>=4.0.0",
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+doc-based-coding = "src.__main__:main"
+doc-based-coding-mcp = "src.mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

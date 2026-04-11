@@ -42,14 +42,15 @@ class TestManifestLoader:
     def test_load_official_manifest(self):
         m = manifest_loader.load(MANIFEST_PATH)
         assert m.name == "doc-loop-vibe-coding"
-        assert m.version == "0.1.0-prototype"
+        assert m.version == "1.0.0"
         assert m.kind == "official-instance"
+        assert m.runtime_compatibility == ">=1.0.0,<2.0.0"
 
     def test_manifest_fields_populated(self):
         m = manifest_loader.load(MANIFEST_PATH)
         assert len(m.provides) >= 5
         assert "rules" in m.provides
-        assert "validators" in m.provides
+        assert "scripts" in m.provides
         assert len(m.document_types) >= 5
         assert "planning-gate-candidate" in m.document_types
         assert len(m.intents) >= 8
@@ -60,18 +61,20 @@ class TestManifestLoader:
 
     def test_manifest_always_on(self):
         m = manifest_loader.load(MANIFEST_PATH)
-        assert len(m.always_on) >= 3
+        assert len(m.always_on) >= 4
         assert "SKILL.md" in m.always_on
         assert "references/workflow.md" in m.always_on
+        assert "references/conversation-progression.md" in m.always_on
 
     def test_manifest_on_demand(self):
         m = manifest_loader.load(MANIFEST_PATH)
         assert len(m.on_demand) >= 5
         assert any("bootstrap" in item for item in m.on_demand)
 
-    def test_manifest_validators_and_triggers(self):
+    def test_manifest_scripts_and_triggers(self):
         m = manifest_loader.load(MANIFEST_PATH)
-        assert len(m.validators) >= 1
+        assert m.validators == []
+        assert len(m.scripts) >= 3
         assert len(m.triggers) >= 1
         assert "chat" in m.triggers
 
@@ -90,7 +93,9 @@ class TestContextBuilder:
         assert "SKILL.md" in ctx.always_on_content
         assert len(ctx.always_on_content["SKILL.md"]) > 100
         assert "references/workflow.md" in ctx.always_on_content
+        assert "references/conversation-progression.md" in ctx.always_on_content
         assert "references/subagent-delegation.md" in ctx.always_on_content
+
 
     def test_merged_intents_from_instance(self):
         ctx = self._build_context()
@@ -112,7 +117,7 @@ class TestContextBuilder:
     def test_merged_provides(self):
         ctx = self._build_context()
         assert "rules" in ctx.merged_provides
-        assert "validators" in ctx.merged_provides
+        assert "scripts" in ctx.merged_provides
 
     def test_manifests_sorted(self):
         ctx = self._build_context()

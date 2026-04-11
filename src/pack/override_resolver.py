@@ -24,6 +24,7 @@ class RuleConfig:
     # gate_resolver
     gate_for_impact: dict[str, str] = field(default_factory=dict)
     entry_for_gate: dict[str, str] = field(default_factory=dict)
+    allowed_gates: set[str] = field(default_factory=set)
 
     # delegation_resolver
     delegatable_intents: set[str] = field(default_factory=set)
@@ -68,10 +69,18 @@ def resolve(context: PackContext) -> RuleConfig:
 
     The merged_rules dict from PackContext may contain keys matching
     RuleConfig field names. Each key is applied as an override.
+    Also wires merged_intents/merged_gates from PackContext into RuleConfig.
     """
     config = default_rule_config()
-    rules = context.merged_rules
 
+    # ── Wire PackContext merged fields into RuleConfig ────────────────
+    # These apply regardless of whether merged_rules is empty.
+    if context.merged_intents:
+        config.platform_intents.update(context.merged_intents)
+    if context.merged_gates:
+        config.allowed_gates = set(context.merged_gates)
+
+    rules = context.merged_rules
     if not rules:
         return config
 

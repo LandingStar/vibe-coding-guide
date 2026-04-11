@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Handoff Rebuild"
+  short_description: "Rebuild blocked handoff drafts"
+policy:
+  allow_implicit_invocation: false

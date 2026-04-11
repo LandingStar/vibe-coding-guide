@@ -13,18 +13,42 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-04-10`
+- Snapshot Date: `2026-04-12`
 - Project Name: `doc-based-coding-platform`
-- Current Phase: `Phase 21 Checkpoint Persistence + Direction Template`
-- Active Slice: `Phase 21 Slice A+B+C` — completed
-- Safe Stop Status: `Phase 21 All Slices Closed`
+- Current Phase: `Phase 35 v1.0 Stable Release Confirmation — 完成`
+- Active Slice: `—`
+- Safe Stop Status: `v1.0 Released + release zip verified`
 
 ## 当前文档入口
 
 - `docs/README.md`
+- `docs/installation-guide.md`
+- `docs/official-instance-doc-loop.md`
+- `design_docs/tooling/Document-Driven Workflow Standard.md`
+- `design_docs/tooling/Dual-Package Distribution Standard.md`
+- `design_docs/direction-candidates-after-phase-35.md`
+- `design_docs/phase-35-external-skill-interface-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md`
+- `design_docs/stages/planning-gate/2026-04-11-handoff-model-initiated-invocation.md`
+- `design_docs/stages/planning-gate/2026-04-11-mcp-pack-info-refresh-consistency.md`
+- `design_docs/stages/planning-gate/2026-04-11-strict-doc-loop-runtime-enforcement.md`
+- `design_docs/stages/planning-gate/2026-04-11-doc-loop-enforcement-and-mcp-client-neutrality.md`
+- `design_docs/stages/planning-gate/2026-04-11-installation-flow-documentation.md`
+- `design_docs/stages/planning-gate/2026-04-11-compatibility-metadata-and-version-declaration.md`
+- `design_docs/stages/planning-gate/2026-04-11-official-instance-validator-check-contract.md`
+- `design_docs/stages/planning-gate/2026-04-11-dual-package-minimal-install-implementation.md`
 - `design_docs/Global Phase Map and Current Position.md`
-- `design_docs/stages/planning-gate/2026-04-08-doc-loop-prototype-authority-rereview.md`
-- `design_docs/doc-loop-prototype-authority-rereview.md`
+- `design_docs/stages/planning-gate/2026-04-11-first-stable-release-closure.md`
+- `docs/first-stable-release-boundary.md`
+- `design_docs/stages/planning-gate/2026-04-11-error-recovery-entry-points.md`
+- `design_docs/stages/planning-gate/2026-04-11-structured-error-format.md`
+- `design_docs/stages/planning-gate/2026-04-11-v1-stable-release-confirmation.md`
+- `design_docs/stages/planning-gate/2026-04-11-dual-package-install-standard.md`
+- `design_docs/direction-candidates-after-phase-34.md`
+- `CHANGELOG.md`
+- `design_docs/dogfood-feedback-phase-27.md`
+- `design_docs/direction-candidates-after-phase-31.md`
+- `design_docs/phase-0-26-review.md`
 - `design_docs/stages/README.md`
 - `design_docs/tooling/README.md`
 - `.codex/handoffs/CURRENT.md`
@@ -34,90 +58,77 @@
 - 本项目默认采用“生成/更新 doc 规划 -> 按 doc 实施 -> 结果回写 doc”的工作流。
 - 根目录 `docs/` 是当前仓库里关于平台与官方实例定位的最高权威来源。
 - `design_docs/` 现在主要承载状态板、planning/phase 文档与内部设计推导。
-- 当前已完成第一条仓库级执行切片：把 repo-local adoption 入口对齐到当前仓库现实。
-- 当前已开启下一条 planning gate：`doc-loop-vibe-coding` prototype authority rereview。
 - 重要设计节点默认必须先交用户审核，再进入下一大步。
-- 当前已形成 prototype authority rereview 结论，正在等待用户审核。
 - handoff 只负责安全停点交接，不替代正式设计文档。
+- 本仓库已经开始使用自身产出的文档型成果作为默认控制面。
+- Pipeline / CLI / MCP / Instructions / project-local pack 等运行时入口在首个稳定 release 前保持 pre-release dogfood 定位，不作为所有切片的强制默认依赖。
 
 ## 当前待办与风险
 
-- Phase 4 Slice A (PDP Decision Envelope Schema) 已完成。
-- Phase 4 Slice B (Intent Classification Result Schema) 已完成。
-- Phase 4 Slice C (Gate Decision Schema) 已完成。
-- Phase 4 Slice D (Delegation Decision Schema) 已完成。
-- Phase 4 Slice E (Escalation + Precedence Schema 收口) 已完成。
-- `docs/escalation-decision.md` 与 `docs/specs/escalation-decision-result.schema.json` 已创建。
-- `docs/precedence-resolution.md` 与 `docs/specs/precedence-resolution-result.schema.json` 已创建。
-- Envelope 中所有 5 个子决策类型均已用 `$ref` 引用独立 schema。
-- Phase 4 平台对象规格化已全部完成。
-- 下一步候选：Phase 5 方向选择（runtime 实现、扩展协议、或其他）。
-- Phase 5 Slice A+B (Subagent Contract/Report/Handoff Schema) 已完成。
-- `docs/specs/subagent-contract.schema.json`、`subagent-report.schema.json`、`handoff.schema.json` 已创建。
-- `docs/subagent-schemas.md` 已添加全部 3 个 schema 引用。
-- Phase 5 Subagent Schema 规格化已全部完成。
-- Phase 6 Slice A+B (PDP/PEP Runtime Skeleton) 已完成。
-- `src/pdp/` 包：intent_classifier、gate_resolver、decision_envelope。
-- `src/pep/` 包：executor (dry-run)、action_log。
-- 25 项 pytest 测试全部通过。
-- Phase 6 Runtime 骨架已全部完成。
-- Phase 7 Slice A+B (PDP Full Decision Chain) 已完成。
-- `src/pdp/delegation_resolver.py`、`escalation_resolver.py`、`precedence_resolver.py` 已创建。
-- 47 项 pytest 测试全部通过。
-- Phase 7 PDP 完整决策链已全部完成。
-- Phase 8 已启动：PEP + Subagent 接口与实现（依赖反转）。
-- `src/interfaces.py`：WorkerBackend / ContractFactory / ReportValidator Protocol 定义。
-- `src/subagent/contract_factory.py`：delegation_decision → Subagent Contract 生成。
-- `src/subagent/report_validator.py`：report → schema 校验。
-- `src/subagent/stub_worker.py`：StubWorkerBackend 最小可测实现。
-- `src/pep/executor.py` 进化：支持委派管线（contract → worker → report → validate）。
-- 71 项 pytest 测试全部通过。
-- Phase 8 PEP + Subagent 接口已全部完成。
-- Phase 9 已启动：Handoff 落地实现。
-- `src/subagent/handoff_builder.py`：envelope + delegation + contract + report → Handoff 对象。
-- `src/pep/executor.py` 进化：当 `allow_handoff=true` 时自动生成并持久化 Handoff。
-- dry-run 模式不写磁盘，非 dry-run 会写入 `.codex/handoffs/` 目录。
-- 85 项 pytest 测试全部通过。
-- Phase 9 Handoff 落地已全部完成。
-- Phase 10 已启动：升级路径执行。
-- `src/interfaces.py` 新增 EscalationNotifier Protocol。
-- `src/pep/notification_builder.py`：从 envelope + escalation_decision 生成通知对象。
-- `src/pep/stub_notifier.py`：StubNotifier 内存记录实现。
-- `src/pep/executor.py` 进化：千escalation_decision.escalate=true 时自动执行升级路径。
-- human_reviewer → 调用通知器 + 状态标记 escalated。
-- main_agent → 状态标记 re-evaluate。
-- 93 项 pytest 测试全部通过。
-- Phase 10 升级路径执行已全部完成。
-- 子 agent 机制 5 项需求全部完成。
-- Phase 11 已启动：Review 状态机引擎。
-- `src/review/state_machine.py`：6 状态 / 7 事件 / 8 条迁移规则 + inform 快速路径。
-- ReviewStateMachine 类：transition / allowed_events / audit trail。
-- `src/pep/executor.py` 进化：每次 execute 创建 ReviewStateMachine 实例并驱动迁移。
-- inform → proposed→applied；review/approve → proposed→waiting_review；delegation completed → submit→approve→apply。
-- 执行结果包含 review_state 与 review_history 字段。
-- 129 项 pytest 测试全部通过（1 skipped）。
-- Phase 11 Review 状态机引擎已全部完成。
-- Phase 12 已启动：文档写回 + 工作流闭环。
-- `src/pep/writeback_engine.py`：WritebackPlan/WritebackResult/WritebackEngine 实现。
-- WritebackEngine：plan + execute_plan + execute_all，支持 create/update/append 三种操作。
-- 原子写入：写临时文件 + os.replace。
-- `src/pep/executor.py` 进化：当 review_state=applied 且 writeback_engine 已配置时自动触发写回。
-- dry-run 生成 plan 但不写磁盘；非 dry-run 落地文件并记录结果。
-- 执行结果包含 writeback_plans 与 writeback_results 字段。
-- 155 项 pytest 测试全部通过（1 skipped）。
-- Phase 12 文档写回 + 工作流闭环已全部完成。
-- Phase 13 已启动：Review 完整流程 + 真实通知。
-- `src/pep/notifiers/` 包：ConsoleNotifier / FileNotifier / WebhookNotifier 三种通知适配器。
-- 每个 notifier 实现 EscalationNotifier Protocol。
-- WebhookNotifier 仅用 stdlib（urllib.request），无外部依赖。
-- `src/pep/review_orchestrator.py`：ReviewOrchestrator 驱动 approve/reject/request_revision 反馈。
-- approve → APPROVE → APPLY（auto_apply 可选）；reject → REJECT（终态 + 可选通知）；request_revision → REQUEST_REVISION → REVISED（修订循环）。
-- submit_revision：revised → proposed → waiting_review（重新提交周期）。
-- `src/pep/executor.py` 进化：结果附带 _rsm 引用 + 新增 apply_review_feedback() 方法。
-- apply_review_feedback 使用 ReviewOrchestrator 驱动后续状态，applied 后自动触发 writeback。
-- 183 项 pytest 测试全部通过（1 skipped）。
-- Phase 13 Review 完整流程 + 真实通知已全部完成。
-- Phase 14 已启动：Write-Back 语义文档更新 + E2E 治理测试。
+> Phase 4–26 的详细完成记录已归档至 `design_docs/phase-0-26-review.md`。
+
+### 活跃待办
+
+- [x] 首个稳定 release 收口：定义默认自用入口的稳定条件 — `docs/first-stable-release-boundary.md`
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-dual-package-minimal-install-implementation.md` 落地双发行包最小可安装实现
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-official-instance-validator-check-contract.md` 收口官方实例 validator/check 契约边界
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-compatibility-metadata-and-version-declaration.md` 收口兼容元数据与版本声明
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-installation-flow-documentation.md` 固定安装流程说明与 MCP 安装态接入文档
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-doc-loop-enforcement-and-mcp-client-neutrality.md` 修补严格 doc-loop 执行缺口与 MCP 客户端中立表述
+- [x] post-v1.0：评估是否进入 strict doc-loop runtime enforcement 切片
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-strict-doc-loop-runtime-enforcement.md` 收口 runtime 可审计的 doc-loop 约束边界
+- [x] post-v1.0：评估是否进入 MCP pack info 刷新一致性切片
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-mcp-pack-info-refresh-consistency.md` 修复长生命周期 MCP pack state 刷新一致性
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-handoff-model-initiated-invocation.md` 收口 handoff model 主动调用与 blocked 停止语义
+- [x] post-v1.0：在当前安全停点生成 handoff
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-conversation-progression-contract-stability.md` 收口“非用户许可不终止 + 选择/审批时以提问推进”的稳定行为支架
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-safe-stop-writeback-bundle.md` 将 safe-stop writeback 收口为 bundle 能力，使 handoff generation / `CURRENT.md` refresh / Checklist / Phase Map / direction / checkpoint 同步成为 first-class workflow contract（crucial）
+- [x] post-v1.0：完成与当前项目和具体 skill 解耦的通用外部 skill 交互接口方向分析（首个目标可围绕当前 handoff skill）
+- [x] post-v1.0：按 `design_docs/phase-35-external-skill-interface-direction-analysis.md` 的边界起草 H planning-gate，并将 `authority -> shipped copies` 作为 companion mechanism 收口
+- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md` 收口通用外部 skill 交互接口能力，并将 `authority -> shipped copies` 作为 companion mechanism 落地
+- [x] post-v1.0：记录 driver 与外部 skill 交互标准 / 接口 / 留空转接层，以及本轮其余 skill 特化后续项（暂不实现）— 已结构化记录为 `design_docs/direction-candidates-after-phase-35.md` §Driver / Adapter / 转接层 Backlog（BL-1 / BL-2 / BL-3）
+- [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过、AI 安装指南已打入 `release/doc-based-coding-v1.0.0.zip`
+- [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
+- [ ] depends_on 依赖校验（gap analysis #11，优先级低）
+- [ ] provides 消费用于 delegation capability check（gap analysis #5，优先级低）
+- [ ] checks 字段与 manifest 直连（gap analysis #16，部分贯通）
+- [ ] overrides 字段消费（gap analysis #12，无当前场景）
+
+### 已完成里程碑
+
+- ✅ Phase 0–3：文档定型 + prototype cleanup
+- ✅ Phase 4–5：平台对象规格化（9 JSON Schema）
+- ✅ Phase 6–10：PDP/PEP Runtime + Subagent + Handoff + 升级路径
+- ✅ Phase 11–14：Review 状态机 + 写回 + 审核编排 + E2E 治理测试
+- ✅ Phase 15：Real Worker Adapter (LLM + HTTP)
+- ✅ Phase 16：Pack Runtime Loader
+- ✅ Phase 17：Audit & Tracing System
+- ✅ Phase 18：Validator/Checks/Trigger Framework
+- ✅ Phase 19：Official Instance E2E Validation (40 项)
+- ✅ Phase 20：Worker Collaboration Modes
+- ✅ Phase 21：Checkpoint Persistence + Direction Template
+- ✅ Phase 22：v0.1-dogfood Release (Pipeline + MCP + Instructions)
+- ✅ Phase 23：PackContext Downstream Wiring
+- ✅ Phase 24：MCP Prompts/Resources + always_on 注入
+- ✅ Phase 25：Extension Bridging (Pack → Registry)
+- ✅ Phase 26：on_demand 懒加载 API
+- ✅ Phase 27：Dogfood 深度验证
+- ✅ Phase 28：Dogfood Feedback Remediation
+- ✅ Phase 29：Self-Hosting Workflow Rule Formalization
+- ✅ Phase 30：Dogfood Feedback Remediation Part 2 (F8 First)
+- ✅ Phase 31：F4 Validator Diagnostics Follow-up
+- ✅ Phase 32：First Stable Release Closure（边界定义 + 收口清单）
+- ✅ Phase 33：Error Recovery for Entry Points（Pipeline/MCP/CLI 容错）
+- ✅ Phase 34：Structured Error Format Unification（ErrorInfo 统一错误结构）
+- ✅ Phase 35：v1.0 Stable Release Confirmation（B7 用户确认 + 版本标记）
+
+### 风险
+
+- 无当前阻塞项。
+- safe-stop writeback 现已显式化为 bundle contract 与 MCP helper 输出；当前残余风险在于它仍主要是“contract + validation + files_to_update”层，而不是自动执行所有写回动作的全自动 executor。
+- 当前“外部 skill 交互”已经有通用 contract 与 handoff reference implementation；当前残余风险在于它仍只在 handoff family 与本轮触达的 shipped copies 上得到验证，尚未扩展到更多 future skill families。
+- 当前 runtime contract 已明确声明：`check_constraints()` 只 machine-check C4/C5；更严格的对话推进约束仍由规则/提示词层承担，而非完整运行时审计层。
+- `_summarize_content` 对 flat 内容可能丢信息（已知，低影响）。
 - `src/pep/markdown_updater.py`：Markdown section 级别定位与更新。
   - find_section / replace_section / append_to_section / insert_after_line / replace_line。
   - 支持 heading 匹配、regex 行匹配。
@@ -241,8 +252,99 @@
 - `.codex/checkpoints/latest.md`：首个 checkpoint 已生成并通过 round-trip 验证。
 - 431 项 pytest 测试全部通过（2 skipped）。
 - Phase 21 Checkpoint Persistence + Direction Template 已全部完成。
-- 下一步：方向选择（参见 `design_docs/direction-candidates-after-phase-20.md`）。
-- 风险：无当前阻塞项。
+- Phase 22 已启动：v0.1-dogfood Release — Pipeline + MCP Server。
+- 集成方案分析完成 → 方案 E（MCP + Instructions 生成）已确认。
+  - 5 种 Copilot 集成方案运行时模拟 → 见 `design_docs/stages/planning-gate/copilot-integration-runtime-simulation.md`
+  - 约束执行力从 advisory 提升到 structural。
+- Pack Manifest 字段间隙分析完成 → 见 `design_docs/stages/planning-gate/pack-context-wiring-gap-analysis.md`
+  - 19 个字段中仅 `rules` 一条完整贯通路径。
+  - 4 个 merged 集合为死数据，6 个扩展件字段未接线。
+- `src/workflow/pipeline.py`：Pipeline 编排类。
+  - `Pipeline.from_project(root)` 自动发现 pack 并加载。
+  - `Pipeline.process(input_text)` → PipelineResult（envelope + execution + audit）。
+  - `Pipeline.check_constraints()` → ConstraintResult（C5 等约束检查）。
+  - Pack 自动发现：.codex/platform.json 配置优先，否则约定扫描。
+- `src/__main__.py`：CLI 入口。
+  - `python -m src process "input"` / `info` / `validate` / `check` 四个命令。
+- `src/mcp/tools.py`：GovernanceTools 层。
+  - `governance_decide(input)` → BLOCK/ALLOW + 约束检查 + PDP/PEP 结果。
+  - `check_constraints()` → 约束状态 + files_to_reread + 当前 phase。
+  - `get_next_action()` → 下一步推荐 + 文档引用 + ask_user 标志。
+  - `writeback_notify(phase)` → 自动推进建议 + 待更新文件列表。
+  - `get_pack_info()` → 已加载 pack 信息。
+- `src/mcp/server.py`：MCP Server（stdio 传输）。
+  - VS Code 配置 `.vscode/mcp.json` 已就绪。
+  - E2E 协议验证通过：initialize → tools/list → tools/call。
+- 474 项 pytest 测试全部通过（2 skipped）。
+- Phase 22 Slice 1+2 已完成。
+- Phase 22 MCP dogfood 验证通过，修复 checkpoint 解析 bug。
+- Phase 22 Slice 3（Instructions Generator）已完成：
+  - `src/workflow/instructions_generator.py`：从 PackContext 生成 copilot-instructions 段落。
+  - CLI：`python -m src generate-instructions [--output PATH]`。
+  - 20 项 pytest 测试全部通过。
+- Phase 22 Slice 4（project-local pack 约束声明）已完成：
+  - `.codex/packs/project-local.pack.json` 新增 `rules.constraints`（C1-C8 完整约束）。
+  - 生成的 instructions 包含所有约束（含 severity 标签）。
+- Phase 22 Slice 5 推迟（PackContext downstream wiring，留待 dogfood 反馈后精准设计）。
+- 494 项 pytest 测试全部通过（2 skipped）。
+- Phase 22 v0.1-dogfood Release 已收口完成。
+- Phase 23 已启动：PackContext Downstream Wiring + Dogfood。
+- `src/pack/override_resolver.py` 进化：RuleConfig 新增 `allowed_gates: set[str]` 字段。
+  - resolve() 将 PackContext.merged_intents → platform_intents、merged_gates → allowed_gates。
+  - wiring 代码移到 early return 之前，确保即使无显式 rules 也能传递 merged 集合。
+- `src/pdp/intent_classifier.py` 进化：classify() 新增 platform_intents 限制检查。
+  - 若 rule_config.platform_intents 非空且分类结果不在其中，返回 "unknown"。
+  - platform_intents 为权威来源，keyword_map 不自动豁免。
+- `src/pdp/gate_resolver.py` 进化：resolve() 新增 allowed_gates 校验。
+  - 若 rule_config.allowed_gates 非空且结果不在其中，fallback 到最高可用 gate（approve→review→inform）。
+- `tests/test_packcontext_wiring.py`：18 项新测试覆盖三个切片。
+- 512 项 pytest 测试全部通过（2 skipped）。
+- Phase 23 PackContext Downstream Wiring + Dogfood 已全部完成。
+- Phase 24 已启动：MCP Prompts/Resources + always_on 注入。
+- `src/mcp/server.py` 进化：新增 list_prompts / get_prompt / list_resources / read_resource 处理器。
+  - Pack 声明的 prompts 可通过 `/<server>.<prompt>` 调用。
+  - always_on 文件作为 MCP Resources 暴露（内存读取）。
+  - on_demand 文件作为 MCP Resources 暴露（按需磁盘读取）。
+- `src/mcp/tools.py` 进化：GovernanceTools 新增 list_prompts / get_prompt / list_resources / read_resource 方法。
+  - prompt 描述自动从文件首行非标题文本提取。
+  - Resource URI 格式：`pack://always-on/{filename}` 和 `pack://{pack}/on-demand/{path}`。
+- `src/workflow/instructions_generator.py` 进化：_always_on_section() 现输出文件内容摘要。
+  - _summarize_content() 提取标题和关键段落，最多 20 行。
+- `tests/test_mcp_prompts_resources.py`：19 项新测试覆盖三个切片。
+- 531 项 pytest 测试全部通过（2 skipped）。
+- Phase 24 MCP Prompts/Resources + always_on 注入已全部完成。
+- Phase 25 已启动：Extension Bridging (Pack → Registry)。
+- `src/pack/registrar.py`：PackRegistrar 桥接组件。
+  - 读取 manifest.validators，动态加载 Python 模块，找 validate() 函数包装为 ScriptValidator。
+  - 读取 manifest.triggers，创建 EventStubTrigger 注册到 TriggerDispatcher。
+  - 无 validate() 函数的脚本自动跳过（记录到 skipped）。
+  - 文件不存在时优雅降级（警告而不崩溃）。
+- `src/workflow/pipeline.py` 进化：_load_packs() 现调用 PackRegistrar 注册扩展件。
+  - Pipeline.info() 新增 registered_validators / registered_triggers / skipped 字段。
+- `tests/test_extension_bridging.py`：13 项新测试覆盖所有切片。
+- 544 项 pytest 测试全部通过（2 skipped）。
+- Phase 25 Extension Bridging 已全部完成。
+- Phase 26 已启动：on_demand 懒加载 API。
+- `src/pack/context_builder.py` 进化：PackContext 新增 on_demand_entries 字段和 load_on_demand()/list_on_demand() 方法。
+  - ContextBuilder.build() 现收集所有 pack 的 on_demand 条目到 on_demand_entries。
+  - load_on_demand(key) 按需读取文件并缓存。
+  - 多 pack 同 key 时高优先级 pack 覆盖。
+- `src/mcp/tools.py` 进化：read_resource() 现使用 PackContext.load_on_demand()。
+- `tests/test_on_demand.py`：11 项新测试覆盖所有场景。
+- 555 项 pytest 测试全部通过（2 skipped）。
+- Phase 26 on_demand 懒加载 API 已全部完成。
+- gap analysis 19 个字段中，仅剩 depends_on 校验 + provides 消费未实施。
+- Phase 27 已完成：Dogfood 深度验证。
+- Phase 28 已完成：Dogfood Feedback Remediation。
+- `src/pdp/intent_classifier.py`：保留既有 `correction` 关键词，同时新增 `issue-report` 扩展关键词，并加入 `correction/issue-report` 窄 tie-break 规则。
+- `src/workflow/checkpoint.py`：新增 `sync_checkpoint_phase()`，用于在 write-back 完成后刷新 checkpoint phase 且保留其他字段。
+- `src/mcp/tools.py`：`writeback_notify()` 在 live 路径下调用 checkpoint 同步。
+- `src/workflow/pipeline.py`：暴露 `is_dry_run` 属性，供上层工具判断是否允许写入 checkpoint。
+- `tests/test_pdp_basic.py`、`tests/test_checkpoint.py`、`tests/test_mcp_tools.py`：新增 7 项回归测试覆盖 issue-report 分类与 live checkpoint 同步。
+- 566 项 pytest 测试全部通过（2 skipped）。
+- Phase 28 Dogfood Feedback Remediation 已全部完成。
+- 下一步：基于 `design_docs/direction-candidates-after-phase-28.md` 选择 Phase 29 方向。
+- 风险：当前无 blocking 项；剩余 dogfood 问题主要是 F4/F8。
 
 ## 最近一次写回
 
@@ -268,3 +370,13 @@
 - `2026-04-10`: Phase 19 Slice A+B 完成——官方实例 E2E 验证：ManifestLoader 加载实例 manifest、ContextBuilder 合并上下文、OverrideResolver 消解规则、PDP 使用实例规则决策、PEP 执行+writeback+validator/check 闭环、全链路审计、Bootstrap 产出校验。新增 40 项 E2E 测试，387 项 pytest 全部通过，Phase 19 完结。
 - `2026-04-10`: Phase 20 Slice A+B 完成——Worker 协作模式（Handoff + Subgraph）：创建 collaboration 包（CollaborationMode 枚举 + HandoffRequest/SubgraphContext + prepare/execute/merge 全流程），PDP delegation_resolver 支持 mode 选择（pack 可覆盖），PEP executor 重构为模式分发（worker/handoff/subgraph 三路径），RuleConfig 新增 extra 字段，414 项 pytest 全部通过，Phase 20 完结。
 - `2026-04-10`: Phase 21 Slice A+B+C 完成——Checkpoint Persistence + Direction Template：创建 src/workflow/checkpoint.py（write/read/validate 工具函数）+ 17 项 pytest 测试，创建候选方向文档化模板，更新 Document-Driven Workflow Standard 添加 checkpoint 触发时机，生成首个 checkpoint 并通过 round-trip 验证，431 项 pytest 全部通过，Phase 21 完结。
+- `2026-04-10`: Phase 22 Slice 1-4 完成——v0.1-dogfood Release：Pipeline 编排器（PDP→PEP 统一链）+ CLI 入口（4 命令）+ MCP Server（stdio, 5 工具）+ Instructions Generator（PackContext→Markdown）+ project-local pack 约束声明（C1-C8）。MCP dogfood 验证通过，修复 checkpoint 解析 bug。494 项 pytest 全部通过，Phase 22 收口。
+- `2026-04-10`: Phase 23 Slice A+B+C 完成——PackContext Downstream Wiring：OverrideResolver 将 merged_intents/merged_gates 传入 RuleConfig（platform_intents + allowed_gates），intent_classifier 新增 platform_intents 限制检查，gate_resolver 新增 allowed_gates 校验与 fallback。Pack 声明现可真正控制 PDP 分类与门级行为。512 项 pytest 全部通过，Phase 23 完结。
+- `2026-04-10`: Phase 24 Slice A+B+C 完成——MCP Prompts/Resources + always_on 注入：MCP server 新增 list_prompts/get_prompt/list_resources/read_resource 处理器，Pack prompts 可通过 Copilot `/<server>.<prompt>` 调用，always_on/on_demand 作为 MCP Resources 暴露，Instructions Generator 现输出 always_on 文件内容摘要。531 项 pytest 全部通过，Phase 24 完结。
+- `2026-04-10`: Phase 25 Slice A+B 完成——Extension Bridging：创建 PackRegistrar 桥接组件，Pack 声明的 validators 自动加载并注册到 ValidatorRegistry，triggers 自动注册到 TriggerDispatcher。Pipeline 集成 PackRegistrar，info() 暴露注册状态。544 项 pytest 全部通过，Phase 25 完结。
+- `2026-04-10`: Phase 26 完成——on_demand 懒加载 API：PackContext 新增 on_demand_entries + load_on_demand()/list_on_demand() 方法，按需读取文件并缓存。MCP read_resource() 现使用 load_on_demand()。gap analysis 最大间隙已闭合。555 项 pytest 全部通过，Phase 26 完结。
+- `2026-04-10`: Phase 27 完成——Dogfood 深度验证：执行 governance_decide / check_constraints / writeback_notify 三个真实场景，沉淀 11 个反馈项到 `design_docs/dogfood-feedback-phase-27.md`，修复 planning gate 状态扫描误报、README 被误识别为 gate、checkpoint 未纳入 files_to_reread、active gate 回退检测缺失等问题，并新增 5 项回归测试。559 项 pytest 全部通过，Phase 27 完结。
+- `2026-04-10`: Phase 28 完成——Dogfood Feedback Remediation：修复 `issue-report` 分类准确率（中文/英文 bug report）并保持 `correction` 既有行为稳定；新增 `sync_checkpoint_phase()` 并在 live `writeback_notify()` 路径下自动刷新 checkpoint phase。新增 7 项回归测试，566 项 pytest 全部通过，Phase 28 完结。
+- `2026-04-11`: Phase 29 完成——Self-Hosting Workflow Rule Formalization：将“文档型成果立即自用、运行时入口在首个稳定 release 前只作为 pre-release dogfood”写入 Workflow Standard、官方实例定位、Checklist 与 doc-loop prompts。当前确认核心链条已可运行，但尚未达到可默认依赖的稳定版门槛；本 Phase 只做文档与提示词收口，不修改代码，也未新增自动化测试。
+- `2026-04-11`: Phase 30 完成——Dogfood Feedback Remediation Part 2 (F8 First)：按用户审核先只处理 F8。`src/__main__.py` 中 `check` 命令现默认只输出约束 / 状态信息，不再混入完整治理链；若提供文本输入，会明确提示改用 `process`。新增 `tests/test_cli.py`，针对 `check` 无输入、有输入、帮助文本 3 个场景做回归验证；`pytest tests/test_cli.py` 通过（3 passed）。F4 保留为下一条独立诊断切片。
+- `2026-04-11`: Phase 31 完成——F4 Validator Diagnostics Follow-up：`src/pack/registrar.py` 新增 `skipped_details` 诊断层，区分 `missing-path`、`unsupported-extension`、`load-failed`、`missing-validate` 四类 skipped 原因，并通过 `summary()` / `Pipeline.info()` 暴露。新增官方实例 real-pack 场景覆盖，确认当前两个 validator 脚本被 skipped 的原因是 `missing-validate`，不是路径 bug。`pytest tests/test_extension_bridging.py` 通过（15 passed）。

@@ -14,6 +14,7 @@
 - `platform-positioning.md`
 - `core-model.md`
 - `plugin-model.md`
+- `external-skill-interaction.md`
 - `pack-manifest.md`
 - `governance-flow.md`
 - `review-state-machine.md`
@@ -27,7 +28,9 @@
 - `subagent-schemas.md`
 - `official-instance-doc-loop.md`
 - `project-adoption.md`
+- `installation-guide.md`
 - `current-prototype-status.md`
+- `first-stable-release-boundary.md`
 
 规格化定义（Specs）：
 
@@ -53,17 +56,20 @@
 1. `platform-positioning.md`
 2. `core-model.md`
 3. `plugin-model.md`
-4. `pack-manifest.md`
-5. `governance-flow.md`
-6. `review-state-machine.md`
-7. `pdp-decision-envelope.md`
-8. `intent-classification.md`
-9. `gate-decision.md`
-10. `delegation-decision.md`
-11. `escalation-decision.md`
-12. `precedence-resolution.md`
-13. `subagent-management.md`
-14. `subagent-schemas.md`
-15. `official-instance-doc-loop.md`
-16. `project-adoption.md`
-17. `current-prototype-status.md`
+4. `external-skill-interaction.md`
+5. `pack-manifest.md`
+6. `governance-flow.md`
+7. `review-state-machine.md`
+8. `pdp-decision-envelope.md`
+9. `intent-classification.md`
+10. `gate-decision.md`
+11. `delegation-decision.md`
+12. `escalation-decision.md`
+13. `precedence-resolution.md`
+14. `subagent-management.md`
+15. `subagent-schemas.md`
+16. `official-instance-doc-loop.md`
+17. `project-adoption.md`
+18. `installation-guide.md`
+19. `current-prototype-status.md`
+20. `first-stable-release-boundary.md`

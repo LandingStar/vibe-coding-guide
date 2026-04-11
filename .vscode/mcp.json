@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "doc-based-coding-governance": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.venv-mcp/Scripts/python.exe",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

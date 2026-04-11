@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doc-loop-vibe-coding"
+version = "1.0.0"
+description = "Official doc-loop instance pack for the doc-based-coding runtime."
+readme = { file = "SKILL.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+dependencies = [
+    "doc-based-coding-runtime>=1.0.0,<2.0.0",
+]
+
+[project.scripts]
+doc-loop-bootstrap = "doc_loop_vibe_coding.scripts.bootstrap_doc_loop:main"
+doc-loop-validate-doc = "doc_loop_vibe_coding.scripts.validate_doc_loop:main"
+doc-loop-validate-instance = "doc_loop_vibe_coding.scripts.validate_instance_pack:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = [
+    "doc_loop_vibe_coding",
+    "doc_loop_vibe_coding.scripts",
+]
+
+[tool.setuptools.package-dir]
+doc_loop_vibe_coding = "."
+
+[tool.setuptools.package-data]
+doc_loop_vibe_coding = [
+    "pack-manifest.json",
+    "SKILL.md",
+    "agents/**/*",
+    "assets/**/*",
+    "assets/bootstrap/.codex/**/*",
+    "examples/**/*",
+    "references/**/*",
+]

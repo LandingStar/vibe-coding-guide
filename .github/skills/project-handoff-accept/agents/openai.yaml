@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Handoff Accept"
+  short_description: "Inspect project handoff intake"
+policy:
+  allow_implicit_invocation: false

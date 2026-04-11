@@ -26,6 +26,8 @@ _REQUIRED_SECTIONS = frozenset({
     "Key Context Files",
 })
 
+_EMPTY_PLANNING_GATE_MARKERS = frozenset({"", "(none)", "—", "-"})
+
 
 def write_checkpoint(
     project_root: str | Path,
@@ -107,6 +109,41 @@ def write_checkpoint(
     return cp_path
 
 
+def sync_checkpoint_phase(
+    project_root: str | Path,
+    *,
+    phase: str,
+    planning_gate: str = "",
+) -> Path:
+    """Update the latest checkpoint's phase while preserving other fields.
+
+    If no checkpoint exists yet, create a minimal one with the provided phase.
+    This is intended for post-writeback synchronization so that recovery tools
+    see the same current phase as Checklist/Phase Map.
+    """
+    root = Path(project_root)
+    cp_path = root / _DEFAULT_DIR / _LATEST
+
+    existing: dict[str, Any] = {
+        "todos": [],
+        "pending_decision": "",
+        "direction_candidates": [],
+        "key_files": None,
+    }
+    if cp_path.exists():
+        existing = read_checkpoint(cp_path)
+
+    return write_checkpoint(
+        root,
+        phase=phase,
+        planning_gate=planning_gate,
+        todos=existing.get("todos") or None,
+        pending_decision=existing.get("pending_decision", ""),
+        direction_candidates=existing.get("direction_candidates") or None,
+        key_files=existing.get("key_files") or None,
+    )
+
+
 def read_checkpoint(path: str | Path) -> dict[str, Any]:
     """Parse a checkpoint file and return structured data.
 
@@ -143,7 +180,7 @@ def read_checkpoint(path: str | Path) -> dict[str, Any]:
 
     result["phase"] = sections.get("Current Phase", "").strip()
     result["planning_gate"] = sections.get("Active Planning Gate", "").strip()
-    if result["planning_gate"] == "(none)":
+    if result["planning_gate"] in _EMPTY_PLANNING_GATE_MARKERS:
         result["planning_gate"] = ""
 
     # Parse todos

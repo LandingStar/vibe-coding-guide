@@ -8,7 +8,11 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
+dist-verify*/
 build/
+release/*.zip
+.venv/
+.venv-*/
 .eggs/
 
 # Testing

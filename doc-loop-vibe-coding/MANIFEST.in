@@ -1,0 +1,7 @@
+include pack-manifest.json
+include SKILL.md
+recursive-include agents *
+recursive-include assets *
+recursive-include assets/bootstrap/.codex *
+recursive-include examples *
+recursive-include references *

@@ -29,6 +29,7 @@ class PackManifest:
 
     # Dependencies & overrides
     depends_on: list[str] = field(default_factory=list)
+    runtime_compatibility: str = ""
     overrides: list[str] = field(default_factory=list)
 
     # Extension artifacts
@@ -87,6 +88,7 @@ def load_dict(data: dict[str, Any]) -> PackManifest:
         always_on=_as_str_list(data.get("always_on", [])),
         on_demand=_as_str_list(data.get("on_demand", [])),
         depends_on=_as_str_list(data.get("depends_on", [])),
+        runtime_compatibility=str(data.get("runtime_compatibility", "")),
         overrides=_as_str_list(data.get("overrides", [])),
         prompts=_as_str_list(data.get("prompts", [])),
         templates=_as_str_list(data.get("templates", [])),

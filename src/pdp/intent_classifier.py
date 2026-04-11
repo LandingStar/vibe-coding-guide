@@ -31,8 +31,8 @@ _KEYWORD_MAP: dict[str, list[str]] = {
     "approval": ["approve", "approved", "lgtm", "同意", "通过",
                  "审核通过", "批准"],
     "rejection": ["reject", "no", "denied", "拒绝", "不同意", "否决"],
-    "correction": ["fix", "wrong", "error", "bug", "incorrect",
-                   "修正", "错误", "修复"],
+    "correction": ["fix", "please fix", "wrong", "error", "bug", "incorrect",
+                   "修正", "错误", "修复", "请修复", "修复这个"],
     "scope-change": ["scope", "expand", "change scope", "范围",
                      "扩展范围", "改变范围"],
     "protocol-change": ["protocol", "process", "workflow", "协议",
@@ -41,8 +41,18 @@ _KEYWORD_MAP: dict[str, list[str]] = {
                    "必须"],
     "request-for-writeback": ["write back", "writeback", "commit",
                               "save", "写回", "回写", "落地"],
-    "issue-report": ["issue", "problem", "report", "问题", "报告"],
+    "issue-report": [
+        "issue", "problem", "report", "bug", "error", "crash",
+        "exception", "failure", "fails", "问题", "报告", "错误",
+        "异常", "崩溃", "报错", "导致", "不支持",
+    ],
 }
+
+_CORRECTION_CUES = ("fix", "please fix", "修复", "请修复", "修复这个", "修正")
+_ISSUE_REPORT_CUES = (
+    "report", "issue", "raises", "raise", "exception", "attributeerror",
+    "traceback", "报错", "导致", "不支持", "异常", "崩溃",
+)
 
 
 def classify(input_text: str, *, rule_config: RuleConfig | None = None) -> dict:
@@ -76,6 +86,26 @@ def classify(input_text: str, *, rule_config: RuleConfig | None = None) -> dict:
     top_intent, top_score = sorted_intents[0]
 
     if len(sorted_intents) > 1 and sorted_intents[1][1] == top_score:
+        tied = {sorted_intents[0][0], sorted_intents[1][0]}
+        if tied == {"correction", "issue-report"}:
+            if any(cue in text_lower for cue in _CORRECTION_CUES):
+                top_intent = "correction"
+            elif any(cue in text_lower for cue in _ISSUE_REPORT_CUES):
+                top_intent = "issue-report"
+            else:
+                top_intent = "correction"
+
+        if top_intent != "ambiguous" and top_intent in tied:
+            confidence = "high" if top_score >= 2 else "medium" if top_score == 1 else "low"
+
+            if (rule_config and rule_config.platform_intents
+                    and top_intent not in rule_config.platform_intents):
+                return _make_result("unknown", "low",
+                    f"Intent '{top_intent}' not in declared platform_intents.",
+                    impact_table=impact_table)
+
+            return _make_result(top_intent, confidence, impact_table=impact_table)
+
         alternatives = [
             {"intent": i, "confidence": "low"} for i, _ in sorted_intents[:3]
         ]
@@ -87,6 +117,14 @@ def classify(input_text: str, *, rule_config: RuleConfig | None = None) -> dict:
         )
 
     confidence = "high" if top_score >= 2 else "medium" if top_score == 1 else "low"
+
+    # If rule_config provides a platform_intents set, restrict result
+    if (rule_config and rule_config.platform_intents
+            and top_intent not in rule_config.platform_intents):
+        return _make_result("unknown", "low",
+            f"Intent '{top_intent}' not in declared platform_intents.",
+            impact_table=impact_table)
+
     return _make_result(top_intent, confidence, impact_table=impact_table)
 
 

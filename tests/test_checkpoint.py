@@ -15,6 +15,7 @@ from pathlib import Path
 from src.workflow.checkpoint import (
     write_checkpoint,
     read_checkpoint,
+    sync_checkpoint_phase,
     validate_checkpoint,
 )
 
@@ -147,6 +148,29 @@ class TestReadCheckpoint:
         assert data["direction_candidates"] == []
         assert len(data["key_files"]) == 3  # defaults
 
+    def test_em_dash_planning_gate_is_treated_as_empty(self, project_root: Path):
+        cp_path = project_root / ".codex" / "checkpoints" / "latest.md"
+        cp_path.parent.mkdir(parents=True, exist_ok=True)
+        cp_path.write_text(
+            "# Checkpoint — 2026-04-10\n"
+            "## Current Phase\n"
+            "Phase 35\n"
+            "## Active Planning Gate\n"
+            "—\n"
+            "## Current Todo\n"
+            "(no todos)\n"
+            "## Pending User Decision\n"
+            "(none)\n"
+            "## Direction Candidates\n"
+            "(none)\n"
+            "## Key Context Files\n"
+            "- a.md\n",
+            encoding="utf-8",
+        )
+
+        data = read_checkpoint(cp_path)
+        assert data["planning_gate"] == ""
+
 
 class TestValidateCheckpoint:
 
@@ -204,3 +228,39 @@ class TestValidateCheckpoint:
         path = project_root / ".codex" / "checkpoints" / "latest.md"
         data = read_checkpoint(path)
         assert data["phase"] == "Phase B"
+
+
+class TestSyncCheckpointPhase:
+
+    def test_sync_updates_phase_and_preserves_fields(self, project_root: Path):
+        write_checkpoint(
+            project_root,
+            phase="Phase 27",
+            planning_gate="design_docs/stages/planning-gate/phase-27.md",
+            todos=[{"title": "Task A", "status": "done"}],
+            pending_decision="Pick next phase",
+            direction_candidates=[
+                {"name": "A", "description": "desc", "source": "docs/a.md"}
+            ],
+            key_files=["a.md", "b.md"],
+        )
+
+        sync_checkpoint_phase(
+            project_root,
+            phase="Phase 28",
+            planning_gate="",
+        )
+
+        data = read_checkpoint(project_root / ".codex" / "checkpoints" / "latest.md")
+        assert data["phase"] == "Phase 28"
+        assert data["planning_gate"] == ""
+        assert data["todos"] == [{"title": "Task A", "status": "done"}]
+        assert data["pending_decision"] == "Pick next phase"
+        assert data["direction_candidates"][0]["name"] == "A"
+        assert data["key_files"] == ["a.md", "b.md"]
+
+    def test_sync_creates_checkpoint_if_missing(self, project_root: Path):
+        path = sync_checkpoint_phase(project_root, phase="Phase 28")
+        assert path.exists()
+        data = read_checkpoint(path)
+        assert data["phase"] == "Phase 28"

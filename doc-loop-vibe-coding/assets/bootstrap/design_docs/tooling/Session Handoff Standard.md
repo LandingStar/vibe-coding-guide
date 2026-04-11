@@ -33,6 +33,20 @@ handoff 不是最高真相来源。
 - 已完成项与未完成项可以稳定分开
 - 接手方不依赖当前对话的隐性记忆也能继续
 
+当且仅当满足安全停点时：
+
+- model 可以主动发起 handoff 构建
+- handoff 分支中只有 `blocked` 是停止信号
+- 若结果不是 `blocked`，model 可以继续执行下一条直接相关的 handoff 指令
+
+safe-stop close 不只包含 handoff 本身，还应包含一组 writeback bundle：
+
+- canonical handoff generation
+- `CURRENT.md` refresh
+- Checklist / Phase Map / 当前方向候选文档 / checkpoint 同步
+
+同时还要按实际情况判断条件项，例如是否清除 active planning-gate 标记、是否 supersede 旧 active canonical handoff、是否同步协议文档。
+
 ## Core Fields
 
 每个 handoff 默认至少应包含：
@@ -55,6 +69,8 @@ handoff 不是最高真相来源。
 2. 重读其中列出的正式文档
 3. 核对 workspace 现实状态
 4. 再决定是否继续当前合同
+
+若 intake 结果为 `blocked`，必须停止并显式暴露阻断原因；若结果不是 `blocked`，model 可以继续执行当前合同。
 
 ## 禁止事项
 

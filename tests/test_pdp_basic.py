@@ -60,6 +60,28 @@ class TestIntentClassifier:
         result = intent_classifier.classify("")
         jsonschema.validate(result, INTENT_SCHEMA)
 
+    def test_issue_report_chinese(self):
+        result = intent_classifier.classify(
+            "checkpoint.py的todos参数不支持字符串列表，导致AttributeError"
+        )
+        assert result["intent"] == "issue-report"
+
+    def test_issue_report_english(self):
+        result = intent_classifier.classify(
+            "Bug report: write_checkpoint raises AttributeError when todos is a list of strings"
+        )
+        assert result["intent"] == "issue-report"
+
+    def test_fix_request_with_bug_stays_correction(self):
+        result = intent_classifier.classify("请修复这个 bug")
+        assert result["intent"] == "correction"
+
+    def test_issue_report_full_dogfood_sentence(self):
+        result = intent_classifier.classify(
+            "checkpoint.py的todos参数不支持字符串列表，write_checkpoint要求传dict但函数签名没有说明清楚，用户容易传错格式导致AttributeError"
+        )
+        assert result["intent"] == "issue-report"
+
 
 # --- Gate Resolver ---
 

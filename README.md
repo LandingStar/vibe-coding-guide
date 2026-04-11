@@ -36,7 +36,20 @@
 8. `subagent-schemas.md`
 9. `official-instance-doc-loop.md`
 10. `project-adoption.md`
-11. `current-prototype-status.md`
+11. `installation-guide.md`
+12. `current-prototype-status.md`
+
+## 安装与接入
+
+当前仓库已经具备双发行包的最小安装骨架。
+
+如果你想把它安装到其他项目中，优先看：
+
+- [docs/installation-guide.md](docs/installation-guide.md)
+
+如果你想进一步把某个真实仓库接入这套 workflow，再看：
+
+- [docs/project-adoption.md](docs/project-adoption.md)
 
 研究与设计推导另外分层存放：
 

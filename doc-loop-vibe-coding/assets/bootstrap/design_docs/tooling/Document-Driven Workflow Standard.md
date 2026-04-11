@@ -65,6 +65,16 @@
 - 为什么现在可以收口
 - 下一条候选主线是什么
 
+## 对话推进规则
+
+对采用本 workflow 的主 agent，还必须额外遵守以下约束：
+
+- 未经用户显式许可，不得主动终止对话。
+- 默认每条回复都应以推进式提问收尾，且该提问必须包含 AI 自身的分析、推荐或倾向判断。
+- 若当前节点需要用户做选择、审批、方向确认或下一步取舍，agent 必须先给出自己的分析与推荐，再通过 askQuestions 或明确提问继续交流。
+- 若一个 Phase 或 planning-gate 已完成，agent 应先准备下一步方向分析或下一份窄 scope planning-gate，再通过提问与用户确认，而不是停下等待。
+- 只有在用户明确表示允许结束、暂停，或明确要求本轮不要继续追问时，才可不以推进式提问结尾。
+
 ## Prompt Pack 联动
 
 若流程规则、delegation 规则或 write-back 方式发生变化，应同步检查：
@@ -73,6 +83,43 @@
 - `.codex/prompts/doc-loop/02-execute-by-doc.md`
 - `.codex/prompts/doc-loop/03-writeback.md`
 - `.codex/prompts/doc-loop/04-subagent-contract.md`
+
+## Handoff 执行规则
+
+对采用本 workflow 的项目，handoff 分支还应遵守以下执行语义：
+
+- 一旦当前状态已经满足安全停点，model 可以主动进入 handoff 分支，不需要额外等待显式 slash 指令。
+- handoff 分支内的 `generate / accept / refresh current / rebuild` 仍必须满足各自前置条件。
+- `blocked` 是 handoff 分支中的停止信号；若结果不是 `blocked`，model 可以继续执行下一条与当前交接目标直接相关的 handoff 指令。
+
+## External Skill Interaction Contract
+
+对采用本 workflow 的项目，external skill 的顶层交互语义应保持统一：
+
+- 当 governing workflow 认定这是下一条所需分支时，model 可以主动进入 external skill，不需要把显式 slash 指令当作唯一入口。
+- `blocked` 是 external skill 分支中的唯一自动停止信号；若结果不是 `blocked`，model 可以继续执行下一条直接相关的步骤。
+- external skill 可以返回 skill-specific payload，但不得借此隐式扩大 authority、write scope 或控制权 owner。
+- 若需要 authority 转移，必须走 `handoff` 或 `escalation` 等显式原语。
+- 若这些规则被复制到 skill 文本或其他 shipped copies，应为本轮触达的副本补 companion drift-check / distribution rule。
+
+## Safe-Stop Writeback Bundle
+
+当当前切片在安全停点收口时，write-back 应按 bundle 处理，而不是只零散更新少量文档。
+
+默认必做项至少包括：
+
+- 生成 canonical handoff
+- 刷新 `.codex/handoffs/CURRENT.md`
+- 同步 `Project Master Checklist.md`
+- 同步 `Global Phase Map and Current Position.md`
+- 同步当前方向候选文档
+- 同步 `.codex/checkpoints/latest.md`
+
+条件项至少包括：
+
+- 若 safe-stop 会带回无 active slice，则清除 active planning-gate 标记
+- 若已有其他 active canonical handoff，则将其 supersede
+- 若本轮改变了 safe-stop / handoff workflow 语义，则同步相应协议文档
 
 ## 当前边界
 

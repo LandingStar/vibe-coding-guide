@@ -70,5 +70,82 @@
   "scripts": [],
   "triggers": [
     "chat"
-  ]
+  ],
+  "rules": {
+    "constraints": {
+      "C1": {
+        "description": "未经用户显式许可，禁止主动终止对话。每条回复必须以推进式提问结尾——带有 AI 自身分析和倾向判断的提问，而不是单纯列选项等用户选。若需要用户做选择、审批、方向确认或下一步取舍，必须先给出分析/推荐，再用 askQuestions 或明确提问继续推进。只有当用户明确表示允许结束、暂停，或明确要求本轮不要继续追问时，才可不以推进式提问结尾。",
+        "severity": "block"
+      },
+      "C2": {
+        "description": "方向选择必须文档化。每个候选方向必须引用具体的设计文档或权威文档作为依据，不得仅靠口头描述。",
+        "severity": "block"
+      },
+      "C3": {
+        "description": "Phase 完成后自动推进。write-back 完成后应主动准备下一步的分析和候选方向文档，然后以 askQuestions 或推进式提问继续交流，不得停下等待。",
+        "severity": "block"
+      },
+      "C4": {
+        "description": "上下文恢复优先读文档。若对项目状态记忆不完整，应先重读 Checklist、Phase Map、CURRENT.md，再继续工作。",
+        "severity": "warn"
+      },
+      "C5": {
+        "description": "在没有窄 scope 文档（planning-gate）前，不进入大规模实现。",
+        "severity": "block"
+      },
+      "C6": {
+        "description": "若发现新问题超出当前切片，先写回 planning-gate，而不是就地扩 scope。",
+        "severity": "block"
+      },
+      "C7": {
+        "description": "重要设计节点必须先交用户审核，再进入下一大步。",
+        "severity": "block"
+      },
+      "C8": {
+        "description": "主 agent 负责权威文档、集成和最终 write-back。子 agent 只处理被明确写入合同的窄切片。共享状态文档默认不交给子 agent 直接维护。",
+        "severity": "warn"
+      }
+    },
+    "document_hierarchy": {
+      "authority_order": ["docs/", "design_docs/"],
+      "conflict_resolution": "若 docs/ 与 design_docs/ 冲突，以 docs/ 为准"
+    },
+    "conversation_progression": {
+      "termination_requires_user_permission": true,
+      "final_reply_requires_forward_question": true,
+      "question_must_include_analysis": true,
+      "structured_confirmation_tool": "askQuestions",
+      "structured_confirmation_required_for": [
+        "choice",
+        "approval",
+        "direction confirmation",
+        "phase progression"
+      ],
+      "phase_completion_requires_next_direction": true,
+      "allowed_non_question_endings": [
+        "user explicitly allows ending",
+        "user explicitly allows pausing",
+        "user explicitly requests no follow-up question this turn"
+      ]
+    },
+    "external_skill_interaction": {
+      "model_may_initiate_when_rules_allow": true,
+      "slash_is_explicit_route_not_only_surface": true,
+      "automatic_stop_signal": "blocked",
+      "non_blocked_results_may_continue": true,
+      "result_payload_may_be_skill_specific": true,
+      "authority_transfer_requires_primitives": [
+        "handoff",
+        "escalation"
+      ],
+      "reference_implementation_family": "project-handoff-*",
+      "companion_distribution_rule": "authority-to-shipped-copies-drift-check"
+    },
+    "direction_candidates_sources": [
+      "design_docs/Project Master Checklist.md 的待办与风险",
+      "docs/ 权威文档中标记的未实现能力",
+      "review/research-compass.md 中的借鉴点",
+      "当前 Phase 实施过程中发现的新需求"
+    ]
+  }
 }

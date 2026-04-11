@@ -44,6 +44,14 @@ def resolve(intent_result: dict, *, rule_config: RuleConfig | None = None) -> di
     if high_impact and gate_level == "inform":
         gate_level = "review"
 
+    # Validate gate_level against allowed_gates (from pack merged_gates)
+    if rule_config and rule_config.allowed_gates and gate_level not in rule_config.allowed_gates:
+        # Fallback: pick highest available gate
+        for fallback in ("approve", "review", "inform"):
+            if fallback in rule_config.allowed_gates:
+                gate_level = fallback
+                break
+
     review_state_entry = entry_for_gate.get(gate_level, "waiting_review")
 
     rationale = (

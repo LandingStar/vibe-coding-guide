@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Handoff Generate"
+  short_description: "Generate draft project handoffs"
+policy:
+  allow_implicit_invocation: false

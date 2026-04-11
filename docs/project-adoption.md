@@ -145,8 +145,14 @@
 
 对于当前 `doc-loop-vibe-coding` 原型，建议至少运行：
 
-- `python doc-loop-vibe-coding/scripts/validate_instance_pack.py --target doc-loop-vibe-coding`
-- `python doc-loop-vibe-coding/scripts/validate_doc_loop.py --target <repo>`
+- 安装态入口：`doc-loop-validate-instance`
+- 安装态入口：`doc-loop-validate-doc --target <repo>`
+- 源码 checkout 备用入口：`python doc-loop-vibe-coding/scripts/validate_instance_pack.py --target doc-loop-vibe-coding`
+- 源码 checkout 备用入口：`python doc-loop-vibe-coding/scripts/validate_doc_loop.py --target <repo>`
+
+完整安装步骤见：
+
+- `installation-guide.md`
 
 ## Human Review In Adoption
 

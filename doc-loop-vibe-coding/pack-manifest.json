@@ -1,13 +1,12 @@
 {
   "name": "doc-loop-vibe-coding",
-  "version": "0.1.0-prototype",
+  "version": "1.0.0",
   "kind": "official-instance",
   "scope": "Official prototype pack for document-driven vibe coding on the workflow-driver platform.",
   "provides": [
     "rules",
     "document_types",
     "prompts",
-    "validators",
     "scripts",
     "templates",
     "triggers"
@@ -41,6 +40,8 @@
   "always_on": [
     "SKILL.md",
     "references/workflow.md",
+    "references/conversation-progression.md",
+    "references/external-skill-interaction.md",
     "references/subagent-delegation.md"
   ],
   "on_demand": [
@@ -62,6 +63,7 @@
   "depends_on": [
     "platform-core-defaults"
   ],
+  "runtime_compatibility": ">=1.0.0,<2.0.0",
   "overrides": [],
   "prompts": [
     "assets/bootstrap/.codex/prompts/doc-loop/01-planning-gate.md",
@@ -74,10 +76,7 @@
     "assets/bootstrap/.codex/packs/",
     "assets/bootstrap/.codex/contracts/"
   ],
-  "validators": [
-    "scripts/validate_doc_loop.py",
-    "scripts/validate_instance_pack.py"
-  ],
+  "validators": [],
   "checks": [],
   "scripts": [
     "scripts/bootstrap_doc_loop.py",

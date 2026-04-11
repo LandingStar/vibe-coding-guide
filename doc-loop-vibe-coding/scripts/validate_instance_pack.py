@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tomllib
 from pathlib import Path
 
 
@@ -25,6 +26,7 @@ REQUIRED_JSON_KEYS = {
         "always_on",
         "on_demand",
         "depends_on",
+        "runtime_compatibility",
         "overrides",
         "prompts",
         "templates",
@@ -187,15 +189,35 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        default=".",
-        help="Path to the doc-loop pack root. Defaults to the current working directory.",
+        default=None,
+        help=(
+            "Path to the doc-loop pack root. Defaults to the installed pack root "
+            "when available, otherwise the source pack directory."
+        ),
     )
     return parser.parse_args()
+
+
+def _default_pack_root() -> Path:
+    try:
+        from doc_loop_vibe_coding import get_package_root
+
+        return get_package_root()
+    except ImportError:
+        return Path(__file__).resolve().parent.parent
 
 
 def load_json(path: Path) -> object:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def load_toml(path: Path) -> dict[str, object]:
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected TOML object in {path}")
+    return data
 
 
 def check_json_keys(root: Path, relative_path: str, keys: list[str]) -> bool:
@@ -313,6 +335,37 @@ def validate_instance_manifest(root: Path) -> bool:
     ) and ok
     ok = check_list_contains(payload, "triggers", ["chat"], relative_path) and ok
     ok = check_manifest_paths(root, payload, relative_path) and ok
+
+    runtime_compatibility = payload.get("runtime_compatibility")
+    if not isinstance(runtime_compatibility, str) or not runtime_compatibility:
+        print(f"[FAIL] Expected non-empty string runtime_compatibility in {relative_path}")
+        ok = False
+    else:
+        print(
+            f"[OK] {relative_path} runtime_compatibility is present: "
+            f"{runtime_compatibility!r}"
+        )
+
+    pyproject_path = root / "pyproject.toml"
+    if pyproject_path.exists() and isinstance(runtime_compatibility, str) and runtime_compatibility:
+        pyproject = load_toml(pyproject_path)
+        project = pyproject.get("project")
+        if not isinstance(project, dict):
+            print(f"[FAIL] Expected [project] table in {pyproject_path.name}")
+            ok = False
+        else:
+            dependencies = project.get("dependencies", [])
+            expected_dependency = f"doc-based-coding-runtime{runtime_compatibility}"
+            if not isinstance(dependencies, list) or expected_dependency not in dependencies:
+                print(
+                    f"[FAIL] Expected dependency {expected_dependency!r} in {pyproject_path.name}"
+                )
+                ok = False
+            else:
+                print(
+                    f"[OK] {pyproject_path.name} dependency matches runtime_compatibility: "
+                    f"{expected_dependency!r}"
+                )
     return ok
 
 
@@ -367,7 +420,7 @@ def compare_project_local_example_and_template(root: Path) -> bool:
 
 def main() -> int:
     args = parse_args()
-    root = Path(args.target).resolve()
+    root = Path(args.target).resolve() if args.target else _default_pack_root()
     passed = True
 
     for relative_path, keys in REQUIRED_JSON_KEYS.items():

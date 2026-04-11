@@ -94,6 +94,26 @@ handoff 不得复制上述文档的大段正文来代替引用。
 
 若做不到以上三点，则不应生成正式 handoff。
 
+### 4.4 Model 执行语义
+
+当且仅当当前状态已经满足安全停点时：
+
+- model 可以主动发起 handoff 构建，不需要额外等待显式 slash 指令。
+- 主动发起不改变 handoff 的前置条件；`kind`、`scope_key`、refs 与结构校验仍必须明确可判定。
+- handoff 分支中只有 `blocked` 是停止信号；若结果不是 `blocked`，model 可以继续执行下一条直接相关的 handoff 指令。
+
+### 4.5 Safe-Stop Writeback Bundle
+
+安全停点下，handoff 的生成与轮转只是 safe-stop close 的一部分。
+
+默认 writeback bundle 至少应覆盖：
+
+- canonical handoff generation
+- `CURRENT.md` refresh
+- Checklist / Phase Map / 当前方向候选文档 / checkpoint 同步
+
+同时应区分条件项，例如是否清除 active planning-gate 标记、是否 supersede 旧 active canonical handoff、是否同步 handoff / workflow 协议文本。
+
 ---
 
 ## 5. 目录结构与生命周期
@@ -110,6 +130,7 @@ handoff 文件统一存放在：
 - 历史 handoff 默认保留，但一般情况下不作为默认读取对象
 - 新会话默认只读 `CURRENT.md`
 - 只有在冲突、追溯或审查时才读取历史 handoff
+- handoff 分支中的后续步骤可以由 model 连续执行，但只有在前一步未返回 `blocked` 时才允许继续
 
 在首次 canonical handoff 生成之前，`CURRENT.md` 可以暂时保留 bootstrap placeholder。
 
@@ -275,6 +296,12 @@ handoff 生命周期状态为：
 
 若第 1 步失败，则本轮不应生成正式 handoff。
 
+补充规则：
+
+- 若 handoff 生成结果未返回 `blocked`，model 可以继续进入与当前目标直接相关的下一步 handoff 指令。
+- 若当前目标包含刷新 active mirror，则可继续执行 `refresh current`；不需要把“继续轮转”再退回成额外的显式 slash 前置。
+- 若任一步返回 `blocked`，必须停止自动推进并显式暴露阻断原因。
+
 ---
 
 ## 11. 接手流程
@@ -290,6 +317,11 @@ handoff 生命周期状态为：
 7. 再决定是否继续执行 `Next Step Contract`
 
 接手方不得仅凭 handoff 正文直接继续编码，而跳过最小核验。
+
+补充规则：
+
+- `accept` 结果若为 `blocked`，必须停止并转入阻断处理。
+- `accept` 结果若为 `ready` 或 `ready-with-warnings`，model 可以继续执行当前任务所需的下一步，而不需要因为“不是显式 slash 调用”而停下。
 
 ---
 

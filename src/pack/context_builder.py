@@ -31,8 +31,45 @@ class PackContext:
     # Always-on file content: filename → text
     always_on_content: dict[str, str] = field(default_factory=dict)
 
+    # On-demand entries: relative path → base_dir (for lazy loading)
+    on_demand_entries: dict[str, Path] = field(default_factory=dict)
+
     # Merged rules dict (later layers override earlier ones)
     merged_rules: dict = field(default_factory=dict)
+
+    # Cache for lazily loaded on_demand content
+    _on_demand_cache: dict[str, str] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+
+    def load_on_demand(self, key: str) -> str | None:
+        """Lazily load an on-demand file by its relative path.
+
+        Returns the file content as a string, or ``None`` if the key
+        is not declared or the file does not exist.  Results are cached.
+        """
+        if key in self._on_demand_cache:
+            return self._on_demand_cache[key]
+
+        base_dir = self.on_demand_entries.get(key)
+        if base_dir is None:
+            return None
+
+        path = base_dir / key
+        if not path.exists():
+            return None
+
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+        self._on_demand_cache[key] = content
+        return content
+
+    def list_on_demand(self) -> list[str]:
+        """Return the list of declared on-demand keys."""
+        return list(self.on_demand_entries.keys())
 
 
 class ContextBuilder:
@@ -79,6 +116,12 @@ class ContextBuilder:
                     )
                 # Missing files are silently skipped (pack may declare optional content)
 
+        # Collect on_demand entries (later packs override)
+        on_demand_entries: dict[str, Path] = {}
+        for manifest, base_dir in sorted_entries:
+            for rel_path in manifest.on_demand:
+                on_demand_entries[rel_path] = base_dir
+
         # Merge rules dicts (later layers override)
         merged_rules: dict = {}
         for manifest in manifests:
@@ -92,6 +135,7 @@ class ContextBuilder:
             merged_document_types=merged_document_types,
             merged_provides=merged_provides,
             always_on_content=always_on_content,
+            on_demand_entries=on_demand_entries,
             merged_rules=merged_rules,
         )
 

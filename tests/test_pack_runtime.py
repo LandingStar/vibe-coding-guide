@@ -318,6 +318,7 @@ class TestPDPWithRuleConfig:
         rc = default_rule_config()
         rc.keyword_map["deploy"] = ["deploy", "部署", "发布"]
         rc.impact_table["deploy"] = "high"
+        rc.platform_intents.add("deploy")
 
         result = intent_classifier.classify("请部署到生产环境", rule_config=rc)
         assert result["intent"] == "deploy"
@@ -385,6 +386,7 @@ class TestPDPWithRuleConfig:
         rc = default_rule_config()
         rc.keyword_map["deploy"] = ["deploy", "部署"]
         rc.impact_table["deploy"] = "high"
+        rc.platform_intents.add("deploy")
         rc.delegatable_intents.add("deploy")
 
         envelope = decision_envelope.build_envelope(
