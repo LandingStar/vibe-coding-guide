@@ -21,8 +21,12 @@ release/*.zip
 htmlcov/
 
 # IDE
-.vscode/settings.json
+.vscode/
 .idea/
+
+# Non-distributable directories
+tests/
+example/
 
 # OS
 Thumbs.db

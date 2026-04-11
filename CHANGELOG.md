@@ -2,6 +2,33 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v1.0.0+post — 2026-04-12
+
+**发布后标准化 + 封装验证。** 所有 post-v1.0 方向候选（A-J）已完成，可分发安装包已验证。
+
+### 方向候选完成清单
+
+| 编号 | 名称 | 产出 |
+|------|------|------|
+| A | 双发行包实现 | `pyproject.toml`（runtime + instance），wheel 构建 + 安装验证 |
+| B | validator/check 契约收口 | 权威文档明确消费边界 |
+| C | 兼容元数据与版本声明 | `runtime_compatibility` 字段 + 包依赖范围对齐 |
+| D | MCP pack info 刷新一致性 | `GovernanceTools` 每次调用前刷新 Pipeline |
+| E | 严格 doc-loop 运行时强制 | constraint 结果区分 machine-checked / instruction-layer |
+| F | handoff 主动调用 | 安全停点下 model 可主动进入 handoff 分支 |
+| H | 外部 Skill 交互接口 | `external-skill-interaction.md` + handoff reference family |
+| I | 安全停点回写包 | `safe_stop_writeback.py` + `writeback_notify()` bundle contract |
+| J | 对话推进契约稳定性 | conversation progression contract 全面对齐 |
+
+### 发布封装验证
+
+- 双包构建：runtime 83KB wheel（62 个 .py）+ instance 48KB wheel（39 个文件）
+- 干净虚拟环境安装：5 个 CLI 入口全部可用
+- 空项目采纳验证：`bootstrap` → `validate` → MCP 启动
+- 可分发安装包：`release/doc-based-coding-v1.0.0.zip`（含面向 AI 的安装指南）
+
+---
+
 ## v1.0.0 — 2026-04-11
 
 **First stable release.** Runtime entry points (Pipeline / CLI / MCP) are promoted from pre-release dogfood to default self-hosting main path.

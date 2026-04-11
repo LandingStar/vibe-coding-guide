@@ -214,3 +214,16 @@ Phase 35 已完成，`v1.0.0` 已发布。
 | `docs/plugin-model.md` | 已固定插件抽象边界；BL-2 补齐 adapter 统一描述 |
 | `docs/first-stable-release-boundary.md` | N5 (script-style validator) 与 BL-2 有交集，但互相独立 |
 | `design_docs/tooling/Dual-Package Distribution Standard.md` | 打包/分发层面已固定；BL-3 的多协议层在其之上 |
+| `design_docs/tooling/Document-Driven Workflow Standard.md` | 已定义对话推进与文档驱动规则；BL-4 补齐对话中临时规则突破的 contract |
+
+#### BL-4: 对话中临时规则突破 / 修改能力
+
+- **做什么**：把当前对话中由用户口头临时授权突破或修改默认行为规则的模式（例如"临时允许你使用 git，但仅限本地指令"），收口为可追溯、可审计、可撤销的 runtime contract，而不是依赖 model 记忆用户口头指令。
+- **依据**：
+  - 当前对话中用户临时授权修改了默认行为（"现在临时允许你使用 git，但仅限本地指令，禁止动远程"），该授权成功执行但仅靠 model 上下文维持，无持久化、无审计、无自动过期机制。
+  - [design_docs/tooling/Document-Driven Workflow Standard.md](design_docs/tooling/Document-Driven%20Workflow%20Standard.md) 已定义 always-on 对话约束，但未区分"可被临时突破的约束"和"不可突破的硬约束"。
+  - [docs/governance-flow.md](../docs/governance-flow.md) 已定义治理决策链，但决策链目前面向项目状态（gate / constraint），不面向对话行为层的动态 override。
+- **类型**：设计文档 + 可能的轻量运行时支架（如需实施）。
+- **触发条件**：当 dogfood 中再次出现用户临时修改行为规则的场景，或对话约束因上下文压缩而丢失临时 override 时触发。
+- **优先级**：中。已证明该需求真实存在，但当前口头指令模式尚可工作。
+- **依赖**：无硬依赖。与 conversation progression contract（J）有交集。

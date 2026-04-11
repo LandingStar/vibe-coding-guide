@@ -88,6 +88,8 @@
 - [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md` 收口通用外部 skill 交互接口能力，并将 `authority -> shipped copies` 作为 companion mechanism 落地
 - [x] post-v1.0：记录 driver 与外部 skill 交互标准 / 接口 / 留空转接层，以及本轮其余 skill 特化后续项（暂不实现）— 已结构化记录为 `design_docs/direction-candidates-after-phase-35.md` §Driver / Adapter / 转接层 Backlog（BL-1 / BL-2 / BL-3）
 - [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过、AI 安装指南已打入 `release/doc-based-coding-v1.0.0.zip`
+- [ ] post-v1.0：对话中临时规则突破 / 修改能力（BL-4）— 把用户口头临时授权突破默认行为规则的模式收口为可追溯、可审计、可撤销的 runtime contract（优先级：中高，建议近期推进）。参考 `design_docs/direction-candidates-after-phase-35.md` §BL-4
+- [ ] post-v1.0：driver 本体与 doc-loop 实例包资产及 release 产物的分离审查 — 审查当前仓库中 driver 核心代码、doc-loop 官方实例 pack 资产与 release 目录的组织边界，推进必要的结构性分离（优先级：中高，下一步工作候选）
 - [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
 - [ ] depends_on 依赖校验（gap analysis #11，优先级低）
 - [ ] provides 消费用于 delegation capability check（gap analysis #5，优先级低）
