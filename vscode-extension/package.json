@@ -1,21 +1,62 @@
 {
   "name": "doc-based-coding",
   "displayName": "Doc-Based Coding",
-  "description": "Document-driven governance workflow platform for VS Code",
-  "version": "0.1.0",
+  "description": "Document-driven governance workflow platform for VS Code — enforces project constraints, manages pack topology, and provides AI-assisted governance across all IDE operations.",
+  "version": "0.1.2",
   "publisher": "doc-based-coding",
   "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/doc-based-coding/vscode-extension"
+  },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "governance",
+    "document-driven",
+    "constraints",
+    "MCP",
+    "copilot"
   ],
   "activationEvents": [
-    "workspaceContains:.codex/platform.json"
+    "workspaceContains:.codex/platform.json",
+    "onChatParticipant:docBasedCoding.governance"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "docBasedCoding.governance",
+        "fullName": "Doc-Based Coding Governance",
+        "name": "governance",
+        "description": "Ask about project constraints, check governance decisions, view packs, and get guidance on document-driven workflows.",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "check",
+            "description": "Check current constraint status (C1-C8)"
+          },
+          {
+            "name": "decide",
+            "description": "Run governance decision on an action"
+          },
+          {
+            "name": "constraints",
+            "description": "View all constraint details"
+          },
+          {
+            "name": "packs",
+            "description": "List loaded packs"
+          }
+        ]
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -34,6 +75,10 @@
         {
           "id": "packExplorer",
           "name": "Pack Explorer"
+        },
+        {
+          "id": "decisionLogViewer",
+          "name": "Decision Log"
         }
       ]
     },
@@ -58,6 +103,48 @@
         "command": "docBasedCoding.setupWizard",
         "title": "Setup Wizard",
         "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.refreshPacks",
+        "title": "Refresh Packs",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.refreshDecisionLogs",
+        "title": "Refresh Decision Logs",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.classifyIntent",
+        "title": "Classify Intent (Copilot LLM)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.generatePackDescription",
+        "title": "Generate Pack Description (Copilot LLM)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.generatePackRules",
+        "title": "Generate Pack Rules (Copilot LLM)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.openReviewPanel",
+        "title": "Open Governance Review Panel",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.diagnose",
+        "title": "Diagnose Connection",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.selectModel",
+        "title": "Select LLM Model",
+        "category": "Doc-Based Coding"
       }
     ],
     "menus": {
@@ -65,6 +152,16 @@
         {
           "command": "docBasedCoding.refreshConstraints",
           "when": "view == constraintDashboard",
+          "group": "navigation"
+        },
+        {
+          "command": "docBasedCoding.refreshPacks",
+          "when": "view == packExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "docBasedCoding.refreshDecisionLogs",
+          "when": "view == decisionLogViewer",
           "group": "navigation"
         }
       ]
@@ -76,6 +173,17 @@
           "type": "string",
           "default": "",
           "description": "Path to the Python executable used for the MCP server. If empty, uses the workspace Python environment."
+        },
+        "docBasedCoding.serverMode": {
+          "type": "string",
+          "default": "auto",
+          "enum": ["auto", "module", "command"],
+          "enumDescriptions": [
+            "Auto-detect: try 'doc-based-coding-mcp' entry point first, fall back to 'python -m src.mcp.server'",
+            "Use 'python -m src.mcp.server' (requires editable install or src/ in project)",
+            "Use 'doc-based-coding-mcp' CLI entry point (requires pip install of .whl)"
+          ],
+          "description": "How to launch the MCP governance server."
         },
         "docBasedCoding.serverArgs": {
           "type": "array",
@@ -89,6 +197,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically start the MCP server when the extension activates."
+        },
+        "docBasedCoding.terminal.killOnBlock": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically kill terminal commands that are blocked by governance. When false, shows a warning with an option to kill manually."
+        },
+        "docBasedCoding.llm.family": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Language model family used for Copilot LLM features (intent classification, pack generation, governance explanations). Examples: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, o1-preview."
         }
       }
     }
@@ -98,11 +216,12 @@
     "build": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint src/",
-    "test": "npm run build && node ./dist/test/runTest.js"
+    "test": "npm run build && node ./dist/test/runTest.js",
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@types/vscode": "^1.90.0",
+    "@types/vscode": "^1.93.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^3.9.0",
     "esbuild": "^0.20.0",

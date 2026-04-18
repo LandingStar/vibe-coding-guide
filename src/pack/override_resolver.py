@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .context_builder import PackContext
+from ..pdp.tool_permission_resolver import ToolPermissionConfig, parse_tool_permissions
 
 
 @dataclass
@@ -35,6 +36,9 @@ class RuleConfig:
 
     # precedence_resolver
     layer_priority: dict[str, int] = field(default_factory=dict)
+
+    # tool_permission_resolver (B-REF-4)
+    tool_permissions: ToolPermissionConfig = field(default_factory=ToolPermissionConfig)
 
     # extra: pack-specific extensions (e.g. collaboration_mode)
     extra: dict[str, object] = field(default_factory=dict)
@@ -128,5 +132,9 @@ def resolve(context: PackContext) -> RuleConfig:
         config.layer_priority.update(
             {k: int(v) for k, v in rules["layer_priority"].items()}
         )
+
+    # Override tool_permissions (parse from raw dict)
+    if "tool_permissions" in rules:
+        config.tool_permissions = parse_tool_permissions(rules["tool_permissions"])
 
     return config

@@ -16,17 +16,25 @@ import { LLMProvider, ClassificationResult } from './types';
 export class CopilotLLMProvider implements LLMProvider {
     readonly name = 'copilot';
     private _model: vscode.LanguageModelChat | null = null;
+    private _family: string = 'gpt-4o';
 
     get isAvailable(): boolean {
         return this._model !== null;
     }
 
+    get currentFamily(): string {
+        return this._family;
+    }
+
     /** Try to select a Copilot model. Call from a user-initiated action. */
-    async initialize(family: string = 'gpt-4o'): Promise<boolean> {
+    async initialize(family?: string): Promise<boolean> {
+        // Priority: explicit param > workspace config > default
+        const configFamily = vscode.workspace.getConfiguration('docBasedCoding').get<string>('llm.family');
+        this._family = family ?? configFamily ?? 'gpt-4o';
         try {
             const models = await vscode.lm.selectChatModels({
                 vendor: 'copilot',
-                family,
+                family: this._family,
             });
             if (models.length > 0) {
                 this._model = models[0];

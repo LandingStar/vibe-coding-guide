@@ -80,6 +80,14 @@ def copy_scaffold(target_root: Path, project_name: str, force: bool) -> int:
         print(f"[OK] {verb}: {relative_path}")
 
     print(f"[OK] Bootstrap completed. {created} files copied into {target_root}")
+    print()
+    print("Next steps:")
+    print(f"  1. Run: doc-based-coding validate")
+    print(f"     → Should pass with no blocking issues.")
+    print(f"  2. Edit: design_docs/stages/planning-gate/initial-project-setup.md")
+    print(f"     → Replace with your first real work slice when ready.")
+    print(f"  3. Run: doc-based-coding info")
+    print(f"     → Verify pack loading and governance status.")
     return 0
 
 

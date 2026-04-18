@@ -2,7 +2,7 @@
 handoff_id: 2026-04-18_0435_b-ref-1-slice1-planning-gate-and-code-confirm_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: b-ref-1-slice1-planning-gate-and-code-confirm
 safe_stop_kind: stage-complete
 created_at: 2026-04-18T04:35:34+08:00

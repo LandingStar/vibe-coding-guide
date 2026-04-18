@@ -75,6 +75,15 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                 "When omitted, global (unscoped) rules apply."
                             ),
                         },
+                        "action_type": {
+                            "type": "string",
+                            "description": (
+                                "Optional action type for tool-level permission check "
+                                "(e.g. 'terminal_command', 'file_delete', 'git_push'). "
+                                "When provided, pack-defined tool_permissions are evaluated "
+                                "before the full PDP/PEP chain."
+                            ),
+                        },
                     },
                     "required": ["input_text"],
                 },
@@ -398,6 +407,34 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["symptoms"],
                 },
             ),
+            Tool(
+                name="workflow_interrupt",
+                description=(
+                    "Signal a workflow interrupt when an out-of-scope item is discovered "
+                    "during execution. Returns structured guidance directing the agent "
+                    "to write the discovered item to a planning-gate document rather than "
+                    "expanding scope in-place. Implements the rule: 'if a new problem "
+                    "exceeds the current slice, write to planning-gate first.'"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "reason": {
+                            "type": "string",
+                            "description": "Why the interrupt is triggered (e.g. 'discovered new requirement beyond current scope').",
+                        },
+                        "discovered_item": {
+                            "type": "string",
+                            "description": "Description of the out-of-scope item found.",
+                        },
+                        "current_scope_ref": {
+                            "type": "string",
+                            "description": "Reference to the current planning-gate or phase doc (optional).",
+                        },
+                    },
+                    "required": ["reason", "discovered_item"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -408,6 +445,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
             result = tools.governance_decide(
                 arguments["input_text"],
                 scope_path=arguments.get("scope_path", ""),
+                action_type=arguments.get("action_type", ""),
             )
         elif name == "check_constraints":
             result = tools.check_constraints()
@@ -465,6 +503,12 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 supersedes=arguments.get("supersedes"),
                 auto_writeback=arguments.get("auto_writeback", False),
                 active_gate_path=arguments.get("active_gate_path"),
+            )
+        elif name == "workflow_interrupt":
+            result = tools.workflow_interrupt(
+                reason=arguments["reason"],
+                discovered_item=arguments["discovered_item"],
+                current_scope_ref=arguments.get("current_scope_ref", ""),
             )
         else:
             result = {"error": f"Unknown tool: {name}"}

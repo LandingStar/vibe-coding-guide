@@ -97,13 +97,11 @@ export async function installFromReleaseZip(
 
                 outputChannel.appendLine(`[Installer] Wheels found: ${wheels.join(', ')}`);
 
-                // Install each wheel
-                for (const wheel of wheels) {
-                    progress.report({ message: `Installing ${wheel}...` });
-                    const wheelPath = path.join(tempDir, wheel);
-                    await pipInstall(pythonPath, wheelPath, outputChannel);
-                    result.installedWheels.push(wheel);
-                }
+                // Install all wheels in a single pip call so dependencies resolve locally
+                progress.report({ message: `Installing ${wheels.length} wheel(s)...` });
+                const wheelPaths = wheels.map(w => path.join(tempDir, w));
+                await pipInstallBatch(pythonPath, wheelPaths, outputChannel);
+                result.installedWheels.push(...wheels);
 
                 // Verify installation
                 progress.report({ message: 'Verifying installation...' });
@@ -161,7 +159,7 @@ print("ok")
 }
 
 /**
- * Install a wheel via pip.
+ * Install a single wheel via pip.
  */
 async function pipInstall(
     pythonPath: string,
@@ -170,7 +168,26 @@ async function pipInstall(
 ): Promise<void> {
     const { stdout, stderr } = await execFileAsync(
         pythonPath,
-        ['-m', 'pip', 'install', '--force-reinstall', wheelPath],
+        ['-m', 'pip', 'install', wheelPath],
+        { timeout: 120000 },
+    );
+    outputChannel.appendLine(`[pip] ${stdout.trim()}`);
+    if (stderr.trim()) {
+        outputChannel.appendLine(`[pip stderr] ${stderr.trim()}`);
+    }
+}
+
+/**
+ * Install multiple wheels in a single pip call so local dependencies resolve correctly.
+ */
+async function pipInstallBatch(
+    pythonPath: string,
+    wheelPaths: string[],
+    outputChannel: vscode.OutputChannel,
+): Promise<void> {
+    const { stdout, stderr } = await execFileAsync(
+        pythonPath,
+        ['-m', 'pip', 'install', ...wheelPaths],
         { timeout: 120000 },
     );
     outputChannel.appendLine(`[pip] ${stdout.trim()}`);
@@ -211,10 +228,11 @@ export async function installFromWheelFiles(
 
                 for (const wheelPath of sorted) {
                     const name = wheelPath.split(/[\\/]/).pop() ?? wheelPath;
-                    progress.report({ message: `Installing ${name}...` });
-                    await pipInstall(pythonPath, wheelPath, outputChannel);
                     result.installedWheels.push(name);
                 }
+
+                progress.report({ message: `Installing ${sorted.length} wheel(s)...` });
+                await pipInstallBatch(pythonPath, sorted, outputChannel);
 
                 // Verify
                 progress.report({ message: 'Verifying installation...' });

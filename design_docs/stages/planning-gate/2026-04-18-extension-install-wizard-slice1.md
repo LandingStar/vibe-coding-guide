@@ -1,7 +1,7 @@
 # Planning Gate — Extension 安装/配置向导 Slice 1
 
 > 创建时间: 2026-04-18
-> 状态: ACTIVE
+> 状态: CLOSED
 > 前置: 2026-04-18-vscode-extension-f5-e2e-verification.md (CLOSED)
 
 ## 目标
@@ -11,21 +11,23 @@ Extension 首次激活时提供安装配置向导：检测 Python Runtime 状态
 ## Scope
 
 ### 必做
-- [ ] `vscode-extension/src/setup/wizard.ts` — 安装向导核心逻辑
+- [x] `vscode-extension/src/setup/wizard.ts` — 安装向导核心逻辑
   - 检测 Python 是否可用（复用 resolvePythonPath + 验证 MCP server module 可加载）
   - 检测 Runtime 版本（`python -m src.mcp.server --version` 或 `doc-based-coding --version`）
   - 如未安装：引导用户选择 release.zip → 解压 → pip install wheels
   - 安装后自动写入 `docBasedCoding.pythonPath` 设置
-- [ ] `vscode-extension/src/setup/pythonDetector.ts` — Python 环境检测
+- [x] `vscode-extension/src/setup/pythonDetector.ts` — Python 环境检测
   - 检查 workspace venv、系统 Python、ms-python 扩展 Python
   - 验证 Python 版本 >= 3.10
   - 验证 doc-based-coding-runtime 是否已安装
-- [ ] `vscode-extension/src/setup/runtimeInstaller.ts` — Runtime 安装器
+- [x] `vscode-extension/src/setup/runtimeInstaller.ts` — Runtime 安装器
   - 解压 release.zip 到临时目录
   - 执行 `pip install *.whl`（按正确顺序：runtime 先，instance 后）
   - 安装结果验证
-- [ ] Extension activate 中集成：首次激活 → 检测 → 未就绪则触发向导
-- [ ] `docBasedCoding.setupWizard` command — 手动触发入口
+- [x] Extension activate 中集成：首次激活 → 检测 → 未就绪则触发向导
+- [x] `docBasedCoding.setupWizard` command — 手动触发入口
+- [x] 自动检测 `release/` 目录的 .whl 文件，一键安装（超出原始 scope，作为增强）
+- [x] MCP 启动后自动生成 `.vscode/mcp.json`，VS Code 原生 MCP 可发现（超出原始 scope，作为增强）
 
 ### 不做（下一 slice）
 - 版本兼容性矩阵校验（Extension v ↔ Runtime v）

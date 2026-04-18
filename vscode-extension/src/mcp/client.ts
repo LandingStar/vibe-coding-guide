@@ -10,6 +10,7 @@ import { MCPToolCall, MCPToolResult } from './types';
 export interface MCPClientOptions {
     pythonPath: string;
     projectRoot: string;
+    serverMode?: 'auto' | 'module' | 'command';
     serverArgs?: string[];
 }
 
@@ -39,17 +40,13 @@ export class MCPClient implements vscode.Disposable {
             return;
         }
 
-        const args = [
-            '-m', 'src.mcp.server',
-            '--project', this._options.projectRoot,
-            ...(this._options.serverArgs ?? []),
-        ];
+        const { command, args } = this._resolveServerCommand();
 
         this._outputChannel.appendLine(
-            `[MCP] Starting server: ${this._options.pythonPath} ${args.join(' ')}`
+            `[MCP] Starting server: ${command} ${args.join(' ')}`
         );
 
-        this._process = spawn(this._options.pythonPath, args, {
+        this._process = spawn(command, args, {
             cwd: this._options.projectRoot,
             stdio: ['pipe', 'pipe', 'pipe'],
             env: { ...process.env },
@@ -129,7 +126,7 @@ export class MCPClient implements vscode.Disposable {
             capabilities: {},
             clientInfo: {
                 name: 'doc-based-coding-vscode',
-                version: '0.1.0',
+                version: '0.1.1',
             },
         });
         this._outputChannel.appendLine(`[MCP] Initialized: ${JSON.stringify(result)}`);
@@ -204,5 +201,61 @@ export class MCPClient implements vscode.Disposable {
                 this._outputChannel.appendLine(`[MCP] Parse error: ${line}`);
             }
         }
+    }
+
+    /**
+     * Resolve the server command and arguments based on serverMode config.
+     * - "command": use doc-based-coding-mcp entry point directly
+     * - "module": use python -m src.mcp.server
+     * - "auto": try entry point first (check if exists), fall back to module
+     */
+    private _resolveServerCommand(): { command: string; args: string[] } {
+        const mode = this._options.serverMode ?? 'auto';
+        const extraArgs = this._options.serverArgs ?? [];
+        const projectArg = ['--project', this._options.projectRoot];
+
+        if (mode === 'command') {
+            return {
+                command: this._findEntryPoint() ?? 'doc-based-coding-mcp',
+                args: [...projectArg, ...extraArgs],
+            };
+        }
+
+        if (mode === 'module') {
+            return {
+                command: this._options.pythonPath,
+                args: ['-m', 'src.mcp.server', ...projectArg, ...extraArgs],
+            };
+        }
+
+        // auto: prefer entry point if found, otherwise module
+        const entryPoint = this._findEntryPoint();
+        if (entryPoint) {
+            this._outputChannel.appendLine(`[MCP] Auto mode: using entry point → ${entryPoint}`);
+            return {
+                command: entryPoint,
+                args: [...projectArg, ...extraArgs],
+            };
+        }
+
+        this._outputChannel.appendLine('[MCP] Auto mode: entry point not found, using python -m');
+        return {
+            command: this._options.pythonPath,
+            args: ['-m', 'src.mcp.server', ...projectArg, ...extraArgs],
+        };
+    }
+
+    /**
+     * Try to find the doc-based-coding-mcp entry point in the same
+     * directory as the Python executable (typical for venv installs).
+     */
+    private _findEntryPoint(): string | null {
+        const { existsSync } = require('fs');
+        const path = require('path');
+        const isWindows = process.platform === 'win32';
+        const pythonDir = path.dirname(this._options.pythonPath);
+        const name = isWindows ? 'doc-based-coding-mcp.exe' : 'doc-based-coding-mcp';
+        const candidate = path.join(pythonDir, name);
+        return existsSync(candidate) ? candidate : null;
     }
 }

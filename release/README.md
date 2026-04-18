@@ -56,6 +56,22 @@
 | `doc-loop-validate-instance` | ✅ 所有检查项通过（manifest keys / path refs / schema examples） |
 | 安装态资产加载 | ✅ pack-manifest.json / bootstrap / references 均可在 site-packages 中读取 |
 
+## 版本映射
+
+本项目有三个独立版本化的组件：
+
+| 组件 | 当前版本 | 说明 |
+|------|---------|------|
+| VS Code Extension (`.vsix`) | `0.1.1` | 前端插件，独立版本线 |
+| Runtime (`.whl`) | `0.9.3` | 平台 runtime / CLI / MCP server |
+| Instance Pack (`.whl`) | `0.9.4` | 官方 doc-loop 实例资产 |
+
+**兼容性规则**：
+- Extension `0.1.x` 兼容 Runtime `0.9.x`
+- Instance Pack `0.9.x` 版本需 ≥ Runtime 版本（如 Pack 0.9.4 需要 Runtime ≥ 0.9.3）
+- 同一 release 批次的三个文件可组合使用
+- **重要**：内容变更时版本号会递增，使用 `pip install <file>` 即可正常升级
+
 ## 目录结构
 
 ```

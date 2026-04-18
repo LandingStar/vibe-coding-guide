@@ -57,6 +57,14 @@ export class ConstraintDashboardProvider implements vscode.TreeDataProvider<Cons
         this._mcpClient = client;
     }
 
+    /** Current violation count (null if no data loaded). */
+    get violationCount(): number | null {
+        if (!this._lastResult) {
+            return null;
+        }
+        return (this._lastResult.violations ?? []).length;
+    }
+
     /** Refresh constraint data from MCP server. */
     async refresh(): Promise<void> {
         try {

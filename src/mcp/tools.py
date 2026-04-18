@@ -139,6 +139,48 @@ class GovernanceTools:
             "Use askQuestions when the user needs a structured choice, approval, direction confirmation, or phase progression decision."
         )
 
+    # ── Hardcoded git remote guard (not overridable) ──────────────
+    import re as _re
+
+    _GIT_REMOTE_BLOCKED = ("push",)
+    _GIT_REMOTE_RE = _re.compile(
+        r"(?:^|[;&|]|\|\||&&|&)\s*"
+        r'(?:"[^"]*[\\/])?'
+        r"(?:[\w:/\\.-]*[\\/])?"
+        r"git(?:\.exe)?\"?\s+"
+        r"(?:" + "|".join(_GIT_REMOTE_BLOCKED) + r")"
+        r"(?:\s|$|[;&|])",
+        _re.IGNORECASE,
+    )
+
+    def _check_git_remote_guard(self, input_text: str) -> dict | None:
+        """Return a BLOCK dict if input contains a remote git command."""
+        # Only check terminal-command inputs
+        lower = input_text.lower()
+        if not lower.startswith("terminal-command:") and not lower.startswith("terminal:"):
+            return None
+        # Extract the command part after the prefix
+        _, _, cmd = input_text.partition(":")
+        cmd = cmd.strip()
+        if not cmd:
+            return None
+        m = self._GIT_REMOTE_RE.search(cmd)
+        if m is None:
+            return None
+        # Identify which subcommand matched
+        matched = ""
+        for sub in self._GIT_REMOTE_BLOCKED:
+            if sub in m.group(0).lower():
+                matched = sub
+                break
+        return {
+            "decision": "BLOCK",
+            "reason": f"Remote git operation '{matched}' is permanently blocked in this workspace.",
+            "constraint_violated": ["C-HARDCODED-GIT-PUSH"],
+            "required_action": "git push is disabled to prevent unintended remote modifications. Read-only operations (pull/fetch/clone) are allowed.",
+            "hardcoded": True,
+        }
+
     def _external_skill_interaction_contract(self) -> dict[str, Any]:
         merged_rules: dict[str, Any] | None = None
         if self._pipeline is not None:
@@ -148,7 +190,7 @@ class GovernanceTools:
             merged_rules,
         )
 
-    def governance_decide(self, input_text: str, scope_path: str = "") -> dict:
+    def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 
         Returns structured result with envelope, execution result,
@@ -157,14 +199,36 @@ class GovernanceTools:
         When *scope_path* is provided, pack resolution uses only the
         matching branch of the pack tree (hierarchical scope-aware mode).
 
+        When *action_type* is provided, tool-level permission policies
+        (from pack rules.tool_permissions) are evaluated first.
+
         MCP tool behavior:
         - Always returns a ``decision`` field: "ALLOW" or "BLOCK"
         - On BLOCK: includes ``constraint_violated`` and ``required_action``
         - On ALLOW: includes full envelope and execution result
         """
+        # ── Hardcoded guard: remote git operations ──
+        git_block = self._check_git_remote_guard(input_text)
+        if git_block is not None:
+            return git_block
+
         err = self._require_pipeline()
         if err is not None:
             return err
+
+        # ── Tool permission policy check (B-REF-4) ──
+        if action_type:
+            from ..pdp.tool_permission_resolver import resolve as _resolve_perm
+            rule_config = self._pipeline.rule_config
+            perm_result = _resolve_perm(action_type, rule_config.tool_permissions)
+            if perm_result.permission == "deny":
+                return {
+                    "decision": "BLOCK",
+                    "reason": perm_result.deny_message or f"Action '{action_type}' denied by tool permission policy.",
+                    "constraint_violated": ["TOOL_PERMISSION_DENY"],
+                    "required_action": "This action type is not permitted in the current pack configuration.",
+                    "policy_source": perm_result.policy_source,
+                }
 
         # Pre-check constraints
         constraints = self._pipeline.check_constraints()
@@ -189,7 +253,7 @@ class GovernanceTools:
         pack_info["external_skill_interaction_contract"] = (
             self._external_skill_interaction_contract()
         )
-        return {
+        response: dict[str, Any] = {
             "decision": "ALLOW",
             "envelope": result.envelope,
             "execution": {
@@ -201,6 +265,20 @@ class GovernanceTools:
             "pack_info": pack_info,
             "decision_log_entry": result.decision_log_entry,
         }
+
+        # Annotate with tool permission "ask" if applicable
+        if action_type:
+            from ..pdp.tool_permission_resolver import resolve as _resolve_perm
+            rule_config = self._pipeline.rule_config
+            perm_result = _resolve_perm(action_type, rule_config.tool_permissions)
+            if perm_result.permission == "ask":
+                response["tool_permission"] = {
+                    "requires_confirmation": True,
+                    "action_type": action_type,
+                    "policy_source": perm_result.policy_source,
+                }
+
+        return response
 
     def check_constraints(self) -> dict:
         """Report project-level constraints and runtime enforcement coverage.
@@ -297,6 +375,69 @@ class GovernanceTools:
                 {"trace_id": trace_id, "decision": decision, "intent": intent}.items()
                 if v
             },
+        }
+
+    def workflow_interrupt(self, reason: str, discovered_item: str, current_scope_ref: str = "") -> dict:
+        """Signal a workflow interrupt when an out-of-scope item is discovered.
+
+        This primitive implements the project rule:
+        "若发现新问题超出当前切片，先写回 planning-gate，而不是就地扩 scope"
+
+        Returns structured guidance directing the agent to write the
+        discovered item to a planning-gate document rather than expanding
+        scope in-place.
+        """
+        import uuid
+        from datetime import datetime, timezone
+
+        interrupt_id = f"int-{uuid.uuid4().hex[:12]}"
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # Generate a suggested filename based on the discovered item
+        slug = discovered_item[:60].lower()
+        slug = "".join(c if c.isalnum() or c in "-_ " else "" for c in slug)
+        slug = slug.strip().replace(" ", "-").replace("_", "-")
+        slug = "-".join(part for part in slug.split("-") if part)[:40]
+        date_prefix = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        suggested_filename = f"design_docs/stages/planning-gate/{date_prefix}-{slug}.md"
+
+        # Record to decision log if pipeline available
+        decision_log_entry: dict[str, Any] | None = None
+        if self._pipeline is not None:
+            entry = {
+                "interrupt_id": interrupt_id,
+                "timestamp": timestamp,
+                "type": "workflow_interrupt",
+                "reason": reason,
+                "discovered_item": discovered_item,
+                "current_scope_ref": current_scope_ref or None,
+                "suggested_redirect": suggested_filename,
+            }
+            try:
+                from ..workflow.decision_log import record_entry
+                record_entry(self._project_root, entry)
+                decision_log_entry = entry
+            except Exception:
+                decision_log_entry = entry
+
+        return {
+            "status": "interrupted",
+            "interrupt_id": interrupt_id,
+            "timestamp": timestamp,
+            "guidance": {
+                "action": "write_to_planning_gate",
+                "instruction": (
+                    "You have signaled a scope interrupt. "
+                    "Record the discovered item in a new planning-gate document. "
+                    "Do NOT expand the current scope. "
+                    "Resume current work only after the new planning-gate is addressed."
+                ),
+                "discovered_item": discovered_item,
+                "reason": reason,
+                "current_scope_ref": current_scope_ref or None,
+                "suggested_filename": suggested_filename,
+            },
+            "decision_log_entry": decision_log_entry,
         }
 
     def get_next_action(self) -> dict:

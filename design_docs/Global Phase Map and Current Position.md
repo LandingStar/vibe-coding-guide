@@ -238,6 +238,9 @@
 - B-REF-7 Custom tool surface 合并审计完成 + `analyze_changes` 统一入口已实施：11 个 MCP tools（旧名保留为别名）+ 6 个新测试 — 1133 passed
 - Agent Output 可见性临时方案完成：`src/workflow/agent_output.py`（OutputSink Protocol + FileSink）+ GovernanceTools.write_output() 集成 + `.codex/agent-output/latest.md` 输出面 + 10 个新测试 — 1127 passed, 2 skipped
 - **VS Code Extension P0+P1 完成**：15 个 TypeScript 文件（extension.ts / MCPClient / ConstraintDashboard TreeView / GovernanceInterceptor 接口 / PassthroughInterceptor / CopilotLLMProvider / AgentSession 多 agent 数据模型），TypeScript 零类型错误，esbuild 构建成功，Python 回归 1133 passed, 2 skipped
+- **Extension 安装向导完成**：`setup/wizard.ts` + `pythonDetector.ts` + `runtimeInstaller.ts` — 首次激活自动检测 Python 环境 → runtime 未安装时弹模态对话框 → 一键从 release/ 目录 wheel 安装或手动选择 zip → pip batch install → 自动配置 pythonPath → MCP 启动 → `.vscode/mcp.json` 自动生成
+- **VS Code Extension P2-P7 完成**：Pack Explorer TreeView + Decision Log + StatusBar (P2) | File Save Interception (P3) | Copilot Intent Classification (P4) | BLOCK Explanation + Pack Generation (P4+) | Review Panel WebView (P5) | Terminal Monitor via Shell Integration API (P6) | File Lifecycle create/delete/rename Interception (P6+) | Chat Participant `@governance` with /check /decide /constraints /packs (P7) — esbuild 零错误，.vsix 打包 (19.55 KB) 安装验证通过
+- **硬编码 Git Push 拦截完成**：仅拦截 `git push`（修改远程的唯一操作）；pull/fetch/clone 允许通过。三层实现：`gitRemoteGuard.ts` 终端正则 + `gitRemoteGuardScm.ts` SCM UI git wrapper + MCP `governance_decide` pre-check。1133 pytest + esbuild 通过；VSIX 0.1.2（23.3 KB）
 ## 阅读顺序
 
 1. 先读本文件。

@@ -179,17 +179,36 @@
 - [x] B-REF-1: Pack 渐进式加载设计 — 三级加载（METADATA/MANIFEST/FULL）已实现：Slice 1 LoadLevel enum + ContextBuilder 分阶段 build + upgrade()；Slice 2 Pipeline MANIFEST 降级 + pack_context lazy upgrade；Slice 3 MCP get_pack_info level/scope_path 参数 + description 字段 — 1095 passed, 2 skipped
 - [x] B-REF-2: Pack description 质量标准 — 已建立质量标准文档（`design_docs/tooling/Pack Description Quality Standard.md`）+ `validate_description()` 验证函数 + 现有 pack 已添加符合标准的 description + 9 个新测试 — 1104 passed, 2 skipped
 
-> **当前测试基线**: 1133 passed, 2 skipped
+> **当前测试基线**: 1161 passed, 2 skipped
 - [x] B-REF-3: Pack 内部组织规范 — 引用深度 ≤ 1 + 按域拆分 + TOC 规则已建立（`design_docs/tooling/Pack Internal Organization Standard.md`）+ `validate_pack_organization()` 验证函数 + 13 个新测试 — 1117 passed, 2 skipped
-- [ ] B-REF-4: Permission policy 分层覆盖模型 — 在 governance_decide 之外补充工具粒度的权限策略：pack 级默认 + 单 tool 级 override + deny_message 机制（参考 Claude permission policies）
-- [ ] B-REF-5: 工作流中断原语 (interrupt primitive) — 在 workflow 引擎层显式化中断与重定向操作，对应"发现超出 scope 时回退到 planning-gate"的模式（参考 Claude `user.interrupt`）
-- [ ] B-REF-6: 子 agent 上下文隔离评估 — 评估当前子 agent 共享全部上下文是否合理，是否应改为"共享工作区文件 + 隔离对话/状态上下文"（参考 Claude multi-agent 共享文件系统 + 隔离 context）
+- [x] B-REF-4: Permission policy 分层覆盖模型 — `ToolPermissionResolver` + `ToolPermissionConfig` + `RuleConfig.tool_permissions` 字段；pack 级 default + 单 tool 级 override；deny → BLOCK + deny_message，ask → requires_confirmation 注释；`governance_decide` 新增 `action_type` 参数 + 21 新测试 — 1154 passed, 2 skipped
+- [x] B-REF-5: 工作流中断原语 (interrupt primitive) — `workflow_interrupt` MCP tool：接收 reason + discovered_item → 生成 interrupt_id + suggested_filename + 结构化 guidance → 记录到 decision log；实现"发现超出 scope 时回退到 planning-gate"的显式化 — 1161 passed, 2 skipped
+- [x] B-REF-6: 子 agent 上下文隔离评估 — 评估结论：当前隔离模型合理（合同声明 → Prompt 隔离 → Subgraph delta merge 三层等效于 Claude "共享 FS + 隔离 context"），无需架构级变更；建议增量优化：report_validator 增加 allowed_artifacts 路径硬校验
 - [x] B-REF-7: Custom tool surface 合并审计 — 审计报告已完成 + `analyze_changes` 统一入口已实施（`design_docs/tooling/MCP Tool Surface Audit.md`）：11 个 MCP tools + 旧名保留为别名 + 6 个新测试 — 1133 passed, 2 skipped
 
 ### VS Code Extension
 
 - [x] P0+P1: Extension 骨架 + MCP Client + Constraint Dashboard — 15 个 TS 文件，esbuild 编译通过，`.vsix` 已打包（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p0-p1.md`）
 - [x] F5 端到端验证 — Extension Dev Host 中成功运行：Activity Bar 图标、MCP stdio 连接、Constraint Dashboard 显示 C1-C8 状态、Output Channel 日志正常（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-f5-e2e-verification.md`）— 1133 passed, 2 skipped
+- [x] P2: Pack Explorer + Decision Log Viewer + Governance Status Bar — `packExplorer.ts` 实化（get_pack_info manifest 级展示）、`decisionLogViewer.ts`（query_decision_logs 50 条）、`statusBar.ts`（violation count）、package.json 新增 view/commands、extension.ts 集成（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p2.md`）— esbuild 零错误
+- [x] P3: Governance Interceptor — `MCPGovernanceInterceptor` 调用 `governance_decide`、`onWillSaveTextDocument` 拦截、BLOCK 时 modal warning + "Save Anyway" 用户覆盖（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p3.md`）— esbuild 零错误
+- [x] P4: Copilot LLM 集成 — `CopilotLLMProvider` 连接 `vscode.lm` API、`classifyIntent` 命令（intent classification 通过 Copilot 模型）、自动初始化 + 状态日志 — esbuild 零错误
+- [x] P4+: Copilot 深度集成 — Governance BLOCK 时 Copilot 自动生成解释和修复建议、`generatePackDescription` / `generatePackRules` 命令用 Copilot 辅助生成 pack 文档、interceptor.updateCopilot() 热绑定 — esbuild 零错误
+- [x] P5: Review UI WebView — `ReviewPanelProvider` WebView 面板、BLOCK 时自动打开、approve/reject 工作流（override & save）、CSP nonce 安全策略、替代旧 modal dialog — esbuild 零错误
+- [x] P6: Terminal 拦截 — `TerminalGovernanceMonitor` 监听 shell integration 事件、命令开始时调用 governance_decide、BLOCK 时警告+可选 kill、`killOnBlock` 配置项、engine 升级至 1.93+ — esbuild 零错误
+- [x] P6+: File Lifecycle 拦截 — `registerFileLifecycleListeners` 拦截 create/delete/rename 三类文件操作、BLOCK 时 abort + 警告 — esbuild 零错误
+- [x] .vsix 打包 — README 完善、CHANGELOG、icon.png、LICENSE、marketplace 元数据、engine 1.93+、`npm run package` → `doc-based-coding-0.1.0.vsix` (18KB, 零 warning)
+- [x] .vsix 安装验证 — `code --install-extension` 成功、文件已部署到 `~/.vscode/extensions/doc-based-coding.doc-based-coding-0.1.0/`
+- [x] P7: Chat Participant — `@governance` 注册到 Copilot Chat、`/check` `/decide` `/constraints` `/packs` 四个子命令、通用对话带 governance context 注入、followup 建议 — esbuild 零错误、.vsix 重新打包安装
+- [x] Extension 安装向导 — `setup/wizard.ts` + `pythonDetector.ts` + `runtimeInstaller.ts`；首次激活检测 Python/Runtime → 模态对话框引导 zip/wheel 安装 → 自动配置 pythonPath → MCP 自动启动 → `.vscode/mcp.json` 生成使原生 MCP 列表可见（`design_docs/stages/planning-gate/2026-04-18-extension-install-wizard-slice1.md`）— esbuild 零错误
+- [ ] 全局记忆/文档/规则支持（跨工作区）— 当前 pack/governance 仅限单工作区，需设计全局层面的 memory/docs/rules 继承机制
+- [ ] 研究借鉴 Multica 架构 — https://github.com/multica-ai/multica — 多 agent 协调平台的架构模式参考
+- [x] 子 agent model 管理 — 插件支持配置/切换子 agent 使用的 LLM model：`docBasedCoding.llm.family` 配置项 + `selectModel` Quick Pick 命令 + `onDidChangeConfiguration` 自动 re-init
+- [x] 硬编码禁止 git push — 插件在 governance 层拦截 `git push`（唯一修改远程的操作），不可绕过；pull/fetch/clone 等读取操作放行
+  - [x] VS Code Extension 侧：`gitRemoteGuard.ts` 正则预拦截 + TerminalGovernanceMonitor 集成 + Ctrl+C 终止 + modal error
+  - [x] MCP Python 侧：`governance_decide` pre-check 对 `terminal-command: git push` 返回 BLOCK
+  - [x] VS Code SCM UI：`gitRemoteGuardScm.ts` 生成 git wrapper 脚本，设置 workspace `git.path`，拦截 push (exit 128)
+  - [x] VSIX 0.1.2 已打包含全部 guard 代码（终端 + SCM UI + MCP）
 
 ### 已完成里程碑
 
