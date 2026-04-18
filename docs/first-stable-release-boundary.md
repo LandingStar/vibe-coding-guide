@@ -35,17 +35,32 @@
 
 | 入口类别 | 具体面 | 当前状态 | 理由 |
 |---------|--------|---------|------|
-| **Real Worker Adapters** | LLMWorker, HTTPWorker | 可用但依赖外部 API | 外部依赖不可控，不纳入默认稳定面 |
+| **Real Worker Adapters** | LLMWorker, HTTPWorker | 可用；`LLMWorker` payload path 已有 2 条独立正向 live signals，可表述为“具备最小可重复 dogfood 能力” | 外部依赖不可控；当前仍只支持受控 dogfood 口径，不纳入默认稳定面 |
 | **PEP 实写执行** | WritebackEngine (dry_run=False) | 可用但风险高 | 实写操作影响工作区文件，需用户显式 opt-in |
 | **File Audit Backend** | AuditBackend file 实现 | API 已定义，未完整测试 | 缺少充分测试覆盖 |
 | **MCP SSE Transport** | `--transport sse` 启动方式 | 可用 | 非默认通信方式，stdio 是主路径 |
 | **on_demand 懒加载** | `PackContext.load_on_demand()` | Phase 26 实现 | 功能可用但使用场景有限 |
-| **depends_on 校验** | pack manifest `depends_on` 字段消费 | 未实现 | gap analysis #11，优先级低 |
-| **provides 消费** | delegation capability check | 未实现 | gap analysis #5，优先级低 |
+| **depends_on 校验** | pack manifest `depends_on` 字段消费 | ✅ 已实现 | warning-only 校验，结果记入 Pipeline.info() |
+| **provides 消费** | delegation capability check | ✅ 已实现 | advisory capability warning + review 升级 |
 | **overrides 字段消费** | pack `overrides` 字段 | 无当前场景 | gap analysis #12 |
-| **checks 字段直连** | manifest `checks` 字段 ↔ ValidatorRegistry | 部分贯通 | gap analysis #16 |
+| **checks 字段直连** | manifest `checks` 字段 ↔ ValidatorRegistry | ✅ 已实现 | PackRegistrar 自动注册 + Executor writeback 前消费 |
 | **Script-style Validator** | 外部脚本 validator 语义升级 | Phase 31 诊断已到位 | 语义升级超出当前切片 |
 | **Worker Collaboration** | Handoff/Subgraph 高级协作模式 | Phase 20 实现 | 可扩展但未在 dogfood 中深度使用 |
+
+### 1.3 Real-Worker Payload Dogfood Interpretation
+
+截至 `2026-04-16`，当前仓库对 real-worker payload path 的权威口径应收敛为：
+
+1. `LLMWorker` 受控 payload path 已经获得 2 条独立正向 live signals。
+2. 这 2 条 signals 都同时成立于 raw response、final report 与 payload-derived writeback 三层。
+3. 这足以支持：`受控 real-worker payload path 已具备最小可重复 dogfood 能力`。
+4. 这仍不足以支持“默认稳定面”、“普遍可重复”或“所有 real worker adapter 都已具备可重复 dogfood 能力”的表述。
+
+若后续想把 wording 从“具备最小可重复 dogfood 能力”继续扩大到更宽泛的可重复性或稳定性承诺，后续证据门至少还应继续补强：
+
+1. 继续在无新 runtime code、schema 或 worker 语义变更前提下，获得更多独立受控 live signals，而不只停留在 2 条。
+2. 新 signal 仍需同时满足 raw response、final report 与 payload-derived writeback 三层证据。
+3. 若新增 signal 不满足这三层证据，应先记录为新的 dogfood observation，而不是继续扩大 adoption wording。
 
 ## 2. 默认 Self-Hosting 升级的最小判断标准
 
@@ -102,10 +117,10 @@
 
 | # | 条目 | 理由 |
 |---|------|------|
-| N1 | depends_on 依赖校验 | gap analysis #11，优先级低，不影响核心治理链 |
-| N2 | provides 消费用于 delegation | gap analysis #5，当前 delegation 不依赖此能力 |
+| N1 | depends_on 依赖校验 | 已完成：warning-only 依赖校验，不阻塞核心治理链 |
+| N2 | provides 消费用于 delegation | 已完成：advisory capability check，不阻塞 delegation |
 | N3 | overrides 字段消费 | gap analysis #12，无当前场景 |
-| N4 | checks 字段 ↔ manifest 直连 | gap analysis #16，部分贯通已够用 |
+| N4 | checks 字段 ↔ manifest 直连 | 已完成：manifest checks 已直连 runtime registry |
 | N5 | Script-style validator 语义升级 | Phase 31 诊断已到位，升级非紧急 |
 | N6 | Real worker (LLM/HTTP) 集成 | 外部依赖不可控，不纳入自用入口 |
 | N7 | File audit backend | 内存后端已满足当前需求 |

@@ -90,6 +90,7 @@
 
 - 实际做了什么
 - 改了什么
+- 若后续需要 writeback，可提供什么结构化内容载荷
 - 跑了哪些验证
 - 哪些问题还没解决
 - 是否建议升级
@@ -107,6 +108,8 @@
     - `blocked`
 - `changed_artifacts`
   - 实际改动的 artifact
+- `artifact_payloads`
+  - 可选的结构化内容载荷，供后续 writeback plan 映射消费
 - `verification_results`
   - 运行过的验证及结果
 - `unresolved_items`
@@ -122,6 +125,24 @@
 - 报告应优先提供证据，不应只是自由总结。
 - 若 `status=completed`，不代表系统已经完成，只代表子 agent 任务已收口。
 - `changed_artifacts` 与 `verification_results` 不应为空泛描述。
+- `changed_artifacts` 仍是执行后证据列表；`artifact_payloads` 不替代执行证据。
+- `artifact_payloads` 若存在，只表达“供后续 writeback 消费的结构化内容候选”，不等于“真实文件已被成功写回”。
+
+### `artifact_payloads` 第一版边界
+
+若 `artifact_payloads` 出现，第一版每项固定包含：
+
+- `path`
+- `content`
+- `operation`
+- `content_type`
+
+其中：
+
+- `operation` 只允许：`create` / `update` / `append`
+- `content_type` 只允许：`markdown` / `json` / `yaml` / `text`
+
+当前不把 directive 级更新（如 `section_replace` / `line_insert`）直接塞进 `Subagent Report`。这层 schema 只负责提供后续 writeback 可消费的结构化候选内容，不负责声明真实文件已经被更新。
 
 ### JSON Schema
 
@@ -221,4 +242,4 @@
 ## 开放问题
 
 - `Handoff` 是否需要显式记录 `supersedes`
-- `Subagent Report` 是否需要标准化 diff 摘要字段
+- `Subagent Report` 是否需要进一步升级为 directive 级 writeback payload

@@ -176,6 +176,17 @@ escalation 的目标可以是：
 - 是否发生 delegation / handoff / escalation
 - 执行了哪些动作
 - 写回了哪些 artifact
+- 是否存在临时规则 override（含约束标识、授权理由与有效范围）
+
+## Temporary Rule Override
+
+对话过程中用户可临时授权豁免 instruction-layer 约束。此类 override 有以下治理属性：
+
+- 仅限可突破约束（C1/C2/C3/C6/C7）；machine-checked 约束（C4/C5）与 subagent 边界（C8）不可突破
+- 必须有显式用户授权才能注册
+- 通过 `governance_override` MCP tool 注册到 `.codex/temporary-overrides.json`
+- 在 safe-stop writeback bundle 中自动过期
+- 审计记录保留 override 的完整生命周期（注册、撤销、过期）
 
 ## 当前边界
 

@@ -13,8 +13,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..audit.audit_logger import AuditLogger, MemoryAuditBackend
+from ..audit.decision_log import DecisionLogStore, build_entry as build_decision_log_entry
 from ..pack import manifest_loader
 from ..pack.context_builder import ContextBuilder, PackContext
+from ..pack.manifest_loader import LoadLevel
 from ..pack.override_resolver import RuleConfig, resolve as resolve_rules
 from ..pack.registrar import PackRegistrar
 from ..pdp.decision_envelope import build_envelope
@@ -65,9 +67,10 @@ class PipelineResult:
     execution: dict = field(default_factory=dict)
     audit_events: list[dict] = field(default_factory=list)
     pack_info: dict = field(default_factory=dict)
+    decision_log_entry: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "envelope": self.envelope,
             "execution": {
                 k: v for k, v in self.execution.items() if k != "_rsm"
@@ -75,6 +78,9 @@ class PipelineResult:
             "audit_events": self.audit_events,
             "pack_info": self.pack_info,
         }
+        if self.decision_log_entry:
+            d["decision_log_entry"] = self.decision_log_entry
+        return d
 
 
 @dataclass
@@ -112,6 +118,7 @@ class ConstraintResult:
     active_planning_gate: str = ""
     machine_checked_constraints: list[ConstraintScope] = field(default_factory=list)
     instruction_layer_constraints: list[ConstraintScope] = field(default_factory=list)
+    active_overrides: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def has_violations(self) -> bool:
@@ -131,7 +138,11 @@ class ConstraintResult:
         )
 
     def to_dict(self) -> dict:
-        return {
+        blocking = [v.constraint for v in self.violations if v.severity == "block"]
+        result: dict[str, Any] = {
+            "command_status": "ok",
+            "governance_status": "blocked" if blocking else "passed",
+            "blocking_constraints": blocking,
             "violations": [
                 {"constraint": v.constraint, "message": v.message, "severity": v.severity}
                 for v in self.violations
@@ -148,6 +159,9 @@ class ConstraintResult:
             ],
             "runtime_enforcement_summary": self.runtime_enforcement_summary,
         }
+        if self.active_overrides:
+            result["active_overrides"] = self.active_overrides
+        return result
 
 
 # ── Pack discovery ────────────────────────────────────────────────────────
@@ -157,7 +171,11 @@ _PACK_JSON_SUFFIX = ".pack.json"
 _CONFIG_FILE = ".codex/platform.json"
 
 
-def _discover_packs(project_root: Path) -> list[tuple[Path, Path]]:
+def _discover_packs(
+    project_root: Path,
+    *,
+    include_site_packages: bool = True,
+) -> list[tuple[Path, Path]]:
     """Auto-discover pack manifests under project_root.
 
     Returns list of (manifest_path, base_dir) tuples, ordered by kind
@@ -168,6 +186,11 @@ def _discover_packs(project_root: Path) -> list[tuple[Path, Path]]:
     2. Otherwise scan:
        a. {root}/.codex/packs/*.pack.json
        b. {root}/*/pack-manifest.json (one-level subdirs)
+       c. Installed Python packages carrying pack-manifest.json (via importlib.metadata)
+
+    Args:
+        include_site_packages: When False, skip scanning site-packages for
+            installed packs.  Useful in tests that need full isolation.
     """
     config_path = project_root / _CONFIG_FILE
     if config_path.exists():
@@ -175,7 +198,42 @@ def _discover_packs(project_root: Path) -> list[tuple[Path, Path]]:
             config = json.loads(config_path.read_text(encoding="utf-8"))
             dirs = config.get("pack_dirs", [])
             if dirs:
-                return _resolve_pack_dirs(project_root, dirs)
+                results = _resolve_pack_dirs(project_root, dirs)
+                # Also scan .codex/packs/ for standalone pack files
+                # not covered by explicit pack_dirs entries
+                packs_dir = project_root / ".codex" / "packs"
+                if packs_dir.is_dir():
+                    seen_dirs = {r[1] for r in results}
+                    seen_names = _extract_pack_names(results)
+                    for f in sorted(packs_dir.iterdir()):
+                        if (
+                            f.is_file()
+                            and (
+                                f.name.endswith(_PACK_JSON_SUFFIX)
+                                or f.name in _MANIFEST_NAMES
+                            )
+                            and packs_dir not in seen_dirs
+                        ):
+                            name = _read_pack_name(f)
+                            if name and name not in seen_names:
+                                results.append((f, packs_dir))
+                                seen_names.add(name)
+                    seen_dirs.add(packs_dir)  # prevent re-scan
+
+                # Even with explicit config, also discover installed packs
+                # to avoid requiring manual wiring for pip-installed packs
+                if include_site_packages:
+                    installed = _discover_installed_packs()
+                    seen_dirs = {r[1] for r in results}
+                    seen_names = _extract_pack_names(results)
+                    for manifest, base in installed:
+                        if base not in seen_dirs:
+                            name = _read_pack_name(manifest)
+                            if name and name not in seen_names:
+                                results.append((manifest, base))
+                                seen_dirs.add(base)
+                                seen_names.add(name)
+                return results
         except (json.JSONDecodeError, KeyError):
             pass  # Fall through to convention-based discovery
 
@@ -196,6 +254,88 @@ def _discover_packs(project_root: Path) -> list[tuple[Path, Path]]:
                 if manifest.exists():
                     results.append((manifest, child))
 
+    # Installed Python packages carrying pack-manifest.json
+    if include_site_packages:
+        installed = _discover_installed_packs()
+        seen_dirs = {r[1] for r in results}
+        seen_names = _extract_pack_names(results)
+        for manifest, base in installed:
+            if base not in seen_dirs:
+                name = _read_pack_name(manifest)
+                if name and name not in seen_names:
+                    results.append((manifest, base))
+                    seen_dirs.add(base)
+                    seen_names.add(name)
+
+    return results
+
+
+def _read_pack_name(manifest_path: Path) -> str:
+    """Read the ``name`` field from a pack manifest without full parsing."""
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return data.get("name", "")
+    except Exception:
+        return ""
+
+
+def _extract_pack_names(
+    discovered: list[tuple[Path, Path]],
+) -> set[str]:
+    """Extract pack names from already-discovered manifest paths."""
+    names: set[str] = set()
+    for manifest, _ in discovered:
+        name = _read_pack_name(manifest)
+        if name:
+            names.add(name)
+    return names
+
+
+def _discover_installed_packs() -> list[tuple[Path, Path]]:
+    """Discover pack manifests from pip-installed Python packages.
+
+    Scans ``site-packages`` directories for top-level packages that ship a
+    ``pack-manifest.json`` file.  This enables ``pip install`` as the sole
+    adoption step for official instance packs.
+    """
+    results: list[tuple[Path, Path]] = []
+    try:
+        import site
+        import sys
+
+        # Collect all site-packages directories
+        site_dirs: list[str] = []
+        try:
+            site_dirs.extend(site.getsitepackages())
+        except AttributeError:
+            pass  # Not available in some virtualenvs
+        user_site = getattr(site, "getusersitepackages", lambda: None)()
+        if user_site:
+            site_dirs.append(user_site)
+        # Also check sys.path entries that look like site-packages
+        for p in sys.path:
+            if "site-packages" in p and p not in site_dirs:
+                site_dirs.append(p)
+
+        seen: set[Path] = set()
+        for site_dir in site_dirs:
+            sp = Path(site_dir)
+            if not sp.is_dir():
+                continue
+            try:
+                for child in sp.iterdir():
+                    if not child.is_dir():
+                        continue
+                    manifest = child / "pack-manifest.json"
+                    if manifest.exists() and child not in seen:
+                        results.append(
+                            (manifest.resolve(), child.resolve())
+                        )
+                        seen.add(child)
+            except OSError:
+                continue
+    except Exception:
+        pass  # site module unavailable or broken — skip silently
     return results
 
 
@@ -311,11 +451,28 @@ def _check_constraints(project_root: Path) -> ConstraintResult:
     - C1, C2, C3, C6, C7, C8
 
     Also reads checkpoint state to expose current phase and active planning gate.
+    Loads active temporary overrides and includes them in the result.
     """
+    from .temporary_override import get_active_overrides
+
     result = ConstraintResult(
         machine_checked_constraints=list(_MACHINE_CHECKED_CONSTRAINTS),
         instruction_layer_constraints=list(_INSTRUCTION_LAYER_CONSTRAINTS),
     )
+
+    # Load active temporary overrides
+    active_overrides_list = []
+    try:
+        active_overrides_list = get_active_overrides(project_root)
+        if active_overrides_list:
+            result.active_overrides = [o.to_dict() for o in active_overrides_list]
+    except Exception:
+        pass  # override loading failure must not block constraint checking
+
+    overridden_constraints = {
+        o.constraint for o in active_overrides_list
+        if o.status == "active"
+    }
 
     # Files to reread for context recovery (C4)
     for rel in _KEY_STATE_FILES:
@@ -369,10 +526,23 @@ def _check_constraints(project_root: Path) -> ConstraintResult:
                     except OSError:
                         pass
     if not has_planning_gate:
+        # Downgrade C5 to "warn" when project is in initial state (no
+        # checkpoint and no current_phase) — at this stage there is no
+        # work context yet, so blocking is premature.
+        checkpoint_exists = (project_root / ".codex" / "checkpoints" / "latest.md").exists()
+        is_initial_state = not checkpoint_exists and not result.current_phase
+        c5_severity = "warn" if is_initial_state else "block"
+        c5_message = (
+            "No planning-gate document found. "
+            "Create one before starting implementation."
+            if is_initial_state
+            else "No planning-gate document found. "
+            "Create one before large-scale implementation."
+        )
         result.violations.append(ConstraintViolation(
             constraint="C5",
-            message="No planning-gate document found. Create one before large-scale implementation.",
-            severity="block",
+            message=c5_message,
+            severity=c5_severity,
         ))
 
     return result
@@ -408,7 +578,19 @@ class Pipeline:
         self._init_errors: list[ErrorInfo] = []
 
         # Load packs
-        self._pack_context, self._rule_config, self._registrar = self._load_packs(pack_dirs)
+        self._pack_context, self._rule_config, self._registrar, self._builder = (
+            self._load_packs(pack_dirs)
+        )
+
+        # Validate depends_on
+        self._dependency_status = manifest_loader.check_dependencies(
+            self._pack_context.manifests,
+        )
+
+        # Validate overrides
+        self._override_status = manifest_loader.check_overrides(
+            self._pack_context.manifests,
+        )
 
     @classmethod
     def from_project(
@@ -420,10 +602,11 @@ class Pipeline:
         worker: WorkerBackend | None = None,
         contract_factory: ContractFactory | None = None,
         report_validator: ReportValidator | None = None,
+        include_site_packages: bool = True,
     ) -> Pipeline:
         """Auto-discover packs from project root and create a Pipeline."""
         root = Path(project_root).resolve()
-        discovered = _discover_packs(root)
+        discovered = _discover_packs(root, include_site_packages=include_site_packages)
         pack_dirs = [str(base_dir) for _, base_dir in discovered]
         # Deduplicate while preserving order
         seen: set[str] = set()
@@ -444,7 +627,7 @@ class Pipeline:
 
     def _load_packs(
         self, pack_dirs: list[str | Path]
-    ) -> tuple[PackContext, RuleConfig, PackRegistrar]:
+    ) -> tuple[PackContext, RuleConfig, PackRegistrar, ContextBuilder]:
         """Load and merge all packs from the given directories."""
         builder = ContextBuilder()
         registrar = PackRegistrar()
@@ -486,14 +669,14 @@ class Pipeline:
             builder.add_pack(manifest, dir_path)
             manifest_dir_pairs.append((manifest, dir_path))
 
-        context = builder.build()
+        context = builder.build(level=LoadLevel.MANIFEST)
         rule_config = resolve_rules(context)
 
         # Register extensions (validators, triggers)
         for manifest, dir_path in manifest_dir_pairs:
             registrar.register(manifest, dir_path)
 
-        return context, rule_config, registrar
+        return context, rule_config, registrar, builder
 
     def process(self, input_text: str) -> PipelineResult:
         """Run full PDP → PEP governance chain.
@@ -525,6 +708,7 @@ class Pipeline:
             handoff_dir=self._project_root / ".codex" / "handoffs",
             writeback_engine=writeback_engine if not self._dry_run else None,
             audit_logger=audit_logger,
+            validator_registry=self._registrar.registry,
         )
         execution = executor.execute(envelope)
 
@@ -536,39 +720,174 @@ class Pipeline:
         # Pack info
         pack_info = self.info()
 
+        # Aggregate decision log entry
+        dl_entry = build_decision_log_entry(
+            envelope=envelope,
+            execution=execution,
+            audit_events=audit_events,
+            pack_info=pack_info,
+        )
+        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
+        store.append(dl_entry)
+
         return PipelineResult(
             envelope=envelope,
             execution=execution,
             audit_events=audit_events,
             pack_info=pack_info,
+            decision_log_entry=dl_entry.to_dict(),
         )
 
     def check_constraints(self) -> ConstraintResult:
         """Check project-level constraints. Independent of process()."""
         return _check_constraints(self._project_root)
 
-    def info(self) -> dict:
-        """Return info about loaded packs and merged configuration."""
+    def process_scoped(self, input_text: str, scope_path: str) -> PipelineResult:
+        """Run PDP → PEP governance chain with scope-aware pack selection.
+
+        Uses *scope_path* to resolve which pack tree branch applies,
+        building a scoped RuleConfig from only the matching pack chain.
+        Falls back to the global (unscoped) behaviour if no pack has
+        matching ``scope_paths``.
+        """
+        scoped_context = self._builder.build_scoped(scope_path, level=LoadLevel.MANIFEST)
+        scoped_rule_config = resolve_rules(scoped_context)
+
+        # Setup audit
+        audit_logger: AuditLogger | None = None
+        memory_backend: MemoryAuditBackend | None = None
+        if self._audit:
+            memory_backend = MemoryAuditBackend()
+            audit_logger = AuditLogger(memory_backend)
+
+        # PDP: build decision envelope with scoped rules
+        envelope = build_envelope(
+            input_text,
+            rule_config=scoped_rule_config,
+            audit_logger=audit_logger,
+        )
+
+        # PEP: execute
+        writeback_engine = WritebackEngine(base_dir=self._project_root)
+        executor = Executor(
+            dry_run=self._dry_run,
+            worker=self._worker,
+            contract_factory=self._contract_factory,
+            report_validator=self._report_validator,
+            handoff_dir=self._project_root / ".codex" / "handoffs",
+            writeback_engine=writeback_engine if not self._dry_run else None,
+            audit_logger=audit_logger,
+            validator_registry=self._registrar.registry,
+        )
+        execution = executor.execute(envelope)
+
+        # Collect audit events
+        audit_events: list[dict] = []
+        if memory_backend:
+            audit_events = [e.to_dict() for e in memory_backend.all_events]
+
+        # Pack info (scoped)
+        pack_info = self.info(scope_path=scope_path)
+
+        # Aggregate decision log entry
+        dl_entry = build_decision_log_entry(
+            envelope=envelope,
+            execution=execution,
+            audit_events=audit_events,
+            pack_info=pack_info,
+            scope_path=scope_path,
+        )
+        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
+        store.append(dl_entry)
+
+        return PipelineResult(
+            envelope=envelope,
+            execution=execution,
+            audit_events=audit_events,
+            pack_info=pack_info,
+            decision_log_entry=dl_entry.to_dict(),
+        )
+
+    def info(self, *, scope_path: str = "", level: LoadLevel = LoadLevel.MANIFEST) -> dict:
+        """Return info about loaded packs and merged configuration.
+
+        When *scope_path* is given, the ``packs`` and ``merged_*`` sections
+        reflect only the resolved pack chain for that scope.
+
+        *level* controls the detail depth:
+        - ``METADATA``: only basic pack identity (name/kind/provides/description)
+        - ``MANIFEST``: full capability sets + rules (default)
+        - ``FULL``: same as MANIFEST plus ``always_on_content`` summary
+        """
+        # Determine effective context
+        if scope_path:
+            effective_context = self._builder.build_scoped(scope_path, level=level)
+        else:
+            if level == LoadLevel.FULL:
+                effective_context = self.pack_context  # triggers upgrade
+            elif level <= self._pack_context.load_level:
+                effective_context = self._pack_context
+            else:
+                effective_context = self._builder.build(level=level)
+
         manifests_info = []
-        for m in self._pack_context.manifests:
-            manifests_info.append({
+        for m in effective_context.manifests:
+            entry: dict = {
                 "name": m.name,
                 "version": m.version,
                 "kind": m.kind,
-                "scope": m.scope,
+                "description": m.description,
                 "provides": m.provides,
-            })
-        result = {
+            }
+            if level >= LoadLevel.MANIFEST:
+                entry.update({
+                    "scope": m.scope,
+                    "parent": m.parent,
+                    "scope_paths": m.scope_paths,
+                })
+            manifests_info.append(entry)
+
+        result: dict = {
             "packs": manifests_info,
-            "merged_intents": self._pack_context.merged_intents,
-            "merged_gates": self._pack_context.merged_gates,
-            "merged_document_types": self._pack_context.merged_document_types,
-            "merged_provides": self._pack_context.merged_provides,
+            "load_level": level.name,
+            "merged_provides": effective_context.merged_provides,
         }
-        result.update(self._registrar.summary())
-        if self._init_errors:
-            result["init_warnings"] = [e.message for e in self._init_errors]
-            result["init_errors"] = [e.to_dict() for e in self._init_errors]
+
+        if level >= LoadLevel.MANIFEST:
+            result["merged_intents"] = effective_context.merged_intents
+            result["merged_gates"] = effective_context.merged_gates
+            result["merged_document_types"] = effective_context.merged_document_types
+
+            # Pack tree topology
+            tree = self._builder.pack_tree
+            tree_info: dict = {
+                "roots": [m.name for m in tree.roots()],
+                "depth": {name: tree.depth(name) for name in tree.all_names()},
+            }
+            if scope_path:
+                chain = tree.resolve_scope(scope_path)
+                tree_info["scope_path"] = scope_path
+                tree_info["resolved_chain"] = [m.name for m in chain] if chain else []
+            result["pack_tree"] = tree_info
+
+            result.update(self._registrar.summary())
+            if self._init_errors:
+                result["init_warnings"] = [e.message for e in self._init_errors]
+                result["init_errors"] = [e.to_dict() for e in self._init_errors]
+            result["dependency_status"] = self._dependency_status
+            result["override_declarations"] = effective_context.merged_overrides
+            result["override_warnings"] = self._override_status.get("warnings", [])
+            if effective_context.merge_conflicts:
+                result["merge_conflicts"] = effective_context.merge_conflicts
+
+        if level >= LoadLevel.FULL:
+            content = effective_context.always_on_content
+            result["always_on_content_summary"] = {
+                "file_count": len(content),
+                "files": list(content.keys()),
+                "total_chars": sum(len(v) for v in content.values()),
+            }
+
         return result
 
     @property
@@ -591,7 +910,11 @@ class Pipeline:
 
     @property
     def pack_context(self) -> PackContext:
-        """Expose the merged PackContext for inspection."""
+        """Expose the merged PackContext, upgrading to FULL on first access."""
+        if self._pack_context.load_level < LoadLevel.FULL:
+            self._pack_context = self._pack_context.upgrade(
+                LoadLevel.FULL, builder=self._builder
+            )
         return self._pack_context
 
     @property

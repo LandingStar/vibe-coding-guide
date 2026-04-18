@@ -91,6 +91,14 @@ skill 自己仍可以保留领域化 payload、状态枚举或详细报告，但
 
 这就是为什么 `authority -> shipped copies` 属于本 contract 的 companion mechanism，而不是独立主切片。
 
+## 消费方 Contract
+
+本文件定义的是 skill 提供方的 contract。消费方（driver）的职责边界、输入来源和结果分发路径定义在 [`driver-responsibilities.md`](driver-responsibilities.md)。
+
+两者形成对称：
+- 本文件回答"skill 应如何暴露结果"
+- `driver-responsibilities.md` 回答"driver 应如何消费这些结果"
+
 ## 当前边界
 
 本文件只固定最小 external skill interaction contract。

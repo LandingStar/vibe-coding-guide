@@ -2,7 +2,7 @@
 handoff_id: 2026-04-11_2348_handoff-model-initiated-invocation_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: handoff-model-initiated-invocation
 safe_stop_kind: stage-complete
 created_at: 2026-04-11T23:48:20+08:00

@@ -2,6 +2,57 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v0.9.3 — 2026-04-13
+
+**Pack CLI 管理能力 + 发现逻辑修复。**
+
+### 新增
+
+- `src/pack/pack_manager.py`：pack 生命周期管理（install / remove / list / info）
+- CLI `doc-based-coding pack` 子命令族：`list` / `install <path>` / `remove <name>` / `info <name>`
+- `docs/pack-index-format.md`：Pack Index 元数据格式文档
+- `docs/plugin-model.md` Pack Origins 章节补充发现来源分类表
+- 20 项 pack 管理 targeted tests
+
+### 修复
+
+- `_discover_packs()` config 路径增加 `.codex/packs/` 散装 `.pack.json` fallback 扫描，修复 `pack install` 后原有 pack 不可见的问题（dogfood #5）
+
+---
+
+## v0.9.2 — 2026-04-13
+
+**CI/CD 本地自动化 + 测试隔离修复。**
+
+### 新增
+
+- `scripts/build.py`：双包 wheel 一键构建（clean + 版本校验 + 内容物验证 + `--no-isolation` 选项）
+- `scripts/release.py`：一键 release 打包（构建 + pytest + release zip）
+
+### 修复
+
+- `_discover_packs()` 增加 `include_site_packages` 参数，解决 site-packages pack 自动发现污染测试隔离的问题
+- v0.9.1 issue 全部关闭（版本漂移、pack 发现、安装引导、状态提取）
+
+---
+
+## v0.9.1+ci — 2026-04-13
+
+**CI/CD 本地自动化脚本。**
+
+### 新增
+
+- `scripts/build.py`：双包 wheel 一键构建（clean + 版本校验 + 内容物验证 + `--no-isolation` 选项）
+- `scripts/release.py`：一键 release 打包（构建 + pytest + release zip）
+- `--no-isolation` 选项避免隔离构建环境的 PyPI 网络依赖
+
+### 修复
+
+- `_discover_packs()` 增加 `include_site_packages` 参数，解决测试隔离问题（site-packages 自动发现污染 tmp_path 测试项目）
+- v0.9.1 issue 全部关闭（版本漂移、pack 发现、安装引导、状态提取）
+
+---
+
 ## v1.0.0+post — 2026-04-12
 
 **发布后标准化 + 封装验证。** 所有 post-v1.0 方向候选（A-J）已完成，可分发安装包已验证。

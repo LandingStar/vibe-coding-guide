@@ -41,6 +41,8 @@
 - 官方实例回答“某种工作流如何落在系统上”
 - 项目级 pack 回答“这个仓库如何采用这个工作流”
 
+在大型项目中，项目级 pack 还可以进一步形成树状层级：根 pack 负责仓库级通用规则，子 pack 负责具体分区或子模块规则。
+
 ## Project-Local Pack 的角色
 
 项目级 pack 应被理解为：
@@ -117,6 +119,44 @@
 - `design_docs/tooling/Document-Driven Workflow Standard.md`
 
 这些内容之所以默认进入 `always_on`，是因为它们直接影响当前仓库中的高层判断、上下文恢复与 write-back 收口。
+
+## 大型项目 / Monorepo 采用形状
+
+当一个仓库内部存在多个相对独立的分区（如 `frontend/`、`backend/`、`infra/`），项目级 adoption 不必再退回“一个 project-local pack 包打天下”。当前推荐形状是：
+
+```text
+.codex/packs/
+   root.pack.json
+   frontend.pack.json
+   backend.pack.json
+   backend-api.pack.json
+```
+
+其中：
+
+- `root` 负责整个仓库共享的治理 overlay
+- `frontend` / `backend` 通过 `parent = "root"` 继承公共规则并覆盖各自分区差异
+- 更深的模块（如 `backend-api`）可以继续挂在局部父节点之下
+
+典型字段分工是：
+
+- `scope`
+   - 写给人看的适用范围描述
+- `scope_paths`
+   - 写给 runtime 的路径前缀，如 `frontend/`、`backend/api/`
+
+## Scoped Adoption
+
+当前 runtime 的作用域化 adoption 采用显式模式：
+
+- 宿主调用方在需要局部治理时，应显式传入 `scope_path`
+- runtime 根据 `scope_path` 解析 pack tree，并只装载命中的 root → leaf 链
+- 若没有传入 `scope_path`，则仍保持原有全局合并行为，保证旧项目 adoption 不被破坏
+
+这意味着：
+
+- 新项目可以逐步引入层级 pack，而不必一次性重构所有现有 pack
+- 旧项目即使完全不知道 `parent` / `scope_paths`，也不会因为升级 runtime 而失效
 
 ## 项目级定制应该落在哪里
 

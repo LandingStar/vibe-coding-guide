@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "doc-loop-vibe-coding"
-version = "1.0.0"
+version = "0.9.3"
 description = "Official doc-loop instance pack for the doc-based-coding runtime."
 readme = { file = "SKILL.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 dependencies = [
-    "doc-based-coding-runtime>=1.0.0,<2.0.0",
+    "doc-based-coding-runtime>=0.9.3,<1.0.0",
 ]
 
 [project.scripts]

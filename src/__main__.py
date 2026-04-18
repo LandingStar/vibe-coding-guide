@@ -100,8 +100,13 @@ def cmd_validate(args: list[str]) -> int:
     _print_json(result.to_dict())
 
     if result.has_violations:
-        print("\n⚠ Blocking violations found.", file=sys.stderr)
-        return 1
+        blocking = [v for v in result.violations if v.severity == "block"]
+        print("\n✓ Validation completed successfully.", file=sys.stderr)
+        print("⚠ Governance status: BLOCKED", file=sys.stderr)
+        for v in blocking:
+            print(f"  → {v.constraint}: {v.message}", file=sys.stderr)
+        return 2
+    print("\n✓ Validation completed successfully. No governance blocks.", file=sys.stderr)
     return 0
 
 
@@ -126,8 +131,13 @@ def cmd_check(args: list[str]) -> int:
     _print_json(output)
 
     if constraints.has_violations:
-        print("\n⚠ Blocking violations found.", file=sys.stderr)
-        return 1
+        blocking = [v for v in constraints.violations if v.severity == "block"]
+        print("\n✓ Check completed successfully.", file=sys.stderr)
+        print("⚠ Governance status: BLOCKED", file=sys.stderr)
+        for v in blocking:
+            print(f"  → {v.constraint}: {v.message}", file=sys.stderr)
+        return 2
+    print("\n✓ Check completed successfully. No governance blocks.", file=sys.stderr)
     return 0
 
 
@@ -156,12 +166,96 @@ def cmd_generate_instructions(args: list[str]) -> int:
     return 0
 
 
+def cmd_pack(args: list[str]) -> int:
+    """Pack management subcommands: list, install, remove, info."""
+    from .pack.pack_manager import install_pack, remove_pack, list_packs, get_pack_info
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding pack <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  list                    List all discovered packs\n"
+            "  install <path>          Install pack from local path\n"
+            "  remove <name>           Remove installed pack\n"
+            "  info <name>             Show pack details\n",
+        )
+        return 0
+
+    sub = args[0]
+    root = _find_project_root()
+
+    if sub == "list":
+        try:
+            packs = list_packs(root)
+        except Exception as e:
+            return _handle_error("Error listing packs", e, category="pack_error")
+        if not packs:
+            print("No packs discovered.")
+            return 0
+        for p in packs:
+            print(f"  {p.name}  v{p.version}  [{p.source}]  {p.kind}  ({p.path})")
+        return 0
+
+    if sub == "install":
+        if len(args) < 2:
+            print("Usage: doc-based-coding pack install <path>", file=sys.stderr)
+            return 1
+        source = Path(args[1]).resolve()
+        try:
+            info = install_pack(source, root)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Install failed: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            return _handle_error("Error installing pack", e, category="pack_error")
+        print(f"Installed pack '{info.name}' v{info.version} → {info.path}")
+        return 0
+
+    if sub == "remove":
+        if len(args) < 2:
+            print("Usage: doc-based-coding pack remove <name>", file=sys.stderr)
+            return 1
+        name = args[1]
+        try:
+            removed = remove_pack(name, root)
+        except ValueError as e:
+            print(f"Remove failed: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            return _handle_error("Error removing pack", e, category="pack_error")
+        if removed:
+            print(f"Removed pack '{name}'.")
+        else:
+            print(f"Pack '{name}' not found in .codex/packs/.", file=sys.stderr)
+            return 1
+        return 0
+
+    if sub == "info":
+        if len(args) < 2:
+            print("Usage: doc-based-coding pack info <name>", file=sys.stderr)
+            return 1
+        name = args[1]
+        try:
+            info = get_pack_info(name, root)
+        except Exception as e:
+            return _handle_error("Error getting pack info", e, category="pack_error")
+        if info is None:
+            print(f"Pack '{name}' not found.", file=sys.stderr)
+            return 1
+        _print_json(info.to_dict())
+        return 0
+
+    print(f"Unknown pack subcommand: {sub}", file=sys.stderr)
+    return 1
+
+
 _COMMANDS = {
     "process": cmd_process,
     "info": cmd_info,
     "validate": cmd_validate,
     "check": cmd_check,
     "generate-instructions": cmd_generate_instructions,
+    "pack": cmd_pack,
 }
 
 
@@ -183,9 +277,14 @@ def main() -> int:
             "  info                    Show loaded pack info\n"
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
-            "  generate-instructions   Generate copilot-instructions segment\n\n"
+            "  generate-instructions   Generate copilot-instructions segment\n"
+            "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"
-            "  --debug                 Show full traceback on errors\n",
+            "  --debug                 Show full traceback on errors\n\n"
+            "Exit codes:\n"
+            "  0  Success, no governance blocks\n"
+            "  1  Runtime error (init failure, file error, etc.)\n"
+            "  2  Success, but governance constraints block (validate/check)\n",
         )
         return 0
 

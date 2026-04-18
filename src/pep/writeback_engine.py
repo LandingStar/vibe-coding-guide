@@ -11,6 +11,10 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.audit.audit_logger import AuditLogger
 
 
 @dataclass
@@ -63,6 +67,8 @@ class WritebackEngine:
             return []
 
         plans: list[WritebackPlan] = []
+        report_plans, report_summary = self._plan_report_payloads(execution_result)
+        execution_result["report_writeback_summary"] = report_summary
 
         # Build a default plan from the execution detail.
         envelope_id = execution_result.get("envelope_id", "unknown")
@@ -76,6 +82,8 @@ class WritebackEngine:
             f"- Gate: {gate_level}\n"
             f"- Status: {review_state}\n"
             f"- Detail: {detail}\n"
+            f"- Report payload-derived plans: {len(report_summary['planned_payloads'])}\n"
+            f"- Report payloads skipped: {len(report_summary['skipped_payloads'])}\n"
             f"- Timestamp: {datetime.now(timezone.utc).isoformat()}\n"
         )
 
@@ -85,13 +93,142 @@ class WritebackEngine:
             operation="create",
             content_type="markdown",
         ))
+        plans.extend(report_plans)
 
         return plans
+
+    def _plan_report_payloads(
+        self, execution_result: dict,
+    ) -> tuple[list[WritebackPlan], dict[str, list[dict[str, str]]]]:
+        """Convert report artifact payloads into safe writeback plans."""
+        report = execution_result.get("report") or {}
+        contract = execution_result.get("contract") or {}
+        payloads = report.get("artifact_payloads")
+
+        summary: dict[str, list[dict[str, str]]] = {
+            "planned_payloads": [],
+            "skipped_payloads": [],
+        }
+        if not isinstance(payloads, list) or not payloads:
+            return [], summary
+
+        allowed_artifacts = self._normalize_allowed_artifacts(
+            contract.get("allowed_artifacts") or []
+        )
+        plans: list[WritebackPlan] = []
+
+        for payload in payloads:
+            if not isinstance(payload, dict):
+                summary["skipped_payloads"].append({
+                    "path": "",
+                    "reason": "payload must be an object",
+                })
+                continue
+
+            raw_path = str(payload.get("path", "")) if payload.get("path") is not None else ""
+            normalized_path = self._normalize_relative_path(raw_path)
+            if normalized_path is None:
+                summary["skipped_payloads"].append({
+                    "path": raw_path,
+                    "reason": "path must be a non-empty project-relative path inside base_dir",
+                })
+                continue
+
+            if not allowed_artifacts:
+                summary["skipped_payloads"].append({
+                    "path": normalized_path,
+                    "reason": "contract.allowed_artifacts is empty",
+                })
+                continue
+
+            if not self._is_path_allowed(normalized_path, allowed_artifacts):
+                summary["skipped_payloads"].append({
+                    "path": normalized_path,
+                    "reason": "path is outside contract.allowed_artifacts",
+                })
+                continue
+
+            content = payload.get("content")
+            if not isinstance(content, str):
+                summary["skipped_payloads"].append({
+                    "path": normalized_path,
+                    "reason": "content must be a string",
+                })
+                continue
+
+            operation = payload.get("operation")
+            if operation not in {"create", "update", "append"}:
+                summary["skipped_payloads"].append({
+                    "path": normalized_path,
+                    "reason": f"unsupported operation: {operation}",
+                })
+                continue
+
+            content_type = payload.get("content_type")
+            if content_type not in {"markdown", "json", "yaml", "text"}:
+                summary["skipped_payloads"].append({
+                    "path": normalized_path,
+                    "reason": f"unsupported content_type: {content_type}",
+                })
+                continue
+
+            plans.append(WritebackPlan(
+                target_path=normalized_path,
+                content=content,
+                operation=operation,
+                content_type=content_type,
+            ))
+            summary["planned_payloads"].append({
+                "path": normalized_path,
+                "operation": operation,
+            })
+
+        return plans, summary
+
+    def _normalize_allowed_artifacts(self, allowed_artifacts: list[object]) -> list[str]:
+        """Normalize contract allowed_artifacts entries into safe relative paths."""
+        normalized: list[str] = []
+        for value in allowed_artifacts:
+            if not isinstance(value, str):
+                continue
+            normalized_value = self._normalize_relative_path(value)
+            if normalized_value is not None:
+                normalized.append(normalized_value)
+        return normalized
+
+    def _normalize_relative_path(self, raw_path: str) -> str | None:
+        """Return a project-root relative POSIX path or ``None`` if unsafe."""
+        if not isinstance(raw_path, str):
+            return None
+        stripped = raw_path.strip()
+        if not stripped:
+            return None
+
+        candidate = Path(stripped)
+        if candidate.is_absolute():
+            return None
+
+        resolved_base = self._base_dir.resolve()
+        resolved_target = (resolved_base / candidate).resolve()
+        try:
+            relative = resolved_target.relative_to(resolved_base)
+        except ValueError:
+            return None
+        return relative.as_posix()
+
+    @staticmethod
+    def _is_path_allowed(path: str, allowed_artifacts: list[str]) -> bool:
+        """Check whether *path* is inside the declared contract boundary."""
+        for allowed in allowed_artifacts:
+            if path == allowed or path.startswith(f"{allowed.rstrip('/')}/"):
+                return True
+        return False
 
     # ── execution ───────────────────────────────────────
 
     def execute_plan(
         self, plan: WritebackPlan, *, dry_run: bool = True,
+        audit_logger: AuditLogger | None = None, trace_id: str | None = None,
     ) -> WritebackResult:
         """Execute a single write-back plan."""
         target = self._base_dir / plan.target_path
@@ -134,18 +271,41 @@ class WritebackEngine:
             )
 
         self._record(plan, result, dry_run=False)
+
+        # Audit: artifact_changed event for successful writes
+        if result.success and audit_logger and trace_id:
+            audit_logger.emit(
+                "artifact_changed", "writeback", trace_id,
+                detail={"path": result.path, "operation": result.operation},
+            )
+
         return result
 
     def execute_all(
         self, plans: list[WritebackPlan], *, dry_run: bool = True,
+        audit_logger: AuditLogger | None = None, trace_id: str | None = None,
     ) -> list[WritebackResult]:
         """Execute a list of write-back plans sequentially."""
-        return [self.execute_plan(p, dry_run=dry_run) for p in plans]
+        # Audit: writeback_planned event
+        if audit_logger and trace_id and plans:
+            audit_logger.emit(
+                "writeback_planned", "writeback", trace_id,
+                detail={"plans_count": len(plans), "targets": [p.target_path for p in plans]},
+            )
+
+        return [self.execute_plan(p, dry_run=dry_run, audit_logger=audit_logger, trace_id=trace_id) for p in plans]
 
     # ── atomic write helpers ────────────────────────────
 
     def _write_create(self, target: Path, plan: WritebackPlan) -> WritebackResult:
         target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            return WritebackResult(
+                path=str(plan.target_path),
+                operation="create",
+                success=False,
+                error=f"Target already exists: {plan.target_path}",
+            )
         self._atomic_write(target, plan.content)
         return WritebackResult(
             path=str(plan.target_path),

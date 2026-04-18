@@ -28,6 +28,7 @@ class RuleConfig:
 
     # delegation_resolver
     delegatable_intents: set[str] = field(default_factory=set)
+    available_capabilities: list[str] = field(default_factory=list)
 
     # escalation_resolver
     low_confidence_set: set[str] = field(default_factory=set)
@@ -79,6 +80,8 @@ def resolve(context: PackContext) -> RuleConfig:
         config.platform_intents.update(context.merged_intents)
     if context.merged_gates:
         config.allowed_gates = set(context.merged_gates)
+    if context.merged_provides:
+        config.available_capabilities = list(context.merged_provides)
 
     rules = context.merged_rules
     if not rules:

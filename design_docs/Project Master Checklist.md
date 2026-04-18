@@ -13,11 +13,21 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-04-12`
+- Snapshot Date: `2026-04-17`
 - Project Name: `doc-based-coding-platform`
-- Current Phase: `Phase 35 v1.0 Stable Release Confirmation — 完成`
-- Active Slice: `—`
-- Safe Stop Status: `v1.0 Released + release zip verified`
+- Version: `0.9.3` (preview)
+- Current Phase: `Post-v1.0 持续 dogfood — pack 预留接口已实现 + B-REF-1 Slice 1 测试覆盖完成`
+- Active Slice: 无活跃 gate
+- Latest Completed Slice: `B-REF-1 Slice 1 LoadLevel 三级渐进加载测试覆盖`（24 新测试）
+- Safe Stop Status: `2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close`
+- Test Baseline: `1104 passed, 2 skipped`
+
+## 当前 Handoff Footprint
+
+- handoff_id: `2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close`
+- source_path: `.codex/handoffs/history/2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close.md`
+- scope_key: `pack-reserved-interfaces-and-progressive-load-tests`
+- created_at: `2026-04-17T22:03:34+08:00`
 
 ## 当前文档入口
 
@@ -26,9 +36,31 @@
 - `docs/official-instance-doc-loop.md`
 - `design_docs/tooling/Document-Driven Workflow Standard.md`
 - `design_docs/tooling/Dual-Package Distribution Standard.md`
+- `design_docs/tooling/Backlog and Reserve Management Standard.md`
+- `design_docs/controlled-real-worker-payload-evidence-accumulation-direction-analysis.md`
+- `design_docs/dogfood-evidence-issue-feedback-integration-direction-analysis.md`
+- `design_docs/dogfood-evidence-issue-feedback-boundary.md`
+- `design_docs/dogfood-issue-promotion-feedback-packet-contract-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-16-dogfood-issue-promotion-feedback-packet-contract.md`
+- `design_docs/stages/planning-gate/2026-04-16-dogfood-evidence-issue-feedback-integration.md`
+- `design_docs/stages/planning-gate/2026-04-16-controlled-real-worker-payload-evidence-accumulation.md`
+- `review/controlled-real-worker-payload-evidence-accumulation-2026-04-16.md`
+- `design_docs/live-payload-rerun-followup-direction-analysis.md`
+- `design_docs/live-payload-rerun-verification-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-16-live-payload-rerun-verification.md`
+- `design_docs/stages/planning-gate/2026-04-16-real-worker-payload-adoption-judgment.md`
+- `review/live-payload-rerun-verification-2026-04-16.md`
+- `review/real-worker-payload-adoption-judgment-2026-04-16.md`
 - `design_docs/direction-candidates-after-phase-35.md`
+- `design_docs/dogfood-pipeline-workflow-integration-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-16-dogfood-pipeline-mcp-exposure.md`
+- `design_docs/overrides-field-consumption-direction-analysis.md`
+- `design_docs/hierarchical-pack-topology-direction-analysis.md`
 - `design_docs/phase-35-external-skill-interface-direction-analysis.md`
 - `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md`
+- `design_docs/stages/planning-gate/2026-04-13-ci-cd-build-release-automation.md`
+- `design_docs/stages/planning-gate/2026-04-13-pack-index-and-cli-management.md`
+- `design_docs/stages/planning-gate/2026-04-13-bl1-driver-responsibilities.md`
 - `design_docs/stages/planning-gate/2026-04-11-handoff-model-initiated-invocation.md`
 - `design_docs/stages/planning-gate/2026-04-11-mcp-pack-info-refresh-consistency.md`
 - `design_docs/stages/planning-gate/2026-04-11-strict-doc-loop-runtime-enforcement.md`
@@ -87,14 +119,77 @@
 - [x] post-v1.0：按 `design_docs/phase-35-external-skill-interface-direction-analysis.md` 的边界起草 H planning-gate，并将 `authority -> shipped copies` 作为 companion mechanism 收口
 - [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md` 收口通用外部 skill 交互接口能力，并将 `authority -> shipped copies` 作为 companion mechanism 落地
 - [x] post-v1.0：记录 driver 与外部 skill 交互标准 / 接口 / 留空转接层，以及本轮其余 skill 特化后续项（暂不实现）— 已结构化记录为 `design_docs/direction-candidates-after-phase-35.md` §Driver / Adapter / 转接层 Backlog（BL-1 / BL-2 / BL-3）
-- [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过、AI 安装指南已打入 `release/doc-based-coding-v1.0.0.zip`
-- [ ] post-v1.0：对话中临时规则突破 / 修改能力（BL-4）— 把用户口头临时授权突破默认行为规则的模式收口为可追溯、可审计、可撤销的 runtime contract（优先级：中高，建议近期推进）。参考 `design_docs/direction-candidates-after-phase-35.md` §BL-4
-- [ ] post-v1.0：driver 本体与 doc-loop 实例包资产及 release 产物的分离审查 — 审查当前仓库中 driver 核心代码、doc-loop 官方实例 pack 资产与 release 目录的组织边界，推进必要的结构性分离（优先级：中高，下一步工作候选）
+- [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过（原 v1.0.0，后降级为 preview；当前产物为 `release/doc-based-coding-v0.9.3.zip`）
+- [x] post-v1.0：对话中临时规则突破 / 修改能力（BL-4）— 已收口为可追溯、可审计、可撤销的 runtime contract：`TemporaryOverride` 数据模型 + `.codex/temporary-overrides.json` 持久化 + `governance_override` MCP tool + 约束可突破性分类（C1/C2/C3/C6/C7 overridable, C4/C5/C8 non-overridable）+ safe-stop writeback bundle 自动过期 + instructions generator 与 pack rules 同步
+- [x] post-v1.0：driver 本体与 doc-loop 实例包资产及 release 产物的分离审查 — 审查完成：交叉导入/包配置/CLI 入口/发布包/根级文件/docs/测试组织均边界清晰；唯一违规（`src/` 硬编码实例路径）已修复为 pack-declared `shipped_copies` 动态发现；Slice B（reference 放置策略）暂存待决
+- [x] post-v1.0：pack manifest schema 版本化 — `manifest_version` 字段 + 版本感知 loader（major 不兼容拒绝 / minor 向前兼容警告）+ 全部 4 个 manifest 文件已标注 `"1.0"` + `docs/pack-manifest.md` Schema Versioning 节已文档化
+- [x] post-v1.0：修复 pre-existing test failure（`test_mcp_require_pipeline_uses_error_info`）— 全套测试 669 passed, 0 failures
+- [x] post-v1.0：validate 命令治理阻塞 vs 运行失败语义区分 — 退出码三级（0/1/2）+ `command_status`/`governance_status`/`blocking_constraints` JSON 字段 + 终端文案显式区分 + C5 在初始状态降级为 warn — 675 passed, 0 failures
 - [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
-- [ ] depends_on 依赖校验（gap analysis #11，优先级低）
-- [ ] provides 消费用于 delegation capability check（gap analysis #5，优先级低）
-- [ ] checks 字段与 manifest 直连（gap analysis #16，部分贯通）
-- [ ] overrides 字段消费（gap analysis #12，无当前场景）
+- [ ] post-v1.0 backlog：将 dogfood 所需的证据收集、问题收集、问题反馈整合收口为组件或 skill；当前先完成 adoption judgment，并在其 1/2 步里同步观察哪些流程值得抽象固化，再决定是否起独立 planning-gate
+- [x] dogfood 发现 #1：`query_decision_logs` MCP 工具未注册 — 方法已在 `src/mcp/tools.py` 实现但未在 `src/mcp/server.py` 的 `list_tools` 中注册路由，导致工具不可达（低工作量修复）—— 已修复，803 passed
+- [x] dogfood 发现 #2：decision log 持久化与 dry_run 耦合 — MCP 默认 `dry_run=True`，decision_log_entry 只在返回值中出现但不写 `.codex/decision-logs/` 文件—— 已解耦，审计日志现始终持久化
+- [x] dogfood 发现 #3：v0.9.1 安装验证中发现 4 类问题（版本漂移、pack 自动发现缺失、本地 wheel 安装不顺畅、状态提取不完整）— 详见 `issues/issue_doc_loop_v091_release_and_pack_discovery.md`；所有问题已修复：site-packages 自动发现已实现（`_discover_packs` + `include_site_packages` 测试隔离参数）、版本一致性检查脚本 `release/verify_version_consistency.py` 已新增、INSTALL_GUIDE.md 已覆盖离线安装、状态提取已正常工作 — 803 passed, 0 failures
+- [x] dogfood 发现 #3：v0.9.1 安装验证中发现 4 类问题（版本漂移、pack 自动发现缺失、本地 wheel 安装不顺畅、状态提取不完整）— 详见 `issues/issue_doc_loop_v091_release_and_pack_discovery.md`；所有问题已修复：site-packages 自动发现已实现（`_discover_packs` + `include_site_packages` 测试隔离参数）、版本一致性检查脚本 `release/verify_version_consistency.py` 已新增、INSTALL_GUIDE.md 已覆盖离线安装、状态提取已正常工作；当前全量回归为 823 passed, 2 skipped
+- [x] CI/CD 本地自动化脚本 — `scripts/build.py`（双包 wheel 一键构建 + clean + 版本校验 + 内容物验证）+ `scripts/release.py`（构建 + pytest + release zip 打包）+ `--no-isolation` 选项避免 PyPI 网络依赖 — E2E 验证通过（823 passed, 2 skipped, release zip 147.0 KB）
+- [x] dogfood 发现 #4：4 个测试硬编码版本号 `0.9.1`，导致 version bump 时 CI 失败 — 已改为动态读取 `pyproject.toml` 版本（`_read_canonical_version()`），v0.9.2 release 验证通过
+- [x] Pack Index Metadata & CLI Pack Management — `src/pack/pack_manager.py`（install/remove/list/info）+ CLI `pack` 子命令 + `docs/pack-index-format.md` 格式文档 + `docs/plugin-model.md` Pack Origins 更新 + 20 targeted tests — 823 passed, 2 skipped
+- [x] dogfood 发现 #5：`pack install` 创建 `platform.json pack_dirs` 后，config 路径不再扫描 `.codex/packs/` 散装 `.pack.json` 文件，导致原有 pack 不可见 — 已修复：config 路径增加 fallback 扫描 — 823 passed
+- [x] 状态面一致性收口 — `design_docs/stages/planning-gate/2026-04-14-state-surface-consistency-closeout.md` 已完成；Checklist / Phase Map / CURRENT / checkpoint 已统一到 v0.9.3 preview 口径，并回到无 active planning-gate 的 safe stop
+- [x] BL-1 Driver 职责定义文档 — `docs/driver-responsibilities.md` 定义 driver 角色、职责边界、输入来源/结果分发路径，与 `external-skill-interaction.md` 形成消费方-提供方对称引用，与 `subagent-management.md` supervisor 角色对齐
+- [x] depends_on 依赖校验（gap analysis #11）—— warning-only 校验 + Pipeline.info() 暴露
+- [x] provides 消费用于 delegation capability check（gap analysis #5）—— `RuleConfig.available_capabilities` + delegation advisory warning + review 升级
+- [x] checks 字段与 manifest 直连（gap analysis #16）—— `PackRegistrar` 自动注册 `check(context)` 脚本 + `Pipeline.info().registered_checks` 暴露 + runtime writeback 前可消费
+- [x] hierarchical pack topology（tree-scoped packs）—— `PackManifest.parent/scope_paths` + `PackTree` + `ContextBuilder.build_scoped()` + `Pipeline.process_scoped()` / MCP `scope_path` + authority docs sync
+- [x] overrides 字段消费（gap analysis #12）—— `PackContext.merged_overrides` 提取 + `check_overrides()` warning-only 验证 + `PrecedenceResolver` explicit_override 标注 + `Pipeline.info()` 暴露 override_declarations / override_warnings + 权威文档 `overrides` 开放问题已回答
+- [x] completion boundary protocol（完成边界失忆修复）—— pack 规则 `completion_boundary_protocol` + `get_next_action()` `completion_boundary_reminder` + instructions generator 静态冗余 + Document-Driven Workflow Standard 第 6 条
+- [x] 类型/接口依赖关系图谱提取（Slice 1）—— `tools/dependency_graph/` 模块：基于 Pylance MCP 的图谱聚合（而非自写 AST 提取器），186 节点 / 56 边，`dependents_of` / `dependencies_of` / `implementors_of` 查询 + AST 符号发现 174 个 + dogfood 验证 9 个 Protocol 依赖链 + 27 测试 — 850 passed, 2 skipped
+- [x] 对话行为约束规则重写 — 正面模板 + 4 项发送前检查清单替代原有负面禁止列表；同步 `.github/copilot-instructions.md`、`AGENTS.md`、bootstrap `AGENTS.md`、`doc-loop-vibe-coding/references/conversation-progression.md`
+- [x] 变更影响分析与耦合钩子（Slice 2）—— `tools/dependency_graph/impact.py` ImpactAnalyzer BFS 传播 + `coupling.py` CouplingStore/CouplingChecker + `coupling_annotations.json` 5 个耦合标注 + query.py 扩展 + 22 测试 — 872 passed, 2 skipped
+- [x] VibeCoding-Workflow 外部项目分析 — `review/vibecoding-workflow-sakura1618.md` 逐条模式映射：Run Budget / Anti-Drift / Milestone Replan 触发条件 + 博客半自动→全自动交叉验证
+- [x] Anti-Drift 规则采纳 — AD-1~AD-5 + slice_budget + milestone_replan_triggers 已加入 `project-local.pack.json` rules
+- [x] External Project Review Standard — `design_docs/tooling/External Project Review Standard.md`：5 步标准流程（快速概览→结构化对比→借鉴点提取→差异分析→行动项生成）+ review 文档模板 + 质量门
+- [x] MCP 变更影响与耦合检查工具（Slice 3）—— `impact_analysis` + `coupling_check` MCP 工具注册 + GovernanceTools 方法 + server 分发 + 9 测试 — 881 passed, 2 skipped
+- [x] 子 agent 研究综合报告 —— `design_docs/subagent-research-synthesis.md`：5 份外部研究 + 内部设计 + gap 分析综合、P1-P4 优先级排序、Gap A/C/D 已验证修复
+- [x] Worker Registry 驱动 Executor 动态选择（P1/BL-2）—— Executor 接受 WorkerRegistry、`_resolve_worker` 动态路由、`worker_selected`/`worker_fallback` audit 事件、向后兼容旧 `worker=` 注入 + 11 测试 — 892 passed, 2 skipped
+- [x] Handoff Recovery Hardening —— `CURRENT.md` intake 新增 `source_hash` 校验 + 唯一 active canonical 断言 + refresh-current 冲突明细 + Authoritative Sources 降噪 + 6 测试 — 898 passed, 2 skipped
+- [x] Handoff Validator 独立化（P2）—— `HandoffValidator` protocol + 默认 schema/invariant validator + `_execute_handoff_mode()` 独立 validation 分支 + `handoff_validated`/`handoff_validation_failed` 审计事件 + 7 测试 — 905 passed, 2 skipped
+- [x] Subagent Report richer writeback payload 前置切片（P3-prep）—— `Subagent Report` schema 新增可选 `artifact_payloads`（`path` / `content` / `operation` / `content_type`），`docs/subagent-schemas.md` 固定其与 `changed_artifacts` 的边界，schema-driven report validator 接受合法 payload，HTTP worker 透传远端 payload + 7 测试 — 912 passed, 2 skipped
+- [x] artifact_payloads -> WritebackPlan Mapping（P3）—— `WritebackEngine.plan()` 直接消费 `report.artifact_payloads`，对 `allowed_artifacts`、绝对/越界路径与空路径执行硬边界校验，summary writeback 增加 payload planned/skipped 摘要，`create` 不再覆盖已有文件，补齐单元与集成回归 — 922 passed, 2 skipped
+- [x] StubWorker Payload Producer Alignment（A1）—— `StubWorkerBackend` 在 `allowed_artifacts` 非空时产出受控 `artifact_payloads`，目录边界映射到固定子路径，官方示例 report 与实例 schema 校验同步，first-party delegation -> payload-derived writeback 最小闭环打通 — targeted 51 passed, 1 skipped；full 931 passed, 2 skipped
+- [x] Handoff Authority-Doc Footprint（P4）—— latest canonical handoff 的 4 字段 pointer contract 已同步到 authority docs / checkpoint / safe-stop helper；新增 `Current Handoff` 结构段与 `current_handoff_footprint` helper 输出，保持 handoff 正文仍以 canonical 文件为真相源 — targeted 72 passed；full 936 passed, 2 skipped
+- [x] LLMWorker Structured Payload Producer Alignment —— `LLMWorker` 现在返回 schema-valid `Subagent Report`，受控 prompt / response contract 下最多产出 1 个 `artifact_payloads` candidate；非结构化响应回退为 schema-valid `partial` report，API 错误回退为 schema-valid `blocked` report，delegation -> LLMWorker -> payload-derived writeback mock 链打通 — targeted 51 passed, 1 skipped；full 942 passed, 2 skipped
+- [x] Payload + Handoff Footprint Controlled Dogfood —— baseline `StubWorker` payload path 在临时目录里稳定触发 payload-derived writeback，且 `CURRENT.md` / checkpoint 的 latest handoff footprint 一致；live DashScope `LLMWorker` 返回 schema-valid `completed` report，但真实 payload candidate 使用了 schema 不接受的 `operation` / `content_type` 枚举，导致 payload 被保守丢弃，结果已写入 `review/payload-handoff-footprint-controlled-dogfood-2026-04-16.md` — baseline/runtime observation only；full baseline 保持 942 passed, 2 skipped
+- [x] LLMWorker Live Payload Contract Hardening —— prompt contract 显式收紧到允许枚举并增加禁止示例；`content_type` 只接受极窄 alias normalization（`text/markdown -> markdown`、`text/plain -> text`、`application/json -> json`）；当 LLM 主动尝试 payload 但所有 candidate 都被 guard 拒绝时，`status` 从 `completed` 下调为 `partial` — targeted 55 passed, 1 skipped；full 946 passed, 2 skipped
+- [x] Live Payload Rerun Verification —— 单次受控 live DashScope rerun 在临时目录中成功返回合法 `artifact_payloads`，`path=docs/controlled-dogfood-llm.md`、`operation=update`、`content_type=markdown`，最终 payload writeback 成功命中目标文件；结果已写入 `review/live-payload-rerun-verification-2026-04-16.md` — runtime observation only；code baseline 保持 946 passed, 2 skipped
+- [x] Real-Worker Payload Adoption Judgment —— 当前权威口径已收口为“`LLMWorker` real-worker payload path 已有 1 条正向 live signal，可继续作为受控 dogfood 路径观察，但仍不属于默认稳定面”；扩大 wording 的最小额外证据门已定义为“在无新 runtime 改动前提下再拿到 1 条独立受控 live success”；dogfood evidence / issue / feedback integration 继续保留为 backlog — doc-only slice，结果已写入 `review/real-worker-payload-adoption-judgment-2026-04-16.md`
+- [x] Controlled Real-Worker Payload Evidence Accumulation —— 在无新 runtime code、schema 或 worker 语义变更前提下，`LLMWorker` 受控 payload path 再获得 1 条独立正向 live signal，raw response、final report 与 payload-derived writeback 三层再次同时成立；当前权威口径已收紧为“`LLMWorker` 受控 payload path 已具备最小可重复 dogfood 能力”，结果已写入 `review/controlled-real-worker-payload-evidence-accumulation-2026-04-16.md`
+- [x] Dogfood Evidence / Issue / Feedback Integration —— docs-only boundary consolidation 已完成：`design_docs/dogfood-evidence-issue-feedback-boundary.md` 已明确 evidence / issue / feedback 三类对象边界、文档映射与未来 component / skill 的最小 I/O ceiling，当前已据此收窄下一条实现前切片
+
+### 当前待推进切片
+
+- [x] Dogfood Issue Promotion / Feedback Packet Contract —— contract gate 已完成（6/6）、dry-run 验证通过、interface draft gate 已完成（8/8）、`src/dogfood/` pipeline 已实现（models + evaluator + builder + dispatcher）、18 项新测试全部通过、全量基线 964 passed, 2 skipped
+- [x] Dogfood Promotion Packet Interface Draft + Implementation —— 产出 `design_docs/dogfood-promotion-packet-interface-draft.md`、`src/dogfood/` 4 个模块、`tests/test_dogfood_pipeline.py`（16 单元测试）+ `tests/test_dogfood_e2e.py`（2 E2E 测试）
+- [x] decision logs 最小字段设计（research gap #1）—— `DecisionLogEntry` 19 字段 + `DecisionLogStore` JSON Lines 持久化 + Pipeline 后处理聚合 + MCP `query_decision_logs()` 工具 + 785 passed
+- [x] 子 agent tracing 与 write-back 对接（research gap #2）—— ExecutionResult trace_id/delegation_mode + WritebackEngine audit event 发射（writeback_planned/artifact_changed）+ Executor contract_generated/subagent_report_received/writeback_blocked_by_check event + 793 passed
+- [x] 多实例共存冲突解决策略（research gap #4）—— `_deep_merge()` 冲突收集器 + `PackContext.merge_conflicts` 字段 + `PrecedenceResolver` 同层 tie_broken_by 标记 + `Pipeline.info()` merge_conflicts 暴露 + 801 passed
+
+### 研究参考待办（来源：Claude Managed Agents Platform 分析 — `review/claude-managed-agents-platform.md`）
+
+- [x] B-REF-1: Pack 渐进式加载设计 — 三级加载（METADATA/MANIFEST/FULL）已实现：Slice 1 LoadLevel enum + ContextBuilder 分阶段 build + upgrade()；Slice 2 Pipeline MANIFEST 降级 + pack_context lazy upgrade；Slice 3 MCP get_pack_info level/scope_path 参数 + description 字段 — 1095 passed, 2 skipped
+- [x] B-REF-2: Pack description 质量标准 — 已建立质量标准文档（`design_docs/tooling/Pack Description Quality Standard.md`）+ `validate_description()` 验证函数 + 现有 pack 已添加符合标准的 description + 9 个新测试 — 1104 passed, 2 skipped
+
+> **当前测试基线**: 1133 passed, 2 skipped
+- [x] B-REF-3: Pack 内部组织规范 — 引用深度 ≤ 1 + 按域拆分 + TOC 规则已建立（`design_docs/tooling/Pack Internal Organization Standard.md`）+ `validate_pack_organization()` 验证函数 + 13 个新测试 — 1117 passed, 2 skipped
+- [ ] B-REF-4: Permission policy 分层覆盖模型 — 在 governance_decide 之外补充工具粒度的权限策略：pack 级默认 + 单 tool 级 override + deny_message 机制（参考 Claude permission policies）
+- [ ] B-REF-5: 工作流中断原语 (interrupt primitive) — 在 workflow 引擎层显式化中断与重定向操作，对应"发现超出 scope 时回退到 planning-gate"的模式（参考 Claude `user.interrupt`）
+- [ ] B-REF-6: 子 agent 上下文隔离评估 — 评估当前子 agent 共享全部上下文是否合理，是否应改为"共享工作区文件 + 隔离对话/状态上下文"（参考 Claude multi-agent 共享文件系统 + 隔离 context）
+- [x] B-REF-7: Custom tool surface 合并审计 — 审计报告已完成 + `analyze_changes` 统一入口已实施（`design_docs/tooling/MCP Tool Surface Audit.md`）：11 个 MCP tools + 旧名保留为别名 + 6 个新测试 — 1133 passed, 2 skipped
+
+### VS Code Extension
+
+- [x] P0+P1: Extension 骨架 + MCP Client + Constraint Dashboard — 15 个 TS 文件，esbuild 编译通过，`.vsix` 已打包（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p0-p1.md`）
+- [x] F5 端到端验证 — Extension Dev Host 中成功运行：Activity Bar 图标、MCP stdio 连接、Constraint Dashboard 显示 C1-C8 状态、Output Channel 日志正常（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-f5-e2e-verification.md`）— 1133 passed, 2 skipped
 
 ### 已完成里程碑
 
@@ -126,8 +221,8 @@
 
 ### 风险
 
-- 无当前阻塞项。
-- safe-stop writeback 现已显式化为 bundle contract 与 MCP helper 输出；当前残余风险在于它仍主要是“contract + validation + files_to_update”层，而不是自动执行所有写回动作的全自动 executor。
+- 无当前阻塞项。- `pack_manager.py` 中 `runtime_compatibility` 字段在 install/list 时仅存储但从未校验兼容性（缺少 runtime 版本比对逻辑）；`_compute_checksum()` 已定义但未被任何代码路径调用——两者均为预留接口，可在后续 pack 升级/完整性校验需求时补充实现。
+  - **已实现**（`design_docs/stages/planning-gate/2026-04-17-pack-manager-reserved-interfaces.md`）：`_check_runtime_compatibility()` + `_get_runtime_version()` + install 前 hard reject + checksum 记录到 `platform.json` + `PackInfo.checksum` 字段 — 1058 passed, 2 skipped- safe-stop writeback 现已显式化为 bundle contract、`current_handoff_footprint` 与 MCP helper 输出；当前残余风险在于它仍主要是“contract + validation + files_to_update”层，而不是自动执行所有写回动作的全自动 executor。
 - 当前“外部 skill 交互”已经有通用 contract 与 handoff reference implementation；当前残余风险在于它仍只在 handoff family 与本轮触达的 shipped copies 上得到验证，尚未扩展到更多 future skill families。
 - 当前 runtime contract 已明确声明：`check_constraints()` 只 machine-check C4/C5；更严格的对话推进约束仍由规则/提示词层承担，而非完整运行时审计层。
 - `_summarize_content` 对 flat 内容可能丢信息（已知，低影响）。
@@ -335,7 +430,7 @@
 - `tests/test_on_demand.py`：11 项新测试覆盖所有场景。
 - 555 项 pytest 测试全部通过（2 skipped）。
 - Phase 26 on_demand 懒加载 API 已全部完成。
-- gap analysis 19 个字段中，仅剩 depends_on 校验 + provides 消费未实施。
+- gap analysis 19 个字段中的 `depends_on` 校验、`provides` 消费、`checks` manifest 直连与 `overrides` 字段消费现已全部完成；所有已知实现型 gap 均已关闭。
 - Phase 27 已完成：Dogfood 深度验证。
 - Phase 28 已完成：Dogfood Feedback Remediation。
 - `src/pdp/intent_classifier.py`：保留既有 `correction` 关键词，同时新增 `issue-report` 扩展关键词，并加入 `correction/issue-report` 窄 tie-break 规则。

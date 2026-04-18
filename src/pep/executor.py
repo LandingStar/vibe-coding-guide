@@ -19,11 +19,13 @@ if TYPE_CHECKING:
     from src.interfaces import (
         ContractFactory,
         EscalationNotifier,
+        HandoffValidator,
         ReportValidator,
         WorkerBackend,
     )
     from src.pep.writeback_engine import WritebackEngine
     from src.validators.registry import ValidatorRegistry
+    from src.workers.registry import WorkerRegistry
 
 
 class Executor:
@@ -45,8 +47,10 @@ class Executor:
         dry_run: bool = True,
         *,
         worker: WorkerBackend | None = None,
+        worker_registry: WorkerRegistry | None = None,
         contract_factory: ContractFactory | None = None,
         report_validator: ReportValidator | None = None,
+        handoff_validator: HandoffValidator | None = None,
         handoff_dir: str | Path | None = None,
         escalation_notifier: EscalationNotifier | None = None,
         writeback_engine: WritebackEngine | None = None,
@@ -55,14 +59,36 @@ class Executor:
     ) -> None:
         self.dry_run = dry_run
         self.log = ActionLog()
-        self._worker = worker
         self._contract_factory = contract_factory
         self._report_validator = report_validator
+        if handoff_validator is not None:
+            self._handoff_validator = handoff_validator
+        else:
+            from src.subagent import handoff_validator as default_handoff_validator
+
+            self._handoff_validator = default_handoff_validator
         self._handoff_dir = Path(handoff_dir) if handoff_dir else None
         self._escalation_notifier = escalation_notifier
         self._writeback_engine = writeback_engine
         self._audit_logger = audit_logger
         self._validator_registry = validator_registry
+
+        # Worker resolution: registry takes precedence over single worker.
+        # If only a single worker is provided, wrap it in a registry as "default".
+        if worker_registry is not None:
+            self._worker_registry = worker_registry
+            # Also register the single worker as fallback if provided
+            if worker is not None and "default" not in worker_registry:
+                worker_registry.register("default", worker)
+        elif worker is not None:
+            from src.workers.registry import WorkerRegistry as _WR
+            self._worker_registry = _WR()
+            self._worker_registry.register("default", worker)
+        else:
+            self._worker_registry = None
+
+        # Keep _worker for backward compat in checks
+        self._worker = worker
 
     def execute(self, envelope: dict) -> dict:
         """Process a decision envelope and return an execution result."""
@@ -94,7 +120,8 @@ class Executor:
             self.log.record("error", f"Unknown gate level: {gate_level}",
                             envelope_id)
             result = self._result(envelope_id, "error",
-                                  f"Unknown gate level: {gate_level}")
+                                  f"Unknown gate level: {gate_level}",
+                                  trace_id=trace_id)
 
         # Check for escalation after main routing.
         escalation = envelope.get("escalation_decision")
@@ -157,6 +184,7 @@ class Executor:
 
     def _execute_inform(self, envelope: dict, envelope_id: str, rsm: ReviewStateMachine) -> dict:
         action = "apply" if not self.dry_run else "dry-run-apply"
+        trace_id = envelope.get("trace_id")
         detail = (
             f"Gate=inform, fast path. "
             f"Intent='{envelope['intent_result']['intent']}'. "
@@ -166,9 +194,10 @@ class Executor:
         # Inform fast-path: proposed → applied
         rsm.transition(APPLY, reason="inform fast-path")
         return self._result(envelope_id, "applied" if not self.dry_run else "dry-run",
-                            detail)
+                            detail, trace_id=trace_id)
 
     def _execute_review(self, envelope: dict, envelope_id: str, rsm: ReviewStateMachine) -> dict:
+        trace_id = envelope.get("trace_id")
         detail = (
             f"Gate=review, entering waiting_review. "
             f"Intent='{envelope['intent_result']['intent']}'. "
@@ -176,9 +205,10 @@ class Executor:
         )
         self.log.record("queue-for-review", detail, envelope_id)
         rsm.transition(SUBMIT_FOR_REVIEW, reason="review gate")
-        return self._result(envelope_id, "waiting_review", detail)
+        return self._result(envelope_id, "waiting_review", detail, trace_id=trace_id)
 
     def _execute_approve(self, envelope: dict, envelope_id: str, rsm: ReviewStateMachine) -> dict:
+        trace_id = envelope.get("trace_id")
         detail = (
             f"Gate=approve, entering waiting_review. "
             f"Intent='{envelope['intent_result']['intent']}'. "
@@ -186,15 +216,81 @@ class Executor:
         )
         self.log.record("queue-for-approval", detail, envelope_id)
         rsm.transition(SUBMIT_FOR_REVIEW, reason="approve gate")
-        return self._result(envelope_id, "waiting_review", detail)
+        return self._result(envelope_id, "waiting_review", detail, trace_id=trace_id)
 
     @staticmethod
-    def _result(envelope_id: str, status: str, detail: str) -> dict:
-        return {
+    def _result(envelope_id: str, status: str, detail: str, *, trace_id: str | None = None, delegation_mode: str | None = None) -> dict:
+        r: dict = {
             "envelope_id": envelope_id,
             "execution_status": status,
             "detail": detail,
         }
+        if trace_id is not None:
+            r["trace_id"] = trace_id
+        if delegation_mode is not None:
+            r["delegation_mode"] = delegation_mode
+        return r
+
+    # ---- worker resolution ----
+
+    def _resolve_worker(
+        self, delegation: dict, contract: dict, trace_id: str | None,
+        envelope_id: str,
+    ) -> WorkerBackend | None:
+        """Resolve a worker from the registry based on delegation/contract hints.
+
+        Resolution order:
+        1. contract["worker_type"] (if present)
+        2. delegation["worker_type"] (if present)
+        3. "default"
+        Returns None if no match found (caller should handle fallback).
+        """
+        if self._worker_registry is None:
+            return None
+
+        # Determine requested worker type
+        requested = (
+            contract.get("worker_type")
+            or delegation.get("worker_type")
+            or delegation.get("contract_hints", {}).get("worker_type")
+        )
+        if not requested:
+            requested = "default"
+
+        # Try exact match first
+        if requested in self._worker_registry:
+            worker = self._worker_registry.get(requested)
+            if self._audit_logger and trace_id:
+                self._audit_logger.emit(
+                    "worker_selected", "pep", trace_id,
+                    detail={
+                        "worker_type": requested,
+                        "source": "registry",
+                        "available_types": self._worker_registry.list_types(),
+                    },
+                )
+            return worker
+
+        # Fallback to "default"
+        if requested != "default" and "default" in self._worker_registry:
+            if self._audit_logger and trace_id:
+                self._audit_logger.emit(
+                    "worker_fallback", "pep", trace_id,
+                    detail={
+                        "requested_type": requested,
+                        "fallback_type": "default",
+                        "available_types": self._worker_registry.list_types(),
+                    },
+                )
+            self.log.record(
+                "worker-fallback",
+                f"Worker type '{requested}' not found, falling back to 'default'.",
+                envelope_id,
+            )
+            return self._worker_registry.get("default")
+
+        # Nothing available
+        return None
 
     # ---- delegation pipeline ----
 
@@ -205,14 +301,16 @@ class Executor:
 
         Dispatches to mode-specific executors based on delegation['mode'].
         """
-        if not self._contract_factory or not self._worker:
+        trace_id = envelope.get("trace_id")
+
+        if not self._contract_factory or (not self._worker and not self._worker_registry):
             detail = (
                 "Delegation requested but worker/contract_factory not configured. "
                 "Falling back to queue-for-review."
             )
             self.log.record("delegation-skipped", detail, envelope_id)
             rsm.transition(SUBMIT_FOR_REVIEW, reason="delegation fallback to review")
-            return self._result(envelope_id, "waiting_review", detail)
+            return self._result(envelope_id, "waiting_review", detail, trace_id=trace_id)
 
         # 1. Build contract
         contract = self._contract_factory.build(delegation)
@@ -222,9 +320,15 @@ class Executor:
             envelope_id,
         )
 
+        # Audit: contract_generated event
+        if self._audit_logger and trace_id:
+            self._audit_logger.emit(
+                "contract_generated", "pep", trace_id,
+                detail={"contract_id": contract.get("contract_id"), "mode": delegation.get("mode", "supervisor-worker")},
+            )
+
         # Dispatch by collaboration mode
         mode = delegation.get("mode", "supervisor-worker")
-        trace_id = envelope.get("trace_id")
 
         if mode == "handoff":
             return self._execute_handoff_mode(
@@ -247,14 +351,32 @@ class Executor:
         contract: dict, rsm: ReviewStateMachine, trace_id: str | None,
     ) -> dict:
         """Supervisor-worker: direct worker execution with optional handoff."""
+        # Resolve worker from registry (dynamic selection)
+        worker = self._resolve_worker(delegation, contract, trace_id, envelope_id)
+        if worker is None:
+            # Legacy fallback: use directly injected worker
+            worker = self._worker
+        if worker is None:
+            detail = "No worker available for delegation. Falling back to queue-for-review."
+            self.log.record("delegation-skipped", detail, envelope_id)
+            rsm.transition(SUBMIT_FOR_REVIEW, reason="no worker available")
+            return self._result(envelope_id, "waiting_review", detail, trace_id=trace_id)
+
         # Execute via worker backend
-        report = self._worker.execute(contract)
+        report = worker.execute(contract)
         self.log.record(
             "worker-executed",
             f"Worker returned report {report.get('report_id')} "
             f"with status={report.get('status')}.",
             envelope_id,
         )
+
+        # Audit: subagent_report_received event
+        if self._audit_logger and trace_id:
+            self._audit_logger.emit(
+                "subagent_report_received", "pep", trace_id,
+                detail={"report_id": report.get("report_id"), "status": report.get("status"), "mode": "supervisor-worker"},
+            )
 
         # Validate report (if validator provided)
         validation: dict | None = None
@@ -289,6 +411,8 @@ class Executor:
             envelope_id,
             "delegated",
             f"Delegation completed via contract {contract.get('contract_id')}.",
+            trace_id=trace_id,
+            delegation_mode="supervisor-worker",
         )
         result["contract"] = contract
         result["report"] = report
@@ -328,22 +452,97 @@ class Executor:
         """Handoff mode: explicit control transfer with mandatory review."""
         from src.collaboration.handoff_mode import prepare, execute as handoff_execute
 
+        # Resolve worker from registry
+        worker = self._resolve_worker(delegation, contract, trace_id, envelope_id) or self._worker
+
         request = prepare(delegation, contract)
         handoff_result = handoff_execute(
-            request, contract, self._worker,
+            request, contract, worker,
             audit_logger=self._audit_logger,
             trace_id=trace_id,
             handoff_dir=self._handoff_dir if not self.dry_run else None,
         )
 
+        # Audit: subagent_report_received event
+        if self._audit_logger and trace_id:
+            self._audit_logger.emit(
+                "subagent_report_received", "pep", trace_id,
+                detail={"report_id": handoff_result.get("report", {}).get("report_id"), "mode": "handoff"},
+            )
+
+        handoff = handoff_result.get("handoff")
+        handoff_validation: dict | None = None
+        if handoff is not None and self._handoff_validator is not None:
+            handoff_validation = self._handoff_validator.validate(
+                handoff,
+                context={
+                    "mode": "handoff",
+                    "requires_review": delegation.get("requires_review", True),
+                    "delegation": delegation,
+                    "contract": contract,
+                },
+            )
+        elif handoff is None:
+            handoff_validation = {
+                "valid": False,
+                "errors": ["handoff execution did not produce a handoff object"],
+            }
+
+        if handoff_validation is not None and not handoff_validation.get("valid", False):
+            self.log.record(
+                "handoff-validation-failed",
+                "Handoff validation failed; routing to review without persisting handoff.",
+                envelope_id,
+            )
+            if self._audit_logger and trace_id:
+                self._audit_logger.emit(
+                    "handoff_validation_failed", "pep", trace_id,
+                    detail={
+                        "handoff_id": handoff.get("handoff_id") if handoff else None,
+                        "errors": handoff_validation.get("errors", []),
+                    },
+                )
+
+            result = self._result(
+                envelope_id,
+                "waiting_review",
+                f"Handoff validation failed for contract {contract.get('contract_id')}.",
+                trace_id=trace_id,
+                delegation_mode="handoff",
+            )
+            result["contract"] = contract
+            result["report"] = handoff_result.get("report", {})
+            result["handoff_candidate"] = handoff
+            result["handoff_validation"] = handoff_validation
+            result["mode"] = "handoff"
+
+            rsm.transition(SUBMIT_FOR_REVIEW, reason="handoff validation failed")
+            return result
+
+        if handoff_validation is not None:
+            self.log.record(
+                "handoff-validated",
+                f"Handoff {handoff.get('handoff_id')} passed validation.",
+                envelope_id,
+            )
+            if self._audit_logger and trace_id:
+                self._audit_logger.emit(
+                    "handoff_validated", "pep", trace_id,
+                    detail={"handoff_id": handoff.get("handoff_id")},
+                )
+
         result = self._result(
             envelope_id,
             "delegated",
             f"Handoff completed via contract {contract.get('contract_id')}.",
+            trace_id=trace_id,
+            delegation_mode="handoff",
         )
         result["contract"] = contract
         result["report"] = handoff_result.get("report", {})
-        result["handoff"] = handoff_result.get("handoff")
+        result["handoff"] = handoff
+        if handoff_validation is not None:
+            result["handoff_validation"] = handoff_validation
         result["mode"] = "handoff"
 
         # Handoff always requires review
@@ -365,16 +564,29 @@ class Executor:
         )
 
         context = create_context(delegation, contract, trace_id=trace_id)
+
+        # Resolve worker from registry
+        worker = self._resolve_worker(delegation, contract, trace_id, envelope_id) or self._worker
+
         sg_result = subgraph_execute(
-            context, contract, self._worker,
+            context, contract, worker,
             audit_logger=self._audit_logger,
             trace_id=trace_id,
         )
+
+        # Audit: subagent_report_received event
+        if self._audit_logger and trace_id:
+            self._audit_logger.emit(
+                "subagent_report_received", "pep", trace_id,
+                detail={"report_id": sg_result.get("report", {}).get("report_id"), "mode": "subgraph"},
+            )
 
         result = self._result(
             envelope_id,
             "delegated",
             f"Subgraph completed via contract {contract.get('contract_id')}.",
+            trace_id=trace_id,
+            delegation_mode="subgraph",
         )
         result["contract"] = contract
         result["report"] = sg_result.get("report", {})
@@ -449,6 +661,7 @@ class Executor:
     ) -> None:
         """Plan and execute write-back when review state is applied."""
         assert self._writeback_engine is not None
+        trace_id = envelope.get("trace_id")
 
         # Run pack checks before writeback (if registry provided).
         if self._validator_registry:
@@ -465,6 +678,13 @@ class Executor:
                     if not cr.passed:
                         result["writeback_blocked_by"] = name
                         result["writeback_block_message"] = cr.message
+
+                        # Audit: writeback_blocked_by_check event
+                        if self._audit_logger and trace_id:
+                            self._audit_logger.emit(
+                                "writeback_blocked_by_check", "writeback", trace_id,
+                                detail={"check_name": name, "message": cr.message},
+                            )
                         return
 
         plans = self._writeback_engine.plan(envelope, result)
@@ -478,6 +698,7 @@ class Executor:
 
         wb_results = self._writeback_engine.execute_all(
             plans, dry_run=self.dry_run,
+            audit_logger=self._audit_logger, trace_id=trace_id,
         )
         result["writeback_results"] = [
             {"path": r.path, "success": r.success, "detail": r.detail}
@@ -489,7 +710,6 @@ class Executor:
             self.log.record(action, r.detail, envelope_id)
 
         # Audit: writeback_completed event
-        trace_id = envelope.get("trace_id")
         if self._audit_logger and trace_id:
             self._audit_logger.emit(
                 "writeback_completed", "writeback", trace_id,

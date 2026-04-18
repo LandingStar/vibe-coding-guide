@@ -52,10 +52,16 @@
 
 ### 身份字段
 
+- `manifest_version`
+  - manifest JSON 结构的格式版本
+  - 当前版本：`"1.0"`
+  - 格式：`"<major>.<minor>"`
+  - 若缺失，loader 默认按 `"1.0"` 处理（后向兼容）
+  - 参见下方 §Schema Versioning
 - `name`
   - pack 的稳定名称
 - `version`
-  - pack 的版本标识
+  - pack 的版本标识（pack 内容版本，与 manifest_version 分离）
 - `kind`
   - pack 类型
   - 当前建议至少支持：
@@ -64,6 +70,13 @@
     - `project-local`
 - `scope`
   - 适用范围说明
+
+### 拓扑与路由字段
+
+- `parent`
+  - 当前 pack 在单继承树中的父 pack 名称
+- `scope_paths`
+  - runtime 作用域路由使用的路径前缀列表
 
 ### 能力声明字段
 
@@ -121,6 +134,14 @@
 - `validators`
 - `triggers`
 
+Runtime 当前会将所有已加载 pack 的 `provides` 合并为 `PackContext.merged_provides`，并注入 `RuleConfig.available_capabilities`。
+
+在 v1.0 之后的 delegation 路径中，这些能力会被用作 advisory capability check：
+
+- 若某个可委派 intent 通常需要的能力未出现在 merged provides 中，delegation 结果会附带 `capability_warnings`
+- 该 warning 不会阻塞委派，但会将 `requires_review` 升级为 `true`
+- 能力需求映射当前保持简单、可由 pack rules 覆盖，不做版本级或细粒度匹配
+
 ### `always_on` 与 `on_demand`
 
 这两个字段不是简单的文件列表，而是上下文装载声明。
@@ -132,6 +153,31 @@
 - `on_demand`
   - 只在需要时展开
 
+### `parent` 与 `scope_paths`
+
+这两个字段共同定义 pack 的层级拓扑与作用域路由：
+
+- `parent`
+  - 把当前 pack 挂到另一个 pack 之下，形成单继承树
+  - 空串表示该 pack 是根节点，或作为独立 pack 存在
+- `scope_paths`
+  - 用于声明该 pack 作用于哪些文件/目录路径
+  - 当前 runtime 采用简单前缀匹配，而不是 glob 或正则
+
+需要区分：
+
+- `scope`
+  - 面向人类阅读的适用范围描述
+- `scope_paths`
+  - 面向 runtime 的机器可消费路由前缀
+
+当前 runtime 语义是：
+
+- 所有已加载 pack 都可以参与树（`platform-default`、`official-instance`、`project-local`）
+- 当调用方显式传入 `scope_path` 时，runtime 会先解析匹配的 pack 链，再只合并这条链上的 pack
+- 若未传入 `scope_path`，或没有任何 pack 命中该路径，则退回全局合并行为
+- 同一个 parent 下多个子 pack 的 `scope_paths` 若发生重叠，属于配置错误，应在加载时拒绝，而不是留给运行时决定
+
 ### `depends_on`
 
 用于声明：
@@ -140,6 +186,10 @@
 - 若缺少这些能力，pack 是否仍可部分工作
 
 当前阶段先只要求表达依赖关系，不要求定义复杂求解算法。
+
+**Runtime 校验行为（v1.0）**：Pipeline 初始化时会对所有已加载 pack 的 `depends_on` 条目做交叉校验——检查每个声明的依赖名称是否出现在已发现的 pack 名称集合中。未解析的依赖会以 `logging.warning` 输出，并记入 `Pipeline.info()["dependency_status"]` 的 `unresolved` 列表，但不阻塞 pack 加载或治理链。
+
+特殊名称 `"platform-core-defaults"` 被视为虚拟依赖（始终 resolved），无需对应实际 manifest。
 
 ### `runtime_compatibility`
 
@@ -160,10 +210,19 @@
 
 用于声明：
 
-- 该 pack 准备覆盖谁
+- 该 pack 准备覆盖谁（以 pack 名称列表表示）
 - 覆盖是否显式
 
 它不应绕开平台的 precedence 规则。
+
+Runtime 消费语义：
+
+- `ContextBuilder` 在合并时提取所有 pack 的 `overrides` 声明到 `PackContext.merged_overrides`
+- `check_overrides()` 验证所有覆盖目标是否存在于已加载 pack 集合中（warning-only，不阻塞）
+- `PrecedenceResolver` 在仲裁结果中标注 `explicit_override: true` 当胜出 pack 显式声明了对失败 pack 的覆盖
+- `Pipeline.info()` 暴露 `override_declarations` 与 `override_warnings`
+
+当前 `overrides` 是 `list[str]`（pack 名称列表），不携带覆盖理由或条件。若未来出现需要覆盖理由的真实场景，可升级为 `list[str | object]`（manifest_version minor bump），已有消费代码天然兼容。
 
 ### `validators` / `checks` / `scripts`
 
@@ -176,11 +235,53 @@
 - `checks`
   - 用于声明会在 writeback 前执行的 gate check。
   - 这类扩展消费的是 writeback 前的执行上下文，而不是独立 CLI 输入。
+  - 当前实现里，它们会由 `PackRegistrar` 自动注册进 `ValidatorRegistry`，并在 `Executor` writeback 前调用。
 - `scripts`
   - 用于声明独立的操作型脚本，例如 bootstrap、adoption 自检、实例自检等。
   - 这类脚本可以只有 CLI `main()` 入口，不应因为名称像 `validate_*` 就自动放进 `validators`。
 
 因此，repo scaffold 校验、官方实例自检、bootstrap 一类命令，默认应归入 `scripts`，而不是归入 runtime `validators`。
+
+## Schema Versioning
+
+### 为什么需要 manifest_version
+
+`version` 描述的是 pack 内容的语义版本（如 `"1.0.0"`）。但 pack manifest 的 JSON 结构本身也需要一个版本号来指示格式变化，以便：
+
+- loader 判断是否能正确解析该 manifest
+- 新增字段时，旧版 loader 能安全降级或报告不兼容
+- 避免因字段重命名或语义变更导致静默加载错误
+
+`manifest_version` 使用 `"<major>.<minor>"` 格式（不含 patch），因为 manifest 格式变更的粒度不需要三段版本号。
+
+### 兼容策略
+
+| 变更类型 | 版本影响 | 示例 |
+|---------|---------|------|
+| 新增可选字段 | 可保持不变，或在需要显式宣告新 schema surface 时 minor bump | 加 `parent` / `scope_paths`；或加 `shipped_copies` 到 rules |
+| 修改字段语义 | major bump | `always_on` 从路径列表改为对象数组 |
+| 移除字段 | major bump | 删除 `triggers` |
+| 新增必需字段 | major bump | 要求某字段必须存在 |
+
+### Loader 行为
+
+| 场景 | 行为 |
+|------|------|
+| `manifest_version` 缺失 | 视为 `"1.0"`（后向兼容） |
+| `manifest_version` == 当前版本 | 正常加载 |
+| `manifest_version` major > 当前支持 | 抛出 ValueError |
+| `manifest_version` minor > 当前支持 | 正常加载 + 日志警告 |
+
+### manifest_version 与 version 的关系
+
+```
+manifest_version  →  manifest JSON 结构的格式版本
+version           →  pack 内容的语义版本
+```
+
+这两个版本独立演进。一个 pack 可以在不改变 manifest 格式的情况下多次发布内容更新（只 bump `version`），也可以在一次格式变更中不改变 pack 内容（只 bump `manifest_version`）。
+
+当前已落地的 `parent` / `scope_paths` 仍属于 `manifest_version = "1.0"` 范围内的后向兼容可选字段，因为旧 loader 即使忽略它们，也不会误解已有字段的含义。
 
 ## 不变量
 
@@ -242,4 +343,4 @@
 - `scope` 是否需要进一步拆成 `audience` 与 `workspace_scope`
 - `provides` 是否需要固定枚举
 - `depends_on` 是否需要区分强依赖与软依赖
-- `overrides` 是否需要携带覆盖理由或条件
+- ~~`overrides` 是否需要携带覆盖理由或条件~~ — 已回答：当前不需要，保持 `list[str]`；若未来需要，可升级为 `list[str | object]`（方案 C 储备路径）

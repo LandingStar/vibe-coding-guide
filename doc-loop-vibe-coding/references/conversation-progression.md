@@ -11,7 +11,28 @@ The goal is to keep the conversation moving without collapsing into a terminal s
 - Do not end the conversation unless the user explicitly allows ending or pausing.
 - Default reply shape: analysis or recommendation first, then a forward question.
 - The closing question must contain the AI's own judgment, recommendation, or tentative direction.
+- Before asking the closing question, provide links to the most relevant documents so the user can jump directly to the review surface.
 - If the user must make a structured decision, use `askQuestions` after presenting the recommendation.
+
+## Positive Template
+
+Every reply must end with this structure (sole exception: exemption conditions below):
+
+```
+[AI's analysis / judgment / inclination] → [forward question based on that analysis, using askQuestions tool]
+```
+
+## Pre-Send Checklist
+
+Before composing the final paragraph, verify:
+
+1. ✅ Does the reply ending contain the AI's own analysis or inclination?
+2. ✅ Does it end with a forward question via `askQuestions`? (At minimum, a textual forward question.)
+3. ✅ Does the question advance the work (clear next step after user answers), rather than waiting for permission?
+4. ✅ If direction choices are involved, does each option reference a concrete document?
+5. ✅ Did you provide links to the most relevant documents before the question?
+
+If any item is ❌, reorganize the final paragraph before sending.
 
 ## When To Use Structured Questions
 

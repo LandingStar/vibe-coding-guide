@@ -1,7 +1,9 @@
 {
+  "manifest_version": "1.0",
   "name": "{{PROJECT_NAME}}-local-pack",
   "version": "0.1.0-bootstrap",
   "kind": "project-local",
+  "description": "Project-local governance overlay that adds project-specific rules and document types on top of platform defaults. Use for {{PROJECT_NAME}} to enforce custom planning-gate and governance constraints.",
   "scope": "Project-local governance overlay for {{PROJECT_NAME}}.",
   "provides": [
     "rules",
@@ -126,7 +128,12 @@
         "user explicitly allows ending",
         "user explicitly allows pausing",
         "user explicitly requests no follow-up question this turn"
-      ]
+      ],
+      "completion_boundary_protocol": {
+        "trigger": "all_todos_completed_and_no_active_planning_gate",
+        "mandatory_tool_call": "get_next_action",
+        "rationale": "Re-inject interaction_contract at the exact moment the completion instinct is strongest"
+      }
     },
     "external_skill_interaction": {
       "model_may_initiate_when_rules_allow": true,
@@ -139,13 +146,54 @@
         "escalation"
       ],
       "reference_implementation_family": "project-handoff-*",
-      "companion_distribution_rule": "authority-to-shipped-copies-drift-check"
+      "companion_distribution_rule": "authority-to-shipped-copies-drift-check",
+      "shipped_copies": []
     },
     "direction_candidates_sources": [
       "design_docs/Project Master Checklist.md 的待办与风险",
       "docs/ 权威文档中标记的未实现能力",
       "review/research-compass.md 中的借鉴点",
       "当前 Phase 实施过程中发现的新需求"
+    ],
+    "anti_drift": {
+      "AD1": {
+        "description": "同一问题连续两次修复未缩小失败面时，必须切换策略（换实现方案、换调试角度、或回到根因分析），不得继续沿同一路径打补丁。",
+        "severity": "warn"
+      },
+      "AD2": {
+        "description": "不得把重写计划、总结、todo 列表的编写当作代码进展的替代品。文档编写只有在它直接推动下一个代码切片时才算有效产出。",
+        "severity": "warn"
+      },
+      "AD3": {
+        "description": "不得为了通过测试而删除测试、日志、错误处理或可观测性代码。测试失败应通过修复代码（而非删除测试）来解决。",
+        "severity": "warn"
+      },
+      "AD4": {
+        "description": "不得把临时 workaround 叙述为正式完成方案。若采用了 workaround，必须在验证门或风险节中显式声明其临时性。",
+        "severity": "warn"
+      },
+      "AD5": {
+        "description": "主链路未闭环时，不做锦上添花型任务（纯美化重构、未来预埋抽象、可选增强）。优先补全已有部分实现而不是开启新方向。",
+        "severity": "warn"
+      }
+    },
+    "slice_budget": {
+      "max_continuous_slices": 3,
+      "description": "连续完成 N 个切片后触发一次 mini-review：检查是否漂移、是否需要重规划、是否应进入 Milestone Replan。",
+      "mini_review_actions": [
+        "检查当前进度是否与 Checklist/Phase Map 的预期对齐",
+        "检查是否有已知风险在连续施工中被忽略",
+        "决定是继续下一切片还是先做方向候选分析"
+      ]
+    },
+    "milestone_replan_triggers": [
+      "已连续完成 slice_budget.max_continuous_slices 个切片",
+      "当前切片完成后，下一片选择变得模糊（无明确 planning-gate 且 Checklist 无优先待办）",
+      "连续两个切片都暴露出同一类架构错位",
+      "真实代码与文档/状态板长期不一致",
+      "发现原优先级排序不再符合当前仓库主线",
+      "测试或运行环境现实与既有假设明显冲突",
+      "当前上下文已经开始重复、漂移、压缩失真"
     ]
   }
 }

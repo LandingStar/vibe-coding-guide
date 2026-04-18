@@ -6,6 +6,7 @@ Run first-pass intake checks against a canonical handoff file.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -27,6 +28,7 @@ from handoff_protocol import (  # noqa: E402
 
 
 CURRENT_ENTRY_PATH = Path(".codex/handoffs/CURRENT.md")
+HISTORY_DIR = Path(".codex/handoffs/history")
 CURRENT_BOOTSTRAP_ENTRY_ROLE = "current-bootstrap"
 CURRENT_BOOTSTRAP_STATUS = "bootstrap-placeholder"
 CURRENT_MIRROR_ENTRY_ROLE = "current-mirror"
@@ -65,8 +67,52 @@ def git_dirty_status(repo_root: Path) -> tuple[bool | None, list[str]]:
     return bool(lines), lines
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def collect_active_canonical_handoffs(repo_root: Path) -> list[tuple[Path, dict]]:
+    history_root = (repo_root / HISTORY_DIR).resolve()
+    if not history_root.exists():
+        return []
+
+    active_entries: list[tuple[Path, dict]] = []
+    for path in sorted(history_root.glob("*.md")):
+        resolved = path.resolve()
+        try:
+            frontmatter, _body = load_document(resolved)
+        except ValidationError:
+            continue
+        if (
+            frontmatter.get("entry_role") == "canonical"
+            and frontmatter.get("status") == "active"
+        ):
+            active_entries.append((resolved, frontmatter))
+    return active_entries
+
+
+def describe_active_handoffs(entries: list[tuple[Path, dict]], repo_root: Path) -> str:
+    parts: list[str] = []
+    for path, frontmatter in entries:
+        try:
+            display_path = path.relative_to(repo_root).as_posix()
+        except ValueError:
+            display_path = str(path)
+        parts.append(f"{frontmatter.get('handoff_id', 'unknown')} ({display_path})")
+    return ", ".join(parts)
+
+
 def normalize_markdown_ref(value: str) -> str:
     normalized = value.strip()
+    if " — " in normalized:
+        normalized = normalized.split(" — ", 1)[0].strip()
+    link_match = re.match(r"^\[[^\]]+\]\(([^)]+)\)$", normalized)
+    if link_match:
+        normalized = link_match.group(1).strip()
     if normalized.startswith("`") and normalized.endswith("`") and len(normalized) >= 2:
         normalized = normalized[1:-1].strip()
     return normalized
@@ -304,6 +350,34 @@ def inspect_current(repo_root: Path) -> dict:
         entry_path=current_path,
     )
     result["current_source_path"] = source_path
+
+    current_source_hash = current_frontmatter.get("source_hash")
+    if not isinstance(current_source_hash, str) or not current_source_hash.strip():
+        result["blocking_issues"].append("CURRENT.md mirror is missing source_hash")
+    elif resolved_source_path.exists():
+        actual_source_hash = f"sha256:{sha256_file(resolved_source_path)}"
+        if current_source_hash != actual_source_hash:
+            result["blocking_issues"].append(
+                "CURRENT.md source_hash does not match the resolved canonical handoff"
+            )
+
+    active_entries = collect_active_canonical_handoffs(repo_root)
+    if not active_entries:
+        result["blocking_issues"].append(
+            "no active canonical handoff exists under .codex/handoffs/history/"
+        )
+    elif len(active_entries) > 1:
+        detail = describe_active_handoffs(active_entries, repo_root)
+        result["blocking_issues"].append(
+            "multiple active canonical handoffs exist: " + detail
+        )
+    else:
+        active_path, active_frontmatter = active_entries[0]
+        if active_path != resolved_source_path:
+            result["blocking_issues"].append(
+                "CURRENT.md source_path does not point to the unique active canonical handoff: "
+                f"{active_frontmatter.get('handoff_id', 'unknown')}"
+            )
 
     expected_handoff_id = current_frontmatter.get("source_handoff_id")
     if (

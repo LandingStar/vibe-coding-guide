@@ -1,4 +1,5 @@
 {
+  "manifest_version": "1.0",
   "name": "example-project-local-pack",
   "version": "0.1.0-example",
   "kind": "project-local",

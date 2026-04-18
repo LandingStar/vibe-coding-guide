@@ -14,6 +14,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .handoff_footprint import (
+    HANDOFF_FOOTPRINT_FIELDS,
+    load_current_handoff_footprint,
+)
+
 # Default checkpoint directory relative to project root
 _DEFAULT_DIR = ".codex/checkpoints"
 _LATEST = "latest.md"
@@ -38,6 +43,7 @@ def write_checkpoint(
     pending_decision: str = "",
     direction_candidates: list[dict[str, str]] | None = None,
     key_files: list[str] | None = None,
+    current_handoff: dict[str, str] | None = None,
 ) -> Path:
     """Write a checkpoint file to .codex/checkpoints/latest.md.
 
@@ -49,6 +55,7 @@ def write_checkpoint(
         pending_decision: Description of what user input is being awaited (empty if none).
         direction_candidates: List of dicts with keys 'name', 'description', 'source'.
         key_files: List of file paths that should be re-read on recovery.
+        current_handoff: Minimal pointer footprint of the latest canonical handoff.
 
     Returns:
         Path to the written checkpoint file.
@@ -57,6 +64,7 @@ def write_checkpoint(
     cp_dir = root / _DEFAULT_DIR
     cp_dir.mkdir(parents=True, exist_ok=True)
     cp_path = cp_dir / _LATEST
+    current_handoff = current_handoff or load_current_handoff_footprint(root)
 
     lines: list[str] = []
     ts = datetime.now(timezone.utc).isoformat()
@@ -69,6 +77,14 @@ def write_checkpoint(
     # Active Planning Gate
     lines.append("## Active Planning Gate\n")
     lines.append(f"{planning_gate or '(none)'}\n")
+
+    # Current Handoff
+    lines.append("## Current Handoff\n")
+    if current_handoff:
+        for field in HANDOFF_FOOTPRINT_FIELDS:
+            lines.append(f"- {field}: {current_handoff.get(field, '')}\n")
+    else:
+        lines.append("(none)\n")
 
     # Current Todo
     lines.append("## Current Todo\n")
@@ -129,9 +145,14 @@ def sync_checkpoint_phase(
         "pending_decision": "",
         "direction_candidates": [],
         "key_files": None,
+        "current_handoff": None,
     }
     if cp_path.exists():
         existing = read_checkpoint(cp_path)
+
+    current_handoff = load_current_handoff_footprint(root) or existing.get(
+        "current_handoff"
+    )
 
     return write_checkpoint(
         root,
@@ -141,6 +162,7 @@ def sync_checkpoint_phase(
         pending_decision=existing.get("pending_decision", ""),
         direction_candidates=existing.get("direction_candidates") or None,
         key_files=existing.get("key_files") or None,
+        current_handoff=current_handoff,
     )
 
 
@@ -155,6 +177,7 @@ def read_checkpoint(path: str | Path) -> dict[str, Any]:
     - pending_decision: str
     - direction_candidates: list[dict] with 'name', 'description', 'source'
     - key_files: list[str]
+    - current_handoff: dict[str, str] | None
     """
     text = Path(path).read_text(encoding="utf-8")
     result: dict[str, Any] = {
@@ -165,6 +188,7 @@ def read_checkpoint(path: str | Path) -> dict[str, Any]:
         "pending_decision": "",
         "direction_candidates": [],
         "key_files": [],
+        "current_handoff": None,
     }
 
     # Extract timestamp from heading
@@ -182,6 +206,20 @@ def read_checkpoint(path: str | Path) -> dict[str, Any]:
     result["planning_gate"] = sections.get("Active Planning Gate", "").strip()
     if result["planning_gate"] in _EMPTY_PLANNING_GATE_MARKERS:
         result["planning_gate"] = ""
+
+    # Current handoff footprint
+    handoff_text = sections.get("Current Handoff", "")
+    current_handoff: dict[str, str] = {}
+    for line in handoff_text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        key, _, value = stripped[2:].partition(":")
+        key = key.strip()
+        if key in HANDOFF_FOOTPRINT_FIELDS:
+            current_handoff[key] = value.strip()
+    if current_handoff:
+        result["current_handoff"] = current_handoff
 
     # Parse todos
     todo_text = sections.get("Current Todo", "")
@@ -257,6 +295,13 @@ def validate_checkpoint(path: str | Path) -> dict[str, Any]:
 
     if not data.get("key_files"):
         errors.append("Key Context Files is empty.")
+
+    handoff_text = sections.get("Current Handoff", "").strip()
+    if handoff_text and handoff_text != "(none)":
+        current_handoff = data.get("current_handoff") or {}
+        for field in HANDOFF_FOOTPRINT_FIELDS:
+            if not current_handoff.get(field):
+                errors.append(f"Current Handoff is missing {field}.")
 
     return {
         "valid": len(errors) == 0,

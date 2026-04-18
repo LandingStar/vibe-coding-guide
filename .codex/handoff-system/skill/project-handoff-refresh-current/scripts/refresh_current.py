@@ -48,6 +48,8 @@ def build_result(
     handoff_id: str | None = None,
     superseded_handoff_id: str | None = None,
     superseded_path: Path | None = None,
+    current_active: dict | None = None,
+    active_conflicts: list[dict] | None = None,
     warnings: list[str] | None = None,
     blocking_issues: list[str] | None = None,
 ) -> dict:
@@ -59,6 +61,8 @@ def build_result(
         "handoff_id": handoff_id,
         "superseded_handoff_id": superseded_handoff_id,
         "superseded_path": str(superseded_path) if superseded_path else None,
+        "current_active": current_active,
+        "active_conflicts": active_conflicts or [],
         "warnings": warnings or [],
         "blocking_issues": blocking_issues or [],
     }
@@ -117,6 +121,25 @@ def find_active_canonical_handoffs(
         ):
             active_entries.append((resolved, frontmatter, body))
     return active_entries
+
+
+def describe_active_entries(
+    entries: list[tuple[Path, dict, str]],
+    repo_root: Path,
+) -> list[dict[str, str]]:
+    details: list[dict[str, str]] = []
+    for path, frontmatter, _body in entries:
+        try:
+            display_path = path.relative_to(repo_root).as_posix()
+        except ValueError:
+            display_path = str(path)
+        details.append(
+            {
+                "handoff_id": str(frontmatter.get("handoff_id", "")),
+                "path": display_path,
+            }
+        )
+    return details
 
 
 def build_current_body(
@@ -227,6 +250,7 @@ def rotate_current(handoff_path: Path, repo_root: Path) -> dict:
             current_path=current_path,
             selection_mode="explicit-handoff",
             handoff_id=frontmatter["handoff_id"],
+            active_conflicts=describe_active_entries(active_entries, repo_root),
             blocking_issues=["multiple active canonical handoffs already exist"],
         )
 
@@ -248,6 +272,7 @@ def rotate_current(handoff_path: Path, repo_root: Path) -> dict:
                 handoff_id=frontmatter["handoff_id"],
                 superseded_handoff_id=old_handoff_id,
                 superseded_path=old_active_path,
+                current_active=describe_active_entries(active_entries, repo_root)[0],
                 blocking_issues=[
                     "target handoff supersedes does not match the current active canonical handoff"
                 ],
@@ -300,6 +325,17 @@ def print_human(result: dict) -> None:
         print(f"{prefix} handoff_id={result['handoff_id']}")
     if result.get("superseded_handoff_id"):
         print(f"{prefix} superseded_handoff_id={result['superseded_handoff_id']}")
+    if result.get("current_active"):
+        current_active = result["current_active"]
+        print(
+            f"{prefix} current_active={current_active.get('handoff_id')} "
+            f"({current_active.get('path')})"
+        )
+    for conflict in result.get("active_conflicts", []):
+        print(
+            f"[ERROR] active_conflict={conflict.get('handoff_id')} "
+            f"({conflict.get('path')})"
+        )
     for warning in result.get("warnings", []):
         print(f"[WARN] {warning}")
     for issue in result.get("blocking_issues", []):

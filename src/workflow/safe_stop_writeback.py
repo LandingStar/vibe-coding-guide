@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .handoff_footprint import load_current_handoff_footprint
+
 
 _DIRECTION_DOC_PATTERN = re.compile(r"direction-candidates-after-phase-(\d+)\.md$", re.IGNORECASE)
 
@@ -58,6 +60,7 @@ def find_latest_direction_candidates_doc(project_root: str | Path) -> str | None
 def build_safe_stop_writeback_bundle(project_root: str | Path) -> dict[str, Any]:
     """Build the explicit safe-stop writeback bundle contract."""
     direction_doc = find_latest_direction_candidates_doc(project_root)
+    current_handoff = load_current_handoff_footprint(project_root) or {}
 
     required_steps: list[dict[str, Any]] = [
         _step(
@@ -98,6 +101,14 @@ def build_safe_stop_writeback_bundle(project_root: str | Path) -> dict[str, Any]
     ]
 
     conditional_steps: list[dict[str, Any]] = [
+        _step(
+            key="expire-temporary-overrides",
+            label="Expire session and safe-stop temporary overrides",
+            step_type="state-cleanup",
+            paths=[".codex/temporary-overrides.json"],
+            rationale="Session-scoped and until-next-safe-stop overrides must not survive past a safe stop.",
+            condition="When active temporary overrides exist.",
+        ),
         _step(
             key="clear-active-slice-markers",
             label="Clear active-slice markers",
@@ -169,5 +180,6 @@ def build_safe_stop_writeback_bundle(project_root: str | Path) -> dict[str, Any]
         "required_steps": required_steps,
         "conditional_steps": conditional_steps,
         "direction_candidates_path": direction_doc or "",
+        "current_handoff_footprint": current_handoff,
         "files_to_update": files_to_update,
     }

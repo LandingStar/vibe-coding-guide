@@ -32,6 +32,11 @@
       "items": { "type": "string" },
       "description": "Artifacts actually modified during execution. Should not be vague descriptions."
     },
+    "artifact_payloads": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactPayload" },
+      "description": "Optional structured content payloads for future writeback planning. Presence does not imply the payload has already been written back."
+    },
     "verification_results": {
       "type": "array",
       "items": { "type": "string" },
@@ -51,6 +56,34 @@
       "type": "string",
       "description": "Whether escalation is recommended and to whom.",
       "enum": ["none", "review_by_supervisor", "human_review"]
+    }
+  },
+  "$defs": {
+    "artifactPayload": {
+      "type": "object",
+      "required": ["path", "content", "operation", "content_type"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Target artifact path associated with this payload.",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "description": "Structured content candidate for future writeback consumption."
+        },
+        "operation": {
+          "type": "string",
+          "description": "First-pass writeback intent carried by the report payload.",
+          "enum": ["create", "update", "append"]
+        },
+        "content_type": {
+          "type": "string",
+          "description": "Declared content type for downstream writeback mapping.",
+          "enum": ["markdown", "json", "yaml", "text"]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

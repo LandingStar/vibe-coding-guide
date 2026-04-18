@@ -36,9 +36,8 @@ _REFERENCE_IMPLEMENTATION_FILES = [
     ".github/skills/project-handoff-rebuild/SKILL.md",
 ]
 
-_SHIPPED_COPY_FILES = [
+_PLATFORM_SHIPPED_COPY_FILES = [
     * _REFERENCE_IMPLEMENTATION_FILES,
-    "doc-loop-vibe-coding/references/external-skill-interaction.md",
 ]
 
 
@@ -86,7 +85,15 @@ def build_external_skill_interaction_contract(
 
     contract = _merge_contract(DEFAULT_EXTERNAL_SKILL_INTERACTION_CONTRACT, contract_rules)
     reference_files = _existing_relative_paths(project_root, list(_REFERENCE_IMPLEMENTATION_FILES))
-    shipped_copies = _existing_relative_paths(project_root, list(_SHIPPED_COPY_FILES))
+
+    # Combine platform-level shipped copies with pack-declared ones
+    all_shipped_copy_paths = list(_PLATFORM_SHIPPED_COPY_FILES)
+    rule_declared_copies = contract_rules.get("shipped_copies")
+    if isinstance(rule_declared_copies, list):
+        for entry in rule_declared_copies:
+            if isinstance(entry, str) and entry not in all_shipped_copy_paths:
+                all_shipped_copy_paths.append(entry)
+    shipped_copies = _existing_relative_paths(project_root, all_shipped_copy_paths)
     authority_sources = _existing_relative_paths(project_root, list(_AUTHORITY_SOURCE_FILES))
 
     contract["reference_implementation"] = {

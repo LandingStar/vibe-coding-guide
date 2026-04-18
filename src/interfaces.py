@@ -41,6 +41,20 @@ class ReportValidator(Protocol):
         ...
 
 
+class HandoffValidator(Protocol):
+        """Validate a Handoff against schema and handoff-specific invariants."""
+
+        def validate(self, handoff: dict, context: dict | None = None) -> dict:
+                """Return a structured validation result dict.
+
+                Expected keys:
+                - ``valid`` (bool): whether the handoff is acceptable.
+                - ``errors`` (list[str]): human-readable error descriptions,
+                    empty when valid.
+                """
+                ...
+
+
 class EscalationNotifier(Protocol):
     """Deliver an escalation notification to the target authority."""
 

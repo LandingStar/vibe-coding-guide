@@ -2,11 +2,18 @@
   "report_id": "report-doc-loop-worker-001",
   "contract_id": "contract-doc-loop-worker-001",
   "status": "completed",
-  "changed_artifacts": [
-    "design_docs/stages/planning-gate/Next Slice Candidate.md"
+  "changed_artifacts": [],
+  "artifact_payloads": [
+    {
+      "path": "design_docs/stages/planning-gate/Next Slice Candidate.md",
+      "content": "# Next Slice Candidate\n\n- Linked back to the current status board and phase map.\n",
+      "operation": "update",
+      "content_type": "markdown"
+    }
   ],
   "verification_results": [
-    "Linked the candidate back to the status board and phase map."
+    "Prepared a structured markdown payload candidate for the planning-gate artifact.",
+    "Confirmed the candidate still links back to the status board and phase map."
   ],
   "unresolved_items": [
     "The acceptance section still needs the exact automated regression command."

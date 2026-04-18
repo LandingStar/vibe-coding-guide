@@ -45,7 +45,7 @@ Follow this order exactly:
 1. Confirm the current task actually requires `refresh current`, either from an explicit request or because the current handoff branch has reached the rotation step.
 2. Resolve the target canonical handoff: recent generate result first, otherwise latest draft, unless the user provided a concrete path.
 3. Load the protocol docs and the target canonical handoff.
-4. Run `scripts/refresh_current.py --handoff <path>` or `scripts/refresh_current.py --latest-draft`.
+4. Run `.codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py --handoff <path>` or `.codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py --latest-draft`.
 5. Review the returned activation result, superseded handoff, and refreshed `CURRENT.md` path.
 6. Report the rotation result without generating new handoff content.
 
@@ -66,9 +66,9 @@ The shared top-level contract for this skill is:
 Use:
 
 ```bash
-python scripts/refresh_current.py --handoff <path> [--json]
-python scripts/refresh_current.py --latest-draft [--json]
-python scripts/refresh_current.py [--json]
+python .codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py --handoff <path> [--json]
+python .codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py --latest-draft [--json]
+python .codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py [--json]
 ```
 
 This script validates the target canonical handoff, checks the existing active set, promotes the target to `active`, supersedes the previous active canonical handoff when needed, and refreshes `.codex/handoffs/CURRENT.md` as the mirror entry.
@@ -104,4 +104,4 @@ This proto-skill does not support:
 - `references/protocol-map.md`
 - `references/rotation-rules.md`
 - `references/result-contract.md`
-- `scripts/refresh_current.py`
+- `.codex/handoff-system/skill/project-handoff-refresh-current/scripts/refresh_current.py`

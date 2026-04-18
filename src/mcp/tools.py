@@ -14,7 +14,15 @@ from ..pack.manifest_loader import PackManifest
 from ..workflow.external_skill_interaction import (
     build_external_skill_interaction_contract,
 )
+from ..workflow.agent_output import FileSink, write_agent_output
 from ..workflow.safe_stop_writeback import build_safe_stop_writeback_bundle
+from ..workflow.temporary_override import (
+    OVERRIDABLE_CONSTRAINTS,
+    OverrideError,
+    get_active_overrides,
+    revoke_override as _revoke_override,
+    save_override as _save_override,
+)
 from ..workflow.pipeline import (
     ConstraintResult,
     ErrorInfo,
@@ -32,11 +40,19 @@ class GovernanceTools:
     sessions keep seeing current pack manifests and derived context.
     """
 
-    def __init__(self, project_root: str | Path, *, dry_run: bool = True) -> None:
+    def __init__(
+        self,
+        project_root: str | Path,
+        *,
+        dry_run: bool = True,
+        include_site_packages: bool = True,
+    ) -> None:
         self._project_root = Path(project_root).resolve()
         self._dry_run = dry_run
+        self._include_site_packages = include_site_packages
         self._pipeline: Pipeline | None = None
         self._init_error: ErrorInfo | None = None
+        self._agent_output_sink = FileSink(self._project_root)
         self._refresh_pipeline()
 
     def _set_init_error(self, exc: Exception) -> None:
@@ -54,7 +70,10 @@ class GovernanceTools:
         """Reload Pipeline from current workspace state."""
         try:
             self._pipeline = Pipeline.from_project(
-                self._project_root, dry_run=self._dry_run, audit=True
+                self._project_root,
+                dry_run=self._dry_run,
+                audit=True,
+                include_site_packages=self._include_site_packages,
             )
             self._init_error = None
         except Exception as exc:
@@ -73,6 +92,15 @@ class GovernanceTools:
             message="Pipeline is not available.",
             source="mcp",
         ).to_dict()
+
+    def write_output(self, content: str, *, title: str = "") -> str:
+        """Write agent analysis to a visible surface and return the file path.
+
+        Use this to surface analysis, tables, or summaries that the user
+        needs to see. In MCP clients where chat text is invisible (e.g.
+        VS Code Copilot Chat), this writes to .codex/agent-output/latest.md.
+        """
+        return self._agent_output_sink.write(content, title=title)
 
     def _interaction_contract(self) -> dict[str, Any]:
         """Return the structured conversation progression contract."""
@@ -120,11 +148,14 @@ class GovernanceTools:
             merged_rules,
         )
 
-    def governance_decide(self, input_text: str) -> dict:
+    def governance_decide(self, input_text: str, scope_path: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 
         Returns structured result with envelope, execution result,
         and constraint check.
+
+        When *scope_path* is provided, pack resolution uses only the
+        matching branch of the pack tree (hierarchical scope-aware mode).
 
         MCP tool behavior:
         - Always returns a ``decision`` field: "ALLOW" or "BLOCK"
@@ -149,8 +180,11 @@ class GovernanceTools:
                 "constraints": constraints.to_dict(),
             }
 
-        # Run governance chain
-        result = self._pipeline.process(input_text)
+        # Run governance chain (scoped or global)
+        if scope_path:
+            result = self._pipeline.process_scoped(input_text, scope_path)
+        else:
+            result = self._pipeline.process(input_text)
         pack_info = dict(result.pack_info)
         pack_info["external_skill_interaction_contract"] = (
             self._external_skill_interaction_contract()
@@ -165,6 +199,7 @@ class GovernanceTools:
             "gate": result.envelope.get("gate_decision", {}).get("gate_level", "review"),
             "audit_event_count": len(result.audit_events),
             "pack_info": pack_info,
+            "decision_log_entry": result.decision_log_entry,
         }
 
     def check_constraints(self) -> dict:
@@ -180,6 +215,89 @@ class GovernanceTools:
 
         result = self._pipeline.check_constraints()
         return result.to_dict()
+
+    def governance_override(self, action: str, **kwargs: Any) -> dict:
+        """Register, revoke, or list temporary rule overrides.
+
+        Actions:
+          - ``register``: requires ``constraint``, ``reason``, optional ``scope``
+          - ``revoke``: requires ``override_id``
+          - ``list``: no extra args
+
+        Non-overridable constraints (C4, C5, C8) are rejected.
+        """
+        if action == "list":
+            try:
+                active = get_active_overrides(self._project_root)
+                return {
+                    "overrides": [o.to_dict() for o in active],
+                    "overridable_constraints": sorted(OVERRIDABLE_CONSTRAINTS),
+                }
+            except Exception as exc:
+                return {"error": f"Failed to list overrides: {exc}"}
+
+        if action == "register":
+            constraint = kwargs.get("constraint", "")
+            reason = kwargs.get("reason", "")
+            scope = kwargs.get("scope", "session")
+            if not constraint or not reason:
+                return {"error": "register requires 'constraint' and 'reason'."}
+            try:
+                override = _save_override(
+                    self._project_root,
+                    constraint=constraint,
+                    reason=reason,
+                    scope=scope,
+                )
+                return {
+                    "registered": True,
+                    "override": override.to_dict(),
+                }
+            except OverrideError as exc:
+                return {"error": str(exc), "registered": False}
+
+        if action == "revoke":
+            override_id = kwargs.get("override_id", "")
+            if not override_id:
+                return {"error": "revoke requires 'override_id'."}
+            found = _revoke_override(self._project_root, override_id)
+            return {
+                "revoked": found,
+                "override_id": override_id,
+            }
+
+        return {"error": f"Unknown action: {action!r}. Use 'register', 'revoke', or 'list'."}
+
+    def query_decision_logs(
+        self,
+        trace_id: str = "",
+        decision: str = "",
+        intent: str = "",
+        limit: int = 50,
+    ) -> dict:
+        """Query persisted decision log entries.
+
+        Supports filtering by trace_id, decision (ALLOW/BLOCK), and intent.
+        Returns the most recent entries first, up to *limit*.
+        """
+        from ..audit.decision_log import DecisionLogStore
+
+        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
+        entries = store.query(
+            trace_id=trace_id or None,
+            decision=decision or None,
+            intent=intent or None,
+            limit=limit,
+        )
+        return {
+            "entries": entries,
+            "count": len(entries),
+            "filters": {
+                k: v for k, v in
+                {"trace_id": trace_id, "decision": decision, "intent": intent}.items()
+                if v
+            },
+        }
 
     def get_next_action(self) -> dict:
         """Recommend the next action based on project state.
@@ -237,6 +355,12 @@ class GovernanceTools:
             action["ask_user"] = True
             action["interaction_contract"] = self._interaction_contract()
             action["question_instruction"] = self._question_instruction()
+            action["completion_boundary_reminder"] = (
+                "CRITICAL: You are at a completion boundary. "
+                "You MUST provide your own analysis of the next direction "
+                "and end with a forward question that includes your recommendation. "
+                "Do NOT ask the user whether to continue or stop."
+            )
 
         return action
 
@@ -310,16 +434,159 @@ class GovernanceTools:
             "safe_stop_writeback_bundle": bundle,
         }
 
-    def get_info(self) -> dict:
-        """Return loaded pack info."""
+    def get_info(self, scope_path: str = "", level: str = "manifest") -> dict:
+        """Return loaded pack info with optional scope filtering and detail level."""
         err = self._require_pipeline()
         if err is not None:
             return err
-        result = dict(self._pipeline.info())
+        from ..pack.manifest_loader import LoadLevel
+        level_map = {"metadata": LoadLevel.METADATA, "manifest": LoadLevel.MANIFEST, "full": LoadLevel.FULL}
+        load_level = level_map.get(level.lower(), LoadLevel.MANIFEST)
+        result = dict(self._pipeline.info(scope_path=scope_path, level=load_level))
         result["external_skill_interaction_contract"] = (
             self._external_skill_interaction_contract()
         )
         return result
+
+    # ── Dependency Graph Tools ─────────────────────────────────────────
+
+    def impact_analysis(
+        self,
+        changed_files: list[str] | None = None,
+        changed_symbols: list[str] | None = None,
+        max_depth: int = 2,
+    ) -> dict:
+        """Analyze change impact through the dependency graph.
+
+        Uses the baseline graph snapshot to propagate changes and
+        identify directly and transitively affected nodes.
+        """
+        graph_path = self._project_root / "tools" / "dependency_graph" / "baseline_graph.json"
+        if not graph_path.exists():
+            return {
+                "error": "baseline_graph.json not found",
+                "suggestion": "Run build_baseline.py to generate the graph snapshot.",
+            }
+        try:
+            from tools.dependency_graph.query import query_impact
+
+            graph_text = graph_path.read_text(encoding="utf-8")
+            from tools.dependency_graph.model import DependencyGraph
+
+            graph = DependencyGraph.from_json(graph_text)
+            return query_impact(
+                graph,
+                changed_files=changed_files or [],
+                changed_symbols=changed_symbols or [],
+                max_depth=max_depth,
+            )
+        except Exception as exc:
+            _log.error("impact_analysis failed: %s", exc)
+            return {"error": str(exc)}
+
+    def coupling_check(
+        self,
+        changed_files: list[str] | None = None,
+        changed_symbols: list[str] | None = None,
+    ) -> dict:
+        """Check coupling annotations against changes.
+
+        Uses coupling_annotations.json to find semantic coupling
+        alerts triggered by the given changes.
+        """
+        coupling_path = (
+            self._project_root / "tools" / "dependency_graph" / "coupling_annotations.json"
+        )
+        if not coupling_path.exists():
+            return {"alerts": [], "note": "No coupling_annotations.json found."}
+        try:
+            from tools.dependency_graph.query import query_coupling
+
+            alerts = query_coupling(
+                coupling_path,
+                changed_files=changed_files or [],
+                changed_symbols=changed_symbols or [],
+            )
+            return {"alerts": alerts}
+        except Exception as exc:
+            _log.error("coupling_check failed: %s", exc)
+            return {"error": str(exc)}
+
+    def analyze_changes(
+        self,
+        changed_files: list[str] | None = None,
+        changed_symbols: list[str] | None = None,
+        max_depth: int = 2,
+    ) -> dict:
+        """Unified change analysis combining impact propagation and coupling checks.
+
+        Merges the results of ``impact_analysis`` and ``coupling_check``
+        into a single response so the caller only needs one tool call.
+        """
+        impact = self.impact_analysis(
+            changed_files=changed_files,
+            changed_symbols=changed_symbols,
+            max_depth=max_depth,
+        )
+        coupling = self.coupling_check(
+            changed_files=changed_files,
+            changed_symbols=changed_symbols,
+        )
+        return {
+            "impact": impact,
+            "coupling": coupling,
+        }
+
+    # ── Dogfood pipeline ───────────────────────────────────────────────
+
+    def promote_dogfood_evidence(
+        self,
+        symptoms: list[dict],
+        existing_issue_ids: list[str] | None = None,
+        date: str = "",
+        judgment: str = "",
+        next_step_implication: str = "",
+        confidence: str = "medium",
+        non_goals: list[str] | None = None,
+        supersedes: str | None = None,
+        auto_writeback: bool = False,
+        active_gate_path: str | None = None,
+    ) -> dict:
+        """Run the full dogfood pipeline: evaluate → build → assemble → dispatch.
+
+        Returns decisions, promoted issues, feedback packet, and consumer payloads.
+        If *auto_writeback* is True, also writes consumer payloads to target documents.
+        """
+        try:
+            from ..dogfood import run_full_pipeline
+
+            result = run_full_pipeline(
+                symptoms=symptoms,
+                existing_issue_ids=existing_issue_ids,
+                date=date,
+                judgment=judgment,
+                next_step_implication=next_step_implication,
+                confidence=confidence,
+                non_goals=tuple(non_goals) if non_goals else (),
+                supersedes=supersedes,
+            )
+
+            if auto_writeback and result.get("consumer_payloads") and result.get("packet"):
+                from ..dogfood.writeback import write_consumer_payloads
+
+                wb_results = write_consumer_payloads(
+                    project_root=self._project_root,
+                    consumer_payloads=result["consumer_payloads"],
+                    packet_id=result["packet"]["packet_id"],
+                    active_gate_path=active_gate_path,
+                    dry_run=self._dry_run,
+                )
+                result["writeback_results"] = wb_results
+
+            return result
+        except Exception as exc:
+            _log.error("promote_dogfood_evidence failed: %s", exc)
+            return {"error": str(exc)}
 
     # ── Prompts ────────────────────────────────────────────────────────
 

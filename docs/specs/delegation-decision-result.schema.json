@@ -70,6 +70,11 @@
       "type": "string",
       "enum": ["review", "approve"],
       "description": "Suggested gate level for reviewing subagent output. Only 'review' or 'approve' are valid (inform is not applicable for subagent output review)."
+    },
+    "capability_warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Advisory warnings emitted when the available merged provides do not cover the capabilities typically required by the delegated intent."
     }
   },
   "if": {

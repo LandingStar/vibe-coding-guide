@@ -38,6 +38,7 @@ class InstructionsGenerator:
         sections.append(self._header())
         sections.append(self._constraints_section())
         sections.append(self._conversation_progression_section())
+        sections.append(self._temporary_override_section())
         sections.append(self._external_skill_interaction_section())
         sections.append(self._document_types_section())
         sections.append(self._intents_section())
@@ -102,6 +103,67 @@ class InstructionsGenerator:
                 "- Allowed exceptions for a non-question ending: "
                 + ", ".join(str(item) for item in exceptions)
                 + "."
+            )
+
+        # Completion boundary static redundancy (方案 A)
+        boundary = contract.get("completion_boundary_protocol")
+        if isinstance(boundary, dict) and boundary:
+            tool_name = boundary.get("mandatory_tool_call", "get_next_action")
+            lines.append("")
+            lines.append(
+                f"- **Completion Boundary Rule**: When all tasks are done and no planning gate is active, "
+                f"you MUST call `{tool_name}` before composing your response. "
+                "Never end with \"shall we continue or stop?\" — "
+                "always provide your analysis of the next direction."
+            )
+
+        lines.append("")
+        return "\n".join(lines)
+
+    def _temporary_override_section(self) -> str:
+        """Render the temporary override guidance, if configured."""
+        rules = self._ctx.merged_rules
+        if not rules:
+            return ""
+
+        config = rules.get("temporary_override")
+        if not isinstance(config, dict) or not config:
+            return ""
+
+        lines = ["## Temporary Rule Override", ""]
+
+        if config.get("require_user_authorisation"):
+            lines.append(
+                "- Temporary override of an instruction-layer constraint requires explicit user authorisation in the current conversation."
+            )
+
+        overridable = config.get("overridable_constraints", [])
+        if isinstance(overridable, list) and overridable:
+            lines.append(
+                "- Overridable constraints: " + ", ".join(str(c) for c in overridable) + "."
+            )
+
+        non_overridable = config.get("non_overridable_constraints", [])
+        if isinstance(non_overridable, list) and non_overridable:
+            lines.append(
+                "- Non-overridable (always enforced): " + ", ".join(str(c) for c in non_overridable) + "."
+            )
+
+        mcp_tool = config.get("mcp_tool")
+        if mcp_tool:
+            lines.append(
+                f"- Use the `{mcp_tool}` MCP tool to register, revoke, or list overrides."
+            )
+
+        scopes = config.get("scopes", [])
+        if isinstance(scopes, list) and scopes:
+            lines.append(
+                "- Override scopes: " + ", ".join(f"`{s}`" for s in scopes) + "."
+            )
+
+        if config.get("session_overrides_expire_at_safe_stop"):
+            lines.append(
+                "- Session-scoped and until-next-safe-stop overrides automatically expire during safe-stop writeback."
             )
 
         lines.append("")

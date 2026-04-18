@@ -48,6 +48,8 @@
 - `version`
 - `kind`
 - `scope`
+- `parent`
+- `scope_paths`
 - `provides`
 - `always_on`
 - `on_demand`
@@ -65,6 +67,32 @@
 - `kind` 可用于区分平台默认 pack、官方实例 pack、项目定制 pack
 
 当前文档先固定对象与目的，不固定最终文件格式。
+
+## Pack Topology
+
+平台当前仍保留三类 pack 来源：
+
+- 平台核心默认 pack
+- 官方实例 pack
+- 项目级本地 pack
+
+但“来源分层”不再等于“只能扁平合并”。当前 runtime 已支持 pack 形成单继承树：
+
+- 任意 kind 都可以声明 `parent`
+- pack 可通过 `scope_paths` 参与显式作用域路由
+- 当调用方提供 `scope_path` 时，runtime 只合并命中的那条 root → leaf pack 链
+
+当前已支持的 topology 能力：
+
+- 单继承树
+- 简单前缀匹配的 `scope_paths`
+- 显式 `scope_path` 传入
+
+当前未支持的 topology 能力：
+
+- mixin
+- DAG 多继承
+- 自动从宿主环境推断 `scope_path`
 
 ## Pack 的职责边界
 
@@ -92,6 +120,7 @@ Pack 负责实例化平台，不负责重定义平台核心对象。
 若多个 pack 同时命中，应遵循：
 
 - 先看是否有显式覆盖关系
+- 若当前处于 scoped 模式，先按 `scope_path` 解析出唯一 pack 链，再沿链序判断谁更具体
 - 再看项目级定制是否声明优先
 - 若仍冲突，则回退到人工 review，而不是让 AI 自行硬判
 
@@ -110,7 +139,18 @@ Pack 负责实例化平台，不负责重定义平台核心对象。
 - 远端 registry pack
 
 这样做是为了吸收已有技能平台对“来源分层”的经验，同时不在当前阶段把分发体系一次性做满。
+### Pack 发现与来源分类
 
+平台按以下优先级发现 pack：
+
+| 来源 | 路径 / 机制 | source 标识 |
+|------|------------|-------------|
+| 显式配置 | `.codex/platform.json` `pack_dirs` | `config` |
+| CLI 安装 | `.codex/packs/<name>/`（由 `pack install` 写入） | `installed` |
+| 约定扫描 | `{project_root}/*/pack-manifest.json` | `convention` |
+| Python 包 | `pip install` 后的 site-packages | `site-packages` |
+
+CLI `pack install` 将 pack 复制到 `.codex/packs/` 并自动注册到 `platform.json`；`pack remove` 移除并更新配置。详见 [`docs/pack-index-format.md`](pack-index-format.md)。
 ## Pack Sources
 
 pack 的能力来源不应被局限为本地 markdown 或脚本。

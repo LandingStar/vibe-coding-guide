@@ -1,0 +1,89 @@
+{
+  "annotations": [
+    {
+      "id": "coupling-errorinfo-docs",
+      "description": "ErrorInfo 字段结构变更必须同步更新 docs/structured-error-format.md",
+      "anchors": [
+        {
+          "file_path": "src/workflow/pipeline.py",
+          "symbol": "ErrorInfo",
+          "line_pattern": null
+        },
+        {
+          "file_path": "docs/structured-error-format.md",
+          "symbol": null,
+          "line_pattern": null
+        }
+      ],
+      "severity": "must-sync"
+    },
+    {
+      "id": "coupling-protocol-interfaces-docs",
+      "description": "src/interfaces.py 的 Protocol 签名变更必须同步更新 docs/core-model.md 中的接口说明",
+      "anchors": [
+        {
+          "file_path": "src/interfaces.py",
+          "symbol": null,
+          "line_pattern": null
+        },
+        {
+          "file_path": "docs/core-model.md",
+          "symbol": null,
+          "line_pattern": null
+        }
+      ],
+      "severity": "must-sync"
+    },
+    {
+      "id": "coupling-pack-manifest-schema-docs",
+      "description": "PackManifest 字段变更必须同步更新 docs/pack-manifest.md",
+      "anchors": [
+        {
+          "file_path": "src/pack/manifest.py",
+          "symbol": "PackManifest",
+          "line_pattern": null
+        },
+        {
+          "file_path": "docs/pack-manifest.md",
+          "symbol": null,
+          "line_pattern": null
+        }
+      ],
+      "severity": "must-sync"
+    },
+    {
+      "id": "coupling-mcp-tools-registration",
+      "description": "新增 MCP tool 方法后必须在 server.py 的 list_tools 中注册路由",
+      "anchors": [
+        {
+          "file_path": "src/mcp/tools.py",
+          "symbol": null,
+          "line_pattern": null
+        },
+        {
+          "file_path": "src/mcp/server.py",
+          "symbol": null,
+          "line_pattern": "list_tools"
+        }
+      ],
+      "severity": "must-sync"
+    },
+    {
+      "id": "coupling-version-pyproject",
+      "description": "版本号变更必须同时更新两个 pyproject.toml",
+      "anchors": [
+        {
+          "file_path": "pyproject.toml",
+          "symbol": null,
+          "line_pattern": "version"
+        },
+        {
+          "file_path": "doc-loop-vibe-coding/pyproject.toml",
+          "symbol": null,
+          "line_pattern": "version"
+        }
+      ],
+      "severity": "must-sync"
+    }
+  ]
+}

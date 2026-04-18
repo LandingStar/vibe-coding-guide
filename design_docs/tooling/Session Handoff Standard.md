@@ -121,6 +121,15 @@ handoff 不得复制上述文档的大段正文来代替引用。
 - 是否需要 supersede 旧 active canonical handoff
 - 是否需要回写 handoff / workflow 协议文本
 
+safe-stop helper、checkpoint 与 authority docs 若需要记录“当前 safe stop 由哪份 canonical handoff 关闭”，应共用同一份最小 pointer footprint，而不是复制 handoff 正文。
+
+该 footprint 第一版只允许包含：
+
+- `handoff_id`
+- `source_path`
+- `scope_key`
+- `created_at`
+
 因此，“handoff 已生成”并不自动等于“safe-stop close 已完成”；只有当该 bundle 的必做项与命中的条件项都已处理后，当前 safe-stop 才算真正完成。
 
 ---

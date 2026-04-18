@@ -6,7 +6,7 @@ from pathlib import Path
 
 __all__ = ["__version__", "get_manifest_path", "get_package_root"]
 
-__version__ = "1.0.0"
+__version__ = "0.9.1"
 
 
 def get_package_root() -> Path:

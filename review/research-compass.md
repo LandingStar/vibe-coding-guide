@@ -20,10 +20,11 @@
 | 组别 | 代表产品 | 最强贡献 |
 |---|---|---|
 | 规则与决策 | OPA, Continue | precedence、rules、decision/enforcement 分层 |
-| pack / skill / context | OpenHands, Continue, Semantic Kernel | pack 形态、always-on/on-demand、来源分层 |
-| 多 agent / 子 agent | LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, Semantic Kernel | supervisor-worker、handoff、team 模式、review 节点 |
+| pack / skill / context | OpenHands, Continue, Semantic Kernel, **Claude Managed Agents** | pack 形态、always-on/on-demand、来源分层、**三级渐进加载** |
+| 多 agent / 子 agent | LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, Semantic Kernel, **Claude Managed Agents** | supervisor-worker、handoff、team 模式、review 节点、**单层委派+上下文隔离** |
 | validator / quality control | Guardrails AI, Continue | validator registry、checks 分层、input/output guard |
 | 文档 / 模板 / 平台形态 | Backstage, OpenHands, Continue | docs-like-code、templates、plugin architecture |
+| 全托管 agent 运行时 | **Claude Managed Agents** | **事件驱动 session、permission policy 分层、Skills 渐进加载、structured outputs** |
 
 ## 全量研究地图
 
@@ -40,6 +41,7 @@
 | [Dify](./dify.md) | triggers / event workflows | trigger plugin、webhook/subscription、多事件输入 | 低 | 想预留事件输入与触发器时 |
 | [Semantic Kernel](./semantic-kernel.md) | plugin sources / orchestration patterns | OpenAPI/MCP plugin source、orchestration pattern 抽象 | 高 | 想扩展 pack 来源和协作模式时 |
 | [OpenAI Agents SDK](./openai-agents-sdk.md) | handoff / tracing / guardrails | handoff 一等原语、guardrail 边界、tracing、tripwire | 高 | 想设计 handoff schema 与 tracing 时 |
+| [Claude Managed Agents](./claude-managed-agents-platform.md) | skills / multi-agent / events / permissions | Skills 三级渐进加载、事件驱动 session、permission policy 分层覆盖、单层委派+上下文隔离 | 高 | 想设计 Pack 渐进加载、子 agent 上下文隔离、工具权限分层时 |
 
 ## 按问题检索
 
@@ -58,23 +60,25 @@
 
 优先读：
 
-1. [OpenHands](./openhands.md)
-2. [Continue](./continue.md)
-3. [Semantic Kernel](./semantic-kernel.md)
+1. [Claude Managed Agents](./claude-managed-agents-platform.md)（Skills 三级渐进加载）
+2. [OpenHands](./openhands.md)
+3. [Continue](./continue.md)
+4. [Semantic Kernel](./semantic-kernel.md)
 
 补充读：
 
-4. [Backstage](./backstage.md)
+5. [Backstage](./backstage.md)
 
 ### 如果你想看“always-on context 与按需加载”
 
 优先读：
 
-1. [OpenHands](./openhands.md)
+1. [Claude Managed Agents](./claude-managed-agents-platform.md)（Skills L1/L2/L3 三级加载）
+2. [OpenHands](./openhands.md)
 
 补充读：
 
-2. [Continue](./continue.md)
+3. [Continue](./continue.md)
 
 ### 如果你想看“子 agent 默认协作模式”
 
@@ -83,6 +87,7 @@
 1. [LangGraph / LangChain](./langgraph-langchain.md)
 2. [CrewAI](./crewai.md)
 3. [AutoGen](./autogen.md)
+4. [Claude Managed Agents](./claude-managed-agents-platform.md)（单层委派 + 上下文隔离）
 
 ### 如果你想看“handoff 应否是显式原语”
 
@@ -141,9 +146,9 @@
 | 平台层 | 最相关研究 |
 |---|---|
 | 核心治理层 | [open-policy-agent.md](./open-policy-agent.md), [continue.md](./continue.md) |
-| pack 扩展层 | [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md) |
+| pack 扩展层 | [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md) |
 | review / approval 层 | [langgraph-langchain.md](./langgraph-langchain.md), [crewai.md](./crewai.md), [autogen.md](./autogen.md) |
-| subagent orchestration 层 | [langgraph-langchain.md](./langgraph-langchain.md), [autogen.md](./autogen.md), [crewai.md](./crewai.md), [openai-agents-sdk.md](./openai-agents-sdk.md), [semantic-kernel.md](./semantic-kernel.md) |
+| subagent orchestration 层 | [langgraph-langchain.md](./langgraph-langchain.md), [autogen.md](./autogen.md), [crewai.md](./crewai.md), [openai-agents-sdk.md](./openai-agents-sdk.md), [semantic-kernel.md](./semantic-kernel.md), [claude-managed-agents-platform.md](./claude-managed-agents-platform.md) |
 | validator / checks 层 | [guardrails-ai.md](./guardrails-ai.md), [continue.md](./continue.md) |
 | docs / templates 层 | [backstage.md](./backstage.md), [openhands.md](./openhands.md) |
 | triggers / event inputs 层 | [dify.md](./dify.md), [continue.md](./continue.md) |
@@ -186,10 +191,10 @@
 
 当前仍明显不足的研究方向有：
 
-- 版本化 pack manifest 规范
-- decision logs 的最小字段设计
-- 子 agent tracing 如何与文档 write-back 对接
-- 多实例共存时的冲突解决策略
-- plugin distribution / marketplace 的演化路径
+- ~~版本化 pack manifest 规范~~ — 已落地：`manifest_version` 字段已加入 `PackManifest`，loader 支持版本感知加载（major 不匹配→拒绝，minor 不匹配→警告），详见 `docs/pack-manifest.md` §Schema Versioning
+- ~~decision logs 的最小字段设计~~ — 已落地：`DecisionLogEntry` 19 字段 dataclass + `DecisionLogStore` JSON Lines 持久化 + Pipeline.process() 后处理聚合 + MCP `governance_decide()` 返回 `decision_log_entry` + `query_decision_logs()` 查询工具，详见 `design_docs/stages/planning-gate/2026-04-14-decision-logs-minimum-field-design.md`
+- ~~子 agent tracing 如何与文档 write-back 对接~~ — 已落地：ExecutionResult 新增 trace_id/delegation_mode 字段 + WritebackEngine 发射 writeback_planned / artifact_changed audit event + Executor 发射 contract_generated / subagent_report_received / writeback_blocked_by_check + trace 链从 intent 到 artifact 全程可追踪，详见 `design_docs/stages/planning-gate/2026-04-14-subagent-tracing-writeback-linkage.md`
+- ~~多实例共存时的冲突解决策略~~ — 已落地：`_deep_merge()` 冲突收集器（path/old_value/new_value/old_source/new_source）+ `PackContext.merge_conflicts` 字段 + `PrecedenceResolver` 同层 tie 标记 `tie_broken_by: insertion_order` + 同层冲突记录 + `Pipeline.info()` 条件暴露 merge_conflicts，详见 `design_docs/stages/planning-gate/2026-04-14-multi-instance-conflict-detection.md`
+- ~~plugin distribution / marketplace 的演化路径~~ — 已分析：三阶段演化方案（A Pack Index Metadata / B 本地 Registry / C 远程 Marketplace），当前判断均不建议立即实现，等待 dogfood 分发需求信号，详见 `design_docs/plugin-distribution-marketplace-direction-analysis.md`
 
 这些方向后续若继续研究，应在本文件补入口，而不是只把新报告追加到底部目录。

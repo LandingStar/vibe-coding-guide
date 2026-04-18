@@ -1,0 +1,112 @@
+{
+  "name": "doc-based-coding",
+  "displayName": "Doc-Based Coding",
+  "description": "Document-driven governance workflow platform for VS Code",
+  "version": "0.1.0",
+  "publisher": "doc-based-coding",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.codex/platform.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "doc-based-coding",
+          "title": "Doc-Based Coding",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "doc-based-coding": [
+        {
+          "id": "constraintDashboard",
+          "name": "Constraints (C1-C8)"
+        },
+        {
+          "id": "packExplorer",
+          "name": "Pack Explorer"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "docBasedCoding.refreshConstraints",
+        "title": "Refresh Constraints",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.startServer",
+        "title": "Start MCP Server",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.stopServer",
+        "title": "Stop MCP Server",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.setupWizard",
+        "title": "Setup Wizard",
+        "category": "Doc-Based Coding"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "docBasedCoding.refreshConstraints",
+          "when": "view == constraintDashboard",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Doc-Based Coding",
+      "properties": {
+        "docBasedCoding.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Python executable used for the MCP server. If empty, uses the workspace Python environment."
+        },
+        "docBasedCoding.serverArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional arguments passed to the MCP server."
+        },
+        "docBasedCoding.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the MCP server when the extension activates."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.config.mjs --production",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "eslint src/",
+    "test": "npm run build && node ./dist/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^3.9.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0"
+  }
+}

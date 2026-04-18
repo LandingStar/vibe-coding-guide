@@ -46,7 +46,7 @@ Follow this order exactly:
 1. Confirm the current task actually requires handoff intake.
 2. Choose the intake target: `CURRENT.md` by default, or a concrete `handoff_path` if the user gave one.
 3. Load the protocol docs and the target entry.
-4. Run `scripts/intake_handoff.py --current` or `scripts/intake_handoff.py --handoff <path>`.
+4. Run `.codex/handoff-system/skill/project-handoff-accept/scripts/intake_handoff.py --current` or `.codex/handoff-system/skill/project-handoff-accept/scripts/intake_handoff.py --handoff <path>`.
 5. Review the returned status, warnings, blocking issues, and authoritative refs.
 6. Report the intake result without mutating the handoff.
 
@@ -55,8 +55,8 @@ Follow this order exactly:
 Use:
 
 ```bash
-python scripts/intake_handoff.py --current [--json]
-python scripts/intake_handoff.py --handoff <path> [--json]
+python .codex/handoff-system/skill/project-handoff-accept/scripts/intake_handoff.py --current [--json]
+python .codex/handoff-system/skill/project-handoff-accept/scripts/intake_handoff.py --handoff <path> [--json]
 ```
 
 This script validates the selected intake entry, resolves `CURRENT.md` to its canonical source when needed, checks minimum workspace-facing conditions, and classifies the intake result.
@@ -116,4 +116,4 @@ The shared top-level contract for this skill is:
 - `references/protocol-map.md`
 - `references/intake-rules.md`
 - `references/result-matrix.md`
-- `scripts/intake_handoff.py`
+- `.codex/handoff-system/skill/project-handoff-accept/scripts/intake_handoff.py`

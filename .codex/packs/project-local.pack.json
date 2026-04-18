@@ -1,7 +1,9 @@
 {
+  "manifest_version": "1.0",
   "name": "doc-based-coding-platform-local-pack",
-  "version": "1.0.0",
+  "version": "0.9.1",
   "kind": "project-local",
+  "description": "Project-local governance overlay that adds project-specific rules, document types, and prompt templates on top of platform defaults. Use for the doc-based-coding-platform repository to enforce its custom planning-gate and phase governance constraints.",
   "scope": "Project-local governance overlay for doc-based-coding-platform.",
   "provides": [
     "rules",
@@ -174,7 +176,12 @@
         "user explicitly allows ending",
         "user explicitly allows pausing",
         "user explicitly requests no follow-up question this turn"
-      ]
+      ],
+      "completion_boundary_protocol": {
+        "trigger": "all_todos_completed_and_no_active_planning_gate",
+        "mandatory_tool_call": "get_next_action",
+        "rationale": "Re-inject interaction_contract at the exact moment the completion instinct is strongest"
+      }
     },
     "external_skill_interaction": {
       "model_may_initiate_when_rules_allow": true,
@@ -187,7 +194,18 @@
         "escalation"
       ],
       "reference_implementation_family": "project-handoff-*",
-      "companion_distribution_rule": "authority-to-shipped-copies-drift-check"
+      "companion_distribution_rule": "authority-to-shipped-copies-drift-check",
+      "shipped_copies": [
+        "doc-loop-vibe-coding/references/external-skill-interaction.md"
+      ]
+    },
+    "temporary_override": {
+      "require_user_authorisation": true,
+      "overridable_constraints": ["C1", "C2", "C3", "C6", "C7"],
+      "non_overridable_constraints": ["C4", "C5", "C8"],
+      "mcp_tool": "governance_override",
+      "scopes": ["turn", "session", "until-next-safe-stop"],
+      "session_overrides_expire_at_safe_stop": true
     },
     "direction_candidates_sources": [
       "design_docs/Project Master Checklist.md 的待办与风险",

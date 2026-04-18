@@ -1,0 +1,1700 @@
+{
+  "nodes": {
+    "src.__main__._find_project_root": {
+      "id": "src.__main__._find_project_root",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 29,
+      "module": "src.__main__"
+    },
+    "src.__main__._handle_error": {
+      "id": "src.__main__._handle_error",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 38,
+      "module": "src.__main__"
+    },
+    "src.__main__._print_json": {
+      "id": "src.__main__._print_json",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 53,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_process": {
+      "id": "src.__main__.cmd_process",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 58,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_info": {
+      "id": "src.__main__.cmd_info",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 77,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_validate": {
+      "id": "src.__main__.cmd_validate",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 90,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_check": {
+      "id": "src.__main__.cmd_check",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 113,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_generate_instructions": {
+      "id": "src.__main__.cmd_generate_instructions",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 144,
+      "module": "src.__main__"
+    },
+    "src.__main__.cmd_pack": {
+      "id": "src.__main__.cmd_pack",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 169,
+      "module": "src.__main__"
+    },
+    "src.__main__.main": {
+      "id": "src.__main__.main",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 262,
+      "module": "src.__main__"
+    },
+    "src.adapters.descriptor.AdapterDescriptor": {
+      "id": "src.adapters.descriptor.AdapterDescriptor",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\adapters\\descriptor.py",
+      "line_number": 9,
+      "module": "src.adapters.descriptor"
+    },
+    "src.adapters.registry.AdapterRegistry": {
+      "id": "src.adapters.registry.AdapterRegistry",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\adapters\\registry.py",
+      "line_number": 10,
+      "module": "src.adapters.registry"
+    },
+    "src.audit.audit_logger.AuditEvent": {
+      "id": "src.audit.audit_logger.AuditEvent",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 14,
+      "module": "src.audit.audit_logger"
+    },
+    "src.audit.audit_logger.AuditBackend": {
+      "id": "src.audit.audit_logger.AuditBackend",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 36,
+      "module": "src.audit.audit_logger"
+    },
+    "src.audit.audit_logger.MemoryAuditBackend": {
+      "id": "src.audit.audit_logger.MemoryAuditBackend",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 44,
+      "module": "src.audit.audit_logger"
+    },
+    "src.audit.audit_logger.FileAuditBackend": {
+      "id": "src.audit.audit_logger.FileAuditBackend",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 61,
+      "module": "src.audit.audit_logger"
+    },
+    "src.audit.audit_logger.AuditLogger": {
+      "id": "src.audit.audit_logger.AuditLogger",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 90,
+      "module": "src.audit.audit_logger"
+    },
+    "src.audit.decision_log.DecisionLogEntry": {
+      "id": "src.audit.decision_log.DecisionLogEntry",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\decision_log.py",
+      "line_number": 13,
+      "module": "src.audit.decision_log"
+    },
+    "src.audit.decision_log.build_entry": {
+      "id": "src.audit.decision_log.build_entry",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\decision_log.py",
+      "line_number": 44,
+      "module": "src.audit.decision_log"
+    },
+    "src.audit.decision_log.DecisionLogStore": {
+      "id": "src.audit.decision_log.DecisionLogStore",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\decision_log.py",
+      "line_number": 85,
+      "module": "src.audit.decision_log"
+    },
+    "src.audit.trace_context.TraceContext": {
+      "id": "src.audit.trace_context.TraceContext",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\trace_context.py",
+      "line_number": 11,
+      "module": "src.audit.trace_context"
+    },
+    "src.audit.trace_context.new_trace": {
+      "id": "src.audit.trace_context.new_trace",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\trace_context.py",
+      "line_number": 19,
+      "module": "src.audit.trace_context"
+    },
+    "src.audit.trace_context.child_trace": {
+      "id": "src.audit.trace_context.child_trace",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\trace_context.py",
+      "line_number": 24,
+      "module": "src.audit.trace_context"
+    },
+    "src.collaboration.handoff_mode.HandoffRequest": {
+      "id": "src.collaboration.handoff_mode.HandoffRequest",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 28,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.handoff_mode.prepare": {
+      "id": "src.collaboration.handoff_mode.prepare",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 40,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.handoff_mode.execute": {
+      "id": "src.collaboration.handoff_mode.execute",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 57,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.handoff_mode._build_handoff": {
+      "id": "src.collaboration.handoff_mode._build_handoff",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 130,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.handoff_mode._request_to_dict": {
+      "id": "src.collaboration.handoff_mode._request_to_dict",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 149,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.modes.CollaborationMode": {
+      "id": "src.collaboration.modes.CollaborationMode",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\modes.py",
+      "line_number": 9,
+      "module": "src.collaboration.modes"
+    },
+    "src.collaboration.modes.ModeExecutor": {
+      "id": "src.collaboration.modes.ModeExecutor",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\modes.py",
+      "line_number": 20,
+      "module": "src.collaboration.modes"
+    },
+    "src.collaboration.subgraph_mode.SubgraphContext": {
+      "id": "src.collaboration.subgraph_mode.SubgraphContext",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 27,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.collaboration.subgraph_mode.create_context": {
+      "id": "src.collaboration.subgraph_mode.create_context",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 38,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.collaboration.subgraph_mode.execute": {
+      "id": "src.collaboration.subgraph_mode.execute",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 63,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.collaboration.subgraph_mode.merge_result": {
+      "id": "src.collaboration.subgraph_mode.merge_result",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 134,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.collaboration.subgraph_mode._capture_delta": {
+      "id": "src.collaboration.subgraph_mode._capture_delta",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 147,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.collaboration.subgraph_mode._context_to_dict": {
+      "id": "src.collaboration.subgraph_mode._context_to_dict",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 163,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.interfaces.WorkerBackend": {
+      "id": "src.interfaces.WorkerBackend",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\interfaces.py",
+      "line_number": 13,
+      "module": "src.interfaces"
+    },
+    "src.interfaces.ContractFactory": {
+      "id": "src.interfaces.ContractFactory",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\interfaces.py",
+      "line_number": 21,
+      "module": "src.interfaces"
+    },
+    "src.interfaces.ReportValidator": {
+      "id": "src.interfaces.ReportValidator",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\interfaces.py",
+      "line_number": 30,
+      "module": "src.interfaces"
+    },
+    "src.interfaces.EscalationNotifier": {
+      "id": "src.interfaces.EscalationNotifier",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\interfaces.py",
+      "line_number": 44,
+      "module": "src.interfaces"
+    },
+    "src.mcp.server._find_project_root": {
+      "id": "src.mcp.server._find_project_root",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\server.py",
+      "line_number": 38,
+      "module": "src.mcp.server"
+    },
+    "src.mcp.server.create_server": {
+      "id": "src.mcp.server.create_server",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\server.py",
+      "line_number": 47,
+      "module": "src.mcp.server"
+    },
+    "src.mcp.server.run_stdio": {
+      "id": "src.mcp.server.run_stdio",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\server.py",
+      "line_number": 305,
+      "module": "src.mcp.server"
+    },
+    "src.mcp.server.main": {
+      "id": "src.mcp.server.main",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\server.py",
+      "line_number": 312,
+      "module": "src.mcp.server"
+    },
+    "src.mcp.tools.GovernanceTools": {
+      "id": "src.mcp.tools.GovernanceTools",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 35,
+      "module": "src.mcp.tools"
+    },
+    "src.mcp.tools._extract_gate_status": {
+      "id": "src.mcp.tools._extract_gate_status",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 584,
+      "module": "src.mcp.tools"
+    },
+    "src.pack.context_builder.PackContext": {
+      "id": "src.pack.context_builder.PackContext",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\context_builder.py",
+      "line_number": 21,
+      "module": "src.pack.context_builder"
+    },
+    "src.pack.context_builder.ContextBuilder": {
+      "id": "src.pack.context_builder.ContextBuilder",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\context_builder.py",
+      "line_number": 83,
+      "module": "src.pack.context_builder"
+    },
+    "src.pack.context_builder._merge_unique": {
+      "id": "src.pack.context_builder._merge_unique",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\context_builder.py",
+      "line_number": 212,
+      "module": "src.pack.context_builder"
+    },
+    "src.pack.context_builder._deep_merge": {
+      "id": "src.pack.context_builder._deep_merge",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\context_builder.py",
+      "line_number": 224,
+      "module": "src.pack.context_builder"
+    },
+    "src.pack.manifest_loader.PackManifest": {
+      "id": "src.pack.manifest_loader.PackManifest",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 18,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader.load": {
+      "id": "src.pack.manifest_loader.load",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 61,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader.load_dict": {
+      "id": "src.pack.manifest_loader.load_dict",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 78,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader._as_str_list": {
+      "id": "src.pack.manifest_loader._as_str_list",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 121,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader._parse_major_minor": {
+      "id": "src.pack.manifest_loader._parse_major_minor",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 128,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader.check_dependencies": {
+      "id": "src.pack.manifest_loader.check_dependencies",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 147,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader.check_overrides": {
+      "id": "src.pack.manifest_loader.check_overrides",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 177,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.manifest_loader._check_manifest_version": {
+      "id": "src.pack.manifest_loader._check_manifest_version",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\manifest_loader.py",
+      "line_number": 200,
+      "module": "src.pack.manifest_loader"
+    },
+    "src.pack.override_resolver.RuleConfig": {
+      "id": "src.pack.override_resolver.RuleConfig",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\override_resolver.py",
+      "line_number": 12,
+      "module": "src.pack.override_resolver"
+    },
+    "src.pack.override_resolver.default_rule_config": {
+      "id": "src.pack.override_resolver.default_rule_config",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\override_resolver.py",
+      "line_number": 43,
+      "module": "src.pack.override_resolver"
+    },
+    "src.pack.override_resolver.resolve": {
+      "id": "src.pack.override_resolver.resolve",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\override_resolver.py",
+      "line_number": 68,
+      "module": "src.pack.override_resolver"
+    },
+    "src.pack.pack_manager.PackInfo": {
+      "id": "src.pack.pack_manager.PackInfo",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 23,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._read_config": {
+      "id": "src.pack.pack_manager._read_config",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 48,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._write_config": {
+      "id": "src.pack.pack_manager._write_config",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 59,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._read_manifest": {
+      "id": "src.pack.pack_manager._read_manifest",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 69,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._compute_checksum": {
+      "id": "src.pack.pack_manager._compute_checksum",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 74,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager.list_packs": {
+      "id": "src.pack.pack_manager.list_packs",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 81,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager.install_pack": {
+      "id": "src.pack.pack_manager.install_pack",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 146,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager.remove_pack": {
+      "id": "src.pack.pack_manager.remove_pack",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 218,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager.get_pack_info": {
+      "id": "src.pack.pack_manager.get_pack_info",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 259,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._is_site_packages_path": {
+      "id": "src.pack.pack_manager._is_site_packages_path",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 281,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_manager._try_relative": {
+      "id": "src.pack.pack_manager._try_relative",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_manager.py",
+      "line_number": 287,
+      "module": "src.pack.pack_manager"
+    },
+    "src.pack.pack_tree._TreeNode": {
+      "id": "src.pack.pack_tree._TreeNode",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_tree.py",
+      "line_number": 14,
+      "module": "src.pack.pack_tree"
+    },
+    "src.pack.pack_tree.PackTree": {
+      "id": "src.pack.pack_tree.PackTree",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\pack_tree.py",
+      "line_number": 23,
+      "module": "src.pack.pack_tree"
+    },
+    "src.pack.registrar._load_module": {
+      "id": "src.pack.registrar._load_module",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\registrar.py",
+      "line_number": 38,
+      "module": "src.pack.registrar"
+    },
+    "src.pack.registrar._EventStubTrigger": {
+      "id": "src.pack.registrar._EventStubTrigger",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\registrar.py",
+      "line_number": 59,
+      "module": "src.pack.registrar"
+    },
+    "src.pack.registrar.PackRegistrar": {
+      "id": "src.pack.registrar.PackRegistrar",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pack\\registrar.py",
+      "line_number": 79,
+      "module": "src.pack.registrar"
+    },
+    "src.pdp.decision_envelope.build_envelope": {
+      "id": "src.pdp.decision_envelope.build_envelope",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\decision_envelope.py",
+      "line_number": 18,
+      "module": "src.pdp.decision_envelope"
+    },
+    "src.pdp.decision_envelope._summarize": {
+      "id": "src.pdp.decision_envelope._summarize",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\decision_envelope.py",
+      "line_number": 117,
+      "module": "src.pdp.decision_envelope"
+    },
+    "src.pdp.delegation_resolver._get_required_capabilities": {
+      "id": "src.pdp.delegation_resolver._get_required_capabilities",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\delegation_resolver.py",
+      "line_number": 32,
+      "module": "src.pdp.delegation_resolver"
+    },
+    "src.pdp.delegation_resolver._check_capabilities": {
+      "id": "src.pdp.delegation_resolver._check_capabilities",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\delegation_resolver.py",
+      "line_number": 46,
+      "module": "src.pdp.delegation_resolver"
+    },
+    "src.pdp.delegation_resolver.resolve": {
+      "id": "src.pdp.delegation_resolver.resolve",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\delegation_resolver.py",
+      "line_number": 66,
+      "module": "src.pdp.delegation_resolver"
+    },
+    "src.pdp.delegation_resolver._select_mode": {
+      "id": "src.pdp.delegation_resolver._select_mode",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\delegation_resolver.py",
+      "line_number": 131,
+      "module": "src.pdp.delegation_resolver"
+    },
+    "src.pdp.escalation_resolver.resolve": {
+      "id": "src.pdp.escalation_resolver.resolve",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\escalation_resolver.py",
+      "line_number": 18,
+      "module": "src.pdp.escalation_resolver"
+    },
+    "src.pdp.gate_resolver.resolve": {
+      "id": "src.pdp.gate_resolver.resolve",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\gate_resolver.py",
+      "line_number": 25,
+      "module": "src.pdp.gate_resolver"
+    },
+    "src.pdp.intent_classifier.classify": {
+      "id": "src.pdp.intent_classifier.classify",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\intent_classifier.py",
+      "line_number": 58,
+      "module": "src.pdp.intent_classifier"
+    },
+    "src.pdp.intent_classifier._make_result": {
+      "id": "src.pdp.intent_classifier._make_result",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\intent_classifier.py",
+      "line_number": 131,
+      "module": "src.pdp.intent_classifier"
+    },
+    "src.pdp.precedence_resolver.resolve": {
+      "id": "src.pdp.precedence_resolver.resolve",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pdp\\precedence_resolver.py",
+      "line_number": 22,
+      "module": "src.pdp.precedence_resolver"
+    },
+    "src.pep.action_log.ActionLog": {
+      "id": "src.pep.action_log.ActionLog",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\action_log.py",
+      "line_number": 9,
+      "module": "src.pep.action_log"
+    },
+    "src.pep.executor.Executor": {
+      "id": "src.pep.executor.Executor",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 29,
+      "module": "src.pep.executor"
+    },
+    "src.pep.markdown_updater.SectionSpan": {
+      "id": "src.pep.markdown_updater.SectionSpan",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 15,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater.find_section": {
+      "id": "src.pep.markdown_updater.find_section",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 28,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater._find_section_end": {
+      "id": "src.pep.markdown_updater._find_section_end",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 44,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater.replace_section": {
+      "id": "src.pep.markdown_updater.replace_section",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 55,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater.append_to_section": {
+      "id": "src.pep.markdown_updater.append_to_section",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 82,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater.insert_after_line": {
+      "id": "src.pep.markdown_updater.insert_after_line",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 95,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater.replace_line": {
+      "id": "src.pep.markdown_updater.replace_line",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 125,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.markdown_updater._to_lines": {
+      "id": "src.pep.markdown_updater._to_lines",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\markdown_updater.py",
+      "line_number": 158,
+      "module": "src.pep.markdown_updater"
+    },
+    "src.pep.notification_builder.build": {
+      "id": "src.pep.notification_builder.build",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\notification_builder.py",
+      "line_number": 9,
+      "module": "src.pep.notification_builder"
+    },
+    "src.pep.notifiers.console_notifier.ConsoleNotifier": {
+      "id": "src.pep.notifiers.console_notifier.ConsoleNotifier",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\notifiers\\console_notifier.py",
+      "line_number": 9,
+      "module": "src.pep.notifiers.console_notifier"
+    },
+    "src.pep.notifiers.file_notifier.FileNotifier": {
+      "id": "src.pep.notifiers.file_notifier.FileNotifier",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\notifiers\\file_notifier.py",
+      "line_number": 11,
+      "module": "src.pep.notifiers.file_notifier"
+    },
+    "src.pep.notifiers.webhook_notifier.WebhookNotifier": {
+      "id": "src.pep.notifiers.webhook_notifier.WebhookNotifier",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\notifiers\\webhook_notifier.py",
+      "line_number": 13,
+      "module": "src.pep.notifiers.webhook_notifier"
+    },
+    "src.pep.review_orchestrator.ReviewOrchestrator": {
+      "id": "src.pep.review_orchestrator.ReviewOrchestrator",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\review_orchestrator.py",
+      "line_number": 25,
+      "module": "src.pep.review_orchestrator"
+    },
+    "src.pep.stub_notifier.StubNotifier": {
+      "id": "src.pep.stub_notifier.StubNotifier",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\stub_notifier.py",
+      "line_number": 10,
+      "module": "src.pep.stub_notifier"
+    },
+    "src.pep.writeback_engine.WritebackPlan": {
+      "id": "src.pep.writeback_engine.WritebackPlan",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\writeback_engine.py",
+      "line_number": 21,
+      "module": "src.pep.writeback_engine"
+    },
+    "src.pep.writeback_engine.WritebackResult": {
+      "id": "src.pep.writeback_engine.WritebackResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\writeback_engine.py",
+      "line_number": 32,
+      "module": "src.pep.writeback_engine"
+    },
+    "src.pep.writeback_engine.WritebackEngine": {
+      "id": "src.pep.writeback_engine.WritebackEngine",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\writeback_engine.py",
+      "line_number": 42,
+      "module": "src.pep.writeback_engine"
+    },
+    "src.review.feedback_api.FeedbackAPI": {
+      "id": "src.review.feedback_api.FeedbackAPI",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\review\\feedback_api.py",
+      "line_number": 16,
+      "module": "src.review.feedback_api"
+    },
+    "src.review.state_machine.InvalidTransitionError": {
+      "id": "src.review.state_machine.InvalidTransitionError",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\review\\state_machine.py",
+      "line_number": 52,
+      "module": "src.review.state_machine"
+    },
+    "src.review.state_machine.ReviewStateMachine": {
+      "id": "src.review.state_machine.ReviewStateMachine",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\review\\state_machine.py",
+      "line_number": 63,
+      "module": "src.review.state_machine"
+    },
+    "src.subagent.contract_factory.build": {
+      "id": "src.subagent.contract_factory.build",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\subagent\\contract_factory.py",
+      "line_number": 11,
+      "module": "src.subagent.contract_factory"
+    },
+    "src.subagent.handoff_builder.build": {
+      "id": "src.subagent.handoff_builder.build",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\subagent\\handoff_builder.py",
+      "line_number": 11,
+      "module": "src.subagent.handoff_builder"
+    },
+    "src.subagent.report_validator._load_schema": {
+      "id": "src.subagent.report_validator._load_schema",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\subagent\\report_validator.py",
+      "line_number": 20,
+      "module": "src.subagent.report_validator"
+    },
+    "src.subagent.report_validator.validate": {
+      "id": "src.subagent.report_validator.validate",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\subagent\\report_validator.py",
+      "line_number": 27,
+      "module": "src.subagent.report_validator"
+    },
+    "src.subagent.stub_worker.StubWorkerBackend": {
+      "id": "src.subagent.stub_worker.StubWorkerBackend",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\subagent\\stub_worker.py",
+      "line_number": 12,
+      "module": "src.subagent.stub_worker"
+    },
+    "src.validators.base.ValidationResult": {
+      "id": "src.validators.base.ValidationResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 10,
+      "module": "src.validators.base"
+    },
+    "src.validators.base.CheckResult": {
+      "id": "src.validators.base.CheckResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 18,
+      "module": "src.validators.base"
+    },
+    "src.validators.base.TriggerResult": {
+      "id": "src.validators.base.TriggerResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 25,
+      "module": "src.validators.base"
+    },
+    "src.validators.base.Validator": {
+      "id": "src.validators.base.Validator",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 31,
+      "module": "src.validators.base"
+    },
+    "src.validators.base.Check": {
+      "id": "src.validators.base.Check",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 37,
+      "module": "src.validators.base"
+    },
+    "src.validators.base.Trigger": {
+      "id": "src.validators.base.Trigger",
+      "kind": "protocol",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\base.py",
+      "line_number": 43,
+      "module": "src.validators.base"
+    },
+    "src.validators.registry.ValidatorRegistry": {
+      "id": "src.validators.registry.ValidatorRegistry",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 8,
+      "module": "src.validators.registry"
+    },
+    "src.validators.schema_validator.SchemaValidator": {
+      "id": "src.validators.schema_validator.SchemaValidator",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\schema_validator.py",
+      "line_number": 10,
+      "module": "src.validators.schema_validator"
+    },
+    "src.validators.script_check.ScriptCheck": {
+      "id": "src.validators.script_check.ScriptCheck",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\script_check.py",
+      "line_number": 10,
+      "module": "src.validators.script_check"
+    },
+    "src.validators.script_validator.ScriptValidator": {
+      "id": "src.validators.script_validator.ScriptValidator",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\script_validator.py",
+      "line_number": 10,
+      "module": "src.validators.script_validator"
+    },
+    "src.validators.trigger_dispatcher.TriggerDispatcher": {
+      "id": "src.validators.trigger_dispatcher.TriggerDispatcher",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\trigger_dispatcher.py",
+      "line_number": 8,
+      "module": "src.validators.trigger_dispatcher"
+    },
+    "src.workers.base.WorkerConfig": {
+      "id": "src.workers.base.WorkerConfig",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\base.py",
+      "line_number": 10,
+      "module": "src.workers.base"
+    },
+    "src.workers.http_worker.HTTPWorker": {
+      "id": "src.workers.http_worker.HTTPWorker",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\http_worker.py",
+      "line_number": 18,
+      "module": "src.workers.http_worker"
+    },
+    "src.workers.http_worker.HTTPWorkerError": {
+      "id": "src.workers.http_worker.HTTPWorkerError",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\http_worker.py",
+      "line_number": 102,
+      "module": "src.workers.http_worker"
+    },
+    "src.workers.llm_worker.LLMWorker": {
+      "id": "src.workers.llm_worker.LLMWorker",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\llm_worker.py",
+      "line_number": 21,
+      "module": "src.workers.llm_worker"
+    },
+    "src.workers.llm_worker.LLMWorkerError": {
+      "id": "src.workers.llm_worker.LLMWorkerError",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\llm_worker.py",
+      "line_number": 175,
+      "module": "src.workers.llm_worker"
+    },
+    "src.workers.registry.WorkerRegistry": {
+      "id": "src.workers.registry.WorkerRegistry",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 11,
+      "module": "src.workers.registry"
+    },
+    "src.workflow.checkpoint.write_checkpoint": {
+      "id": "src.workflow.checkpoint.write_checkpoint",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\checkpoint.py",
+      "line_number": 32,
+      "module": "src.workflow.checkpoint"
+    },
+    "src.workflow.checkpoint.sync_checkpoint_phase": {
+      "id": "src.workflow.checkpoint.sync_checkpoint_phase",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\checkpoint.py",
+      "line_number": 112,
+      "module": "src.workflow.checkpoint"
+    },
+    "src.workflow.checkpoint.read_checkpoint": {
+      "id": "src.workflow.checkpoint.read_checkpoint",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\checkpoint.py",
+      "line_number": 147,
+      "module": "src.workflow.checkpoint"
+    },
+    "src.workflow.checkpoint.validate_checkpoint": {
+      "id": "src.workflow.checkpoint.validate_checkpoint",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\checkpoint.py",
+      "line_number": 229,
+      "module": "src.workflow.checkpoint"
+    },
+    "src.workflow.checkpoint._parse_sections": {
+      "id": "src.workflow.checkpoint._parse_sections",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\checkpoint.py",
+      "line_number": 268,
+      "module": "src.workflow.checkpoint"
+    },
+    "src.workflow.external_skill_interaction._copy_contract": {
+      "id": "src.workflow.external_skill_interaction._copy_contract",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\external_skill_interaction.py",
+      "line_number": 44,
+      "module": "src.workflow.external_skill_interaction"
+    },
+    "src.workflow.external_skill_interaction._merge_contract": {
+      "id": "src.workflow.external_skill_interaction._merge_contract",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\external_skill_interaction.py",
+      "line_number": 56,
+      "module": "src.workflow.external_skill_interaction"
+    },
+    "src.workflow.external_skill_interaction._existing_relative_paths": {
+      "id": "src.workflow.external_skill_interaction._existing_relative_paths",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\external_skill_interaction.py",
+      "line_number": 70,
+      "module": "src.workflow.external_skill_interaction"
+    },
+    "src.workflow.external_skill_interaction.build_external_skill_interaction_contract": {
+      "id": "src.workflow.external_skill_interaction.build_external_skill_interaction_contract",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\external_skill_interaction.py",
+      "line_number": 75,
+      "module": "src.workflow.external_skill_interaction"
+    },
+    "src.workflow.instructions_generator.InstructionsGenerator": {
+      "id": "src.workflow.instructions_generator.InstructionsGenerator",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 16,
+      "module": "src.workflow.instructions_generator"
+    },
+    "src.workflow.instructions_generator.generate_instructions": {
+      "id": "src.workflow.instructions_generator.generate_instructions",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 372,
+      "module": "src.workflow.instructions_generator"
+    },
+    "src.workflow.instructions_generator.generate_instructions_from_project": {
+      "id": "src.workflow.instructions_generator.generate_instructions_from_project",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 377,
+      "module": "src.workflow.instructions_generator"
+    },
+    "src.workflow.pipeline.ErrorInfo": {
+      "id": "src.workflow.pipeline.ErrorInfo",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 35,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline.PipelineResult": {
+      "id": "src.workflow.pipeline.PipelineResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 62,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline.ConstraintViolation": {
+      "id": "src.workflow.pipeline.ConstraintViolation",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 86,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline.ConstraintScope": {
+      "id": "src.workflow.pipeline.ConstraintScope",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 95,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline.ConstraintResult": {
+      "id": "src.workflow.pipeline.ConstraintResult",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 111,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._discover_packs": {
+      "id": "src.workflow.pipeline._discover_packs",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 173,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._read_pack_name": {
+      "id": "src.workflow.pipeline._read_pack_name",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 272,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._extract_pack_names": {
+      "id": "src.workflow.pipeline._extract_pack_names",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 281,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._discover_installed_packs": {
+      "id": "src.workflow.pipeline._discover_installed_packs",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 293,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._resolve_pack_dirs": {
+      "id": "src.workflow.pipeline._resolve_pack_dirs",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 341,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._extract_gate_status": {
+      "id": "src.workflow.pipeline._extract_gate_status",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 367,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline._check_constraints": {
+      "id": "src.workflow.pipeline._check_constraints",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 442,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.pipeline.Pipeline": {
+      "id": "src.workflow.pipeline.Pipeline",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 553,
+      "module": "src.workflow.pipeline"
+    },
+    "src.workflow.safe_stop_writeback._step": {
+      "id": "src.workflow.safe_stop_writeback._step",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\safe_stop_writeback.py",
+      "line_number": 13,
+      "module": "src.workflow.safe_stop_writeback"
+    },
+    "src.workflow.safe_stop_writeback._direction_doc_sort_key": {
+      "id": "src.workflow.safe_stop_writeback._direction_doc_sort_key",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\safe_stop_writeback.py",
+      "line_number": 34,
+      "module": "src.workflow.safe_stop_writeback"
+    },
+    "src.workflow.safe_stop_writeback.find_latest_direction_candidates_doc": {
+      "id": "src.workflow.safe_stop_writeback.find_latest_direction_candidates_doc",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\safe_stop_writeback.py",
+      "line_number": 40,
+      "module": "src.workflow.safe_stop_writeback"
+    },
+    "src.workflow.safe_stop_writeback.build_safe_stop_writeback_bundle": {
+      "id": "src.workflow.safe_stop_writeback.build_safe_stop_writeback_bundle",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\safe_stop_writeback.py",
+      "line_number": 58,
+      "module": "src.workflow.safe_stop_writeback"
+    },
+    "src.workflow.temporary_override.TemporaryOverride": {
+      "id": "src.workflow.temporary_override.TemporaryOverride",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 47,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.OverrideError": {
+      "id": "src.workflow.temporary_override.OverrideError",
+      "kind": "class",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 79,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override._validate_override_fields": {
+      "id": "src.workflow.temporary_override._validate_override_fields",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 83,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override._storage_path": {
+      "id": "src.workflow.temporary_override._storage_path",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 103,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override._read_store": {
+      "id": "src.workflow.temporary_override._read_store",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 107,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override._write_store": {
+      "id": "src.workflow.temporary_override._write_store",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 120,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.load_overrides": {
+      "id": "src.workflow.temporary_override.load_overrides",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 133,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.get_active_overrides": {
+      "id": "src.workflow.temporary_override.get_active_overrides",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 139,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.save_override": {
+      "id": "src.workflow.temporary_override.save_override",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 144,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.revoke_override": {
+      "id": "src.workflow.temporary_override.revoke_override",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 172,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.expire_overrides_by_scope": {
+      "id": "src.workflow.temporary_override.expire_overrides_by_scope",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 189,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.expire_session_overrides": {
+      "id": "src.workflow.temporary_override.expire_session_overrides",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 211,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.workflow.temporary_override.expire_safe_stop_overrides": {
+      "id": "src.workflow.temporary_override.expire_safe_stop_overrides",
+      "kind": "function",
+      "file_path": "E:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\temporary_override.py",
+      "line_number": 216,
+      "module": "src.workflow.temporary_override"
+    },
+    "src.collaboration.handoff_mode": {
+      "id": "src.collaboration.handoff_mode",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 1,
+      "module": "src.collaboration.handoff_mode"
+    },
+    "src.collaboration.subgraph_mode": {
+      "id": "src.collaboration.subgraph_mode",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 1,
+      "module": "src.collaboration.subgraph_mode"
+    },
+    "src.pep.executor": {
+      "id": "src.pep.executor",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 1,
+      "module": "src.pep.executor"
+    },
+    "src.workers.registry": {
+      "id": "src.workers.registry",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 1,
+      "module": "src.workers.registry"
+    },
+    "src.workflow.pipeline": {
+      "id": "src.workflow.pipeline",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 1,
+      "module": "src.workflow.pipeline"
+    },
+    "src.pep.review_orchestrator": {
+      "id": "src.pep.review_orchestrator",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\review_orchestrator.py",
+      "line_number": 1,
+      "module": "src.pep.review_orchestrator"
+    },
+    "src.audit.audit_logger": {
+      "id": "src.audit.audit_logger",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 1,
+      "module": "src.audit.audit_logger"
+    },
+    "src.validators.registry": {
+      "id": "src.validators.registry",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 1,
+      "module": "src.validators.registry"
+    },
+    "src.validators.trigger_dispatcher": {
+      "id": "src.validators.trigger_dispatcher",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\trigger_dispatcher.py",
+      "line_number": 1,
+      "module": "src.validators.trigger_dispatcher"
+    },
+    "src.__main__": {
+      "id": "src.__main__",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 1,
+      "module": "src.__main__"
+    },
+    "src.mcp.tools": {
+      "id": "src.mcp.tools",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 1,
+      "module": "src.mcp.tools"
+    },
+    "src.workflow.instructions_generator": {
+      "id": "src.workflow.instructions_generator",
+      "kind": "module",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 1,
+      "module": "src.workflow.instructions_generator"
+    }
+  },
+  "edges": [
+    {
+      "source": "src.collaboration.handoff_mode",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 24
+    },
+    {
+      "source": "src.collaboration.handoff_mode",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\handoff_mode.py",
+      "line_number": 60
+    },
+    {
+      "source": "src.collaboration.subgraph_mode",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 23
+    },
+    {
+      "source": "src.collaboration.subgraph_mode",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\collaboration\\subgraph_mode.py",
+      "line_number": 66
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 23
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 47
+    },
+    {
+      "source": "src.workers.registry",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 8
+    },
+    {
+      "source": "src.workers.registry",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 25
+    },
+    {
+      "source": "src.workers.registry",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 27
+    },
+    {
+      "source": "src.workers.registry",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workers\\registry.py",
+      "line_number": 31
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 26
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 567
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.WorkerBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 601
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.EscalationNotifier",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 21
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.EscalationNotifier",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 51
+    },
+    {
+      "source": "src.pep.review_orchestrator",
+      "target": "src.interfaces.EscalationNotifier",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\review_orchestrator.py",
+      "line_number": 22
+    },
+    {
+      "source": "src.pep.review_orchestrator",
+      "target": "src.interfaces.EscalationNotifier",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\review_orchestrator.py",
+      "line_number": 34
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.ContractFactory",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 20
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.ContractFactory",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 48
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ContractFactory",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 26
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ContractFactory",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 568
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ContractFactory",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 602
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.ReportValidator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 22
+    },
+    {
+      "source": "src.pep.executor",
+      "target": "src.interfaces.ReportValidator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\pep\\executor.py",
+      "line_number": 49
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ReportValidator",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 26
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ReportValidator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 569
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.interfaces.ReportValidator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 603
+    },
+    {
+      "source": "src.audit.audit_logger",
+      "target": "src.audit.audit_logger.AuditBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 93
+    },
+    {
+      "source": "src.audit.audit_logger",
+      "target": "src.audit.audit_logger.AuditBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 94
+    },
+    {
+      "source": "src.audit.audit_logger",
+      "target": "src.audit.audit_logger.AuditBackend",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\audit\\audit_logger.py",
+      "line_number": 127
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Check",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 5
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Check",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 13
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Check",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 29
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Check",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 32
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Trigger",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 5
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Trigger",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 14
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Trigger",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 40
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Trigger",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 43
+    },
+    {
+      "source": "src.validators.trigger_dispatcher",
+      "target": "src.validators.base.Trigger",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\trigger_dispatcher.py",
+      "line_number": 5
+    },
+    {
+      "source": "src.validators.trigger_dispatcher",
+      "target": "src.validators.base.Trigger",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\trigger_dispatcher.py",
+      "line_number": 12
+    },
+    {
+      "source": "src.validators.trigger_dispatcher",
+      "target": "src.validators.base.Trigger",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\trigger_dispatcher.py",
+      "line_number": 14
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Validator",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 5
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Validator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 12
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Validator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 18
+    },
+    {
+      "source": "src.validators.registry",
+      "target": "src.validators.base.Validator",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\validators\\registry.py",
+      "line_number": 21
+    },
+    {
+      "source": "src.__main__",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 24
+    },
+    {
+      "source": "src.__main__",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 68
+    },
+    {
+      "source": "src.__main__",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 82
+    },
+    {
+      "source": "src.__main__",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 95
+    },
+    {
+      "source": "src.__main__",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\__main__.py",
+      "line_number": 119
+    },
+    {
+      "source": "src.mcp.tools",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 28
+    },
+    {
+      "source": "src.mcp.tools",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 52
+    },
+    {
+      "source": "src.mcp.tools",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\mcp\\tools.py",
+      "line_number": 70
+    },
+    {
+      "source": "src.workflow.instructions_generator",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "imports",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 385
+    },
+    {
+      "source": "src.workflow.instructions_generator",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\instructions_generator.py",
+      "line_number": 387
+    },
+    {
+      "source": "src.workflow.pipeline",
+      "target": "src.workflow.pipeline.Pipeline",
+      "kind": "references",
+      "file_path": "e:\\workspace\\tool develop\\vibe coding facilities\\doc based coding\\src\\workflow\\pipeline.py",
+      "line_number": 605
+    }
+  ]
+}

@@ -66,6 +66,7 @@
 | `contract_hints` | object | 传递给 Subagent Contract 生成器的提示信息。见下方 `contract_hints` 结构。 |
 | `rejection_reason` | string | 当 `delegate` 为 `false` 时，记录拒绝委派的原因。 |
 | `review_gate_level` | enum | 子 agent 输出进入 review 时建议的 gate level。取值：`review`、`approve`。 |
+| `capability_warnings` | array of string | advisory warning。表示当前 merged provides 不覆盖该 intent 常见所需能力，因此需要额外 review。 |
 
 ### `contract_hints` 子结构
 
@@ -85,6 +86,7 @@
 3. **需要跨多个 write scope 集成**：集成工作应由主 agent 负责。
 4. **高影响 intent**：当 `intent_result.high_impact` 为 `true` 时，委派需要额外保护（`requires_review` 应为 `true`）。
 5. **低置信度分类**：当 `intent_result.confidence` 为 `low` 或 `unknown` 时，推荐不委派，或要求 approve 级 review。
+6. **能力面不完整**：若 `RuleConfig.available_capabilities` 未覆盖该 intent 常见所需能力，可继续委派，但应附带 `capability_warnings`，并至少要求 `review` 级复核。
 
 ## 与 Subagent Contract 的关联
 
@@ -100,6 +102,18 @@ Delegation Decision 是 Subagent Contract 的前驱：
 - 当 `requires_review` 为 `true` 时，子 agent 输出应进入 review state machine
 - `review_gate_level` 指定进入 review 时的 gate level
 - 若 delegation decision 未指定 `review_gate_level`，默认使用当前请求的 gate_decision 中的 gate_level
+
+### Capability Check
+
+平台当前对部分 delegatable intent 做轻量 capability check：
+
+- `constraint` 通常需要 `rules`
+- `correction` 与 `request-for-writeback` 通常需要 `document_types`
+- `issue-report` 当前不要求特定能力
+
+这些需求默认由 runtime 内置映射给出，也可由 pack rules 中的 `capability_requirements` 覆盖。
+
+该检查是 advisory，而不是 hard block：缺失能力时仍可委派，但结果必须带上 `capability_warnings`，并进入 `review` 或更高 gate。
 
 ## 实例/Pack 可定制的边界
 
