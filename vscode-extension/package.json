@@ -79,6 +79,15 @@
         {
           "id": "decisionLogViewer",
           "name": "Decision Log"
+        },
+        {
+          "id": "configExplorer",
+          "name": "Config Explorer"
+        },
+        {
+          "id": "configPanel",
+          "name": "Config Editor",
+          "type": "webview"
         }
       ]
     },
@@ -142,6 +151,18 @@
         "category": "Doc-Based Coding"
       },
       {
+        "command": "docBasedCoding.refreshConfig",
+        "title": "Refresh Config",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.editConfigItem",
+        "title": "Edit Config Value",
+        "icon": "$(edit)",
+        "category": "Doc-Based Coding"
+      },
+      {
         "command": "docBasedCoding.selectModel",
         "title": "Select LLM Model",
         "category": "Doc-Based Coding"
@@ -163,6 +184,18 @@
           "command": "docBasedCoding.refreshDecisionLogs",
           "when": "view == decisionLogViewer",
           "group": "navigation"
+        },
+        {
+          "command": "docBasedCoding.refreshConfig",
+          "when": "view == configExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "docBasedCoding.editConfigItem",
+          "when": "view == configExplorer && viewItem == configEditable",
+          "group": "inline"
         }
       ]
     },

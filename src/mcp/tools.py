@@ -729,6 +729,128 @@ class GovernanceTools:
             _log.error("promote_dogfood_evidence failed: %s", exc)
             return {"error": str(exc)}
 
+    # ── Pack Integrity ─────────────────────────────────────────────────
+
+    def pack_lock(self, pack_name: str = "") -> dict:
+        """Lock one or all packs by recording content hash in pack-lock.json."""
+        from ..pack.pack_integrity import load_lock, save_lock, compute_pack_hash
+
+        err = self._require_pipeline()
+        if err is not None:
+            return err
+
+        lock = load_lock(self._project_root)
+        pipeline = self._pipeline
+        manifest_dir_pairs = [
+            (m, d)
+            for m, d in getattr(pipeline, "_manifest_dir_pairs", [])
+        ]
+
+        # Fallback: rediscover packs if _manifest_dir_pairs not available
+        if not manifest_dir_pairs:
+            from ..pack.pack_discovery import discover_packs
+            discovered = discover_packs(self._project_root)
+            from ..pack import manifest_loader
+            for manifest_path, base_dir in discovered:
+                try:
+                    m = manifest_loader.load(manifest_path)
+                    manifest_dir_pairs.append((m, base_dir))
+                except Exception:
+                    continue
+
+        locked: list[dict] = []
+        for manifest, base_dir in manifest_dir_pairs:
+            if pack_name and manifest.name != pack_name:
+                continue
+            entry = lock.lock_pack(
+                name=manifest.name,
+                version=manifest.version,
+                kind=manifest.kind,
+                base_dir=base_dir,
+            )
+            locked.append(entry.to_dict())
+
+        if pack_name and not locked:
+            return {"error": f"Pack '{pack_name}' not found"}
+
+        save_lock(self._project_root, lock)
+        return {"locked": locked, "total_entries": len(lock.entries)}
+
+    def pack_unlock(self, pack_name: str) -> dict:
+        """Remove a pack from pack-lock.json."""
+        from ..pack.pack_integrity import load_lock, save_lock
+
+        lock = load_lock(self._project_root)
+        if lock.unlock_pack(pack_name):
+            save_lock(self._project_root, lock)
+            return {"unlocked": pack_name, "total_entries": len(lock.entries)}
+        return {"error": f"Pack '{pack_name}' not found in lock file"}
+
+    def pack_verify(self, pack_name: str = "") -> dict:
+        """Verify pack integrity against pack-lock.json."""
+        from ..pack.pack_integrity import load_lock, verify_pack
+
+        err = self._require_pipeline()
+        if err is not None:
+            return err
+
+        lock = load_lock(self._project_root)
+        if not lock.entries:
+            return {"status": "no_lock", "message": "No pack-lock.json entries found"}
+
+        pipeline = self._pipeline
+        manifest_dir_pairs = getattr(pipeline, "_manifest_dir_pairs", [])
+
+        if not manifest_dir_pairs:
+            from ..pack.pack_discovery import discover_packs
+            from ..pack import manifest_loader
+            discovered = discover_packs(self._project_root)
+            manifest_dir_pairs = []
+            for manifest_path, base_dir in discovered:
+                try:
+                    m = manifest_loader.load(manifest_path)
+                    manifest_dir_pairs.append((m, base_dir))
+                except Exception:
+                    continue
+
+        results: list[dict] = []
+        for manifest, base_dir in manifest_dir_pairs:
+            if pack_name and manifest.name != pack_name:
+                continue
+            r = verify_pack(manifest.name, base_dir, lock)
+            results.append({
+                "name": r.name,
+                "status": r.status,
+                "expected_hash": r.expected_hash,
+                "actual_hash": r.actual_hash,
+                "detail": r.detail,
+            })
+
+        # Also check locked packs not present in discovered set
+        discovered_names = {m.name for m, _ in manifest_dir_pairs}
+        for entry_name, entry in lock.entries.items():
+            if pack_name and entry_name != pack_name:
+                continue
+            if entry_name not in discovered_names:
+                results.append({
+                    "name": entry_name,
+                    "status": "missing_pack",
+                    "expected_hash": entry.content_hash,
+                    "actual_hash": "",
+                    "detail": "Locked pack not found in workspace",
+                })
+
+        if pack_name and not results:
+            return {"error": f"Pack '{pack_name}' not found"}
+
+        summary = {
+            "ok": sum(1 for r in results if r["status"] == "ok"),
+            "mismatch": sum(1 for r in results if r["status"] == "mismatch"),
+            "missing_lock": sum(1 for r in results if r["status"] == "missing_lock"),
+            "missing_pack": sum(1 for r in results if r["status"] == "missing_pack"),
+        }
+        return {"results": results, "summary": summary}
+
     # ── Prompts ────────────────────────────────────────────────────────
 
     def list_prompts(self) -> list[dict[str, str]] | dict:

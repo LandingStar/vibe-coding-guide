@@ -10,6 +10,8 @@ supersedes: 2026-04-19_0243_hardcoded-git-push-guard_stage-close
 authoritative_refs:
   - design_docs/Project Master Checklist.md
   - design_docs/Global Phase Map and Current Position.md
+  - review/claude-managed-agents-platform.md
+  - docs/subagent-management.md
 conditional_blocks:
   - code-change
   - phase-acceptance-close

@@ -34,7 +34,7 @@ class PackManifest:
 
     name: str
     version: str
-    kind: str  # "platform-default" | "official-instance" | "project-local"
+    kind: str  # "platform-default" | "official-instance" | "user-global" | "project-local"
     manifest_version: str = CURRENT_MANIFEST_VERSION
     description: str = ""
     scope: str = ""
@@ -55,6 +55,7 @@ class PackManifest:
 
     # Dependencies & overrides
     depends_on: list[str] = field(default_factory=list)
+    consumes: list[str] = field(default_factory=list)  # capabilities this pack requires
     runtime_compatibility: str = ""
     overrides: list[str] = field(default_factory=list)
 
@@ -122,6 +123,7 @@ def load_dict(data: dict[str, Any]) -> PackManifest:
         parent=str(data.get("parent", "")),
         scope_paths=_as_str_list(data.get("scope_paths", [])),
         depends_on=_as_str_list(data.get("depends_on", [])),
+        consumes=_as_str_list(data.get("consumes", [])),
         runtime_compatibility=str(data.get("runtime_compatibility", "")),
         overrides=_as_str_list(data.get("overrides", [])),
         prompts=_as_str_list(data.get("prompts", [])),
@@ -317,6 +319,34 @@ def check_overrides(manifests: list[PackManifest]) -> dict:
                 logger.warning(msg)
 
     return {"declared": declared, "warnings": warnings}
+
+
+def check_consumes(manifests: list[PackManifest]) -> dict:
+    """Check that all consumes entries are satisfied by merged provides.
+
+    Returns a dict with ``satisfied`` and ``unsatisfied`` lists.
+    A capability is satisfied if any loaded pack declares it in ``provides``.
+    """
+    all_provides: set[str] = set()
+    for m in manifests:
+        all_provides.update(m.provides)
+
+    satisfied: list[str] = []
+    unsatisfied: list[dict[str, str]] = []
+
+    for m in manifests:
+        for cap in m.consumes:
+            if cap in all_provides:
+                satisfied.append(cap)
+            else:
+                unsatisfied.append({"pack": m.name, "missing_capability": cap})
+                logger.warning(
+                    "Pack %r consumes capability %r which is not provided by any loaded pack",
+                    m.name,
+                    cap,
+                )
+
+    return {"satisfied": sorted(set(satisfied)), "unsatisfied": unsatisfied}
 
 
 def _check_manifest_version(version_str: str) -> None:

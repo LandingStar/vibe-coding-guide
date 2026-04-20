@@ -4,49 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ..interfaces import (
+    IMPACT_TABLE,
+    KEYWORD_MAP,
+    PLATFORM_INTENTS,
+)
+
 if TYPE_CHECKING:
     from ..pack.override_resolver import RuleConfig
 
-PLATFORM_INTENTS = {
-    "question", "correction", "constraint", "scope-change",
-    "protocol-change", "approval", "rejection",
-    "request-for-writeback", "issue-report", "unknown", "ambiguous",
-}
-
-IMPACT_TABLE: dict[str, str] = {
-    "question": "low",
-    "correction": "medium",
-    "constraint": "medium",
-    "scope-change": "high",
-    "protocol-change": "high",
-    "approval": "medium",
-    "rejection": "medium",
-    "request-for-writeback": "medium",
-    "issue-report": "medium",
-}
-
-_KEYWORD_MAP: dict[str, list[str]] = {
-    "question": ["?", "what", "how", "why", "explain", "clarify",
-                  "什么", "为什么", "怎么", "请问", "吗"],
-    "approval": ["approve", "approved", "lgtm", "同意", "通过",
-                 "审核通过", "批准"],
-    "rejection": ["reject", "no", "denied", "拒绝", "不同意", "否决"],
-    "correction": ["fix", "please fix", "wrong", "error", "bug", "incorrect",
-                   "修正", "错误", "修复", "请修复", "修复这个"],
-    "scope-change": ["scope", "expand", "change scope", "范围",
-                     "扩展范围", "改变范围"],
-    "protocol-change": ["protocol", "process", "workflow", "协议",
-                        "流程", "规则"],
-    "constraint": ["constraint", "must", "require", "约束", "要求",
-                   "必须"],
-    "request-for-writeback": ["write back", "writeback", "commit",
-                              "save", "写回", "回写", "落地"],
-    "issue-report": [
-        "issue", "problem", "report", "bug", "error", "crash",
-        "exception", "failure", "fails", "问题", "报告", "错误",
-        "异常", "崩溃", "报错", "导致", "不支持",
-    ],
-}
+# Backward-compat alias (was module-level private name before extraction)
+_KEYWORD_MAP = KEYWORD_MAP
 
 _CORRECTION_CUES = ("fix", "please fix", "修复", "请修复", "修复这个", "修正")
 _ISSUE_REPORT_CUES = (

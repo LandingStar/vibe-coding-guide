@@ -13,7 +13,8 @@ from .pack_tree import PackTree
 _KIND_PRIORITY: dict[str, int] = {
     "platform-default": 0,
     "official-instance": 1,
-    "project-local": 2,
+    "user-global": 2,
+    "project-local": 3,
 }
 
 
@@ -124,18 +125,22 @@ class ContextBuilder:
             self._pack_tree = PackTree([m for m, _ in self._entries])
         return self._pack_tree
 
-    def build(self, *, level: LoadLevel = LoadLevel.FULL) -> PackContext:
+    def build(self, *, level: LoadLevel = LoadLevel.FULL, scope_path: str = "") -> PackContext:
         """Merge all registered packs into a PackContext.
 
         Packs are sorted by kind priority (platform → instance → project-local).
         Within the same kind, insertion order is preserved.
+
+        If *scope_path* is provided at FULL level, always_on content is
+        only loaded from packs whose scope_paths match (or packs with no
+        scope_paths, which are considered universal).
         """
         # Sort by kind priority
         sorted_entries = sorted(
             self._entries,
             key=lambda e: _KIND_PRIORITY.get(e[0].kind, -1),
         )
-        return self._build_from_entries(sorted_entries, level=level)
+        return self._build_from_entries(sorted_entries, level=level, scope_path=scope_path)
 
     def build_scoped(self, scope_path: str, *, level: LoadLevel = LoadLevel.FULL) -> PackContext:
         """Build a scoped PackContext for the given working path.
@@ -166,6 +171,7 @@ class ContextBuilder:
 
     def _build_from_entries(
         self, entries: list[tuple[PackManifest, Path]], *, level: LoadLevel = LoadLevel.FULL,
+        scope_path: str = "",
     ) -> PackContext:
         """Core merge logic shared by build() and build_scoped()."""
         manifests = [m for m, _ in entries]
@@ -232,6 +238,11 @@ class ContextBuilder:
         # --- FULL level: read always_on file content ---
         always_on_content: dict[str, str] = {}
         for manifest, base_dir in entries:
+            # Conditional loading: if scope_path is given and the pack
+            # declares scope_paths, skip if none match.
+            if scope_path and manifest.scope_paths:
+                if not any(scope_path.startswith(sp) for sp in manifest.scope_paths):
+                    continue
             for rel_path in manifest.always_on:
                 full_path = base_dir / rel_path
                 if full_path.exists():

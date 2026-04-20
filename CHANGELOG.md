@@ -2,6 +2,45 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v0.9.4 — 2026-04-21
+
+**架构合规性全面收口 + Worker schema 对齐。**
+
+### 新增
+
+- `design_docs/tooling/Module Dependency Direction Standard.md`：6 层架构定义 + 依赖方向规则
+- `scripts/lint_imports.py`：AST 跨包 import 方向自动化验证（排除 TYPE_CHECKING 块）
+- `src/pack/pack_discovery.py`：pack manifest 发现逻辑独立模块（从 workflow/pipeline.py 下沉）
+- `PLATFORM_INTENTS` / `IMPACT_TABLE` / `KEYWORD_MAP` 常量提升到 `src/interfaces.py`（共享 Layer 0）
+- `check_reply_progression` MCP 工具：回复末尾符合性检查（禁止模式 + 分析判断 + 推进式提问）
+- 条件化 `always_on` 加载：`ContextBuilder.build(scope_path=)` 跳过不匹配的 pack 内容
+- `src/runtime/bridge.py`：RuntimeBridge 三入口统一初始化抽象 + WorkerHealth 状态跟踪
+- PackManifest `consumes` 字段 + `check_consumes()` 能力依赖校验
+- Pack Integrity Hash：`pack-lock.json` + `compute_pack_hash()` + MCP `pack_lock`/`pack_unlock`/`pack_verify`
+
+### 修复
+
+- 3/3 跨层依赖违规全部消除（pack→workflow / pack→pdp types / pack→pdp constants）
+- `HTTPWorker._error_report()` schema 对齐：`status: "failed"` → `"blocked"` + `escalation_recommendation: "escalate_to_supervisor"` → `"review_by_supervisor"` + 新增 `unresolved_items` 字段
+- pack-lock hash mismatch 回归修复（`consumes` 字段新增后重新锁定）
+
+### 改进
+
+- B-REF 系列全部完成（B-REF-1~7）：渐进式加载 / description 质量标准 / pack 组织规范 / permission policy / 工作流中断原语 / 子 agent 上下文隔离评估 / tool surface 合并审计
+- VS Code Extension 全功能（P0-P7 + 安装向导 + git push guard + Chat Participant）
+- 全局记忆/文档/规则支持（user-global pack + config.json + Extension Config UI）
+- Multica 架构三阶段深度研究 + 借鉴落地（hash 锁定 / 条件化加载 / RuntimeBridge / consumes）
+
+### 验证
+
+- 1257 passed, 2 skipped
+- `lint_imports.py` 零违规、零已知例外
+- `pack_verify` 2/2 packs ok
+- VS Code Extension esbuild 零错误
+- MCP 全工具链 dogfood 通过
+
+---
+
 ## v0.9.3 — 2026-04-13
 
 **Pack CLI 管理能力 + 发现逻辑修复。**

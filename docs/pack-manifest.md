@@ -64,10 +64,11 @@
   - pack 的版本标识（pack 内容版本，与 manifest_version 分离）
 - `kind`
   - pack 类型
-  - 当前建议至少支持：
-    - `platform-default`
-    - `official-instance`
-    - `project-local`
+  - 当前支持：
+    - `platform-default` — 平台内置默认 pack（优先级 0）
+    - `official-instance` — 官方实例 pack（优先级 1）
+    - `user-global` — 用户全局 pack，存放在 `~/.doc-based-coding/packs/`（优先级 2）。可通过环境变量 `DOC_BASED_CODING_USER_DIR` 覆盖 home 目录
+    - `project-local` — 项目级 pack（优先级 3，最高）
 - `scope`
   - 适用范围说明
 
@@ -173,7 +174,7 @@ Runtime 当前会将所有已加载 pack 的 `provides` 合并为 `PackContext.m
 
 当前 runtime 语义是：
 
-- 所有已加载 pack 都可以参与树（`platform-default`、`official-instance`、`project-local`）
+- 所有已加载 pack 都可以参与树（`platform-default`、`official-instance`、`user-global`、`project-local`）
 - 当调用方显式传入 `scope_path` 时，runtime 会先解析匹配的 pack 链，再只合并这条链上的 pack
 - 若未传入 `scope_path`，或没有任何 pack 命中该路径，则退回全局合并行为
 - 同一个 parent 下多个子 pack 的 `scope_paths` 若发生重叠，属于配置错误，应在加载时拒绝，而不是留给运行时决定

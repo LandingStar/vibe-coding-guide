@@ -25,6 +25,7 @@
 | validator / quality control | Guardrails AI, Continue | validator registry、checks 分层、input/output guard |
 | 文档 / 模板 / 平台形态 | Backstage, OpenHands, Continue | docs-like-code、templates、plugin architecture |
 | 全托管 agent 运行时 | **Claude Managed Agents** | **事件驱动 session、permission policy 分层、Skills 渐进加载、structured outputs** |
+| agent-as-teammate / 团队协作 | **Multica** | **Skills hash 锁定 + 远程来源、agent 任务分配生命周期、runtime 调度、知识持久化缺口与克制设计态度** |
 
 ## 全量研究地图
 
@@ -42,6 +43,9 @@
 | [Semantic Kernel](./semantic-kernel.md) | plugin sources / orchestration patterns | OpenAPI/MCP plugin source、orchestration pattern 抽象 | 高 | 想扩展 pack 来源和协作模式时 |
 | [OpenAI Agents SDK](./openai-agents-sdk.md) | handoff / tracing / guardrails | handoff 一等原语、guardrail 边界、tracing、tripwire | 高 | 想设计 handoff schema 与 tracing 时 |
 | [Claude Managed Agents](./claude-managed-agents-platform.md) | skills / multi-agent / events / permissions | Skills 三级渐进加载、事件驱动 session、permission policy 分层覆盖、单层委派+上下文隔离 | 高 | 想设计 Pack 渐进加载、子 agent 上下文隔离、工具权限分层时 |
+| [Multica](./multica/) | skills-lock / agent-as-teammate / runtime / knowledge-gap | Skills hash 锁定 + GitHub 来源、agent 任务生命周期、daemon runtime 调度、知识持久化缺口分析 | 中 | 想设计 pack 版本锁定、远程来源安装、子 agent 任务追踪、或知识管理策略对比时 |
+
+> **Multica 深度研究**: [架构深潜](./multica/01-architecture-deep-dive.md) · [方向与不足](./multica/02-direction-and-weaknesses.md) · [借鉴洞察](../review/multica-borrowing/borrowing-insights.md)
 
 ## 按问题检索
 
@@ -146,9 +150,9 @@
 | 平台层 | 最相关研究 |
 |---|---|
 | 核心治理层 | [open-policy-agent.md](./open-policy-agent.md), [continue.md](./continue.md) |
-| pack 扩展层 | [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md) |
+| pack 扩展层 | [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md), [multica/](./multica/) |
 | review / approval 层 | [langgraph-langchain.md](./langgraph-langchain.md), [crewai.md](./crewai.md), [autogen.md](./autogen.md) |
-| subagent orchestration 层 | [langgraph-langchain.md](./langgraph-langchain.md), [autogen.md](./autogen.md), [crewai.md](./crewai.md), [openai-agents-sdk.md](./openai-agents-sdk.md), [semantic-kernel.md](./semantic-kernel.md), [claude-managed-agents-platform.md](./claude-managed-agents-platform.md) |
+| subagent orchestration 层 | [langgraph-langchain.md](./langgraph-langchain.md), [autogen.md](./autogen.md), [crewai.md](./crewai.md), [openai-agents-sdk.md](./openai-agents-sdk.md), [semantic-kernel.md](./semantic-kernel.md), [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [multica/](./multica/) |
 | validator / checks 层 | [guardrails-ai.md](./guardrails-ai.md), [continue.md](./continue.md) |
 | docs / templates 层 | [backstage.md](./backstage.md), [openhands.md](./openhands.md) |
 | triggers / event inputs 层 | [dify.md](./dify.md), [continue.md](./continue.md) |

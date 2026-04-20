@@ -2,7 +2,8 @@
 handoff_id: 2026-04-19_0128_extension-install-wizard-slice1_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
+superseded_by: 2026-04-19_0337_b-ref-series-close_stage-close
 scope_key: extension-install-wizard-slice1
 safe_stop_kind: stage-complete
 created_at: 2026-04-19T01:28:00+08:00

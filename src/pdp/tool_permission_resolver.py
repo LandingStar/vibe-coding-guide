@@ -6,39 +6,27 @@ Checks pack-level default + per-tool override policies before PDP/PEP execution.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal
+from ..interfaces import (
+    PermissionLevel,
+    PermissionResult,
+    ToolPermissionConfig,
+    ToolPolicy,
+    parse_tool_permissions,
+)
 
-
-PermissionLevel = Literal["allow", "ask", "deny"]
+# Re-export for backward compatibility
+__all__ = [
+    "PermissionLevel",
+    "PermissionResult",
+    "ToolPermissionConfig",
+    "ToolPolicy",
+    "parse_tool_permissions",
+    "resolve",
+    "merge_configs",
+]
 
 # Severity ordering for merging across packs (strictest wins)
 _PERMISSION_SEVERITY: dict[str, int] = {"allow": 0, "ask": 1, "deny": 2}
-
-
-@dataclass
-class ToolPolicy:
-    """Permission policy for a specific action type."""
-
-    permission: PermissionLevel = "allow"
-    deny_message: str = ""
-
-
-@dataclass
-class ToolPermissionConfig:
-    """Pack-level tool permission configuration."""
-
-    default: PermissionLevel = "allow"
-    policies: dict[str, ToolPolicy] = field(default_factory=dict)
-
-
-@dataclass
-class PermissionResult:
-    """Result of a tool permission check."""
-
-    permission: PermissionLevel
-    deny_message: str = ""
-    policy_source: str = ""  # Which pack or "platform_default"
 
 
 def resolve(action_type: str, config: ToolPermissionConfig) -> PermissionResult:
@@ -107,28 +95,3 @@ def merge_configs(configs: list[tuple[int, ToolPermissionConfig]]) -> ToolPermis
                 )
 
     return ToolPermissionConfig(default=merged_default, policies=merged_policies)
-
-
-def parse_tool_permissions(raw: dict) -> ToolPermissionConfig:
-    """Parse a raw dict (from pack JSON rules.tool_permissions) into ToolPermissionConfig."""
-    if not raw or not isinstance(raw, dict):
-        return ToolPermissionConfig()
-
-    default = raw.get("default", "allow")
-    if default not in ("allow", "ask", "deny"):
-        default = "allow"
-
-    policies: dict[str, ToolPolicy] = {}
-    raw_policies = raw.get("policies", {})
-    if isinstance(raw_policies, dict):
-        for action_type, pol in raw_policies.items():
-            if isinstance(pol, dict):
-                perm = pol.get("permission", "allow")
-                if perm not in ("allow", "ask", "deny"):
-                    perm = "allow"
-                policies[action_type] = ToolPolicy(
-                    permission=perm,
-                    deny_message=pol.get("deny_message", ""),
-                )
-
-    return ToolPermissionConfig(default=default, policies=policies)

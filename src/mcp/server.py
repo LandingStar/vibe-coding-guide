@@ -435,6 +435,97 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["reason", "discovered_item"],
                 },
             ),
+            Tool(
+                name="update_user_config",
+                description=(
+                    "Update a single field in the user-global config file "
+                    "(~/.doc-based-coding/config.json). Returns the full config "
+                    "after the update. Accepted fields: extra_pack_dirs, "
+                    "default_model, default_llm_params."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "field": {
+                            "type": "string",
+                            "description": "The config field to update.",
+                            "enum": ["extra_pack_dirs", "default_model", "default_llm_params"],
+                        },
+                        "value": {
+                            "description": "The new value for the field.",
+                        },
+                    },
+                    "required": ["field", "value"],
+                },
+            ),
+            Tool(
+                name="pack_lock",
+                description=(
+                    "Lock one or all packs by recording their content hash in "
+                    "pack-lock.json. If no pack_name is given, locks all discovered packs."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_name": {
+                            "type": "string",
+                            "description": "Name of the pack to lock (optional — omit to lock all).",
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="pack_unlock",
+                description=(
+                    "Remove a pack from pack-lock.json. The pack will no longer "
+                    "be verified on pipeline load."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_name": {
+                            "type": "string",
+                            "description": "Name of the pack to unlock.",
+                        },
+                    },
+                    "required": ["pack_name"],
+                },
+            ),
+            Tool(
+                name="pack_verify",
+                description=(
+                    "Verify pack integrity against pack-lock.json. "
+                    "Returns per-pack status (ok/mismatch/missing_lock/missing_pack)."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "pack_name": {
+                            "type": "string",
+                            "description": "Name of a specific pack to verify (optional — omit to verify all locked packs).",
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="check_reply_progression",
+                description=(
+                    "Check if an AI reply ending conforms to the conversation progression contract. "
+                    "Detects forbidden patterns (pure yes/no, passive waiting) and verifies "
+                    "presence of AI analysis + forward-driving question at the tail. "
+                    "Call before sending a reply to ensure compliance."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "reply_text": {
+                            "type": "string",
+                            "description": "The full reply text to check for progression compliance.",
+                        },
+                    },
+                    "required": ["reply_text"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -510,6 +601,28 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 discovered_item=arguments["discovered_item"],
                 current_scope_ref=arguments.get("current_scope_ref", ""),
             )
+        elif name == "update_user_config":
+            from ..pack.user_config import save_user_config
+            from ..workflow.pipeline import _user_global_base_dir
+
+            try:
+                user_dir = _user_global_base_dir()
+                result = save_user_config(
+                    user_dir,
+                    field=arguments["field"],
+                    value=arguments["value"],
+                )
+            except (ValueError, OSError) as exc:
+                result = {"error": str(exc)}
+        elif name == "pack_lock":
+            result = tools.pack_lock(pack_name=arguments.get("pack_name", ""))
+        elif name == "pack_unlock":
+            result = tools.pack_unlock(pack_name=arguments["pack_name"])
+        elif name == "pack_verify":
+            result = tools.pack_verify(pack_name=arguments.get("pack_name", ""))
+        elif name == "check_reply_progression":
+            from ..workflow.reply_progression import check_reply_progression
+            result = check_reply_progression(arguments["reply_text"]).to_dict()
         else:
             result = {"error": f"Unknown tool: {name}"}
 

@@ -241,6 +241,19 @@
 - **Extension 安装向导完成**：`setup/wizard.ts` + `pythonDetector.ts` + `runtimeInstaller.ts` — 首次激活自动检测 Python 环境 → runtime 未安装时弹模态对话框 → 一键从 release/ 目录 wheel 安装或手动选择 zip → pip batch install → 自动配置 pythonPath → MCP 启动 → `.vscode/mcp.json` 自动生成
 - **VS Code Extension P2-P7 完成**：Pack Explorer TreeView + Decision Log + StatusBar (P2) | File Save Interception (P3) | Copilot Intent Classification (P4) | BLOCK Explanation + Pack Generation (P4+) | Review Panel WebView (P5) | Terminal Monitor via Shell Integration API (P6) | File Lifecycle create/delete/rename Interception (P6+) | Chat Participant `@governance` with /check /decide /constraints /packs (P7) — esbuild 零错误，.vsix 打包 (19.55 KB) 安装验证通过
 - **硬编码 Git Push 拦截完成**：仅拦截 `git push`（修改远程的唯一操作）；pull/fetch/clone 允许通过。三层实现：`gitRemoteGuard.ts` 终端正则 + `gitRemoteGuardScm.ts` SCM UI git wrapper + MCP `governance_decide` pre-check。1133 pytest + esbuild 通过；VSIX 0.1.2（23.3 KB）
+- **全局记忆/文档/规则支持完成**：A→C→D 全路线 — P0 user-global pack kind（manifest_loader + context_builder + pipeline + 14 tests）+ P1 config.json 配置层（user_config.py + pipeline integration + 22 tests + docs）+ P2 Extension Config Management UI（TreeView + WebView + MCP）。36 个新 Python 测试 — 1197 passed, 2 skipped
+- **Multica 架构研究完成**：`review/multica.md` — Skills hash 锁定 + 远程来源模式、agent-as-teammate 多态模型、严格层级边界工程实践；`review/research-compass.md` 已更新
+- **Multica 深度研究三阶段完成**：`review/multica/` — Phase 1 架构深潜（01-architecture-deep-dive.md: Go backend 分层 + Daemon 架构 + 前端 monorepo + Skills 系统 + Autopilot + 多租户安全 + 12 大技术债务）、Phase 2 方向与不足分析（02-direction-and-weaknesses.md: 5 大发展方向 + 5 大不足 + 版本演进趋势 + 社区特征）、Phase 3 借鉴洞察（`review/multica-borrowing/borrowing-insights.md`: hash 锁定→pack 版本管理、Platform Bridge→多入口统一、知识复合克制启示、index-based 渐进加载、互补潜力分析）；`review/research-compass.md` 引用已更新为新文件夹结构
+- **Pack Integrity Hash (pack-lock.json) 完成**：`src/pack/pack_integrity.py` — `compute_pack_hash()` 全目录 SHA-256 + `PackLockFile` CRUD + `verify_pack()` / `verify_all()` 验证；Pipeline `_load_packs()` 非阻塞 integrity warning + `install_pack()` 自动 lock + `remove_pack()` 自动 unlock + MCP 工具 `pack_lock`/`pack_unlock`/`pack_verify`；20 个新测试 — 1223 passed, 2 skipped
+- **条件化 always_on 加载完成**：`ContextBuilder.build(scope_path=)` — 当 scope_path 非空时，跳过 scope_paths 声明不匹配的 pack 的 always_on 内容加载；无 scope_paths 的 pack（universal）始终包含；MANIFEST 级别不受影响；6 个新测试 — 1229 passed, 2 skipped
+- **RuntimeBridge 注入完成**：`src/runtime/bridge.py` — 统一初始化 facade 封装 Config+Worker+Pipeline 生命周期；WorkerHealth 状态跟踪（READY/DEGRADED/UNAVAILABLE）+ _TrackedWorker 装饰器；CLI 入口已迁移使用 RuntimeBridge；refresh()/reload_config() 热更新支持；13 个新测试 — 1242 passed, 2 skipped
+- **依赖方向反转（consumes 字段）完成**：PackManifest 新增 `consumes: list[str]` + `check_consumes()` 函数校验能力满足情况；Pipeline.info() 暴露 consumes_status；warning-only 不阻塞；5 个新测试 — 1247 passed, 2 skipped
+- **check_reply_progression MCP 工具完成**：`src/workflow/reply_progression.py` — 回复末尾符合性检查（禁止模式检测 + 分析判断存在性 + 推进式提问存在性）；MCP 工具注册完成；9 个新测试 — 1256 passed, 2 skipped
+- **代码层依赖方向约束文档化完成**：`design_docs/tooling/Module Dependency Direction Standard.md` — 6 层架构定义 + 已知例外表 + 消除计划；`scripts/lint_imports.py` — AST 扫描跨包 import 方向验证（排除 TYPE_CHECKING 块）+ 已知例外白名单；发现并登记 2 个已知例外（pack→workflow, pack↔pdp）— 1256 passed, 2 skipped
+- **依赖方向违规消除完成**：(1) `pack→workflow` 违规消除 — `_discover_packs` 及 8 个辅助函数/常量从 `workflow/pipeline.py` 下沉到新模块 `pack/pack_discovery.py`，pipeline.py 改为 re-export；(2) `pack→pdp` 类型违规消除 — `ToolPermissionConfig`/`ToolPolicy`/`PermissionResult`/`PermissionLevel`/`parse_tool_permissions` 从 `pdp/tool_permission_resolver.py` 提取到 `interfaces.py`，tool_permission_resolver 改为 re-export；已知例外从 3 个减至 1 个（`pack→pdp` intent_classifier 延迟导入）— 1256 passed, 2 skipped
+- **依赖方向违规全部消除**：最后 1 个已知例外（pack→pdp intent_classifier 延迟导入）通过将 `PLATFORM_INTENTS`/`IMPACT_TABLE`/`KEYWORD_MAP` 提取到 `interfaces.py` 消除，`lint_imports.py` 零已知例外、零违规 — 1256 passed, 2 skipped
+- **HTTPWorker failure fallback schema alignment 完成**：`_error_report()` 的 `status: "failed"` → `"blocked"` + `escalation_recommendation: "escalate_to_supervisor"` → `"review_by_supervisor"` + 新增 `unresolved_items` 字段，现在与 `LLMWorker` 和 `Subagent Report` schema 完全一致 — 1257 passed, 2 skipped
+
 ## 阅读顺序
 
 1. 先读本文件。
@@ -253,7 +266,7 @@
 
 Phase 3-35 均已完成。原 v1.0.0 已降级为 preview 定位，当前版本为 **v0.9.3**。Post-v1.0 的方向候选 A-J 标准化切片全部完成（双发行包、validator/check 收口、兼容元数据、MCP 刷新、doc-loop enforcement、handoff 主动调用、conversation progression、safe-stop writeback、external skill interaction），并继续完成了真实模型 producer 主线上的 `LLMWorker Structured Payload Producer Alignment` 与后续 `Payload + Handoff Footprint Controlled Dogfood`。
 
-Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测试 → 打包。当前可分发安装包为 `release/doc-based-coding-v0.9.3.zip`（147.0 KB），最新全量回归基线为 946 passed, 2 skipped。
+Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测试 → 打包。当前可分发安装包为 `release/doc-based-coding-v0.9.3.zip`（147.0 KB），最新全量回归基线为 1257 passed, 2 skipped。
 
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 

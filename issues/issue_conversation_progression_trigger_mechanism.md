@@ -37,6 +37,6 @@
 ## 状态
 
 - 创建日期: 2026-04-15
-- 状态: `open`
+- 状态: `closed` — B 路径已实施（`check_reply_progression` MCP 工具）
 - 优先级: 中（影响每次对话的行为质量，但已有短期缓解）
 - 标签: `conversation-progression`, `rule-enforcement`, `long-term`

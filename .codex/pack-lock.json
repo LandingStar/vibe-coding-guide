@@ -1,0 +1,19 @@
+{
+  "lock_version": "1",
+  "packs": {
+    "doc-based-coding-platform-local-pack": {
+      "name": "doc-based-coding-platform-local-pack",
+      "version": "0.9.1",
+      "kind": "project-local",
+      "content_hash": "sha256:9b458b39cab3dddb1798fb20c63eb517e7d0e7f52628863543682ca7e990ad6f",
+      "locked_at": "2026-04-20T02:23:21.095909+00:00"
+    },
+    "doc-loop-vibe-coding": {
+      "name": "doc-loop-vibe-coding",
+      "version": "0.9.3",
+      "kind": "official-instance",
+      "content_hash": "sha256:903361de208fabc8bb107680d54a2994c7797d9445653f9f7662e11752abaeda",
+      "locked_at": "2026-04-20T00:35:38.772468+00:00"
+    }
+  }
+}

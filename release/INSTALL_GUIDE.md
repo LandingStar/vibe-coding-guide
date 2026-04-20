@@ -1,26 +1,26 @@
-﻿# doc-based-coding 瀹夎鎸囧崡
+# doc-based-coding 安装指南
 
-鏈枃妗ｉ潰鍚?AI 缂栫▼鍔╂墜锛圕opilot銆丆odex 绛夛級锛屾彁渚涗粠闆跺畨瑁呮湰骞冲彴鐨勭簿纭楠ゃ€?
+本文档面向 AI 编程助手（Copilot、Codex 等），提供从零安装本平台的精确步骤。
 
-## 姒傝堪
+## 概述
 
-鏈彂琛屽寘鍖呭惈涓や釜 Python wheel锛?
+本发行包包含两个 Python wheel：
 
-| 鏂囦欢 | 鍖呭悕 | 鑱岃矗 |
+| 文件 | 包名 | 职责 |
 |------|------|------|
-| `doc_based_coding_runtime-0.9.3-py3-none-any.whl` | doc-based-coding-runtime | 骞冲彴 runtime / CLI / MCP server |
-| `doc_loop_vibe_coding-0.9.3-py3-none-any.whl` | doc-loop-vibe-coding | 瀹樻柟瀹炰緥 pack锛堟枃妗ｉ┍鍔ㄥ伐浣滄祦妯℃澘涓庤祫浜э級 |
+| `doc_based_coding_runtime-0.9.4-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
+| `doc_loop_vibe_coding-0.9.4-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
 
-渚濊禆鍏崇郴锛氬疄渚嬪寘渚濊禆 runtime 鍖咃紙`doc-based-coding-runtime>=0.9.3,<1.0.0`锛夈€?
+依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.4,<1.0.0`）。
 
-## 鍓嶇疆瑕佹眰
+## 前置要求
 
 - Python >= 3.10
 - pip >= 22.0
 
-## 瀹夎姝ラ
+## 安装步骤
 
-### 1. 鍒涘缓铏氭嫙鐜锛堟帹鑽愶級
+### 1. 创建虚拟环境（推荐）
 
 ```bash
 python -m venv .venv
@@ -30,98 +30,98 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. 瀹夎 runtime 鍖?
+### 2. 安装 runtime 包
 
 ```bash
-pip install doc_based_coding_runtime-0.9.3-py3-none-any.whl
+pip install doc_based_coding_runtime-0.9.4-py3-none-any.whl
 ```
 
-杩欏皢鍚屾椂瀹夎鎵€鏈変緷璧栵紙jsonschema銆乵cp 绛夛級銆?
+这将同时安装所有依赖（jsonschema、mcp 等）。
 
-### 3. 瀹夎瀹樻柟瀹炰緥鍖?
+### 3. 安装官方实例包
 
 ```bash
-pip install doc_loop_vibe_coding-0.9.3-py3-none-any.whl
+pip install doc_loop_vibe_coding-0.9.4-py3-none-any.whl
 ```
 
-鐢变簬 runtime 宸插畨瑁咃紝姝ゆ楠や笉浼氶噸澶嶆媺鍙栦緷璧栥€?
+由于 runtime 已安装，此步骤不会重复拉取依赖。
 
-> **鏈湴绂荤嚎瀹夎鎻愮ず**锛氬鏋滀綘鍦ㄧ绾跨幆澧冧腑浠庢湰鍦?wheel 瀹夎锛宲ip 鍙兘鏃犳硶鑷姩瑙ｆ瀽鍚岀洰褰曚腑鐨勪緷璧栥€傛帹鑽愪互涓嬫柟寮忎箣涓€锛?
+> **本地离线安装提示**：如果你在离线环境中从本地 wheel 安装，pip 可能无法自动解析同目录中的依赖。推荐以下方式之一：
 >
 > ```bash
-> # 鏂瑰紡 A锛氭寜椤哄簭閫愪釜瀹夎锛堟帹鑽愶級
-> pip install --force-reinstall doc_based_coding_runtime-0.9.3-py3-none-any.whl
-> pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.3-py3-none-any.whl
+> # 方式 A：按顺序逐个安装（推荐）
+> pip install --force-reinstall doc_based_coding_runtime-0.9.4-py3-none-any.whl
+> pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.4-py3-none-any.whl
 >
-> # 鏂瑰紡 B锛氫娇鐢?--find-links 璁?pip 浠庡綋鍓嶇洰褰曟煡鎵句緷璧?
-> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.3-py3-none-any.whl
+> # 方式 B：使用 --find-links 让 pip 从当前目录查找依赖
+> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.4-py3-none-any.whl
 > ```
 >
-> 濡傛灉涔嬪墠宸插畨瑁呮棫鐗堟湰锛屽缓璁厛 `pip uninstall` 鍐嶅畨瑁咃紝閬垮厤鐗堟湰鍐茬獊銆?
+> 如果之前已安装旧版本，建议先 `pip uninstall` 再安装，避免版本冲突。
 
-### 4. 楠岃瘉瀹夎
+### 4. 验证安装
 
 ```bash
-# 楠岃瘉 runtime CLI
+# 验证 runtime CLI
 doc-based-coding --help
 
-# 楠岃瘉 runtime 鑳藉彂鐜?pack锛堝寘鎷?pip 瀹夎鐨勫畼鏂瑰疄渚?pack锛?
+# 验证 runtime 能发现 pack（包括 pip 安装的官方实例 pack）
 doc-based-coding info
 
-# 楠岃瘉绾︽潫妫€鏌?
+# 验证约束检查
 doc-based-coding validate
 
-# 楠岃瘉瀹炰緥鍖?CLI
+# 验证实例包 CLI
 doc-loop-bootstrap --help
 doc-loop-validate-instance --help
 ```
 
-> **Pack 鑷姩鍙戠幇**锛歳untime 浼氳嚜鍔ㄥ彂鐜颁互涓嬩綅缃殑 pack锛?
-> 1. `.codex/packs/` 鐩綍涓嬬殑 `*.pack.json` 鏂囦欢锛堥」鐩湰鍦?pack锛?
-> 2. 椤圭洰鏍圭洰褰曠殑涓€绾у瓙鐩綍涓殑 `pack-manifest.json`
-> 3. 閫氳繃 pip 瀹夎鍒?Python 鐜涓殑 pack锛堝 `doc-loop-vibe-coding`锛?
+> **Pack 自动发现**：runtime 会自动发现以下位置的 pack：
+> 1. `.codex/packs/` 目录下的 `*.pack.json` 文件（项目本地 pack）
+> 2. 项目根目录的一级子目录中的 `pack-manifest.json`
+> 3. 通过 pip 安装到 Python 环境中的 pack（如 `doc-loop-vibe-coding`）
 >
-> 鍥犳锛屾墽琛?`pip install` 鍚庢棤闇€棰濆閰嶇疆锛宍doc-based-coding info` 鍗冲彲鐪嬪埌宸插畨瑁呯殑瀹樻柟 pack銆?
-> 濡傞渶瑕嗙洊鑷姩鍙戠幇锛屽彲鍒涘缓 `.codex/platform.json` 骞舵寚瀹?`pack_dirs`銆?
+> 因此，执行 `pip install` 后无需额外配置，`doc-based-coding info` 即可看到已安装的官方 pack。
+> 如需覆盖自动发现，可创建 `.codex/platform.json` 并指定 `pack_dirs`。
 
-#### 鐞嗚В validate 杈撳嚭
+#### 理解 validate 输出
 
-`validate` 鍛戒护鐨?JSON 杈撳嚭鍖呭惈浠ヤ笅鍏抽敭瀛楁锛?
+`validate` 命令的 JSON 输出包含以下关键字段：
 
-| 瀛楁 | 鍚箟 |
+| 字段 | 含义 |
 |------|------|
-| `command_status` | 鍛戒护鏄惁姝ｅ父杩愯锛堝缁堜负 `"ok"`锛屽鏋滆緭鍑轰簡 JSON 灏辫鏄庡钩鍙版甯革級 |
-| `governance_status` | 娌荤悊鍐崇瓥鐘舵€侊細`"passed"` 鎴?`"blocked"` |
-| `blocking_constraints` | 琚樆濉炵殑绾︽潫 ID 鍒楄〃锛堝 `["C5"]`锛?|
+| `command_status` | 命令是否正常运行（始终为 `"ok"`，如果输出了 JSON 就说明平台正常） |
+| `governance_status` | 治理决策状态：`"passed"` 或 `"blocked"` |
+| `blocking_constraints` | 被阻塞的约束 ID 列表（如 `["C5"]`） |
 
-**閫€鍑虹爜璇箟锛?*
+**退出码语义：**
 
-| 閫€鍑虹爜 | 鍚箟 |
+| 退出码 | 含义 |
 |--------|------|
-| 0 | 鍛戒护鎴愬姛锛屾不鐞嗘棤闃诲 |
-| 1 | 鍛戒护杩愯寮傚父锛坮untime error锛?|
-| 2 | 鍛戒护鎴愬姛锛屼絾娌荤悊绾︽潫闃诲 |
+| 0 | 命令成功，治理无阻塞 |
+| 1 | 命令运行异常（runtime error） |
+| 2 | 命令成功，但治理约束阻塞 |
 
-> **閲嶈**锛氬湪鍒?bootstrap 鐨勯」鐩腑锛宍validate` 鍙兘浼氭姤鍛?C5 绾︽潫锛堢己灏?planning-gate 鏂囨。锛夛紝姝ゆ椂 `command_status` 浠嶄负 `"ok"`锛宻everity 涓?`"warn"`銆傝繖鏄甯哥殑娌荤悊鎻愮ず锛屼笉鏄畨瑁呭け璐ャ€傚垱寤?planning-gate 鏂囨。鍚庣害鏉熷嵆瑙ｉ櫎銆?
+> **重要**：在未 bootstrap 的项目中，`validate` 可能会报告 C5 约束（缺少 planning-gate 文档），此时 `command_status` 仍为 `"ok"`，severity 为 `"warn"`。这是正常的治理提示，不是安装失败。创建 planning-gate 文档后约束即解除。
 
-## 鍦ㄩ」鐩腑鍚敤鏂囨。椹卞姩宸ヤ綔娴?
+## 在项目中启用文档驱动工作流
 
-### 鏂瑰紡 A锛欱ootstrap 鏂伴」鐩?
+### 方式 A：Bootstrap 新项目
 
-鍦ㄧ洰鏍囬」鐩牴鐩綍涓繍琛岋細
+在目标项目根目录中运行：
 
 ```bash
 doc-loop-bootstrap --target /path/to/your/project --project-name "Your Project Name"
 ```
 
-杩欏皢鍦ㄧ洰鏍囩洰褰曚腑鐢熸垚锛?
-- `AGENTS.md` 鈥?agent 宸ヤ綔鎸囦护
-- `design_docs/` 鈥?鐘舵€佹澘銆侀樁娈垫枃妗ｃ€佸伐鍏锋爣鍑?
-- `.codex/` 鈥?pack 閰嶇疆銆佸悎鍚屾ā鏉裤€佹彁绀鸿瘝銆乭andoff
+这将在目标目录中生成：
+- `AGENTS.md` — agent 工作指令
+- `design_docs/` — 状态板、阶段文档、工具标准
+- `.codex/` — pack 配置、合同模板、提示词、handoff
 
-### 鏂瑰紡 B锛氭墜鍔ㄩ厤缃?MCP Server
+### 方式 B：手动配置 MCP Server
 
-鍦ㄤ綘鐨?VS Code 椤圭洰涓垱寤烘垨缂栬緫 `.vscode/mcp.json`锛?
+在你的 VS Code 项目中创建或编辑 `.vscode/mcp.json`：
 
 ```json
 {
@@ -135,38 +135,210 @@ doc-loop-bootstrap --target /path/to/your/project --project-name "Your Project N
 }
 ```
 
-MCP server 鍚姩鍚庯紝鍦?Copilot Chat 涓彲浠ヨ皟鐢ㄤ互涓嬫不鐞嗗伐鍏凤細
-- `check_constraints` 鈥?妫€鏌ラ」鐩害鏉熺姸鎬?
-- `governance_decide` 鈥?瀵圭敤鎴疯緭鍏ユ墽琛屽畬鏁存不鐞嗛摼
-- `get_next_action` 鈥?鑾峰彇涓嬩竴姝ュ缓璁鍔?
-- `get_pack_info` 鈥?鏌ョ湅宸插姞杞界殑 pack 淇℃伅
-- `writeback_notify` 鈥?safe-stop 鏃惰幏鍙栧繀瑕佸啓鍥炴竻鍗?
+MCP server 启动后，在 Copilot Chat 中可以调用以下治理工具：
+- `check_constraints` — 检查项目约束状态
+- `governance_decide` — 对用户输入执行完整治理链
+- `get_next_action` — 获取下一步建议行动
+- `get_pack_info` — 查看已加载的 pack 信息
+- `writeback_notify` — safe-stop 时获取必要写回清单
 
-## 鍙敤 CLI 鍛戒护涓€瑙?
+## 可用 CLI 命令一览
 
-### Runtime锛坉oc-based-coding锛?
+### Runtime（doc-based-coding）
 
-| 鍛戒护 | 璇存槑 |
+| 命令 | 说明 |
 |------|------|
-| `doc-based-coding process <text>` | 瀵硅緭鍏ユ墽琛屽畬鏁存不鐞嗛摼锛坉ry-run锛?|
-| `doc-based-coding info` | 鏄剧ず宸插姞杞界殑 pack 淇℃伅 |
-| `doc-based-coding validate` | 妫€鏌ラ」鐩害鏉熺姸鎬?|
-| `doc-based-coding check [text]` | 浠呮墽琛岀害鏉?鐘舵€佹鏌?|
-| `doc-based-coding generate-instructions` | 鐢熸垚 copilot-instructions 鐗囨 |
+| `doc-based-coding process <text>` | 对输入执行完整治理链（dry-run） |
+| `doc-based-coding info` | 显示已加载的 pack 信息 |
+| `doc-based-coding validate` | 检查项目约束状态 |
+| `doc-based-coding check [text]` | 仅执行约束/状态检查 |
+| `doc-based-coding generate-instructions` | 生成 copilot-instructions 片段 |
 
-### 瀹炰緥鍖咃紙doc-loop-vibe-coding锛?
+### 实例包（doc-loop-vibe-coding）
 
-| 鍛戒护 | 璇存槑 |
+| 命令 | 说明 |
 |------|------|
-| `doc-loop-bootstrap` | 灏嗘枃妗ｉ┍鍔ㄥ伐浣滄祦鑴氭墜鏋跺鍒跺埌鐩爣浠撳簱 |
-| `doc-loop-validate-doc` | 楠岃瘉鏂囨。缁撴瀯绗﹀悎宸ヤ綔娴佹爣鍑?|
-| `doc-loop-validate-instance` | 楠岃瘉瀹炰緥 pack manifest 涓庤祫浜т竴鑷存€?|
+| `doc-loop-bootstrap` | 将文档驱动工作流脚手架复制到目标仓库 |
+| `doc-loop-validate-doc` | 验证文档结构符合工作流标准 |
+| `doc-loop-validate-instance` | 验证实例 pack manifest 与资产一致性 |
 
-## 鏁呴殰鎺掓煡
+## 故障排查
 
-| 闂 | 鍘熷洜 | 瑙ｅ喅 |
+| 问题 | 原因 | 解决 |
 |------|------|------|
-| `doc-based-coding` 鍛戒护涓嶅彲鐢?| 铏氭嫙鐜鏈縺娲?| 杩愯 `activate` 鑴氭湰 |
-| `doc-based-coding info` 鏃?pack 杈撳嚭 | 鏈畨瑁呭疄渚嬪寘锛屾垨椤圭洰涓己灏?`.codex/packs/` | 瀹夎瀹炰緥鍖呮垨杩愯 `doc-loop-bootstrap` |
-| MCP server 鏃犳硶鍚姩 | `doc-based-coding-mcp` 涓嶅湪 PATH 涓?| 浣跨敤缁濆璺緞鎴栫‘淇?venv 宸叉縺娲?|
-| `pip install` 鎶?"already installed" | 椤圭洰鏍圭洰褰曟湁娈嬬暀鐨?`*.egg-info` | 鍒犻櫎 `*.egg-info` 鐩綍鍚庨噸璇?|
+| `doc-based-coding` 命令不可用 | 虚拟环境未激活 | 运行 `activate` 脚本 |
+| `doc-based-coding info` 无 pack 输出 | 未安装实例包，或项目中缺少 `.codex/packs/` | 安装实例包或运行 `doc-loop-bootstrap` |
+| MCP server 无法启动 | `doc-based-coding-mcp` 不在 PATH 中 | 使用绝对路径或确认 venv 已激活 |
+| `pip install` 报 "already installed" | 项目根目录有残留的 `*.egg-info` | 删除 `*.egg-info` 目录后重试 |
+# doc-based-coding 安装指南
+
+本文档面�?AI 编程助手（Copilot、Codex 等），提供从零安装本平台的精确步骤�?
+
+## 概述
+
+本发行包包含两个 Python wheel�?
+
+| 文件 | 包名 | 职责 |
+|------|------|------|
+| `doc_based_coding_runtime-0.9.4-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
+| `doc_loop_vibe_coding-0.9.4-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
+
+依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.4,<1.0.0`）�?
+
+## 前置要求
+
+- Python >= 3.10
+- pip >= 22.0
+
+## 安装步骤
+
+### 1. 创建虚拟环境（推荐）
+
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+```
+
+### 2. 安装 runtime �?
+
+```bash
+pip install doc_based_coding_runtime-0.9.4-py3-none-any.whl
+```
+
+这将同时安装所有依赖（jsonschema、mcp 等）�?
+
+### 3. 安装官方实例�?
+
+```bash
+pip install doc_loop_vibe_coding-0.9.4-py3-none-any.whl
+```
+
+由于 runtime 已安装，此步骤不会重复拉取依赖�?
+
+> **本地离线安装提示**：如果你在离线环境中从本�?wheel 安装，pip 可能无法自动解析同目录中的依赖。推荐以下方式之一�?
+>
+> ```bash
+> # 方式 A：按顺序逐个安装（推荐）
+> pip install --force-reinstall doc_based_coding_runtime-0.9.4-py3-none-any.whl
+> pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.4-py3-none-any.whl
+>
+> # 方式 B：使�?--find-links �?pip 从当前目录查找依�?
+> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.4-py3-none-any.whl
+> ```
+>
+> 如果之前已安装旧版本，建议先 `pip uninstall` 再安装，避免版本冲突�?
+
+### 4. 验证安装
+
+```bash
+# 验证 runtime CLI
+doc-based-coding --help
+
+# 验证 runtime 能发�?pack（包�?pip 安装的官方实�?pack�?
+doc-based-coding info
+
+# 验证约束检�?
+doc-based-coding validate
+
+# 验证实例�?CLI
+doc-loop-bootstrap --help
+doc-loop-validate-instance --help
+```
+
+> **Pack 自动发现**：runtime 会自动发现以下位置的 pack�?
+> 1. `.codex/packs/` 目录下的 `*.pack.json` 文件（项目本�?pack�?
+> 2. 项目根目录的一级子目录中的 `pack-manifest.json`
+> 3. 通过 pip 安装�?Python 环境中的 pack（如 `doc-loop-vibe-coding`�?
+>
+> 因此，执�?`pip install` 后无需额外配置，`doc-based-coding info` 即可看到已安装的官方 pack�?
+> 如需覆盖自动发现，可创建 `.codex/platform.json` 并指�?`pack_dirs`�?
+
+#### 理解 validate 输出
+
+`validate` 命令�?JSON 输出包含以下关键字段�?
+
+| 字段 | 含义 |
+|------|------|
+| `command_status` | 命令是否正常运行（始终为 `"ok"`，如果输出了 JSON 就说明平台正常） |
+| `governance_status` | 治理决策状态：`"passed"` �?`"blocked"` |
+| `blocking_constraints` | 被阻塞的约束 ID 列表（如 `["C5"]`�?|
+
+**退出码语义�?*
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 命令成功，治理无阻塞 |
+| 1 | 命令运行异常（runtime error�?|
+| 2 | 命令成功，但治理约束阻塞 |
+
+> **重要**：在�?bootstrap 的项目中，`validate` 可能会报�?C5 约束（缺�?planning-gate 文档），此时 `command_status` 仍为 `"ok"`，severity �?`"warn"`。这是正常的治理提示，不是安装失败。创�?planning-gate 文档后约束即解除�?
+
+## 在项目中启用文档驱动工作�?
+
+### 方式 A：Bootstrap 新项�?
+
+在目标项目根目录中运行：
+
+```bash
+doc-loop-bootstrap --target /path/to/your/project --project-name "Your Project Name"
+```
+
+这将在目标目录中生成�?
+- `AGENTS.md` �?agent 工作指令
+- `design_docs/` �?状态板、阶段文档、工具标�?
+- `.codex/` �?pack 配置、合同模板、提示词、handoff
+
+### 方式 B：手动配�?MCP Server
+
+在你�?VS Code 项目中创建或编辑 `.vscode/mcp.json`�?
+
+```json
+{
+  "servers": {
+    "doc-based-coding-governance": {
+      "type": "stdio",
+      "command": "doc-based-coding-mcp",
+      "args": ["--project", "${workspaceFolder}"]
+    }
+  }
+}
+```
+
+MCP server 启动后，�?Copilot Chat 中可以调用以下治理工具：
+- `check_constraints` �?检查项目约束状�?
+- `governance_decide` �?对用户输入执行完整治理链
+- `get_next_action` �?获取下一步建议行�?
+- `get_pack_info` �?查看已加载的 pack 信息
+- `writeback_notify` �?safe-stop 时获取必要写回清�?
+
+## 可用 CLI 命令一�?
+
+### Runtime（doc-based-coding�?
+
+| 命令 | 说明 |
+|------|------|
+| `doc-based-coding process <text>` | 对输入执行完整治理链（dry-run�?|
+| `doc-based-coding info` | 显示已加载的 pack 信息 |
+| `doc-based-coding validate` | 检查项目约束状�?|
+| `doc-based-coding check [text]` | 仅执行约�?状态检�?|
+| `doc-based-coding generate-instructions` | 生成 copilot-instructions 片段 |
+
+### 实例包（doc-loop-vibe-coding�?
+
+| 命令 | 说明 |
+|------|------|
+| `doc-loop-bootstrap` | 将文档驱动工作流脚手架复制到目标仓库 |
+| `doc-loop-validate-doc` | 验证文档结构符合工作流标�?|
+| `doc-loop-validate-instance` | 验证实例 pack manifest 与资产一致�?|
+
+## 故障排查
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `doc-based-coding` 命令不可�?| 虚拟环境未激�?| 运行 `activate` 脚本 |
+| `doc-based-coding info` �?pack 输出 | 未安装实例包，或项目中缺�?`.codex/packs/` | 安装实例包或运行 `doc-loop-bootstrap` |
+| MCP server 无法启动 | `doc-based-coding-mcp` 不在 PATH �?| 使用绝对路径或确�?venv 已激�?|
+| `pip install` �?"already installed" | 项目根目录有残留�?`*.egg-info` | 删除 `*.egg-info` 目录后重�?|

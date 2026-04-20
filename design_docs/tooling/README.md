@@ -6,6 +6,7 @@
 
 - `Document-Driven Workflow Standard.md`
 - `Dual-Package Distribution Standard.md`
+- `Module Dependency Direction Standard.md`
 - `Session Handoff Standard.md`
 - `Subagent Delegation Standard.md`
 

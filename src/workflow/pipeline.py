@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,6 +19,7 @@ from ..pack import manifest_loader
 from ..pack.context_builder import ContextBuilder, PackContext
 from ..pack.manifest_loader import LoadLevel
 from ..pack.override_resolver import RuleConfig, resolve as resolve_rules
+from ..pack.pack_integrity import load_lock, verify_pack as _verify_pack_integrity
 from ..pack.registrar import PackRegistrar
 from ..pdp.decision_envelope import build_envelope
 from ..pep.executor import Executor
@@ -164,202 +166,22 @@ class ConstraintResult:
         return result
 
 
-# ── Pack discovery ────────────────────────────────────────────────────────
+# ── Pack discovery (delegated to pack.pack_discovery) ─────────────────────
 
-_MANIFEST_NAMES = ("pack-manifest.json",)
-_PACK_JSON_SUFFIX = ".pack.json"
-_CONFIG_FILE = ".codex/platform.json"
-
-
-def _discover_packs(
-    project_root: Path,
-    *,
-    include_site_packages: bool = True,
-) -> list[tuple[Path, Path]]:
-    """Auto-discover pack manifests under project_root.
-
-    Returns list of (manifest_path, base_dir) tuples, ordered by kind
-    priority (platform → instance → project-local).
-
-    Discovery rules:
-    1. If .codex/platform.json exists and has ``pack_dirs``, use those.
-    2. Otherwise scan:
-       a. {root}/.codex/packs/*.pack.json
-       b. {root}/*/pack-manifest.json (one-level subdirs)
-       c. Installed Python packages carrying pack-manifest.json (via importlib.metadata)
-
-    Args:
-        include_site_packages: When False, skip scanning site-packages for
-            installed packs.  Useful in tests that need full isolation.
-    """
-    config_path = project_root / _CONFIG_FILE
-    if config_path.exists():
-        try:
-            config = json.loads(config_path.read_text(encoding="utf-8"))
-            dirs = config.get("pack_dirs", [])
-            if dirs:
-                results = _resolve_pack_dirs(project_root, dirs)
-                # Also scan .codex/packs/ for standalone pack files
-                # not covered by explicit pack_dirs entries
-                packs_dir = project_root / ".codex" / "packs"
-                if packs_dir.is_dir():
-                    seen_dirs = {r[1] for r in results}
-                    seen_names = _extract_pack_names(results)
-                    for f in sorted(packs_dir.iterdir()):
-                        if (
-                            f.is_file()
-                            and (
-                                f.name.endswith(_PACK_JSON_SUFFIX)
-                                or f.name in _MANIFEST_NAMES
-                            )
-                            and packs_dir not in seen_dirs
-                        ):
-                            name = _read_pack_name(f)
-                            if name and name not in seen_names:
-                                results.append((f, packs_dir))
-                                seen_names.add(name)
-                    seen_dirs.add(packs_dir)  # prevent re-scan
-
-                # Even with explicit config, also discover installed packs
-                # to avoid requiring manual wiring for pip-installed packs
-                if include_site_packages:
-                    installed = _discover_installed_packs()
-                    seen_dirs = {r[1] for r in results}
-                    seen_names = _extract_pack_names(results)
-                    for manifest, base in installed:
-                        if base not in seen_dirs:
-                            name = _read_pack_name(manifest)
-                            if name and name not in seen_names:
-                                results.append((manifest, base))
-                                seen_dirs.add(base)
-                                seen_names.add(name)
-                return results
-        except (json.JSONDecodeError, KeyError):
-            pass  # Fall through to convention-based discovery
-
-    results: list[tuple[Path, Path]] = []
-
-    # .codex/packs/*.pack.json
-    packs_dir = project_root / ".codex" / "packs"
-    if packs_dir.is_dir():
-        for f in sorted(packs_dir.iterdir()):
-            if f.name.endswith(_PACK_JSON_SUFFIX) or f.name in _MANIFEST_NAMES:
-                results.append((f, packs_dir))
-
-    # */pack-manifest.json (one-level subdirs)
-    if project_root.is_dir():
-        for child in sorted(project_root.iterdir()):
-            if child.is_dir() and not child.name.startswith("."):
-                manifest = child / "pack-manifest.json"
-                if manifest.exists():
-                    results.append((manifest, child))
-
-    # Installed Python packages carrying pack-manifest.json
-    if include_site_packages:
-        installed = _discover_installed_packs()
-        seen_dirs = {r[1] for r in results}
-        seen_names = _extract_pack_names(results)
-        for manifest, base in installed:
-            if base not in seen_dirs:
-                name = _read_pack_name(manifest)
-                if name and name not in seen_names:
-                    results.append((manifest, base))
-                    seen_dirs.add(base)
-                    seen_names.add(name)
-
-    return results
-
-
-def _read_pack_name(manifest_path: Path) -> str:
-    """Read the ``name`` field from a pack manifest without full parsing."""
-    try:
-        data = json.loads(manifest_path.read_text(encoding="utf-8"))
-        return data.get("name", "")
-    except Exception:
-        return ""
-
-
-def _extract_pack_names(
-    discovered: list[tuple[Path, Path]],
-) -> set[str]:
-    """Extract pack names from already-discovered manifest paths."""
-    names: set[str] = set()
-    for manifest, _ in discovered:
-        name = _read_pack_name(manifest)
-        if name:
-            names.add(name)
-    return names
-
-
-def _discover_installed_packs() -> list[tuple[Path, Path]]:
-    """Discover pack manifests from pip-installed Python packages.
-
-    Scans ``site-packages`` directories for top-level packages that ship a
-    ``pack-manifest.json`` file.  This enables ``pip install`` as the sole
-    adoption step for official instance packs.
-    """
-    results: list[tuple[Path, Path]] = []
-    try:
-        import site
-        import sys
-
-        # Collect all site-packages directories
-        site_dirs: list[str] = []
-        try:
-            site_dirs.extend(site.getsitepackages())
-        except AttributeError:
-            pass  # Not available in some virtualenvs
-        user_site = getattr(site, "getusersitepackages", lambda: None)()
-        if user_site:
-            site_dirs.append(user_site)
-        # Also check sys.path entries that look like site-packages
-        for p in sys.path:
-            if "site-packages" in p and p not in site_dirs:
-                site_dirs.append(p)
-
-        seen: set[Path] = set()
-        for site_dir in site_dirs:
-            sp = Path(site_dir)
-            if not sp.is_dir():
-                continue
-            try:
-                for child in sp.iterdir():
-                    if not child.is_dir():
-                        continue
-                    manifest = child / "pack-manifest.json"
-                    if manifest.exists() and child not in seen:
-                        results.append(
-                            (manifest.resolve(), child.resolve())
-                        )
-                        seen.add(child)
-            except OSError:
-                continue
-    except Exception:
-        pass  # site module unavailable or broken — skip silently
-    return results
-
-
-def _resolve_pack_dirs(
-    project_root: Path, dirs: list[str]
-) -> list[tuple[Path, Path]]:
-    """Resolve explicit pack_dirs from config to (manifest, base_dir) pairs."""
-    results: list[tuple[Path, Path]] = []
-    for d in dirs:
-        dir_path = (project_root / d).resolve()
-        if not dir_path.is_dir():
-            continue
-        # Look for manifest in directory
-        for name in _MANIFEST_NAMES:
-            manifest = dir_path / name
-            if manifest.exists():
-                results.append((manifest, dir_path))
-                break
-        else:
-            # Check for *.pack.json files
-            for f in sorted(dir_path.iterdir()):
-                if f.name.endswith(_PACK_JSON_SUFFIX):
-                    results.append((f, dir_path))
-    return results
+from ..pack.pack_discovery import (  # noqa: E402
+    MANIFEST_NAMES as _MANIFEST_NAMES,
+    PACK_JSON_SUFFIX as _PACK_JSON_SUFFIX,
+    CONFIG_FILE as _CONFIG_FILE,
+    USER_DIR_ENV as _USER_DIR_ENV,
+    DEFAULT_USER_DIR_NAME as _DEFAULT_USER_DIR_NAME,
+    user_global_base_dir as _user_global_base_dir,
+    user_global_packs_dir as _user_global_packs_dir,
+    discover_packs as _discover_packs,
+    read_pack_name as _read_pack_name,
+    extract_pack_names as _extract_pack_names,
+    discover_installed_packs as _discover_installed_packs,
+    resolve_pack_dirs as _resolve_pack_dirs,
+)
 
 
 # ── Constraint checking ──────────────────────────────────────────────────
@@ -576,6 +398,7 @@ class Pipeline:
         self._contract_factory = contract_factory
         self._report_validator = report_validator
         self._init_errors: list[ErrorInfo] = []
+        self._user_config: Any = None  # set by from_project()
 
         # Load packs
         self._pack_context, self._rule_config, self._registrar, self._builder = (
@@ -592,6 +415,11 @@ class Pipeline:
             self._pack_context.manifests,
         )
 
+        # Validate consumes
+        self._consumes_status = manifest_loader.check_consumes(
+            self._pack_context.manifests,
+        )
+
     @classmethod
     def from_project(
         cls,
@@ -603,10 +431,24 @@ class Pipeline:
         contract_factory: ContractFactory | None = None,
         report_validator: ReportValidator | None = None,
         include_site_packages: bool = True,
+        include_user_global: bool = True,
     ) -> Pipeline:
         """Auto-discover packs from project root and create a Pipeline."""
+        from ..pack.user_config import _EMPTY as _EMPTY_CONFIG, load_user_config
+
         root = Path(project_root).resolve()
-        discovered = _discover_packs(root, include_site_packages=include_site_packages)
+
+        # Load user-global config
+        user_config_obj = load_user_config(
+            _user_global_base_dir() if include_user_global else None
+        )
+
+        discovered = _discover_packs(
+            root,
+            include_site_packages=include_site_packages,
+            include_user_global=include_user_global,
+            extra_pack_dirs=user_config_obj.extra_pack_dirs,
+        )
         pack_dirs = [str(base_dir) for _, base_dir in discovered]
         # Deduplicate while preserving order
         seen: set[str] = set()
@@ -615,7 +457,7 @@ class Pipeline:
             if d not in seen:
                 seen.add(d)
                 unique_dirs.append(d)
-        return cls(
+        pipe = cls(
             pack_dirs=unique_dirs,
             project_root=root,
             dry_run=dry_run,
@@ -624,6 +466,9 @@ class Pipeline:
             contract_factory=contract_factory,
             report_validator=report_validator,
         )
+        if user_config_obj is not _EMPTY_CONFIG:
+            pipe._user_config = user_config_obj
+        return pipe
 
     def _load_packs(
         self, pack_dirs: list[str | Path]
@@ -668,6 +513,33 @@ class Pipeline:
                 continue
             builder.add_pack(manifest, dir_path)
             manifest_dir_pairs.append((manifest, dir_path))
+
+        # Pack integrity check (non-blocking — logs warnings)
+        lock = load_lock(self._project_root)
+        if lock.entries:
+            for manifest, dir_path in manifest_dir_pairs:
+                result = _verify_pack_integrity(manifest.name, dir_path, lock)
+                if result.status == "mismatch":
+                    err = ErrorInfo(
+                        category="integrity_warning",
+                        message=(
+                            f"Pack '{result.name}' content changed since lock was recorded"
+                        ),
+                        source="pack_integrity",
+                        suggestion="Run pack lock update to accept changes, or restore the original pack content.",
+                        detail=f"expected={result.expected_hash} actual={result.actual_hash}",
+                    )
+                    _log.warning(err.message)
+                    self._init_errors.append(err)
+                elif result.status == "missing_pack":
+                    err = ErrorInfo(
+                        category="integrity_warning",
+                        message=f"Pack '{result.name}' is locked but directory is missing",
+                        source="pack_integrity",
+                        detail=result.detail,
+                    )
+                    _log.warning(err.message)
+                    self._init_errors.append(err)
 
         context = builder.build(level=LoadLevel.MANIFEST)
         rule_config = resolve_rules(context)
@@ -875,6 +747,7 @@ class Pipeline:
                 result["init_warnings"] = [e.message for e in self._init_errors]
                 result["init_errors"] = [e.to_dict() for e in self._init_errors]
             result["dependency_status"] = self._dependency_status
+            result["consumes_status"] = self._consumes_status
             result["override_declarations"] = effective_context.merged_overrides
             result["override_warnings"] = self._override_status.get("warnings", [])
             if effective_context.merge_conflicts:
@@ -887,6 +760,9 @@ class Pipeline:
                 "files": list(content.keys()),
                 "total_chars": sum(len(v) for v in content.values()),
             }
+
+        if self._user_config is not None:
+            result["user_config"] = self._user_config.to_dict()
 
         return result
 

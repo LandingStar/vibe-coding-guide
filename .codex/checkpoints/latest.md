@@ -1,29 +1,30 @@
-# Checkpoint — 2026-04-18T22:00:00+08:00
+# Checkpoint — 2026-04-21T00:00:00+08:00
 ## Current Phase
-Post-v1.0（B-REF-1~3+7 全部完成；VS Code Extension P0+P1 + F5 验证通过；1133 passed）
+Post-v1.0（全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成；1257 passed, 2 skipped）
 ## Active Planning Gate
 无活跃 gate
 ## Current Handoff
-- handoff_id: 2026-04-18_0435_b-ref-1-slice1-planning-gate-and-code-confirm_stage-close
-- source_path: .codex/handoffs/history/2026-04-18_0435_b-ref-1-slice1-planning-gate-and-code-confirm_stage-close.md
-- scope_key: b-ref-1-slice1-planning-gate-and-code-confirm
+- handoff_id: 2026-04-19_0337_b-ref-series-close_stage-close
+- source_path: .codex/handoffs/history/2026-04-19_0337_b-ref-series-close_stage-close.md
+- scope_key: b-ref-series-close
 ## Current Todo
-- [x] F5 端到端验证 planning-gate 创建
-- [x] .vscode/launch.json + tasks.json 配置
-- [x] MCP stdio handshake 验证（initialize + tools/call + check_constraints）
-- [x] F5 启动验证：Activity Bar + Dashboard + Output Channel 全部正常
-- [x] Planning-gate CLOSED + writeback
+- [x] pack-lock 回归修复
+- [x] 依赖方向约束文档 + lint 脚本
+- [x] 3/3 依赖违规全部消除
+- [x] 8 项 MCP/CLI dogfood 验证通过
+- [x] HTTPWorker failure fallback schema alignment
+- [x] VS Code Extension rebuild + MCP 通道验证
+- [x] Checklist / Phase Map 状态面写回
 ## Pending User Decision
-下一步方向待定（候选：安装向导 / Pack Explorer / GovernanceInterceptor / B-REF-4/5/6）
+无
 ## Direction Candidates
-- F. Extension 内置安装/配置向导（用户明确要求过）
-- B. Pack Explorer TreeView（P2）
-- C. GovernanceInterceptor 实现
-- B-REF-4/5/6 剩余 research backlog
+- 持续 pre-release dogfood
+- dogfood 证据收集组件化（条件触发）
+- Multi-agent runtime abstraction layer（长期/条件触发）
 ## Key Context Files
 - design_docs/Project Master Checklist.md
-- design_docs/stages/planning-gate/2026-04-18-vscode-extension-f5-e2e-verification.md
-- .vscode/launch.json
-- .vscode/tasks.json
-- vscode-extension/src/extension.ts
-- vscode-extension/src/mcp/client.ts
+- design_docs/Global Phase Map and Current Position.md
+- design_docs/tooling/Module Dependency Direction Standard.md
+- scripts/lint_imports.py
+- src/interfaces.py
+- src/workers/http_worker.py

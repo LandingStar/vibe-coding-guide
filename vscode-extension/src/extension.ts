@@ -12,6 +12,8 @@ import { MCPClient } from './mcp/client';
 import { ConstraintDashboardProvider } from './views/constraintDashboard';
 import { PackExplorerProvider } from './views/packExplorer';
 import { DecisionLogViewerProvider } from './views/decisionLogViewer';
+import { ConfigExplorerProvider } from './views/configExplorer';
+import { ConfigPanelProvider } from './views/configPanel';
 import { GovernanceStatusBar } from './views/statusBar';
 import { MCPGovernanceInterceptor, registerGovernanceListeners } from './governance/interceptor';
 import { ReviewPanelProvider } from './governance/reviewPanel';
@@ -26,6 +28,8 @@ let mcpClient: MCPClient | undefined;
 let constraintDashboard: ConstraintDashboardProvider | undefined;
 let packExplorerProvider: PackExplorerProvider | undefined;
 let decisionLogProvider: DecisionLogViewerProvider | undefined;
+let configExplorerProvider: ConfigExplorerProvider | undefined;
+let configPanelProvider: ConfigPanelProvider | undefined;
 let statusBar: GovernanceStatusBar | undefined;
 let copilotLLM: CopilotLLMProvider | undefined;
 let outputChannel: vscode.OutputChannel;
@@ -73,6 +77,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         if (decisionLogProvider) {
             decisionLogProvider.updateClient(mcpClient);
         }
+        if (configExplorerProvider) {
+            configExplorerProvider.updateClient(mcpClient);
+        }
+        if (configPanelProvider) {
+            configPanelProvider.updateClient(mcpClient);
+        }
         interceptor.updateClient(mcpClient);
 
         await mcpClient.start();
@@ -88,6 +98,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await constraintDashboard?.refresh();
         await packExplorerProvider?.refresh();
         await decisionLogProvider?.refresh();
+        await configExplorerProvider?.refresh();
+        await configPanelProvider?.refresh();
 
         // Update status bar from constraint result
         updateStatusBar();
@@ -139,6 +151,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
     context.subscriptions.push(decisionLogTreeView);
 
+    // Register Config Explorer TreeView
+    configExplorerProvider = new ConfigExplorerProvider();
+    const configTreeView = vscode.window.createTreeView('configExplorer', {
+        treeDataProvider: configExplorerProvider,
+        showCollapseAll: true,
+    });
+    context.subscriptions.push(configTreeView);
+
+    // Register Config Panel WebviewView
+    configPanelProvider = new ConfigPanelProvider(outputChannel);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, configPanelProvider),
+    );
+
     // Register Governance Status Bar
     statusBar = new GovernanceStatusBar();
     context.subscriptions.push(statusBar);
@@ -160,6 +186,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.refreshDecisionLogs', async () => {
             await decisionLogProvider?.refresh();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.refreshConfig', async () => {
+            await configExplorerProvider?.refresh();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.editConfigItem', async (item: unknown) => {
+            if (configExplorerProvider && item && typeof item === 'object' && 'fieldKey' in item) {
+                await configExplorerProvider.editField(item as Parameters<ConfigExplorerProvider['editField']>[0]);
+            }
         }),
     );
 

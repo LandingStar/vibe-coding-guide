@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .context_builder import PackContext
-from ..pdp.tool_permission_resolver import ToolPermissionConfig, parse_tool_permissions
+from ..interfaces import (
+    IMPACT_TABLE,
+    KEYWORD_MAP,
+    PLATFORM_INTENTS,
+    ToolPermissionConfig,
+    parse_tool_permissions,
+)
 
 
 @dataclass
@@ -46,12 +52,10 @@ class RuleConfig:
 
 def default_rule_config() -> RuleConfig:
     """Return the platform default RuleConfig matching current hardcoded values."""
-    from ..pdp import intent_classifier as ic
-
     return RuleConfig(
-        keyword_map=dict(ic._KEYWORD_MAP),
-        impact_table=dict(ic.IMPACT_TABLE),
-        platform_intents=set(ic.PLATFORM_INTENTS),
+        keyword_map=dict(KEYWORD_MAP),
+        impact_table=dict(IMPACT_TABLE),
+        platform_intents=set(PLATFORM_INTENTS),
         gate_for_impact={"low": "inform", "medium": "review", "high": "approve"},
         entry_for_gate={
             "inform": "proposed",

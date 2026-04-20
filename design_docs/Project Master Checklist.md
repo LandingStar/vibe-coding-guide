@@ -13,21 +13,21 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-04-17`
+- Snapshot Date: `2026-04-21`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.3` (preview)
-- Current Phase: `Post-v1.0 持续 dogfood — pack 预留接口已实现 + B-REF-1 Slice 1 测试覆盖完成`
+- Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成`
 - Active Slice: 无活跃 gate
-- Latest Completed Slice: `B-REF-1 Slice 1 LoadLevel 三级渐进加载测试覆盖`（24 新测试）
-- Safe Stop Status: `2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close`
-- Test Baseline: `1104 passed, 2 skipped`
+- Latest Completed Slice: `依赖方向约束全消除 + HTTPWorker fallback schema alignment`
+- Safe Stop Status: `2026-04-19_0337_b-ref-series-close_stage-close`
+- Test Baseline: `1257 passed, 2 skipped`
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close`
-- source_path: `.codex/handoffs/history/2026-04-17_2203_pack-reserved-interfaces-and-progressive-load-tests_stage-close.md`
-- scope_key: `pack-reserved-interfaces-and-progressive-load-tests`
-- created_at: `2026-04-17T22:03:34+08:00`
+- handoff_id: `2026-04-19_0337_b-ref-series-close_stage-close`
+- source_path: `.codex/handoffs/history/2026-04-19_0337_b-ref-series-close_stage-close.md`
+- scope_key: `b-ref-series-close`
+- created_at: `2026-04-19T03:37:42+08:00`
 
 ## 当前文档入口
 
@@ -127,6 +127,12 @@
 - [x] post-v1.0：validate 命令治理阻塞 vs 运行失败语义区分 — 退出码三级（0/1/2）+ `command_status`/`governance_status`/`blocking_constraints` JSON 字段 + 终端文案显式区分 + C5 在初始状态降级为 warn — 675 passed, 0 failures
 - [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
 - [ ] post-v1.0 backlog：将 dogfood 所需的证据收集、问题收集、问题反馈整合收口为组件或 skill；当前先完成 adoption judgment，并在其 1/2 步里同步观察哪些流程值得抽象固化，再决定是否起独立 planning-gate
+- [x] Multica 借鉴 — 条件化 always_on 加载（scope_paths 驱动跳过不相关 pack 内容）— `ContextBuilder.build(scope_path=)` 新增条件化过滤：有 scope_paths 声明但不匹配的 pack 跳过 always_on 加载，universal pack 始终包含。6 新测试 — 1229 passed, 2 skipped
+- [x] Multica 借鉴 — RuntimeBridge 三入口统一初始化抽象 — `src/runtime/bridge.py` 新增；WorkerHealth 状态跟踪 + _TrackedWorker + refresh()/reload_config()；CLI 已迁移；MCP 集成待 worker 启用时接入。13 新测试 — 1242 passed, 2 skipped
+- [x] Multica 借鉴 — 依赖方向反转（consumes 字段）— PackManifest 新增 `consumes: list[str]`，`check_consumes()` 校验所有 consumes 是否被 merged provides 满足；Pipeline.info() 暴露 consumes_status；warning-only 不阻塞加载。5 新测试 — 1247 passed, 2 skipped
+- [x] Multica 借鉴 — 代码层依赖方向约束文档化 — 来源: 洞察 2.3（pack/ → workflow/ → mcp/ 单向依赖）；实施难度: 低（文档 + lint rule）；优先级: 低 ✅ `design_docs/tooling/Module Dependency Direction Standard.md` + `scripts/lint_imports.py`；3/3 已知违规全部消除（零例外），`KEYWORD_MAP`/`IMPACT_TABLE`/`PLATFORM_INTENTS` 提升到 `interfaces.py`
+- [ ] Multica 借鉴 — 长期：Multi-agent runtime abstraction layer — 来源: 洞察 2.4（N×M daemon 教训）；优先级: 长期/条件触发（仅在计划支持多 agent runtime 时激活）
+- [ ] Multica 借鉴 — 设计审查 checkpoint：新 pack 原语引入前问 "does this need a new primitive?" — 来源: 洞察 2.1（#1211 克制回复）；优先级: 流程级（无代码，但设计评审时始终检查）
 - [x] dogfood 发现 #1：`query_decision_logs` MCP 工具未注册 — 方法已在 `src/mcp/tools.py` 实现但未在 `src/mcp/server.py` 的 `list_tools` 中注册路由，导致工具不可达（低工作量修复）—— 已修复，803 passed
 - [x] dogfood 发现 #2：decision log 持久化与 dry_run 耦合 — MCP 默认 `dry_run=True`，decision_log_entry 只在返回值中出现但不写 `.codex/decision-logs/` 文件—— 已解耦，审计日志现始终持久化
 - [x] dogfood 发现 #3：v0.9.1 安装验证中发现 4 类问题（版本漂移、pack 自动发现缺失、本地 wheel 安装不顺畅、状态提取不完整）— 详见 `issues/issue_doc_loop_v091_release_and_pack_discovery.md`；所有问题已修复：site-packages 自动发现已实现（`_discover_packs` + `include_site_packages` 测试隔离参数）、版本一致性检查脚本 `release/verify_version_consistency.py` 已新增、INSTALL_GUIDE.md 已覆盖离线安装、状态提取已正常工作 — 803 passed, 0 failures
@@ -179,7 +185,7 @@
 - [x] B-REF-1: Pack 渐进式加载设计 — 三级加载（METADATA/MANIFEST/FULL）已实现：Slice 1 LoadLevel enum + ContextBuilder 分阶段 build + upgrade()；Slice 2 Pipeline MANIFEST 降级 + pack_context lazy upgrade；Slice 3 MCP get_pack_info level/scope_path 参数 + description 字段 — 1095 passed, 2 skipped
 - [x] B-REF-2: Pack description 质量标准 — 已建立质量标准文档（`design_docs/tooling/Pack Description Quality Standard.md`）+ `validate_description()` 验证函数 + 现有 pack 已添加符合标准的 description + 9 个新测试 — 1104 passed, 2 skipped
 
-> **当前测试基线**: 1161 passed, 2 skipped
+> **当前测试基线**: 1257 passed, 2 skipped
 - [x] B-REF-3: Pack 内部组织规范 — 引用深度 ≤ 1 + 按域拆分 + TOC 规则已建立（`design_docs/tooling/Pack Internal Organization Standard.md`）+ `validate_pack_organization()` 验证函数 + 13 个新测试 — 1117 passed, 2 skipped
 - [x] B-REF-4: Permission policy 分层覆盖模型 — `ToolPermissionResolver` + `ToolPermissionConfig` + `RuleConfig.tool_permissions` 字段；pack 级 default + 单 tool 级 override；deny → BLOCK + deny_message，ask → requires_confirmation 注释；`governance_decide` 新增 `action_type` 参数 + 21 新测试 — 1154 passed, 2 skipped
 - [x] B-REF-5: 工作流中断原语 (interrupt primitive) — `workflow_interrupt` MCP tool：接收 reason + discovered_item → 生成 interrupt_id + suggested_filename + 结构化 guidance → 记录到 decision log；实现"发现超出 scope 时回退到 planning-gate"的显式化 — 1161 passed, 2 skipped
@@ -201,8 +207,9 @@
 - [x] .vsix 安装验证 — `code --install-extension` 成功、文件已部署到 `~/.vscode/extensions/doc-based-coding.doc-based-coding-0.1.0/`
 - [x] P7: Chat Participant — `@governance` 注册到 Copilot Chat、`/check` `/decide` `/constraints` `/packs` 四个子命令、通用对话带 governance context 注入、followup 建议 — esbuild 零错误、.vsix 重新打包安装
 - [x] Extension 安装向导 — `setup/wizard.ts` + `pythonDetector.ts` + `runtimeInstaller.ts`；首次激活检测 Python/Runtime → 模态对话框引导 zip/wheel 安装 → 自动配置 pythonPath → MCP 自动启动 → `.vscode/mcp.json` 生成使原生 MCP 列表可见（`design_docs/stages/planning-gate/2026-04-18-extension-install-wizard-slice1.md`）— esbuild 零错误
-- [ ] 全局记忆/文档/规则支持（跨工作区）— 当前 pack/governance 仅限单工作区，需设计全局层面的 memory/docs/rules 继承机制
-- [ ] 研究借鉴 Multica 架构 — https://github.com/multica-ai/multica — 多 agent 协调平台的架构模式参考
+- [x] 全局记忆/文档/规则支持（跨工作区）— A→C→D 全路线完成：P0 user-global pack kind + P1 config.json 配置层 + P2 Extension Config Management UI（TreeView + WebView + MCP update_user_config）。`~/.doc-based-coding/packs/` 自动发现 + `config.json` 支持 `extra_pack_dirs`/`default_model`/`default_llm_params`，36 个新 Python 测试 — 1197 passed, 2 skipped
+- [x] 研究借鉴 Multica 架构 — https://github.com/multica-ai/multica — 多 agent 协调平台的架构模式参考。三阶段深度研究完成：`review/multica/01-architecture-deep-dive.md`（Go backend + Daemon + 前端 monorepo + Skills + Autopilot + 安全 + 技术债务）、`review/multica/02-direction-and-weaknesses.md`（5 大发展方向 + 5 大不足 + 版本演进）、`review/multica-borrowing/borrowing-insights.md`（hash 锁定→pack 版本管理、Platform Bridge→多入口统一、知识复合克制启示、互补潜力）；research-compass 已更新
+- [x] Pack Integrity Hash (pack-lock.json) — Multica skills-lock.json 借鉴落地。`src/pack/pack_integrity.py`：`compute_pack_hash()` 全目录确定性 SHA-256 + `PackLockFile` 锁文件 CRUD + `verify_pack()`/`verify_all()` 验证。Pipeline `_load_packs()` 非阻塞 integrity warning + `install_pack()` 自动 lock + `remove_pack()` 自动 unlock + MCP 工具 `pack_lock`/`pack_unlock`/`pack_verify`。20 新测试 — 1223 passed, 2 skipped
 - [x] 子 agent model 管理 — 插件支持配置/切换子 agent 使用的 LLM model：`docBasedCoding.llm.family` 配置项 + `selectModel` Quick Pick 命令 + `onDidChangeConfiguration` 自动 re-init
 - [x] 硬编码禁止 git push — 插件在 governance 层拦截 `git push`（唯一修改远程的操作），不可绕过；pull/fetch/clone 等读取操作放行
   - [x] VS Code Extension 侧：`gitRemoteGuard.ts` 正则预拦截 + TerminalGovernanceMonitor 集成 + Ctrl+C 终止 + modal error

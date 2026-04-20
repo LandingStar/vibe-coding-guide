@@ -90,12 +90,15 @@ class HTTPWorker:
         return {
             "report_id": f"report-{uuid.uuid4().hex[:12]}",
             "contract_id": contract_id,
-            "status": "failed",
+            "status": "blocked",
             "changed_artifacts": [],
             "verification_results": [
                 f"HTTP worker error: {error_msg}",
             ],
-            "escalation_recommendation": "escalate_to_supervisor",
+            "unresolved_items": [
+                "HTTP API call failed before a response was produced.",
+            ],
+            "escalation_recommendation": "review_by_supervisor",
         }
 
 

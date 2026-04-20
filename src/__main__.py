@@ -21,6 +21,7 @@ import sys
 import traceback
 from pathlib import Path
 
+from .runtime.bridge import RuntimeBridge
 from .workflow.pipeline import ErrorInfo, Pipeline
 
 _DEBUG = False
@@ -65,11 +66,11 @@ def cmd_process(args: list[str]) -> int:
     root = _find_project_root()
 
     try:
-        pipeline = Pipeline.from_project(root, dry_run=True)
+        bridge = RuntimeBridge(root, dry_run=True)
     except Exception as e:
         return _handle_error("Error initializing pipeline", e, category="init_failed")
 
-    result = pipeline.process(input_text)
+    result = bridge.pipeline.process(input_text)
     _print_json(result.to_dict())
     return 0
 
@@ -79,11 +80,11 @@ def cmd_info(args: list[str]) -> int:
     root = _find_project_root()
 
     try:
-        pipeline = Pipeline.from_project(root, dry_run=True)
+        bridge = RuntimeBridge(root, dry_run=True)
     except Exception as e:
         return _handle_error("Error initializing pipeline", e, category="init_failed")
 
-    _print_json(pipeline.info())
+    _print_json(bridge.pipeline.info())
     return 0
 
 
@@ -92,11 +93,11 @@ def cmd_validate(args: list[str]) -> int:
     root = _find_project_root()
 
     try:
-        pipeline = Pipeline.from_project(root, dry_run=True)
+        bridge = RuntimeBridge(root, dry_run=True)
     except Exception as e:
         return _handle_error("Error initializing pipeline", e, category="init_failed")
 
-    result = pipeline.check_constraints()
+    result = bridge.pipeline.check_constraints()
     _print_json(result.to_dict())
 
     if result.has_violations:
@@ -116,11 +117,11 @@ def cmd_check(args: list[str]) -> int:
     root = _find_project_root()
 
     try:
-        pipeline = Pipeline.from_project(root, dry_run=True)
+        bridge = RuntimeBridge(root, dry_run=True)
     except Exception as e:
         return _handle_error("Error initializing pipeline", e, category="init_failed")
 
-    constraints = pipeline.check_constraints()
+    constraints = bridge.pipeline.check_constraints()
     output = {"constraints": constraints.to_dict()}
     if requested_input:
         output["requested_input"] = requested_input

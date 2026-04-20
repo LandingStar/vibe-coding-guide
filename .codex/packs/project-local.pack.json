@@ -11,6 +11,10 @@
     "prompts",
     "templates"
   ],
+  "consumes": [
+    "scripts",
+    "triggers"
+  ],
   "document_types": [
     "project-master-checklist",
     "global-phase-map",

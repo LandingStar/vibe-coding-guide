@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "doc-based-coding-runtime"
-version = "0.9.3"
+version = "0.9.4"
 description = "Runtime and governance entry points for document-driven coding workflows."
 readme = "README.md"
 requires-python = ">=3.10"

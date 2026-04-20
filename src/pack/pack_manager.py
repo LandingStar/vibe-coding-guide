@@ -141,13 +141,13 @@ def list_packs(
     3. Convention scan: */pack-manifest.json (source="convention")
     4. Site-packages auto-discovery (source="site-packages")
     """
-    from ..workflow.pipeline import _discover_packs
+    from .pack_discovery import discover_packs
 
     results: list[PackInfo] = []
     seen_names: set[str] = set()
 
     # Use the existing discovery mechanism
-    discovered = _discover_packs(
+    discovered = discover_packs(
         project_root, include_site_packages=include_site_packages
     )
 
@@ -280,6 +280,18 @@ def install_pack(source_path: Path, project_root: Path) -> PackInfo:
     config["pack_checksums"] = checksums
     _write_config(project_root, config)
 
+    # Auto-lock: record content hash in pack-lock.json
+    from .pack_integrity import load_lock, save_lock
+
+    lock = load_lock(project_root)
+    lock.lock_pack(
+        name=name,
+        version=manifest.get("version", ""),
+        kind=manifest.get("kind", ""),
+        base_dir=target_dir,
+    )
+    save_lock(project_root, lock)
+
     return PackInfo(
         name=name,
         version=manifest.get("version", ""),
@@ -336,6 +348,13 @@ def remove_pack(name: str, project_root: Path) -> bool:
     elif "pack_checksums" in config:
         del config["pack_checksums"]
     _write_config(project_root, config)
+
+    # Auto-unlock: remove from pack-lock.json
+    from .pack_integrity import load_lock, save_lock
+
+    lock = load_lock(project_root)
+    if lock.unlock_pack(name):
+        save_lock(project_root, lock)
 
     return True
 
