@@ -4,6 +4,8 @@
 
 本文件定义当前官方实例 `doc-driven vibe coding` 在平台中的角色，而不是重复它的全部内部规则。
 
+如果你只是第一次进入仓库并想知道“先看什么”，先读 `docs/starter-surface.md`；本文件不是首跳路由文档。
+
 ## 实例定位
 
 `doc-driven vibe coding` 是平台上的第一个官方实例。

@@ -339,6 +339,32 @@ version           →  pack 内容的语义版本
 - 最终序列化格式
 - 更完整的版本兼容矩阵与求解策略
 
+## Pack Integrity (pack-lock.json)
+
+平台通过 `pack-lock.json` 跟踪已注册 pack 的内容完整性。
+
+### Hash 计算规则
+
+`compute_pack_hash(base_dir)` 对 pack 目录下的所有文件计算确定性 SHA-256：
+
+- 按文件相对路径字典序遍历
+- 每个文件的相对路径（UTF-8）和完整内容参与 hash
+- **排除的目录/文件**：
+  - 以 `.` 开头的路径段（如 `.git/`、`.DS_Store`）
+  - `__pycache__/` 目录
+  - `*.egg-info/` 目录
+- 返回格式：`sha256:<hex>`
+
+### 锁定与验证
+
+| 操作 | 说明 |
+|------|------|
+| `pack_lock` | 计算当前 hash 并写入 `pack-lock.json` |
+| `pack_unlock` | 从锁文件中移除指定 pack |
+| `pack_verify` | 比较当前 hash 与锁定值，不匹配时报 warning |
+
+Pipeline 初始化时自动执行 `verify_all()`，hash 不匹配会记录为 `integrity_warning`（非阻塞）。
+
 ## 开放问题
 
 - `scope` 是否需要进一步拆成 `audience` 与 `workspace_scope`

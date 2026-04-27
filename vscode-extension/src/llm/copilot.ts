@@ -11,10 +11,11 @@
  */
 
 import * as vscode from 'vscode';
-import { LLMProvider, ClassificationResult } from './types';
+import { ManagedLLMProvider, ClassificationResult } from './types';
 
-export class CopilotLLMProvider implements LLMProvider {
+export class CopilotLLMProvider implements ManagedLLMProvider {
     readonly name = 'copilot';
+    readonly displayName = 'GitHub Copilot';
     private _model: vscode.LanguageModelChat | null = null;
     private _family: string = 'gpt-4o';
 
@@ -46,6 +47,19 @@ export class CopilotLLMProvider implements LLMProvider {
             }
         }
         return false;
+    }
+
+    async listModelFamilies(): Promise<string[]> {
+        const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+        const seen = new Set<string>();
+        const families: string[] = [];
+        for (const model of models) {
+            if (!seen.has(model.family)) {
+                seen.add(model.family);
+                families.push(model.family);
+            }
+        }
+        return families;
     }
 
     async classify(

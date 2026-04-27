@@ -12,6 +12,8 @@
 
 产出存放位置：`review/` 目录。
 
+若只是浏览期的临时摘录、待删笔记或一次性比较草稿，应先放在 `.codex/tmp/investigations/`，而不是直接进入 `review/`。分流总纲见 `design_docs/tooling/Temporary Scratch and Stable Docs Standard.md`。
+
 ## 标准流程（5 步）
 
 ### Step 1 — 快速概览
@@ -139,3 +141,4 @@
 - 产出的 ✅ 采纳项若涉及代码变更，应按 `Document-Driven Workflow Standard` 先生成 planning-gate
 - 产出的 📋 记录项应写入 `design_docs/Project Master Checklist.md` 风险/待办
 - review 文档本身存放在 `review/` 目录，不进入 `design_docs/`
+- 浏览期 scratch、临时对照和待确认原始摘录，不应直接占用 `review/`；应优先放到 `.codex/tmp/investigations/`，稳定后再 promotion

@@ -2,7 +2,7 @@
   "name": "doc-based-coding",
   "displayName": "Doc-Based Coding",
   "description": "Document-driven governance workflow platform for VS Code — enforces project constraints, manages pack topology, and provides AI-assisted governance across all IDE operations.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "doc-based-coding",
   "license": "MIT",
   "icon": "icon.png",
@@ -53,6 +53,10 @@
           {
             "name": "packs",
             "description": "List loaded packs"
+          },
+          {
+            "name": "dogfood",
+            "description": "Run dogfood evidence pipeline: evaluate symptoms, promote issues, generate feedback"
           }
         ]
       }
@@ -109,6 +113,23 @@
         "category": "Doc-Based Coding"
       },
       {
+        "command": "docBasedCoding.openProgressGraphPreview",
+        "title": "Open Progress Graph Preview",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.refreshProgressGraphPreview",
+        "title": "Refresh Progress Graph Preview",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.revealProgressGraphPreviewArtifact",
+        "title": "Reveal Progress Graph Preview Artifact",
+        "icon": "$(go-to-file)",
+        "category": "Doc-Based Coding"
+      },
+      {
         "command": "docBasedCoding.setupWizard",
         "title": "Setup Wizard",
         "category": "Doc-Based Coding"
@@ -126,18 +147,24 @@
         "category": "Doc-Based Coding"
       },
       {
+        "command": "docBasedCoding.filterDecisionLogsMergeConflicts",
+        "title": "Filter by Merge Conflicts",
+        "icon": "$(filter)",
+        "category": "Doc-Based Coding"
+      },
+      {
         "command": "docBasedCoding.classifyIntent",
-        "title": "Classify Intent (Copilot LLM)",
+        "title": "Classify Intent (AI Model)",
         "category": "Doc-Based Coding"
       },
       {
         "command": "docBasedCoding.generatePackDescription",
-        "title": "Generate Pack Description (Copilot LLM)",
+        "title": "Generate Pack Description (AI Model)",
         "category": "Doc-Based Coding"
       },
       {
         "command": "docBasedCoding.generatePackRules",
-        "title": "Generate Pack Rules (Copilot LLM)",
+        "title": "Generate Pack Rules (AI Model)",
         "category": "Doc-Based Coding"
       },
       {
@@ -182,6 +209,11 @@
         },
         {
           "command": "docBasedCoding.refreshDecisionLogs",
+          "when": "view == decisionLogViewer",
+          "group": "navigation"
+        },
+        {
+          "command": "docBasedCoding.filterDecisionLogsMergeConflicts",
           "when": "view == decisionLogViewer",
           "group": "navigation"
         },
@@ -239,7 +271,7 @@
         "docBasedCoding.llm.family": {
           "type": "string",
           "default": "gpt-4o",
-          "description": "Language model family used for Copilot LLM features (intent classification, pack generation, governance explanations). Examples: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, o1-preview."
+          "description": "Language model family used for extension AI features (intent classification, pack generation, governance explanations). Current default provider: GitHub Copilot. Examples: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, o1-preview."
         }
       }
     }

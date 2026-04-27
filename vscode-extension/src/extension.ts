@@ -14,13 +14,16 @@ import { PackExplorerProvider } from './views/packExplorer';
 import { DecisionLogViewerProvider } from './views/decisionLogViewer';
 import { ConfigExplorerProvider } from './views/configExplorer';
 import { ConfigPanelProvider } from './views/configPanel';
+import { regenerateProgressGraphArtifacts } from './views/progressGraphArtifacts';
+import { ProgressGraphPreviewPanel } from './views/progressGraphPreview';
 import { GovernanceStatusBar } from './views/statusBar';
 import { MCPGovernanceInterceptor, registerGovernanceListeners } from './governance/interceptor';
 import { ReviewPanelProvider } from './governance/reviewPanel';
 import { TerminalGovernanceMonitor } from './governance/terminalMonitor';
 import { registerFileLifecycleListeners } from './governance/fileLifecycle';
-import { CopilotLLMProvider } from './llm/copilot';
+import { createDefaultLLMProvider } from './llm/providerFactory';
 import { generatePackDescription, generatePackRules } from './llm/packGenerator';
+import { ManagedLLMProvider } from './llm/types';
 import { registerChatParticipant } from './chat/participant';
 import { runSetupWizard } from './setup/wizard';
 
@@ -31,7 +34,8 @@ let decisionLogProvider: DecisionLogViewerProvider | undefined;
 let configExplorerProvider: ConfigExplorerProvider | undefined;
 let configPanelProvider: ConfigPanelProvider | undefined;
 let statusBar: GovernanceStatusBar | undefined;
-let copilotLLM: CopilotLLMProvider | undefined;
+let progressGraphPreviewPanel: ProgressGraphPreviewPanel | undefined;
+let llmProvider: ManagedLLMProvider | undefined;
 let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -46,6 +50,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     const projectRoot = workspaceFolder.uri.fsPath;
+
+    function getLLMProvider(): ManagedLLMProvider {
+        if (!llmProvider) {
+            llmProvider = createDefaultLLMProvider();
+        }
+        return llmProvider;
+    }
+
+    function updateLLMProviderBindings(provider: ManagedLLMProvider): void {
+        configPanelProvider?.updateLLMProvider(provider);
+        interceptor.updateLLMProvider(provider);
+    }
 
     // Helper: create and start MCP client with given python path
     async function startMCPServer(pythonPath: string): Promise<void> {
@@ -89,7 +105,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         outputChannel.appendLine('[Extension] MCP server started.');
         outputChannel.appendLine(`[Extension] Python: ${pythonPath}`);
         outputChannel.appendLine(`[Extension] Server mode: ${config.get<string>('serverMode') ?? 'auto'}`);
-        outputChannel.appendLine(`[Extension] Extension version: 0.1.1`);
+        outputChannel.appendLine(`[Extension] Extension version: 0.1.3`);
 
         // Ensure .vscode/mcp.json exists for VS Code native MCP integration
         ensureMcpJson(projectRoot, pythonPath, config.get<string[]>('serverArgs') ?? []);
@@ -161,6 +177,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Register Config Panel WebviewView
     configPanelProvider = new ConfigPanelProvider(outputChannel);
+    updateLLMProviderBindings(getLLMProvider());
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, configPanelProvider),
     );
@@ -168,6 +185,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Register Governance Status Bar
     statusBar = new GovernanceStatusBar();
     context.subscriptions.push(statusBar);
+
+    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(outputChannel, async (workspaceFolder) => {
+        const workspaceRoot = workspaceFolder.uri.fsPath;
+        const config = vscode.workspace.getConfiguration('docBasedCoding', workspaceFolder.uri);
+        const pythonPath = config.get<string>('pythonPath') || await resolvePythonPath(workspaceRoot);
+        await regenerateProgressGraphArtifacts({
+            projectRoot: workspaceRoot,
+            pythonPath,
+            outputChannel,
+        });
+    });
+    context.subscriptions.push(progressGraphPreviewPanel);
 
     // Register commands
     context.subscriptions.push(
@@ -186,6 +215,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.refreshDecisionLogs', async () => {
             await decisionLogProvider?.refresh();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.filterDecisionLogsMergeConflicts', async () => {
+            if (decisionLogProvider) {
+                decisionLogProvider.toggleMergeConflictFilter();
+                vscode.window.showInformationMessage(
+                    `Decision Logs: ${decisionLogProvider.mergeConflictFilterLabel}`,
+                );
+                await decisionLogProvider.refresh();
+            }
         }),
     );
 
@@ -230,6 +271,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
     );
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.openProgressGraphPreview', async () => {
+            const workspace = vscode.workspace.workspaceFolders?.[0];
+            if (!workspace) {
+                vscode.window.showWarningMessage('Open a workspace folder to load the progress graph preview.');
+                return;
+            }
+            await progressGraphPreviewPanel?.open(workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.refreshProgressGraphPreview', async () => {
+            const workspace = vscode.workspace.workspaceFolders?.[0];
+            if (!workspace) {
+                vscode.window.showWarningMessage('Open a workspace folder to refresh the progress graph preview.');
+                return;
+            }
+            await progressGraphPreviewPanel?.refresh(workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.revealProgressGraphPreviewArtifact', async () => {
+            const workspace = vscode.workspace.workspaceFolders?.[0];
+            if (!workspace) {
+                vscode.window.showWarningMessage('Open a workspace folder to reveal the progress graph preview artifact.');
+                return;
+            }
+            await progressGraphPreviewPanel?.revealArtifact(workspace);
+        }),
+    );
+
     // Register diagnose command
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.diagnose', async () => {
@@ -252,13 +326,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Register Copilot LLM intent classification command
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.classifyIntent', async () => {
-            if (!copilotLLM || !copilotLLM.isAvailable) {
-                copilotLLM = new CopilotLLMProvider();
-                const ok = await copilotLLM.initialize();
+            const provider = getLLMProvider();
+            if (!provider.isAvailable) {
+                const ok = await provider.initialize();
                 if (!ok) {
-                    vscode.window.showErrorMessage('Copilot model not available. Ensure GitHub Copilot is active.');
+                    vscode.window.showErrorMessage(
+                        `${provider.displayName} model not available. Ensure it is installed and active.`,
+                    );
                     return;
                 }
+                updateLLMProviderBindings(provider);
             }
 
             const input = await vscode.window.showInputBox({
@@ -268,10 +345,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             if (!input) { return; }
 
             try {
-                const result = await copilotLLM.classify(input, {
+                const result = await provider.classify(input, {
                     labels: ['implement', 'refactor', 'fix', 'document', 'test', 'explore', 'other'],
                 });
-                outputChannel.appendLine(`[Copilot LLM] Intent: ${result.label} (${result.confidence})`);
+                outputChannel.appendLine(`[LLM:${provider.name}] Intent: ${result.label} (${result.confidence})`);
                 vscode.window.showInformationMessage(
                     `Intent: ${result.label} (confidence: ${(result.confidence * 100).toFixed(0)}%)`
                 );
@@ -285,19 +362,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Register pack generation commands
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.generatePackDescription', async () => {
-            if (!copilotLLM) {
-                copilotLLM = new CopilotLLMProvider();
-            }
-            await generatePackDescription(copilotLLM, outputChannel);
+            await generatePackDescription(getLLMProvider(), outputChannel);
         }),
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.generatePackRules', async () => {
-            if (!copilotLLM) {
-                copilotLLM = new CopilotLLMProvider();
-            }
-            await generatePackRules(copilotLLM, outputChannel);
+            await generatePackRules(getLLMProvider(), outputChannel);
         }),
     );
 
@@ -314,27 +385,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.selectModel', async () => {
             try {
-                const allModels = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-                if (!allModels.length) {
-                    vscode.window.showWarningMessage('No Copilot models available.');
+                const provider = getLLMProvider();
+                const families = await provider.listModelFamilies();
+                if (!families.length) {
+                    vscode.window.showWarningMessage(`No ${provider.displayName} models available.`);
                     return;
                 }
-                const currentFamily = copilotLLM?.currentFamily ?? 'gpt-4o';
-                const items = allModels.map((m) => ({
-                    label: m.family,
-                    description: m.id,
-                    detail: m.family === currentFamily ? '$(check) Current' : undefined,
+                const currentFamily = provider.currentFamily ?? 'gpt-4o';
+                const items = families.map((family) => ({
+                    label: family,
+                    description: `${provider.displayName} family`,
+                    detail: family === currentFamily ? '$(check) Current' : undefined,
                 }));
-                // Deduplicate by family
-                const seen = new Set<string>();
-                const unique = items.filter((item) => {
-                    if (seen.has(item.label)) { return false; }
-                    seen.add(item.label);
-                    return true;
-                });
-                const pick = await vscode.window.showQuickPick(unique, {
+                const pick = await vscode.window.showQuickPick(items, {
                     placeHolder: `Current: ${currentFamily} — select a new model family`,
-                    title: 'Select LLM Model Family',
+                    title: `Select ${provider.displayName} Model Family`,
                 });
                 if (!pick) { return; }
                 await vscode.workspace.getConfiguration('docBasedCoding').update(
@@ -348,31 +413,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
     );
 
-    // Initialize Copilot LLM (best-effort, don't block activation)
-    copilotLLM = new CopilotLLMProvider();
-    copilotLLM.initialize().then((ok) => {
+    // Initialize the default LLM provider (best-effort, don't block activation)
+    const initialLLMProvider = getLLMProvider();
+    initialLLMProvider.initialize().then((ok) => {
         if (ok) {
-            outputChannel.appendLine(`[Extension] Copilot LLM model connected (family: ${copilotLLM!.currentFamily}).`);
-            interceptor.updateCopilot(copilotLLM!);
+            outputChannel.appendLine(
+                `[Extension] ${initialLLMProvider.displayName} model connected (family: ${initialLLMProvider.currentFamily}).`,
+            );
+            updateLLMProviderBindings(initialLLMProvider);
         } else {
-            outputChannel.appendLine('[Extension] Copilot LLM model not available (normal if no Copilot subscription).');
+            outputChannel.appendLine(
+                `[Extension] ${initialLLMProvider.displayName} model not available (normal if the provider is not installed or authorized).`,
+            );
         }
     });
 
-    // Register Chat Participant (@governance in Copilot Chat)
+    // Register Chat Participant (@governance in VS Code Chat)
     registerChatParticipant(context, () => mcpClient, outputChannel);
 
-    // Re-initialize Copilot LLM when llm.family config changes
+    // Re-initialize the active LLM provider when llm.family config changes
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(async (e) => {
             if (e.affectsConfiguration('docBasedCoding.llm.family')) {
-                if (!copilotLLM) {
-                    copilotLLM = new CopilotLLMProvider();
-                }
-                const ok = await copilotLLM.initialize();
+                const provider = getLLMProvider();
+                const ok = await provider.initialize();
                 if (ok) {
-                    outputChannel.appendLine(`[Extension] LLM model switched to family: ${copilotLLM.currentFamily}`);
-                    interceptor.updateCopilot(copilotLLM);
+                    outputChannel.appendLine(`[Extension] LLM model switched to family: ${provider.currentFamily}`);
+                    updateLLMProviderBindings(provider);
                 } else {
                     outputChannel.appendLine(`[Extension] LLM model switch failed — family not available.`);
                     vscode.window.showWarningMessage(

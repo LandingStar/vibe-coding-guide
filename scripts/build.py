@@ -69,7 +69,7 @@ def _check_version_consistency() -> bool:
         print("WARNING: verify_version_consistency.py not found, skipping", file=sys.stderr)
         return True
     result = subprocess.run(
-        [sys.executable, str(script)],
+        [sys.executable, str(script), "--skip-wheel-files"],
         capture_output=True,
         text=True,
     )

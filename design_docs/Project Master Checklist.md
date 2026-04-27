@@ -13,28 +13,33 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-04-21`
+- Snapshot Date: `2026-04-27`
 - Project Name: `doc-based-coding-platform`
-- Version: `0.9.3` (preview)
-- Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成`
-- Active Slice: 无活跃 gate
-- Latest Completed Slice: `依赖方向约束全消除 + HTTPWorker fallback schema alignment`
-- Safe Stop Status: `2026-04-19_0337_b-ref-series-close_stage-close`
-- Test Baseline: `1257 passed, 2 skipped`
+- Version: `0.9.5` (preview)
+- Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成 + Codex 主链适配与 VS Code extension provider abstraction + 2026-04-23 docs-only 宿主交互/入口面收口 + 2026-04-24 scratch 轻量恢复协议（docs-only 收口完成）`
+- Active Slice: `Release-Close Handoff / CURRENT Refresh Hardening (ACTIVE planning-gate)`
+- Latest Completed Slice: `Project Progress Global Direction-Candidates Artifact Consistency Audit`
+- Safe Stop Status: `2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close`
+- Test Baseline: `1366 passed, 2 skipped`
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-04-19_0337_b-ref-series-close_stage-close`
-- source_path: `.codex/handoffs/history/2026-04-19_0337_b-ref-series-close_stage-close.md`
-- scope_key: `b-ref-series-close`
-- created_at: `2026-04-19T03:37:42+08:00`
+- handoff_id: `2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close`
+- source_path: `.codex/handoffs/history/2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close.md`
+- scope_key: `global-direction-candidates-section-recency-semantics`
+- created_at: `2026-04-27T19:31:29+08:00`
 
 ## 当前文档入口
 
+- `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`
+- `docs/starter-surface.md`
+- `docs/codex-entry-contract.md`
 - `docs/README.md`
+- `docs/host-interaction-model.md`
 - `docs/installation-guide.md`
 - `docs/official-instance-doc-loop.md`
 - `design_docs/tooling/Document-Driven Workflow Standard.md`
+- `design_docs/tooling/Temporary Scratch and Stable Docs Standard.md`
 - `design_docs/tooling/Dual-Package Distribution Standard.md`
 - `design_docs/tooling/Backlog and Reserve Management Standard.md`
 - `design_docs/controlled-real-worker-payload-evidence-accumulation-direction-analysis.md`
@@ -52,6 +57,23 @@
 - `review/live-payload-rerun-verification-2026-04-16.md`
 - `review/real-worker-payload-adoption-judgment-2026-04-16.md`
 - `design_docs/direction-candidates-after-phase-35.md`
+- `design_docs/v0.9.5-preview-release-followup-direction-analysis.md`
+- `design_docs/release-close-handoff-current-refresh-hardening-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md`
+- `design_docs/project-progress-multi-graph-direction-analysis.md`
+- `design_docs/project-progress-multi-graph-foundation-followup-direction-analysis.md`
+- `design_docs/project-progress-multi-graph-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md`
+- `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`
+- `design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-24-parallel-safe-subgraph-fanout-fanin.md`
+- `design_docs/host-interaction-surface-isolation-direction-analysis.md`
+- `design_docs/codex-independent-entry-contract-direction-analysis.md`
+- `design_docs/llmdoc-public-surface-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-04-23-codex-independent-entry-contract.md`
+- `design_docs/stages/planning-gate/2026-04-23-public-surface-convergence.md`
+- `design_docs/stages/planning-gate/2026-04-23-temporary-scratch-stable-docs-split.md`
+- `design_docs/stages/planning-gate/2026-04-23-host-interaction-surface-isolation.md`
 - `design_docs/dogfood-pipeline-workflow-integration-direction-analysis.md`
 - `design_docs/stages/planning-gate/2026-04-16-dogfood-pipeline-mcp-exposure.md`
 - `design_docs/overrides-field-consumption-direction-analysis.md`
@@ -119,6 +141,109 @@
 - [x] post-v1.0：按 `design_docs/phase-35-external-skill-interface-direction-analysis.md` 的边界起草 H planning-gate，并将 `authority -> shipped copies` 作为 companion mechanism 收口
 - [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md` 收口通用外部 skill 交互接口能力，并将 `authority -> shipped copies` 作为 companion mechanism 落地
 - [x] post-v1.0：记录 driver 与外部 skill 交互标准 / 接口 / 留空转接层，以及本轮其余 skill 特化后续项（暂不实现）— 已结构化记录为 `design_docs/direction-candidates-after-phase-35.md` §Driver / Adapter / 转接层 Backlog（BL-1 / BL-2 / BL-3）
+- [x] 2026-04-26：用户提出 `project progress multi-graph` 新主线后，原 `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 已按 scope interrupt 标记为 `PAUSED`
+- [x] 2026-04-26：已完成 `design_docs/project-progress-multi-graph-direction-analysis.md` 与 `design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md`
+- [x] 2026-04-26：`tools/progress_graph/model.py` / `tools/progress_graph/query.py` foundation 已落地，`tests/test_progress_graph.py` targeted validation 通过（6 passed）
+- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-doc-loop-projection-and-snapshot-persistence.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-doc-loop-projection-slice1-draft.md`
+- [x] 2026-04-26：已完成 doc-loop projection and snapshot persistence，checkpoint / planning-gate / checklist 已可投影成真实 progress snapshot，`.codex/progress-graph/latest.json` 已写出
+- [x] 2026-04-26：已评估并进入 `user-facing graph export surface`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-user-facing-graph-export-surface.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-export-surface-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/export.py` 已落地 graph-level / history-level export helper，`tests/test_progress_graph_export.py` targeted validation 通过（3 passed）
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-export-surface-followup-direction-analysis.md`
+- [x] 2026-04-26：已评估并进入 `static renderer / preview consumer over export surface`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-graphviz-preview-consumer.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-graphviz-preview-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/graphviz.py` 已落地 DOT preview writer，`tests/test_progress_graph_graphviz.py` targeted validation 通过（3 passed），真实 artifact `.codex/progress-graph/latest.dot` 已写出
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-graphviz-preview-followup-direction-analysis.md`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-html-preview-consumer.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-html-preview-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/html_preview.py` 已落地自包含 HTML preview writer，`tests/test_progress_graph_html_preview.py` targeted validation 通过（3 passed），真实 artifact `.codex/progress-graph/latest.html` 已写出
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-html-preview-followup-direction-analysis.md`
+- [x] 2026-04-26：已评估并进入 `doc source enrichment and linkage refinement`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-phase-map-current-position-projection.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-phase-map-projection-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `phase-map-current-position` graph 与 phase-map entry -> planning-gate 最小 linkage，`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed），`progress_graph` 全套验证通过（17 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 phase-map graph 刷新
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-phase-map-projection-followup-direction-analysis.md`
+- [x] 2026-04-26：已评估并进入 `direction-analysis candidate projection`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-direction-analysis-candidate-projection.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-direction-analysis-candidate-projection-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `direction-analysis-current` graph，并从 `design_docs/Project Master Checklist.md` 解析当前 `project-progress` follow-up analysis source path；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-direction-analysis-candidate-projection-followup-direction-analysis.md`
+- [x] 2026-04-26：已评估并进入 `global direction-candidates aggregation`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-global-direction-candidates-aggregation.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-global-direction-candidates-aggregation-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `direction-candidates-global` graph，并把 `design_docs/direction-candidates-after-phase-35.md` 中 `project progress` sections 投影成 section + candidate nodes；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 `direction-candidates-global` graph 刷新
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-global-direction-candidates-aggregation-followup-direction-analysis.md`
+- [x] 2026-04-26：已评估并进入 `richer candidate-doc linkage refinement`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-richer-candidate-doc-linkage-refinement.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-richer-candidate-doc-linkage-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已为 checklist / phase map / global direction-candidates 图层接入稳定 source-document node，并把 candidate `basis_refs` 翻译成 explicit linkage；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed），`progress_graph` 全套验证通过（17 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 richer candidate-doc linkage 刷新
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-richer-candidate-doc-linkage-followup-direction-analysis.md`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-external-reference-projection.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-external-reference-projection-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `research-compass-current` graph，把 `review/research-compass.md` 的 source-document 与 `全量研究地图` 稳定研究入口投影到 progress graph，并把 candidate `basis_refs` 翻译成 explicit external-reference linkage；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 external-reference graph 刷新
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-external-reference-projection-followup-direction-analysis.md`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-host-preview-integration.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-host-preview-integration-slice1-draft.md`
+- [x] 2026-04-26：`vscode-extension` 已新增 `docBasedCoding.openProgressGraphPreview` 命令与最小 WebView panel，可直接打开 `.codex/progress-graph/latest.html`，缺失 artifact 时显示明确 fallback；`npm run build` 通过
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-host-preview-integration-followup-direction-analysis.md`
+- [x] 2026-04-26：已确认下一步方向为 `richer research-compass topic projection`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-research-compass-topic-projection.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-research-compass-topic-projection-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已为 `research-compass-current` graph 接入 `按问题检索` topic nodes 与 topic -> entry reference edges；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-research-compass-topic-projection-followup-direction-analysis.md`
+- [x] 2026-04-26：已确认下一步方向为 `preview workflow integration`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-preview-workflow-integration.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-preview-workflow-integration-slice1-draft.md`
+- [x] 2026-04-26：`vscode-extension/src/views/progressGraphPreview.ts` 已升级为 singleton 独立 WebView workflow，panel 内已具备 `Refresh Preview` / `Reveal Artifact`；`npm run build` 通过
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-preview-workflow-integration-followup-direction-analysis.md`
+- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-preview-artifact-refresh-pipeline-integration.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-preview-artifact-refresh-pipeline-integration-slice1-draft.md`
+- [x] 2026-04-26：`vscode-extension` 已通过 workspace Python 接入 progress graph artifact regenerate 链；`Refresh Preview` 已成为 regenerate + reload，且真实 `.codex/progress-graph/latest.json` / `.dot` / `.html` 重建已验证成功
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-preview-artifact-refresh-pipeline-integration-followup-direction-analysis.md`
+- [x] 2026-04-26：已确认下一步方向为 `non-project-progress candidate aggregation`
+- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-non-project-progress-candidate-aggregation.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-non-project-progress-candidate-aggregation-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已把 `design_docs/direction-candidates-after-phase-35.md` 中非 `project progress` 且采用 `### 新候选 A/B/C` 的 section 接入 `direction-candidates-global`，并把 candidate-local `当前判断：**推荐**` 映射到 recommended surface；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 non-project-progress candidate aggregation 刷新
+- [x] 2026-04-26：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-project-progress-non-project-progress-candidate-aggregation.md`
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-non-project-progress-candidate-aggregation-followup-direction-analysis.md`
+- [x] 2026-04-26：已确认下一步方向为 `legacy non-project-progress format aggregation`
+- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-legacy-non-project-numbered-candidate-aggregation.md`
+- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-non-project-numbered-candidate-aggregation-slice1-draft.md`
+- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已把 `design_docs/direction-candidates-after-phase-35.md` 中 non-project 的 legacy numbered sections 接入 `direction-candidates-global`；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy non-project numbered aggregation 刷新
+- [x] 2026-04-26：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-project-progress-legacy-non-project-numbered-candidate-aggregation.md`
+- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-legacy-non-project-numbered-candidate-aggregation-followup-direction-analysis.md`
+- [x] 2026-04-26：已将 section recency 语义问题登记为 PAUSED planning-gate：`design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
+- [x] 2026-04-27：已确认下一步方向为 `plain A/B/C legacy candidate aggregation`
+- [x] 2026-04-27：已创建并激活 `design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-plain-lettered-candidate-aggregation.md`
+- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-plain-lettered-candidate-aggregation-slice1-draft.md`
+- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 non-project 的 plain `### A./B./C.` sections 接入 `direction-candidates-global`，同时保持 plain / `新候选` 标题前缀分离；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy plain lettered aggregation 刷新
+- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-plain-lettered-candidate-aggregation.md`
+- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-legacy-plain-lettered-candidate-aggregation-followup-direction-analysis.md`
+- [x] 2026-04-27：已确认下一步方向为 `extended plain lettered variant aggregation`
+- [x] 2026-04-27：已创建并激活 `design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-extended-plain-lettered-candidate-aggregation.md`
+- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-extended-plain-lettered-candidate-aggregation-slice1-draft.md`
+- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 non-project 的无前缀 extended plain lettered variants 接入 `direction-candidates-global`；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
+- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy extended plain lettered aggregation 刷新
+- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-extended-plain-lettered-candidate-aggregation.md`
+- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-legacy-extended-plain-lettered-candidate-aggregation-followup-direction-analysis.md`
+- [x] 2026-04-27：已确认下一步方向为 `global direction-candidates recency semantics`
+- [x] 2026-04-27：已激活 `design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
+- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-global-direction-candidates-recency-semantics-slice1-draft.md`
+- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 `direction-candidates-global` 的 latest section 选择改为按 title 日期优先、文档更早位置 tie-break，并补 `recency_date` metadata
+- [x] 2026-04-27：`tests/test_progress_graph_doc_projection.py` 已新增顶部插入 numbered section probe，targeted validation 通过（3 passed）
+- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 recency semantics 刷新
+- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
+- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-global-direction-candidates-recency-semantics-followup-direction-analysis.md`
 - [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过（原 v1.0.0，后降级为 preview；当前产物为 `release/doc-based-coding-v0.9.3.zip`）
 - [x] post-v1.0：对话中临时规则突破 / 修改能力（BL-4）— 已收口为可追溯、可审计、可撤销的 runtime contract：`TemporaryOverride` 数据模型 + `.codex/temporary-overrides.json` 持久化 + `governance_override` MCP tool + 约束可突破性分类（C1/C2/C3/C6/C7 overridable, C4/C5/C8 non-overridable）+ safe-stop writeback bundle 自动过期 + instructions generator 与 pack rules 同步
 - [x] post-v1.0：driver 本体与 doc-loop 实例包资产及 release 产物的分离审查 — 审查完成：交叉导入/包配置/CLI 入口/发布包/根级文件/docs/测试组织均边界清晰；唯一违规（`src/` 硬编码实例路径）已修复为 pack-declared `shipped_copies` 动态发现；Slice B（reference 放置策略）暂存待决
@@ -126,12 +251,76 @@
 - [x] post-v1.0：修复 pre-existing test failure（`test_mcp_require_pipeline_uses_error_info`）— 全套测试 669 passed, 0 failures
 - [x] post-v1.0：validate 命令治理阻塞 vs 运行失败语义区分 — 退出码三级（0/1/2）+ `command_status`/`governance_status`/`blocking_constraints` JSON 字段 + 终端文案显式区分 + C5 在初始状态降级为 warn — 675 passed, 0 failures
 - [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
+  - **2026-04-21 MCP 真实场景 dogfood**：7 工具调用，5 症状，1 提升（IC-001 意图分类器覆盖率）；S3（`get_next_action` 无 gate 矛盾指令）已修复——`_EMPTY_PLANNING_GATE_MARKERS` 扩展中文标记；详见 `feedback/dogfood-2026-04-21-mcp-realworld.md`；1284 passed, 2 skipped
 - [ ] post-v1.0 backlog：将 dogfood 所需的证据收集、问题收集、问题反馈整合收口为组件或 skill；当前先完成 adoption judgment，并在其 1/2 步里同步观察哪些流程值得抽象固化，再决定是否起独立 planning-gate
 - [x] Multica 借鉴 — 条件化 always_on 加载（scope_paths 驱动跳过不相关 pack 内容）— `ContextBuilder.build(scope_path=)` 新增条件化过滤：有 scope_paths 声明但不匹配的 pack 跳过 always_on 加载，universal pack 始终包含。6 新测试 — 1229 passed, 2 skipped
 - [x] Multica 借鉴 — RuntimeBridge 三入口统一初始化抽象 — `src/runtime/bridge.py` 新增；WorkerHealth 状态跟踪 + _TrackedWorker + refresh()/reload_config()；CLI 已迁移；MCP 集成待 worker 启用时接入。13 新测试 — 1242 passed, 2 skipped
 - [x] Multica 借鉴 — 依赖方向反转（consumes 字段）— PackManifest 新增 `consumes: list[str]`，`check_consumes()` 校验所有 consumes 是否被 merged provides 满足；Pipeline.info() 暴露 consumes_status；warning-only 不阻塞加载。5 新测试 — 1247 passed, 2 skipped
 - [x] Multica 借鉴 — 代码层依赖方向约束文档化 — 来源: 洞察 2.3（pack/ → workflow/ → mcp/ 单向依赖）；实施难度: 低（文档 + lint rule）；优先级: 低 ✅ `design_docs/tooling/Module Dependency Direction Standard.md` + `scripts/lint_imports.py`；3/3 已知违规全部消除（零例外），`KEYWORD_MAP`/`IMPACT_TABLE`/`PLATFORM_INTENTS` 提升到 `interfaces.py`
 - [ ] Multica 借鉴 — 长期：Multi-agent runtime abstraction layer — 来源: 洞察 2.4（N×M daemon 教训）；优先级: 长期/条件触发（仅在计划支持多 agent runtime 时激活）
+- [ ] Active planning-gate：按 `design_docs/stages/planning-gate/2026-04-24-parallel-safe-subgraph-fanout-fanin.md` 收口 parallel-safe subgraph orchestration 的最小 contract，先固定 `TaskGroup` / child lineage / `per-invocation` namespace / disjoint write set / barrier merge / grouped review outcome；当前明确不进入 full `team/swarm` runtime
+  - **2026-04-24 Slice 1 foundation 进展**：`src/interfaces.py` 已新增 `TaskGroup` / `ParallelChildTask` / `ChildExecutionRecord`；`src/collaboration/subgraph_mode.py` 与 `src/pep/executor.py` 已支持 parent-issued lineage / namespace，并对显式 lineage hints 的 subgraph 路径接入 dispatch preflight；定向回归 `tests/test_collaboration.py tests/test_pep_delegation.py tests/test_worker_registry_executor.py` 全部通过（67 passed）
+  - **2026-04-24 Slice 2 foundation 进展**：`src/interfaces.py` 已新增 `MergeBarrierOutcome`，`src/pep/executor.py` 已支持 parent-side merge barrier conflict classification helper，当前覆盖 `no_conflict` / `review_required` / `blocked`；同一组定向回归更新后全部通过（60 passed）
+  - **2026-04-24 Slice 3 foundation 进展**：`src/interfaces.py` 已新增 `GroupedReviewOutcome`，`src/pep/executor.py` 已把 grouped review surface、`grouped_review_state`、以及 `merge_barrier_classified` / `grouped_review_prepared` / `grouped_review_state_changed` 审计事件接到显式 lineage hints 的 subgraph 路径，`src/pep/writeback_engine.py` 已支持 grouped review write-back summary 与 `all_clear` 下的 child payload write-back；定向回归 `tests/test_collaboration.py tests/test_pep_writeback_integration.py` 全部通过（60 passed）
+  - **2026-04-24 post-Slice3 方向分析**：已新增 `design_docs/parallel-safe-subgraph-post-slice3-direction-analysis.md`，当前推荐下一条 planning-gate 为 `Executor-local Real Multi-Child Subgraph Batch`
+  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-executor-local-real-multichild-subgraph-batch.md` 已创建并激活；当前下一步为 Slice 1：`parent-built child batch input + executor dispatch loop`
+  - **2026-04-24 Executor-local multi-child Slice 1**：`src/pep/executor.py` 已支持 parent-provided `parallel_children` batch hints，并可在单个 `TaskGroup` 中真实运行多个 child、产出多个 `child_execution_records` / `subgraph_contexts`；`tests/test_collaboration.py tests/test_pep_writeback_integration.py` 共 63 项回归通过
+  - **2026-04-24 新发现的下一阶段边界**：当前 strict preflight 仍要求 child `allowed_artifacts` 不重叠，因此 real multi-child path 已证明 `all_clear` 闭环，但 conflict-bearing `review_required` grouped review 语义需要先再做一次窄 direction analysis，而不宜直接继续编码
+  - **2026-04-24 conflict-bearing grouped review direction analysis**：已新增 `design_docs/parallel-safe-subgraph-conflict-bearing-grouped-review-direction-analysis.md`；当前推荐优先保持 strict preflight，并把 real multi-child 第一版边界明确写成 `all_clear-only`
+  - **2026-04-24 Executor-local multi-child gate 收口**：`design_docs/stages/planning-gate/2026-04-24-executor-local-real-multichild-subgraph-batch.md` 已完成；当前已采纳 strict preflight + `all_clear-only` 作为 real multi-child 第一版权威边界，后续若要支持冲突路径，应另起 `shared-review zone` planning-gate
+  - **2026-04-24 shared-review zone direction analysis**：已新增 `design_docs/parallel-safe-subgraph-shared-review-zone-direction-analysis.md`；当前推荐下一条新 planning-gate 为 `Shared-Review Zone Contract And Preflight`
+  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-shared-review-zone-contract-and-preflight.md` 已创建并激活；当前下一步为 Slice 1：`shared-review zone companion fields + preflight exception surface`
+  - **2026-04-24 shared-review zone Slice 1**：`src/interfaces.py` 已为 `ParallelChildTask` 新增 `shared_review_zone_id`，`src/pep/executor.py` 的 preflight 已新增 machine-readable `overlap_decisions`，并支持 same-artifact zone-driven overlap 例外；定向回归 `tests/test_collaboration.py -k "shared_review_zone or overlapping_allowed_artifacts"` 已通过（4 passed）
+  - **2026-04-24 shared-review zone Slice 2**：`src/interfaces.py` / `src/pep/executor.py` 已为 `MergeBarrierOutcome` / `GroupedReviewOutcome` 新增 `review_driver` 与 `shared_review_zone_ids`，并把 zone-driven `review_required` 接到结果面与 audit detail；定向回归 `tests/test_collaboration.py -k "zone_driven_review_required or shared_review_zone_driver"` 已通过（2 passed）
+  - **2026-04-24 shared-review zone Slice 3**：`src/pep/writeback_engine.py` 的 grouped review summary 已保留 `review_driver` 与 `shared_review_zone_ids`；定向回归 `tests/test_pep_writeback_integration.py -k "summary_includes_grouped_review_metadata"` 已通过（1 passed）
+  - **2026-04-24 shared-review zone gate 收口**：`design_docs/stages/planning-gate/2026-04-24-shared-review-zone-contract-and-preflight.md` 已完成；当前下一个真实问题变成：review 已批准后，zone-driven payload writeback 是否仍应维持 `all_clear-only` 限制
+  - **2026-04-24 zone-approved payload writeback direction analysis**：已新增 `design_docs/shared-review-zone-approved-payload-writeback-direction-analysis.md`；当前推荐下一条 planning-gate 为 `Zone-Approved Payload Writeback Semantics`
+  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-zone-approved-payload-writeback-semantics.md` 已创建并激活；当前下一步为 Slice 1：`approval eligibility contract`
+  - **2026-04-24 zone-approved payload writeback Slice 1/2**：`src/pep/writeback_engine.py` 已允许 `shared-review-zone-approved` path 进入 grouped child payload planning，并新增 `grouped_child_writeback_summary.eligibility_basis` 与 writeback markdown summary 对齐；定向回归 `tests/test_pep_writeback_integration.py -k "shared_review_zone_approval_unlocks_grouped_payload_writeback or non_zone_review_required_remains_ineligible_for_grouped_payload_writeback or subgraph_grouped_review_applied_executes_child_payload_writeback or subgraph_multi_child_batch_applied_executes_grouped_payload_writeback"` 已通过（4 passed）
+  - **2026-04-24 zone-approved payload writeback gate 收口**：`design_docs/stages/planning-gate/2026-04-24-zone-approved-payload-writeback-semantics.md` 已完成；当前 shared-review zone 已形成“显式 overlap 例外 → grouped review driver → reviewer approve → approval-driven grouped payload writeback”的最小闭环
+  - **2026-04-24 group-internal handoff/escalation direction analysis**：已新增 `design_docs/group-internal-handoff-escalation-terminal-semantics-direction-analysis.md`；当前推荐下一条 planning-gate 为 `Group Internal Handoff / Escalation Terminal Bundle`
+  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-group-internal-handoff-escalation-terminal-bundle.md` 已创建并激活；当前下一步为 Slice 1：`terminal bundle contract + comparison review`
+  - **2026-04-24 group-internal handoff/escalation 对照分析**：已新增 `design_docs/group-internal-handoff-escalation-terminal-semantics-comparison.md`；当前判断为 A 方案（group-level terminal bundle）合理性最高，B 方案合理性低，C 方案仅具短期保守合理性
+  - **2026-04-24 group-internal handoff/escalation Slice 1 draft**：已新增 `design_docs/group-internal-handoff-escalation-slice1-contract-draft.md`；当前推荐以独立 `GroupTerminalOutcome` companion object 承载 group terminal semantics，并在 terminal bundle 形成后停止普通 grouped review / grouped writeback 路径
+  - **2026-04-25 group terminal Slice 1 实现起点**：`src/interfaces.py` 已新增 `GroupTerminalOutcome`，`src/pep/executor.py` 已新增 `group_terminal_outcome` 序列化 helper，并在显式 `escalation_recommendation` 证据下暂停普通 merge / grouped review 路径；`tests/test_collaboration.py` 全量回归通过（50 passed）
+  - **2026-04-25 group terminal Slice 2 初始结果面**：`GroupTerminalOutcome` 现已通过 `suppressed_surfaces` 显式标记被暂停的 `merge_barrier` / `grouped_review` / `grouped_child_writeback` 路径；当前下一步收口点变成 summary 与 audit detail 是否要同步镜像这一 suppression 状态
+  - **2026-04-25 group terminal Slice 2 writeback summary mirror**：`src/pep/writeback_engine.py` 现已把 group terminal suppression 镜像到 `grouped_review_writeback_summary` 与 `grouped_child_writeback_summary`；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` 已通过（73 passed）
+  - **2026-04-25 group terminal Slice 2 audit detail mirror**：`src/pep/executor.py` 现已把 group terminal suppression 镜像到 `group_terminal_prepared` audit detail；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` 已通过（74 passed）
+  - **2026-04-25 group terminal Slice 3 child handoff evidence**：valid child `Handoff` 现已收口为 `terminal_kind = handoff`，invalid handoff 会经 `handoff_validator` 降级为 blocked child result；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` + `tests/test_subagent_modules.py` 已通过（98 passed）
+  - **2026-04-25 orchestration bridge / daemon layer direction analysis**：已新增 `design_docs/orchestration-bridge-daemon-layer-direction-analysis.md`；当前倾向是先定义 thin bridge over current governance kernel，而不是继续把 scheduler 叠进 executor
+  - **2026-04-25 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-25-orchestration-bridge-work-item-group-item-contract.md` 已创建并激活；当前下一步为 Slice 1：固定 bridge-owned `work item` / `group item` primitive 与 ownership boundary
+  - **2026-04-25 orchestration bridge Slice 1 draft**：已新增 `design_docs/orchestration-bridge-daemon-slice1-work-item-group-item-contract-draft.md`；当前推荐把 bridge primitive 收窄为 scheduler-facing identity / lifecycle / governance-footprint wrapper，不复制完整 grouped review / group terminal 对象
+  - **2026-04-25 orchestration bridge ownership matrix**：Slice 1 draft 现已补出 bridge / executor / governance kernel 的 ownership matrix；当前下一窄切口变成 `BridgeWorkItem` / `BridgeGroupItem` 的最小 lifecycle table
+  - **2026-04-25 orchestration bridge lifecycle table**：Slice 1 draft 现已补出 `BridgeWorkItem` / `BridgeGroupItem` 的最小 lifecycle transition table，并明确 lifecycle 只表达调度阶段，不承载 grouped review / group terminal 语义；当前下一窄切口转为 Slice 2 的 governance result projection
+  - **2026-04-25 orchestration bridge Slice 2 draft**：已新增 `design_docs/orchestration-bridge-daemon-slice2-governance-result-projection-draft.md`；当前推荐先固定 `BridgeGroupItem` 的 compact result projection field matrix，再决定是否需要 work-item 级 roll-up 或 stop-condition mapping
+  - **2026-04-25 orchestration bridge projection field matrix**：Slice 2 draft 现已补出 `governance_surface_kind` / `governance_surface_state` / `blocked_reason` / `writeback_disposition` 的允许值与归一化规则；当前下一窄切口变为 work-item roll-up 与 stop-condition boundary 的先后顺序
+  - **2026-04-25 orchestration bridge next-branch decision**：顺序已收敛为先做 work-item roll-up，再进入 stop-condition boundary；当前不再回头修改 compact projection 字段合同
+  - **2026-04-26 orchestration bridge work-item roll-up draft**：已新增 `design_docs/orchestration-bridge-daemon-slice2-work-item-rollup-draft.md`；当前已把 `BridgeWorkItem` 的 roll-up 字段、surface precedence 与 writeback precedence 写清，下一窄切口转为 Slice 3 的 stop-condition boundary
+  - **2026-04-26 orchestration bridge stop-condition draft**：已新增 `design_docs/orchestration-bridge-daemon-slice3-stop-condition-boundary-draft.md`；当前已把 `review_required` / `group_terminal` / `blocked` 对 bridge boundary judgment 的映射写清，下一步更适合进行 Slice 1-3 合同回看并决定是否 gate close
+  - **2026-04-26 orchestration bridge contract gate complete**：`design_docs/stages/planning-gate/2026-04-25-orchestration-bridge-work-item-group-item-contract.md` 已切为 COMPLETE；三份 Slice 草案已覆盖当前 gate scope，后续已转入 `design_docs/orchestration-bridge-contract-runtime-followup-direction-analysis.md`
+  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-runtime-primitives.md` 已创建并激活；当前把 `bridge runtime primitives` 收窄为先解决 `src/runtime/bridge.py` 与 orchestration bridge primitive 的模块边界隔离
+  - **2026-04-26 bridge runtime Slice 1 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice1-surface-isolation-draft.md`；当前推荐把 orchestration bridge runtime primitive 放入 `src/runtime/orchestration/` 子包，而不是继续堆进现有 `RuntimeBridge`
+  - **2026-04-26 bridge runtime module boundary fixed**：Slice 1 draft 现已把 `RuntimeBridge` 与 orchestration bridge primitive 的 module boundary、子包布局与最小 public symbol surface 写清；当前下一窄切口转为 Slice 2 的 runtime model / helper contract
+  - **2026-04-26 bridge runtime Slice 2 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice2-model-helper-contract-draft.md`；当前已把 `BridgeWorkItem` / `BridgeGroupItem` 的 runtime model、optional dispatch-lineage 字段，以及 `projection.py` / `rollup.py` 的 pure helper signature 写清，下一窄切口转为 Slice 3 的 `stop_conditions.py` evaluator contract
+  - **2026-04-26 bridge runtime Slice 3 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice3-stop-evaluator-tests-draft.md`；当前已把 `StopConditionDecision`、`evaluate_stop_condition()` 的 boundary matrix，以及独立的 `tests/test_runtime_orchestration.py` 测试边界写清，下一步更适合做 gate review/close
+  - **2026-04-26 bridge runtime primitives gate complete**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-runtime-primitives.md` 已切为 COMPLETE；后续方向已转入 `design_docs/orchestration-bridge-runtime-implementation-followup-direction-analysis.md`
+  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-models-helpers-implementation.md` 已创建并激活；当前实现顺序收窄为先落 `models.py`
+  - **2026-04-26 bridge models Slice 1 draft**：已新增 `design_docs/orchestration-bridge-models-implementation-slice1-draft.md`；当前推荐先实现 `BridgeWorkItem` / `BridgeGroupItem` 与共享 type alias，再进入 helper 与测试
+  - **2026-04-26 bridge models/helpers gate complete**：`src/runtime/orchestration/models.py`、`projection.py`、`rollup.py`、`stop_conditions.py` 与 `tests/test_runtime_orchestration.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` 联合回归 21 passed；当前 gate 已切为 COMPLETE
+  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-executor-result-adapter.md` 已创建并激活；当前下一步收窄为先固定 executor serialized execution-result adapter contract
+  - **2026-04-26 bridge adapter Slice 1 draft**：已新增 `design_docs/orchestration-bridge-executor-result-adapter-slice1-draft.md`；当前推荐先让 adapter 只消费 `Executor.execute()` 返回的 dict surface，而不是回退到内部 dataclass object
+  - **2026-04-26 bridge adapter gate complete**：`src/runtime/orchestration/executor_adapter.py` 与 `tests/test_runtime_orchestration_adapter.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` 联合回归 25 passed；当前 gate 已切为 COMPLETE
+  - **2026-04-26 post-adapter direction analysis**：已新增 `design_docs/orchestration-bridge-post-adapter-direction-analysis.md`；当前 AI 倾向是先做 coordinator glue，而不是直接跳到 landing 或 daemon runtime
+  - **2026-04-26 bridge coordinator gate complete**：`src/runtime/orchestration/coordinator.py` 与 `tests/test_runtime_orchestration_coordinator.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` + `tests/test_runtime_orchestration_coordinator.py` 联合回归 29 passed；当前 gate 已切为 COMPLETE
+  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-integration.md` 已创建并激活；当前下一步收窄为先固定 external-resolution landing contract
+  - **2026-04-26 bridge landing Slice 1 draft**：已新增 `design_docs/orchestration-bridge-landing-integration-slice1-draft.md`；当前推荐先覆盖 `group_terminal` / `review_required` 两类 boundary，再考虑 daemon runtime
+  - **2026-04-26 bridge landing gate complete**：`src/runtime/orchestration/landing.py` 与 `tests/test_runtime_orchestration_landing.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` + `tests/test_runtime_orchestration_coordinator.py` + `tests/test_runtime_orchestration_landing.py` 联合回归 33 passed；当前 gate 已切为 COMPLETE
+  - **2026-04-26 post-landing direction analysis**：已新增 `design_docs/orchestration-bridge-post-landing-direction-analysis.md`；当前 AI 倾向是先做 landing consumer wiring，而不是直接跳到 daemon runtime
+  - **2026-04-26 bridge landing consumer gate complete**：`src/runtime/orchestration/landing_consumers.py` 与 `tests/test_runtime_orchestration_landing_consumers.py` 已落地；`tests/test_runtime_bridge.py` + 全部 orchestration tests 联合回归 36 passed；当前 gate 已切为 COMPLETE
+  - **2026-04-26 landing dispatch gate 暂停**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 在 Slice 1 起点被新的 `project progress multi-graph` 主线打断，当前状态已改为 `PAUSED`
+  - **2026-04-26 progress multigraph direction analysis**：已新增 `design_docs/project-progress-multi-graph-direction-analysis.md`，明确这不是 `dependency_graph` 的小扩展，而是独立的 progress-history foundation
+  - **2026-04-26 progress multigraph foundation gate complete**：`design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md` 已完成；`tools/progress_graph/model.py` / `query.py` 已提供 snapshot-backed 多图模型与查询原语，`tests/test_progress_graph.py` 通过 6 个 targeted tests
+  - **2026-04-26 progress multigraph follow-up direction analysis**：已新增 `design_docs/project-progress-multi-graph-foundation-followup-direction-analysis.md`；当前默认下一步是 `doc-loop projection and snapshot persistence`
 - [ ] Multica 借鉴 — 设计审查 checkpoint：新 pack 原语引入前问 "does this need a new primitive?" — 来源: 洞察 2.1（#1211 克制回复）；优先级: 流程级（无代码，但设计评审时始终检查）
 - [x] dogfood 发现 #1：`query_decision_logs` MCP 工具未注册 — 方法已在 `src/mcp/tools.py` 实现但未在 `src/mcp/server.py` 的 `list_tools` 中注册路由，导致工具不可达（低工作量修复）—— 已修复，803 passed
 - [x] dogfood 发现 #2：decision log 持久化与 dry_run 耦合 — MCP 默认 `dry_run=True`，decision_log_entry 只在返回值中出现但不写 `.codex/decision-logs/` 文件—— 已解耦，审计日志现始终持久化
@@ -148,6 +337,7 @@
 - [x] checks 字段与 manifest 直连（gap analysis #16）—— `PackRegistrar` 自动注册 `check(context)` 脚本 + `Pipeline.info().registered_checks` 暴露 + runtime writeback 前可消费
 - [x] hierarchical pack topology（tree-scoped packs）—— `PackManifest.parent/scope_paths` + `PackTree` + `ContextBuilder.build_scoped()` + `Pipeline.process_scoped()` / MCP `scope_path` + authority docs sync
 - [x] overrides 字段消费（gap analysis #12）—— `PackContext.merged_overrides` 提取 + `check_overrides()` warning-only 验证 + `PrecedenceResolver` explicit_override 标注 + `Pipeline.info()` 暴露 override_declarations / override_warnings + 权威文档 `overrides` 开放问题已回答
+- [x] BL-8 merge 层冲突解决结果对 decision log 可见 —— `DecisionLogEntry.merge_conflicts` 字段 + `build_entry()` 自动提取 + `DecisionLogStore.query(has_merge_conflicts=)` 过滤 + MCP `query_decision_logs` has_merge_conflicts 参数 + 7 新测试 — 1278 passed, 2 skipped
 - [x] completion boundary protocol（完成边界失忆修复）—— pack 规则 `completion_boundary_protocol` + `get_next_action()` `completion_boundary_reminder` + instructions generator 静态冗余 + Document-Driven Workflow Standard 第 6 条
 - [x] 类型/接口依赖关系图谱提取（Slice 1）—— `tools/dependency_graph/` 模块：基于 Pylance MCP 的图谱聚合（而非自写 AST 提取器），186 节点 / 56 边，`dependents_of` / `dependencies_of` / `implementors_of` 查询 + AST 符号发现 174 个 + dogfood 验证 9 个 Protocol 依赖链 + 27 测试 — 850 passed, 2 skipped
 - [x] 对话行为约束规则重写 — 正面模板 + 4 项发送前检查清单替代原有负面禁止列表；同步 `.github/copilot-instructions.md`、`AGENTS.md`、bootstrap `AGENTS.md`、`doc-loop-vibe-coding/references/conversation-progression.md`
@@ -185,7 +375,7 @@
 - [x] B-REF-1: Pack 渐进式加载设计 — 三级加载（METADATA/MANIFEST/FULL）已实现：Slice 1 LoadLevel enum + ContextBuilder 分阶段 build + upgrade()；Slice 2 Pipeline MANIFEST 降级 + pack_context lazy upgrade；Slice 3 MCP get_pack_info level/scope_path 参数 + description 字段 — 1095 passed, 2 skipped
 - [x] B-REF-2: Pack description 质量标准 — 已建立质量标准文档（`design_docs/tooling/Pack Description Quality Standard.md`）+ `validate_description()` 验证函数 + 现有 pack 已添加符合标准的 description + 9 个新测试 — 1104 passed, 2 skipped
 
-> **当前测试基线**: 1257 passed, 2 skipped
+> **当前测试基线**: 1278 passed, 2 skipped
 - [x] B-REF-3: Pack 内部组织规范 — 引用深度 ≤ 1 + 按域拆分 + TOC 规则已建立（`design_docs/tooling/Pack Internal Organization Standard.md`）+ `validate_pack_organization()` 验证函数 + 13 个新测试 — 1117 passed, 2 skipped
 - [x] B-REF-4: Permission policy 分层覆盖模型 — `ToolPermissionResolver` + `ToolPermissionConfig` + `RuleConfig.tool_permissions` 字段；pack 级 default + 单 tool 级 override；deny → BLOCK + deny_message，ask → requires_confirmation 注释；`governance_decide` 新增 `action_type` 参数 + 21 新测试 — 1154 passed, 2 skipped
 - [x] B-REF-5: 工作流中断原语 (interrupt primitive) — `workflow_interrupt` MCP tool：接收 reason + discovered_item → 生成 interrupt_id + suggested_filename + 结构化 guidance → 记录到 decision log；实现"发现超出 scope 时回退到 planning-gate"的显式化 — 1161 passed, 2 skipped
@@ -216,6 +406,10 @@
   - [x] MCP Python 侧：`governance_decide` pre-check 对 `terminal-command: git push` 返回 BLOCK
   - [x] VS Code SCM UI：`gitRemoteGuardScm.ts` 生成 git wrapper 脚本，设置 workspace `git.path`，拦截 push (exit 128)
   - [x] VSIX 0.1.2 已打包含全部 guard 代码（终端 + SCM UI + MCP）
+- [x] BL-8 Extension 同步 — `DecisionLogEntry` 类型新增 `merge_conflicts` 字段 + tooltip 展示冲突详情 + ⚠ warning 图标 + 三态筛选按钮（all/with/without conflicts）+ `filterDecisionLogsMergeConflicts` 命令 — esbuild 零错误
+- [x] Chat Participant `/dogfood` 子命令 — `@governance /dogfood` 调用 `promote_dogfood_evidence` MCP 工具，支持纯文本和 JSON 输入，输出 Promotion Decisions / Issues / Feedback Packet / Consumer Payloads — esbuild 零错误
+- [x] VSIX 0.1.3 打包 — 含 BL-8 筛选按钮 + `/dogfood` Chat 子命令（28.66 KB）
+- [x] Codex 主链适配 + Extension provider abstraction — `generate-instructions` 支持 `generic|codex|copilot` 与 `AGENTS.md` 推断；extension 命令层改为依赖抽象 provider 契约并保留 GitHub Copilot 默认实现；targeted `pytest` 35 passed + `vscode-extension` esbuild 通过
 
 ### 已完成里程碑
 
@@ -471,6 +665,9 @@
 
 ## 最近一次写回
 
+- `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
+- `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。
+- `2026-04-22`: 完成 Codex 主链适配与 VS Code extension provider abstraction，生成并激活 safe-stop handoff `2026-04-22_2312_codex-adaptation-mainline-and-extension-abstraction_stage-close`，仓库回到无 active gate 的可恢复状态。
 - `2026-04-08`: 初始化 doc-loop 骨架。
 - `2026-04-08`: 对齐当前仓库的 repo-local adoption 入口，使 `docs/` 成为 project-local pack 的正式权威输入之一。
 - `2026-04-08`: 起草 `doc-loop-vibe-coding` prototype authority rereview 的 planning-gate。

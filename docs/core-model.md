@@ -202,6 +202,14 @@ Gate 是对高影响动作的控制点。
 - `Handoff`
 - `Escalation`
 
+当平台进入 `subgraph` 的并行安全收口时，还可以出现一组 parent 侧 companion objects：
+
+- `TaskGroup`
+- `ParallelChildTask`
+- `ChildExecutionRecord`
+- `MergeBarrierOutcome`
+- `GroupedReviewOutcome`
+
 它们的关系是：
 
 - `Supervisor` 负责委派、review、integration 与 write-back
@@ -210,10 +218,19 @@ Gate 是对高影响动作的控制点。
 - `Subagent Report` 负责结构化返回结果
 - `Handoff` 负责显式移交控制权
 - `Escalation` 负责把问题升级给更高 authority
+- `TaskGroup` 负责描述一个 parent 如何等待并汇合一组 child
+- `ParallelChildTask` 负责表达单个 child 的 lineage、namespace 与 dispatch boundary
+- `ChildExecutionRecord` 负责保留 child 粒度的执行证据
+- `MergeBarrierOutcome` 负责表达 parent 在 merge barrier 上的冲突分类与下一步 review 倾向
+- `GroupedReviewOutcome` 负责把 child 粒度证据折叠成可供现有 review / write-back 流程消费的 grouped review surface
+
+这组 companion objects 不改变当前核心三分法：它们补的是 parent orchestration 语义，而不是把 `Contract` / `Report` / `Handoff` 扩成新的第一等 schema 家族。
 
 相关对象的最小 schema 见：
 
 - `subagent-schemas.md`
+
+当前 `subgraph` 的实现态边界也应明确：平台已经支持 parent-issued lineage / namespace、dispatch preflight foundation、executor-local 的真实 multi-child deterministic dispatch loop、真实多 child `child_execution_records`、grouped review / write-back summary interface、`grouped_review_state` 对现有 review state 的镜像，以及 grouped child payload write-back。当前第一版 real multi-child 权威边界固定为：strict preflight 下仍默认只承诺 `all_clear-only` 自动写回；但当 `grouped_review_outcome.review_driver == shared-review-zone` 且 reviewer 已 `approve` 时，grouped child payload planning 也可走 approval-driven eligibility。对应结果面当前通过 `grouped_child_writeback_summary.eligibility_basis` 区分 `all_clear` 与 `shared-review-zone-approved`。同时，shared-review zone 的最小 companion / result / summary surface 也已落地：`ParallelChildTask.shared_review_zone_id`、preflight `overlap_decisions`、merge/grouped review `review_driver` 与 `shared_review_zone_ids`，以及 grouped review writeback summary 的 zone 信息。对于下一层 group terminal 语义，平台现已提供显式 escalation 与显式 child handoff 两条 terminal bundle 路径：`GroupTerminalOutcome` 与 executor `group_terminal_outcome` 会通过 `suppressed_surfaces` 标记被暂停的 `merge_barrier` / `grouped_review` / `grouped_child_writeback`，writeback summary 与 `group_terminal_prepared` audit detail 也会镜像同一 suppression 与 `blocked_reason`。其中 child handoff evidence 复用正式 `Handoff` 对象；valid handoff 会形成 `terminal_kind = handoff`，invalid handoff 会经 `handoff_validator` 降级为 blocked child result。
 
 ## Default Collaboration Mode
 
@@ -235,6 +252,8 @@ Gate 是对高影响动作的控制点。
 - write-back 收口
 
 其他协作模式仍可存在，但应视为扩展模式，而不是默认模式。
+
+当前 `subgraph` 的实现态边界也应明确：平台已经支持 parent-issued lineage / namespace、dispatch preflight foundation、parent-side merge barrier conflict classification helper、以及 grouped review / write-back summary interface，但仍未上升为完整的 multi-child fan-out / grouped review runtime。
 
 ## Handoff And Escalation
 

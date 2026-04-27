@@ -100,13 +100,13 @@
 
 | ID | 描述 | 触发条件 | 类型 | 优先级 | 来源 | 状态 |
 |----|------|----------|------|--------|------|------|
-| BL-1 | Driver 职责定义文档 | dogfood 出现多 skill 消费场景或 driver 语义不清 | 文档 | 低 | `direction-candidates-after-phase-35.md` | 待触发 |
+| BL-1 | Driver 职责定义文档 | dogfood 出现多 skill 消费场景或 driver 语义不清 | 文档 | 低 | `direction-candidates-after-phase-35.md` | 已完成（`docs/driver-responsibilities.md`） |
 | BL-2 | Adapter 分类与统一注册框架 | dogfood 出现"根据 rule config 动态选择 adapter"场景 | 设计+骨架 | 低-中 | `direction-candidates-after-phase-35.md` | 待触发 |
 | BL-3 | 多协议转接层 | 多协议/多格式需求从 dogfood 或外部用户浮现 | 设计→原型 | 低 | `direction-candidates-after-phase-35.md` | 待触发 |
 | BL-5 | mixin / DAG 多继承 | dogfood 出现横切关注点（如公共 lint 配置跨多分区）信号 | 设计+实现 | 低 | `hierarchical-pack-topology-direction-analysis.md` | 待触发 |
 | BL-6 | IDE 扩展层输出拦截 | 平台决定打包为独立 VS Code 扩展，且 R-2 Chat Participant output gate 进入实施 | 设计+实现 | 中 | conversation-progression-contract 方案 D 分析 | 待触发 |
 | BL-7 | decision log 持久化独立于 dry_run | dogfood 中确认审计日志需要独立于 dry_run 持久化，或出现审计回溯需求 | 设计+实现 | 低-中 | MCP 0.9.1 dogfood 验证 | 已完成（decision log 现始终持久化，不受 dry_run 控制） |
-| BL-8 | merge 层冲突解决结果对 decision log 可见 | dogfood 中出现审计回溯需求，需要知道"哪个 pack 赢了哪条规则" | 设计+实现 | 低 | MCP 0.9.1 dogfood 字段分析 | 待触发 |
+| BL-8 | merge 层冲突解决结果对 decision log 可见 | dogfood 中出现审计回溯需求，需要知道"哪个 pack 赢了哪条规则" | 设计+实现 | 低 | MCP 0.9.1 dogfood 字段分析 | 已完成（DecisionLogEntry.merge_conflicts + has_merge_conflicts 查询过滤） |
 
 ### 第 3 层：储备方案注册表
 
@@ -121,3 +121,4 @@
 | ID | 描述 | 完成日期 | 对应 planning-gate |
 |----|------|---------|-------------------|
 | BL-4 | 对话中临时规则突破能力 | 2026-04-12 | `2026-04-12-conversation-progression-contract-stability.md` 等 |
+| BL-8 | merge 层冲突解决结果对 decision log 可见 | 2026-04-21 | 无独立 planning-gate（直接实施） |

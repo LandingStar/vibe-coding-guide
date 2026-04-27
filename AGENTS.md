@@ -7,7 +7,7 @@
 1. `design_docs/Project Master Checklist.md`
 2. `design_docs/Global Phase Map and Current Position.md`
 3. 当前 active planning 或 phase 文档
-4. `docs/README.md` 与当前任务直接相关的 `docs/` 权威文档
+4. `docs/starter-surface.md`、`docs/README.md` 与当前任务直接相关的 `docs/` 权威文档
 5. 相关的 `design_docs/tooling/` 长期协议
 
 当前仓库的特殊点：

@@ -37,7 +37,7 @@
 |---------|--------|---------|------|
 | **Real Worker Adapters** | LLMWorker, HTTPWorker | 可用；`LLMWorker` payload path 已有 2 条独立正向 live signals，可表述为“具备最小可重复 dogfood 能力” | 外部依赖不可控；当前仍只支持受控 dogfood 口径，不纳入默认稳定面 |
 | **PEP 实写执行** | WritebackEngine (dry_run=False) | 可用但风险高 | 实写操作影响工作区文件，需用户显式 opt-in |
-| **File Audit Backend** | AuditBackend file 实现 | API 已定义，未完整测试 | 缺少充分测试覆盖 |
+| **File Audit Backend** | AuditBackend file 实现 | API 已定义，测试已补全（14 项覆盖） | 功能完整，非默认后端 |
 | **MCP SSE Transport** | `--transport sse` 启动方式 | 可用 | 非默认通信方式，stdio 是主路径 |
 | **on_demand 懒加载** | `PackContext.load_on_demand()` | Phase 26 实现 | 功能可用但使用场景有限 |
 | **depends_on 校验** | pack manifest `depends_on` 字段消费 | ✅ 已实现 | warning-only 校验，结果记入 Pipeline.info() |
@@ -77,7 +77,7 @@
 ### 2.2 测试稳定性
 
 - [x] 全量 pytest 测试套件通过，无未解释的失败
-- [x] 当前基线：566 passed, 2 skipped（或在等价的后续基线上无回归）
+- [x] 当前基线：1278 passed, 2 skipped（或在等价的后续基线上无回归）
 - [x] 各子系统的 targeted test 独立可跑且通过
 
 ### 2.3 Dogfood 覆盖
@@ -106,7 +106,7 @@
 | B1 | §1.1 稳定入口全部功能正常 | ✅ 已通过 dogfood 验证 | 19/22/27/28 |
 | B2 | CLI check 输出不混入治理链 | ✅ 已修复 | 30 |
 | B3 | PackRegistrar skipped 诊断可解释 | ✅ 已修复 | 31 |
-| B4 | 全量测试基线稳定 | ✅ 566 passed, 2 skipped | 持续 |
+| B4 | 全量测试基线稳定 | ✅ 1278 passed, 2 skipped | 持续 |
 | B5 | 稳定版边界定义完成 | ✅ 本文件 | 32 |
 | B6 | 收口清单可执行 | ✅ 本节 | 32 |
 | B7 | 用户显式确认升级 | ✅ Phase 35 已确认 | 35 |
@@ -123,7 +123,7 @@
 | N4 | checks 字段 ↔ manifest 直连 | 已完成：manifest checks 已直连 runtime registry |
 | N5 | Script-style validator 语义升级 | Phase 31 诊断已到位，升级非紧急 |
 | N6 | Real worker (LLM/HTTP) 集成 | 外部依赖不可控，不纳入自用入口 |
-| N7 | File audit backend | 内存后端已满足当前需求 |
+| N7 | File audit backend | 测试已补全；内存后端仍为默认，file backend 为可选持久化 |
 | N8 | CI/CD 自动化 | 本轮明确不做 |
 | N9 | 版本号、changelog、发布自动化 | 本轮明确不做 |
 | N10 | MCP SSE transport | stdio 是主路径，SSE 为可选 |
@@ -132,7 +132,7 @@
 
 在宣布首个稳定 release 前，需逐项通过以下验证：
 
-- [x] `pytest tests/` 全量通过（基线 566 passed, 2 skipped 或等价后续基线无回归）
+- [x] `pytest tests/` 全量通过（基线 1278 passed, 2 skipped 或等价后续基线无回归）
 - [x] `python -m src check` 输出约束/状态信息，不含治理链副作用
 - [x] `python -m src process "test input"` 返回完整 envelope + execution + audit
 - [x] `python -m src validate` 输出当前项目约束检查结果

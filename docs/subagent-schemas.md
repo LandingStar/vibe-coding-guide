@@ -31,6 +31,50 @@
 
 因此当前平台明确采用三分法。
 
+## Parallel-Safe Subgraph Companion Objects
+
+为了承接 `subgraph` 的并行安全收口，当前实现允许在 parent orchestration 侧额外出现一组 companion objects：
+
+- `TaskGroup`
+- `ParallelChildTask`
+- `ChildExecutionRecord`
+- `MergeBarrierOutcome`
+- `GroupedReviewOutcome`
+
+它们的作用分别是：
+
+- `TaskGroup`
+  - 表达一个 parent delegation 派生出的 child 集合
+- `ParallelChildTask`
+  - 包装单个 child 的 `Subagent Contract`、lineage 与 namespace boundary
+- `ChildExecutionRecord`
+  - 包装单个 child 的 `Subagent Report` 与执行证据
+- `MergeBarrierOutcome`
+  - 包装 parent 在 merge barrier 上对多 child 结果的冲突分类与下一步 review 倾向
+- `GroupedReviewOutcome`
+  - 包装 child 粒度证据在 grouped review / write-back 流程中的聚合视图
+
+这里的关键边界是：
+
+- 这 3 个对象当前只是 companion objects，不是替代 `Subagent Contract` / `Subagent Report` / `Handoff` 的新 schema
+- `TaskGroup` 不替代 `Delegation Decision`
+- `ParallelChildTask` 不替代 `Subagent Contract`
+- `ChildExecutionRecord` 不替代 `Subagent Report`
+- `MergeBarrierOutcome` 不替代 grouped review result 或最终 writeback result
+- `GroupedReviewOutcome` 不替代现有 `ReviewStateMachine`，也不直接等于最终 writeback result
+- `Handoff` 仍只表达 authority transfer，而不是 child orchestration
+
+当前实现态还固定了两条并行安全 guard：
+
+- child lineage 由 parent-issued `task_group_id` / `child_task_id` / `namespace` 表达
+- dispatch preflight 会校验 namespace、unsafe path、`per-thread` persistence 与 disjoint write set overlap；当前还会返回 machine-readable `overlap_decisions`，用于区分普通 blocked overlap 与 shared-review-zone-driven allowed overlap
+- merge barrier classification 当前只覆盖 `no_conflict` / `review_required` / `blocked`
+- grouped review outcome 当前作为现有 review / write-back 流程的 companion surface，并通过 `grouped_review_state` 镜像接入现有 `ReviewStateMachine`，但不引入第二套 grouped review 状态机；当前已可通过 `review_driver` 与 `shared_review_zone_ids` 区分普通 conflict-driven review 与 shared-review-zone-driven review。对应 grouped child payload writeback 也新增最小 eligibility surface：`grouped_child_writeback_summary.eligibility_basis` 可区分 `all_clear` 自动写回与 `shared-review-zone-approved` 审批后写回。
+
+当前 authority 还允许一条更具体的实现态口径：executor 可以在一个 `TaskGroup` 中真实消费多个 child contracts，并产出多个 `child_execution_records`；`all_clear` 下的 grouped child payload write-back 也已可消费真实 multi-child result。当前第一版 real multi-child 权威边界固定为 strict preflight 下的 `all_clear-only` 自动写回，即默认不承诺 conflict-bearing `review_required` 是真实 batch runtime 的常见自动写回路径。作为下一条显式例外路径，`ParallelChildTask` 现已支持可选 `shared_review_zone_id`；在同 zone 且 same-artifact 的前提下，preflight 可放行 overlap 并留下 zone-driven decision evidence，同时 merge/grouped review 与 grouped review writeback summary 都能保留这一 driver。进一步地，当 reviewer 对该 zone-driven `review_required` 给出 `approve` 时，grouped child payload writeback 现在可以通过 `shared-review-zone-approved` eligibility 继续进入 planning，但这不改变原始 grouped review outcome 仍是 `review_required` 的事实。对于 group 内 authority transfer 语义，当前还新增了一个更窄的 companion/result 起点：`GroupTerminalOutcome`。它现在已经同时承载显式 `escalation_recommendation` 与显式 child `Handoff` 证据下的 group terminal bundle，并通过 `suppressed_surfaces` 把被暂停的 `merge_barrier` / `grouped_review` / `grouped_child_writeback` 结果面显式化；在 writeback summary 与 `group_terminal_prepared` audit detail 中，这层 suppression 也已被统一镜像。为避免 invalid handoff 混入普通 success，subgraph child 路径现在会用 `handoff_validator` 校验 nested handoff evidence；失败时会降级为 blocked child result。
+
+但这仍不等于完整 fan-out runtime：当前尚未把 thread-level fan-out scheduler、group 内 handoff / escalation terminal semantics、或独立 grouped review 状态迁移固定进权威 schema。
+
 ## 1. Subagent Contract
 
 ### 文档定位
@@ -238,8 +282,11 @@
 
 - 是否需要 `Worker Task` 与 `Subgraph Task` 进一步拆分
 - 是否需要为 `Handoff` 补专门的 tracing 字段
+- companion objects 是否需要在未来升级为正式可序列化 schema
 
 ## 开放问题
 
 - `Handoff` 是否需要显式记录 `supersedes`
 - `Subagent Report` 是否需要进一步升级为 directive 级 writeback payload
+- `MergeBarrierOutcome` 是否应在后续切片进入正式 schema，还是继续保持 parent-side companion object
+- `GroupedReviewOutcome` 是否应在后续切片进入正式 schema，还是继续保持 parent-side companion object

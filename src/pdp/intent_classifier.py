@@ -16,10 +16,14 @@ if TYPE_CHECKING:
 # Backward-compat alias (was module-level private name before extraction)
 _KEYWORD_MAP = KEYWORD_MAP
 
-_CORRECTION_CUES = ("fix", "please fix", "修复", "请修复", "修复这个", "修正")
+_CORRECTION_CUES = (
+    "fix", "please fix", "patch", "repair", "correct", "adjust",
+    "修复", "请修复", "修复这个", "修正", "改正", "修一下", "帮我改",
+)
 _ISSUE_REPORT_CUES = (
     "report", "issue", "raises", "raise", "exception", "attributeerror",
-    "traceback", "报错", "导致", "不支持", "异常", "崩溃",
+    "traceback", "stack trace", "typeerror", "keyerror", "incident",
+    "报错", "导致", "不支持", "异常", "崩溃", "故障", "缺陷", "回归",
 )
 
 

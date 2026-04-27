@@ -8,7 +8,7 @@
   "properties": {
     "intent": {
       "type": "string",
-      "description": "Classified interaction intent. Must be a value from the platform minimum enumeration or an instance-declared extension. Platform minimum set: question, correction, constraint, scope-change, protocol-change, approval, rejection, request-for-writeback, issue-report, unknown, ambiguous.",
+      "description": "Classified interaction intent. Must be a value from the platform minimum enumeration or an instance-declared extension. Platform minimum set: question, correction, constraint, scope-change, protocol-change, approval, rejection, request-for-writeback, issue-report, implementation, unknown, ambiguous.",
       "minLength": 1
     },
     "confidence": {

@@ -49,6 +49,9 @@ export function registerChatParticipant(
         if (request.command === 'packs') {
             return handlePacks(stream, mcpClient, outputChannel);
         }
+        if (request.command === 'dogfood') {
+            return handleDogfood(request, stream, mcpClient, outputChannel);
+        }
 
         // Default: general governance chat using the model
         return handleGeneral(request, chatContext, stream, token, mcpClient, outputChannel);
@@ -66,6 +69,7 @@ export function registerChatParticipant(
             return [
                 { prompt: 'Show current constraints', command: 'constraints', label: 'View Constraints' },
                 { prompt: 'Check governance for this action', command: 'decide', label: 'Check Governance' },
+                { prompt: 'Run dogfood pipeline', command: 'dogfood', label: 'Dogfood Evidence' },
             ];
         },
     };
@@ -231,6 +235,114 @@ async function handlePacks(
         const msg = err instanceof Error ? err.message : String(err);
         stream.markdown(`❌ Error: ${msg}`);
         outputChannel.appendLine(`[Chat] get_pack_info error: ${msg}`);
+    }
+
+    return {};
+}
+
+async function handleDogfood(
+    request: vscode.ChatRequest,
+    stream: vscode.ChatResponseStream,
+    mcpClient: MCPClient | null,
+    outputChannel: vscode.OutputChannel,
+): Promise<GovernanceResult> {
+    if (!mcpClient || !mcpClient.isRunning) {
+        stream.markdown('⚠️ MCP Server is not running. Start it with the **Start MCP Server** command.');
+        return {};
+    }
+
+    const input = request.prompt.trim();
+    if (!input) {
+        stream.markdown(
+            'Provide symptoms to evaluate. Example:\n\n' +
+            '`/dogfood MCP query_decision_logs returns empty merge_conflicts for entries that should have them`\n\n' +
+            'You can also pass structured JSON: `/dogfood [{"symptom_id":"S1","symptom_summary":"..."}]`',
+        );
+        return {};
+    }
+
+    stream.markdown('Running dogfood evidence pipeline...\n\n');
+
+    try {
+        // Parse symptoms: either JSON array or plain text as single symptom
+        let symptoms: Array<Record<string, unknown>>;
+        try {
+            const parsed = JSON.parse(input);
+            symptoms = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+            // Plain text → wrap as single symptom
+            symptoms = [{
+                symptom_id: `chat-${Date.now()}`,
+                symptom_summary: input,
+            }];
+        }
+
+        const result = await mcpClient.callTool('promote_dogfood_evidence', {
+            symptoms,
+            confidence: 'medium',
+        }) as Record<string, unknown>;
+
+        if (result.error) {
+            stream.markdown(`❌ Pipeline error: ${result.error}`);
+            return {};
+        }
+
+        // Promotion decisions
+        const decisions = (result.promotion_decisions as Array<Record<string, unknown>>) ?? [];
+        if (decisions.length > 0) {
+            stream.markdown('## Promotion Decisions\n\n');
+            stream.markdown('| Symptom | Verdict | Triggers |\n|---------|---------|----------|\n');
+            for (const d of decisions) {
+                const id = d.symptom_id ?? '-';
+                const verdict = d.verdict ?? '-';
+                const triggers = Array.isArray(d.triggered) ? (d.triggered as string[]).join(', ') : '-';
+                stream.markdown(`| ${id} | ${verdict} | ${triggers} |\n`);
+            }
+            stream.markdown('\n');
+        }
+
+        // Issue candidates
+        const issues = (result.issue_candidates as Array<Record<string, unknown>>) ?? [];
+        if (issues.length > 0) {
+            stream.markdown(`## Promoted Issues (${issues.length})\n\n`);
+            for (const issue of issues) {
+                stream.markdown(`**${issue.title ?? 'Untitled'}** — ${issue.category ?? ''}\n`);
+                if (issue.symptom_summary) {
+                    stream.markdown(`> ${issue.symptom_summary}\n`);
+                }
+                stream.markdown('\n');
+            }
+        }
+
+        // Feedback packet summary
+        const packet = result.packet as Record<string, unknown> | undefined;
+        if (packet) {
+            stream.markdown('## Feedback Packet\n\n');
+            stream.markdown(`- **Packet ID:** ${packet.packet_id ?? '-'}\n`);
+            stream.markdown(`- **Confidence:** ${packet.confidence ?? '-'}\n`);
+            stream.markdown(`- **Issues:** ${(packet.source_issues as unknown[])?.length ?? 0}\n`);
+            if (packet.judgment) {
+                stream.markdown(`- **Judgment:** ${packet.judgment}\n`);
+            }
+        }
+
+        // Consumer payloads summary
+        const payloads = (result.consumer_payloads as Array<Record<string, unknown>>) ?? [];
+        if (payloads.length > 0) {
+            stream.markdown(`\n## Consumer Payloads (${payloads.length})\n\n`);
+            for (const p of payloads) {
+                stream.markdown(`- **${p.consumer ?? 'unknown'}** → ${p.target_doc ?? '-'}\n`);
+            }
+            stream.markdown('\n💡 Use `auto_writeback: true` to write payloads to target documents.');
+        }
+
+        if (decisions.length === 0 && issues.length === 0) {
+            stream.markdown('No symptoms were promoted. All were suppressed or did not meet threshold criteria.');
+        }
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        stream.markdown(`❌ Error: ${msg}`);
+        outputChannel.appendLine(`[Chat] promote_dogfood_evidence error: ${msg}`);
     }
 
     return {};

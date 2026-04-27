@@ -1,98 +1,25 @@
 # Commit Message（中文版）
 
 ```
-feat: v0.9.4 架构合规性收口 + Worker schema 对齐
+release: 收口 v0.9.5 preview release surface 与打包一致性
 
-模块依赖方向强制 + 跨层违规全部消除 + HTTPWorker 报告格式对齐。
-B-REF 系列全部完成。Multica 架构借鉴四项全部落地。
-Release: doc-based-coding-v0.9.4.zip (192.4 KB)
+完成 progress graph artifact consistency audit，并将 runtime、official instance、pack-manifest 与 release 文档统一收口到 0.9.5。补齐 release 流程中的 VSIX 构建与同步、stale 产物清理、Windows npm 解析与安装态 MCP 验证，确保预览发布产物、版本口径与安装路径保持一致。
 
-## 新增
+## 变更
 
-- Module Dependency Direction Standard（6 层架构 + 方向规则文档）
-- scripts/lint_imports.py AST 跨包 import 方向自动化验证
-- src/pack/pack_discovery.py：pack 发现逻辑独立模块（从 workflow 下沉）
-- PLATFORM_INTENTS / IMPACT_TABLE / KEYWORD_MAP 提升到 src/interfaces.py
-- src/runtime/bridge.py：RuntimeBridge 三入口统一初始化 + WorkerHealth
-- src/pack/pack_integrity.py：pack-lock.json + compute_pack_hash()
-- src/pack/user_config.py：user-global 配置层
-- src/workflow/reply_progression.py + check_reply_progression MCP 工具
-- PackManifest consumes 字段 + check_consumes() 能力依赖校验
-- 条件化 always_on 加载（scope_path 过滤）
-- VS Code Extension Config UI（configExplorer / configPanel）
-- MCP pack_lock / pack_unlock / pack_verify 工具
-
-## 修复
-
-- 3/3 跨层依赖违规全部消除（pack→workflow / pack→pdp types / pack→pdp constants）
-- HTTPWorker._error_report() schema 对齐（status: blocked + escalation: review_by_supervisor + unresolved_items）
-- pack-lock hash mismatch 回归修复（consumes 字段新增后重新锁定）
-
-## 改进
-
-- B-REF-1~7 全部完成（渐进式加载 / description 质量 / pack 组织 / permission policy / 工作流中断 / 上下文隔离 / tool surface 审计）
-- VS Code Extension 全功能（P0-P7 + 安装向导 + git push guard + Chat Participant）
-- 全局记忆/文档/规则支持（user-global pack + config.json）
-- Multica 架构借鉴落地（hash 锁定 / 条件化加载 / RuntimeBridge / consumes）
+- 刷新真实 `.codex/progress-graph/latest.json`、`.dot`、`.html`，修复 safe stop 之后的 stale artifact 偏差，并复核 direction-candidates 当前状态与历史条目的一致性
+- dual-package 版本面同步到 `0.9.5`，包括 runtime、instance、pack-manifest、官方实例 `__version__` / `runtime_compatibility` 与 release 文档
+- release 文档与产物面同步收口：VS Code extension 版本口径统一到 `0.1.3`
+- `scripts/release.py` 现在会读取 `vscode-extension/package.json` 当前版本、构建并同步 VSIX 到 `release/`，同时清理旧 wheel / VSIX，避免 release 目录残留旧批次产物
+- Windows 下的扩展打包改为显式解析 `npm.cmd`，避免 Python subprocess 找不到 `npm`
+- 保持交付边界不变：`doc-based-coding-v0.9.5.zip` 继续只包含双 wheel 与 release 文档，VSIX 单独分发
 
 ## 验证
 
-- pytest: 1257 passed, 2 skipped
-- lint_imports.py: 零违规、零已知例外
-- pack_verify: 2/2 packs ok
-- VS Code Extension esbuild: 零错误
-- MCP 全工具链 dogfood 通过
-
-## 文件统计
-
-- 36 files changed, +1159 -555
-```
-# Commit Message（中文版）
-
-```
-feat: v1.0.0 稳定版发布 + 发布后验证
-
-Phase 22-35 完成，v1.0.0 稳定版发布。发布后方向候选 A-J 全部完成。
-发布封装通过完整验证链（构建→安装→空项目端到端采纳验证）。
-
-## 核心里程碑
-
-- v0.1 自用发布：Pipeline + MCP Server + Instructions Generator
-- PackContext 下游贯通 + 深度自用验证
-- MCP Prompts/Resources + Extension Bridging + on_demand 懒加载
-- 自用反馈修复（第一轮与第二轮）
-- 稳定版边界确认 + 错误恢复 + 结构化错误格式统一
-- v1.0.0 稳定版发布确认
-
-## 发布后方向候选
-
-- A：双发行包实现（runtime + instance wheel）
-- B：validator/check 契约收口
-- C：兼容元数据与版本声明
-- D：MCP pack info 刷新一致性
-- E：严格 doc-loop 运行时强制
-- F：handoff 主动调用
-- H：外部 Skill 交互接口
-- I：安全停点回写包
-- J：对话推进契约稳定性
-
-## 发布封装验证
-
-- 双包构建：runtime 83KB wheel + instance 48KB wheel
-- 干净虚拟环境安装：5 个 CLI 入口全部可用
-- 空项目采纳验证：bootstrap → validate → MCP 启动
-- 可分发安装包：release/doc-based-coding-v1.0.0.zip（含面向 AI 的安装指南）
-
-## 新增关键文件
-
-- pyproject.toml（runtime + instance）
-- src/mcp/（MCP 服务端 + 治理工具）
-- src/workflow/（pipeline、instructions、外部 skill、安全停点回写）
-- doc-loop-vibe-coding/pyproject.toml + MANIFEST.in
-- release/（README、INSTALL_GUIDE、zip）
-- .codex/handoff-system/ + .codex/handoffs/ + .github/skills/
-- docs/first-stable-release-boundary.md
-- docs/external-skill-interaction.md
-- docs/installation-guide.md
-- CHANGELOG.md
+- `pytest tests/test_progress_graph_doc_projection.py -q`：3 passed
+- `pytest tests -v --tb=short`：1366 passed, 2 skipped
+- `release/verify_version_consistency.py`：All versions consistent
+- `scripts/release.py --no-isolation`：生成 `release/doc-based-coding-v0.9.5.zip`
+- `scripts/release.py --skip-tests --no-isolation`：生成并同步 `release/doc-based-coding-0.1.3.vsix`
+- 安装态验证：`doc-based-coding-mcp --help`、`doc-based-coding info`、`doc-based-coding validate`、`pytest tests/test_dual_package_distribution.py -q`（6 passed）
 ```

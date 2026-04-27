@@ -10,6 +10,10 @@
 
 ## 先读哪里
 
+如果你是第一次进入当前仓库，先读：
+
+- `docs/starter-surface.md`
+
 当前权威文档位于 `docs/`：
 
 - `docs/platform-positioning.md`
@@ -21,27 +25,35 @@
 - `docs/subagent-management.md`
 - `docs/subagent-schemas.md`
 - `docs/official-instance-doc-loop.md`
+- `docs/host-interaction-model.md`
 - `docs/project-adoption.md`
 - `docs/current-prototype-status.md`
 
 建议阅读顺序：
 
-1. `platform-positioning.md`
-2. `core-model.md`
-3. `plugin-model.md`
-4. `pack-manifest.md`
-5. `governance-flow.md`
-6. `review-state-machine.md`
-7. `subagent-management.md`
-8. `subagent-schemas.md`
-9. `official-instance-doc-loop.md`
-10. `project-adoption.md`
-11. `installation-guide.md`
-12. `current-prototype-status.md`
+1. `starter-surface.md`
+2. `platform-positioning.md`
+3. `official-instance-doc-loop.md`
+4. `installation-guide.md`
+5. `project-adoption.md`
+6. `host-interaction-model.md`
+
+如果你想看完整文档地图，再去 `docs/README.md`。
 
 ## 安装与接入
 
 当前仓库已经具备双发行包的最小安装骨架。
+
+如果你当前主要在 **Codex** 中使用本项目，默认应这样理解接入面：
+
+- 仓库级长期指令入口是 `AGENTS.md`
+- 可用 `doc-based-coding generate-instructions --target codex --output AGENTS.md` 生成或刷新治理指令块
+- MCP 推荐通过项目级 `.codex/config.toml` 或 `codex mcp add ...` 接入 `doc-based-coding-mcp`
+
+如果你仍在 **VS Code / Copilot** 中使用本项目，兼容入口保持可用：
+
+- 可用 `doc-based-coding generate-instructions --target copilot --output .github/copilot-instructions.md`
+- MCP 可继续通过 workspace 级 `.vscode/mcp.json` 接入
 
 如果你想把它安装到其他项目中，优先看：
 

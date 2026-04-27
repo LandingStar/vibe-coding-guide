@@ -2,6 +2,28 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v0.9.5 — 2026-04-27
+
+**Progress graph artifact consistency audit 收口 + preview release surface refresh。**
+
+### 修复
+
+- 刷新真实 `.codex/progress-graph/latest.json`、`.dot`、`.html`，修复 recency semantics safe stop 之后的 stale artifact 偏差
+- dual-package 版本面同步到 `0.9.5`（runtime / instance / pack-manifest / 安装与 release 文档）
+- 官方实例 `__init__.py` `__version__` 与 `runtime_compatibility` 约束同步到 `0.9.5`
+
+### 改进
+
+- 明确 `direction-candidates-global` 当前只投影候选 section；companion prose 继续保持在本切片之外
+- release 文档中的 VS Code extension 版本口径修正到 `0.1.3`
+
+### 验证
+
+- `pytest tests/test_progress_graph_doc_projection.py -q`（3 passed）
+- `pytest tests -v --tb=short`（1366 passed, 2 skipped）
+- `release/verify_version_consistency.py`（All versions consistent）
+- `scripts/release.py --no-isolation` 生成 `release/doc-based-coding-v0.9.5.zip`
+
 ## v0.9.4 — 2026-04-21
 
 **架构合规性全面收口 + Worker schema 对齐。**
@@ -17,12 +39,16 @@ All notable changes to the doc-based-coding-platform are documented in this file
 - `src/runtime/bridge.py`：RuntimeBridge 三入口统一初始化抽象 + WorkerHealth 状态跟踪
 - PackManifest `consumes` 字段 + `check_consumes()` 能力依赖校验
 - Pack Integrity Hash：`pack-lock.json` + `compute_pack_hash()` + MCP `pack_lock`/`pack_unlock`/`pack_verify`
+- BL-8：`DecisionLogEntry.merge_conflicts` 字段 + `build_entry()` pack_info 自动提取 + `DecisionLogStore.query(has_merge_conflicts=)` 过滤 + MCP `query_decision_logs` has_merge_conflicts 参数
 
 ### 修复
 
 - 3/3 跨层依赖违规全部消除（pack→workflow / pack→pdp types / pack→pdp constants）
 - `HTTPWorker._error_report()` schema 对齐：`status: "failed"` → `"blocked"` + `escalation_recommendation: "escalate_to_supervisor"` → `"review_by_supervisor"` + 新增 `unresolved_items` 字段
 - pack-lock hash mismatch 回归修复（`consumes` 字段新增后重新锁定）
+- `compute_pack_hash()` 排除 `__pycache__` 和 `.egg-info` 确保 hash 确定性
+- 官方实例 `__init__.py` `__version__` 同步到 0.9.4
+- `runtime_compatibility` 依赖约束同步（`>=0.9.3` → `>=0.9.4`）
 
 ### 改进
 
@@ -33,7 +59,7 @@ All notable changes to the doc-based-coding-platform are documented in this file
 
 ### 验证
 
-- 1257 passed, 2 skipped
+- 1278 passed, 2 skipped（+14 FileAuditBackend + 7 BL-8 merge_conflicts 测试）
 - `lint_imports.py` 零违规、零已知例外
 - `pack_verify` 2/2 packs ok
 - VS Code Extension esbuild 零错误

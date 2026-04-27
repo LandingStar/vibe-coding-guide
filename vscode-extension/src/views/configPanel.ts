@@ -8,21 +8,28 @@
 
 import * as vscode from 'vscode';
 import { MCPClient } from '../mcp/client';
+import { ManagedLLMProvider } from '../llm/types';
 
 export class ConfigPanelProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'configPanel';
 
     private _view: vscode.WebviewView | undefined;
     private _mcpClient: MCPClient | null;
+    private _llmProvider: ManagedLLMProvider | null;
     private readonly _outputChannel: vscode.OutputChannel;
 
-    constructor(outputChannel: vscode.OutputChannel, mcpClient?: MCPClient) {
+    constructor(outputChannel: vscode.OutputChannel, mcpClient?: MCPClient, llmProvider?: ManagedLLMProvider) {
         this._outputChannel = outputChannel;
         this._mcpClient = mcpClient ?? null;
+        this._llmProvider = llmProvider ?? null;
     }
 
     updateClient(client: MCPClient): void {
         this._mcpClient = client;
+    }
+
+    updateLLMProvider(provider: ManagedLLMProvider): void {
+        this._llmProvider = provider;
     }
 
     resolveWebviewView(
@@ -82,23 +89,19 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /** Fetch available Copilot model families and send to webview. */
+    /** Fetch available model families from the active provider and send them to the webview. */
     private async _sendAvailableModels(): Promise<void> {
         if (!this._view) { return; }
+        if (!this._llmProvider) {
+            this._view.webview.postMessage({ command: 'models', families: [] });
+            return;
+        }
 
         try {
-            const allModels = await vscode.lm.selectChatModels({ vendor: 'copilot' });
-            const seen = new Set<string>();
-            const families: string[] = [];
-            for (const m of allModels) {
-                if (!seen.has(m.family)) {
-                    seen.add(m.family);
-                    families.push(m.family);
-                }
-            }
+            const families = await this._llmProvider.listModelFamilies();
             this._view.webview.postMessage({ command: 'models', families });
         } catch {
-            // Copilot not available — send empty list, user can still type manually
+            // Provider not available — send empty list, user can still type manually
             this._view.webview.postMessage({ command: 'models', families: [] });
         }
     }

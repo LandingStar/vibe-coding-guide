@@ -34,6 +34,7 @@
     "rejection",
     "request-for-writeback",
     "issue-report",
+    "implementation",
     "unknown"
   ],
   "gates": [

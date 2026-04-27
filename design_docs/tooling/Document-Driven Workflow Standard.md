@@ -38,6 +38,14 @@
 - 若 `docs/` 与 `design_docs/` 中的内部推导或旧设计笔记冲突，以 `docs/` 为准
 - `design_docs/` 主要承载状态板、planning/phase 文档与设计推导，而不是反向定义平台本体
 
+对第一次进入仓库的使用者，默认应先由 `docs/starter-surface.md` 提供首跳路由，而不是让 README、安装文档和实例文档分别承担完整入门说明。
+
+`docs/starter-surface.md` 只负责入口分流，不构成第二 authority source。
+
+对临时调查物与稳定文档面的分流，见 `design_docs/tooling/Temporary Scratch and Stable Docs Standard.md`。
+
+当某个 scratch artifact 在当前交互之后仍需要作为恢复入口时，必须按 `Temporary Scratch and Stable Docs Standard` 中定义的 recovery contract 显式报告状态；不满足这一条件的短暂 scratch，不应被强制纳入恢复协议。
+
 ## 规划规则
 
 在进入实现前，当前 planning doc 必须说明：
@@ -55,6 +63,20 @@
 - 不在当前切片里偷偷吸收邻近 backlog
 - 新问题优先写回 planning-gate，而不是就地扩 scope
 - 文档事实变化时，要同步更新文档，而不是只更新代码
+
+## Temporary Scratch vs Stable Docs
+
+对当前仓库，默认应把“一次性调查 / 待确认草稿”和“稳定可复用文档资产”分开：
+
+- `.codex/tmp/`（推荐）用于临时 scratch
+- `review/` 用于结构化研究与可复用报告
+- `design_docs/` 用于方向分析、planning-gate 与长期设计推导
+- `docs/` 用于 authority 结论
+- Checklist / Phase Map / checkpoint / handoff 永远不视为 scratch
+
+具体 promotion 规则与案例映射，见 `design_docs/tooling/Temporary Scratch and Stable Docs Standard.md`。
+
+若 scratch artifact 满足“当前交互结束后仍需恢复入口”的条件，则还应同时遵守该标准中的四状态 recovery contract；promotion 与 recovery 状态彼此独立，不得互相替代。
 
 ## 当前仓库的自用边界
 
@@ -95,6 +117,8 @@
 - 默认每条回复都应以推进式提问收尾，且该提问必须包含 AI 自身的分析、推荐或倾向判断，而不是把选择责任完全丢给用户。
 - 每次推进式提问前，应先给出当前最相关的文档链接，便于用户直接跳转审核；若提问依赖 planning-gate、direction-analysis、review 文档或权威文档，至少链接最关键的入口。
 - 若当前节点需要用户做选择、审批、方向确认或下一步取舍，agent 必须先给出自己的分析与推荐，再通过提问继续交流；需要结构化确认时，应使用 `askQuestions`，而不是把“请用户自己选”当成收尾。
+- 对不改变权威边界、阶段顺序、主 consumer/runtime 架构的实现细节，agent 默认应自行判断并继续推进；不得为了满足“以提问结尾”而把细粒度实现选择包装成用户确认节点。
+- 只有当实现路径遇到真正困难、局部信息不足且无法通过附近取证消除，或该选择会显著影响结构边界、phase/gate 顺序、主 consumer/runtime 接线方向时，才应升级为用户确认问题。
 - 如果一个 Phase 或 planning-gate 已完成，agent 应先准备下一步方向分析或下一份窄 scope planning-gate，再通过提问与用户确认，而不是停下等待。
 - 只有在用户明确表示允许结束、暂停，或明确要求本轮不要继续追问时，才可不以推进式提问结尾。
 - **完成边界强制规则**：当所有当前任务已完成且不存在活跃 planning-gate 时，agent 必须先调用 `get_next_action` 获取下一步推荐，再基于该推荐组装包含自身判断的 forward question。这是对话推进规则中发现的最高风险违规场景（完成边界失忆），此条规则有最高优先级。

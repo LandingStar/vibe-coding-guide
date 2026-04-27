@@ -126,6 +126,16 @@ GovernanceTools.*()
 
 但 driver 的核心职责（意图分类 → 决策分发 → 结果消费 → write-back 控制）不变。
 
+## Driver 与宿主交互层的关系
+
+根据 `docs/host-interaction-model.md`，driver 应被视为 **Portable Runtime Layer** 的一部分。
+
+这意味着：
+
+- driver 可以被不同宿主通过 CLI、MCP、instructions 等交互适配层复用
+- driver 本身不属于 VS Code、Windsurf、Antigravity 等宿主 UX 层
+- 宿主差异不应反向改变 driver 的治理语义
+
 ## 当前边界
 
 本文件只固定 driver 的概念定义与当前职责映射。

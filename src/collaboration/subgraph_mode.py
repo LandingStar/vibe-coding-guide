@@ -31,12 +31,20 @@ class SubgraphContext:
     namespace: str
     parent_trace_id: str | None
     isolation_level: str  # "full" | "shared-read"
+    task_group_id: str | None = None
+    child_task_id: str | None = None
     state_snapshot: dict = field(default_factory=dict)
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 def create_context(
-    delegation: dict, contract: dict, *, trace_id: str | None = None,
+    delegation: dict,
+    contract: dict,
+    *,
+    trace_id: str | None = None,
+    namespace: str | None = None,
+    task_group_id: str | None = None,
+    child_task_id: str | None = None,
 ) -> SubgraphContext:
     """Create a SubgraphContext from delegation decision and contract.
 
@@ -44,14 +52,16 @@ def create_context(
     operates without direct access to the parent state.
     """
     ctx_id = f"sg-{uuid.uuid4().hex[:12]}"
-    namespace = contract.get("contract_id", ctx_id)
+    resolved_namespace = namespace or contract.get("contract_id", ctx_id)
     return SubgraphContext(
         context_id=ctx_id,
-        namespace=namespace,
+        namespace=resolved_namespace,
         parent_trace_id=trace_id,
         isolation_level=delegation.get("contract_hints", {}).get(
             "isolation_level", "full",
         ),
+        task_group_id=task_group_id,
+        child_task_id=child_task_id,
         state_snapshot={
             "scope": contract.get("scope", ""),
             "required_refs": contract.get("required_refs", []),
@@ -167,6 +177,8 @@ def _context_to_dict(context: SubgraphContext) -> dict:
         "namespace": context.namespace,
         "parent_trace_id": context.parent_trace_id,
         "isolation_level": context.isolation_level,
+        "task_group_id": context.task_group_id,
+        "child_task_id": context.child_task_id,
         "state_snapshot": context.state_snapshot,
         "created_at": context.created_at,
     }

@@ -40,6 +40,7 @@
 | `rejection` | 用户拒绝当前提案 | 中 |
 | `request-for-writeback` | 用户要求将结果写回文档 | 中 |
 | `issue-report` | 用户报告一个问题 | 中 |
+| `implementation` | 用户要求实现、创建、编写代码 | 中 |
 | `unknown` | AI 无法判断 intent 类型 | — |
 | `ambiguous` | AI 认为输入可能属于多种 intent | — |
 

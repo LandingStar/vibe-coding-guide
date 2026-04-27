@@ -1,25 +1,25 @@
 /**
- * Copilot-assisted Pack generation (P4+).
+ * Provider-assisted Pack generation (P4+).
  *
- * Uses vscode.lm to analyze the workspace and generate
- * pack documentation drafts.
+ * Uses the active extension LLM provider to analyze the workspace
+ * and generate pack documentation drafts.
  */
 
 import * as vscode from 'vscode';
-import { CopilotLLMProvider } from './copilot';
+import { ManagedLLMProvider } from './types';
 
 /**
- * Generate a pack description draft using Copilot LLM.
+ * Generate a pack description draft using the active LLM provider.
  * Analyzes open file or workspace context.
  */
 export async function generatePackDescription(
-    copilot: CopilotLLMProvider,
+    provider: ManagedLLMProvider,
     outputChannel: vscode.OutputChannel,
 ): Promise<void> {
-    if (!copilot.isAvailable) {
-        const ok = await copilot.initialize();
+    if (!provider.isAvailable) {
+        const ok = await provider.initialize();
         if (!ok) {
-            vscode.window.showErrorMessage('Copilot model not available.');
+            vscode.window.showErrorMessage(`${provider.displayName} model not available.`);
             return;
         }
     }
@@ -45,8 +45,8 @@ export async function generatePackDescription(
     ].join('\n');
 
     try {
-        outputChannel.appendLine('[Copilot] Generating pack description...');
-        const description = await copilot.generate(prompt);
+        outputChannel.appendLine(`[LLM:${provider.name}] Generating pack description...`);
+        const description = await provider.generate(prompt);
         const trimmed = description.trim().replace(/^["']|["']$/g, '');
 
         const action = await vscode.window.showInformationMessage(
@@ -70,16 +70,16 @@ export async function generatePackDescription(
 }
 
 /**
- * Generate a pack rules draft using Copilot LLM.
+ * Generate a pack rules draft using the active LLM provider.
  */
 export async function generatePackRules(
-    copilot: CopilotLLMProvider,
+    provider: ManagedLLMProvider,
     outputChannel: vscode.OutputChannel,
 ): Promise<void> {
-    if (!copilot.isAvailable) {
-        const ok = await copilot.initialize();
+    if (!provider.isAvailable) {
+        const ok = await provider.initialize();
         if (!ok) {
-            vscode.window.showErrorMessage('Copilot model not available.');
+            vscode.window.showErrorMessage(`${provider.displayName} model not available.`);
             return;
         }
     }
@@ -103,8 +103,8 @@ export async function generatePackRules(
     ].join('\n');
 
     try {
-        outputChannel.appendLine('[Copilot] Generating pack rules...');
-        const result = await copilot.generate(prompt);
+        outputChannel.appendLine(`[LLM:${provider.name}] Generating pack rules...`);
+        const result = await provider.generate(prompt);
         const cleaned = result.trim().replace(/^```json?\n?|\n?```$/g, '');
 
         const doc = await vscode.workspace.openTextDocument({
@@ -112,7 +112,7 @@ export async function generatePackRules(
             language: 'json',
         });
         await vscode.window.showTextDocument(doc);
-        outputChannel.appendLine('[Copilot] Pack rules draft opened in editor.');
+        outputChannel.appendLine(`[LLM:${provider.name}] Pack rules draft opened in editor.`);
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         vscode.window.showErrorMessage(`Pack rules generation failed: ${msg}`);

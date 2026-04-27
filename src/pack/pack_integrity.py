@@ -33,17 +33,26 @@ def compute_pack_hash(base_dir: Path) -> str:
 
     Hashes every file under *base_dir* in sorted order so the result is
     reproducible across platforms.  Hidden files (starting with ``"."``)
-    are skipped to avoid editor / OS metadata noise.
+    and Python build artifacts (``__pycache__``, ``*.egg-info``) are
+    skipped to ensure deterministic results regardless of import state.
 
     Returns ``sha256:<hex>`` string.
     """
+    _EXCLUDED_DIRS = {"__pycache__"}
+
     h = hashlib.sha256()
     if not base_dir.is_dir():
         raise FileNotFoundError(f"Pack directory not found: {base_dir}")
 
+    def _excluded(rel_parts: tuple[str, ...]) -> bool:
+        for p in rel_parts:
+            if p.startswith(".") or p in _EXCLUDED_DIRS or p.endswith(".egg-info"):
+                return True
+        return False
+
     files = sorted(
         f for f in base_dir.rglob("*")
-        if f.is_file() and not any(p.startswith(".") for p in f.relative_to(base_dir).parts)
+        if f.is_file() and not _excluded(f.relative_to(base_dir).parts)
     )
     for file_path in files:
         # Include relative path in hash so renames are detected

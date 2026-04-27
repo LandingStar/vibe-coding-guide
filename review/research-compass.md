@@ -23,9 +23,10 @@
 | pack / skill / context | OpenHands, Continue, Semantic Kernel, **Claude Managed Agents** | pack 形态、always-on/on-demand、来源分层、**三级渐进加载** |
 | 多 agent / 子 agent | LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, Semantic Kernel, **Claude Managed Agents** | supervisor-worker、handoff、team 模式、review 节点、**单层委派+上下文隔离** |
 | validator / quality control | Guardrails AI, Continue | validator registry、checks 分层、input/output guard |
-| 文档 / 模板 / 平台形态 | Backstage, OpenHands, Continue | docs-like-code、templates、plugin architecture |
+| 文档 / 模板 / 平台形态 | Backstage, OpenHands, Continue, llmdoc | docs-like-code、templates、plugin architecture、轻量 doc workflow plugin、stable vs temp docs split |
 | 全托管 agent 运行时 | **Claude Managed Agents** | **事件驱动 session、permission policy 分层、Skills 渐进加载、structured outputs** |
 | agent-as-teammate / 团队协作 | **Multica** | **Skills hash 锁定 + 远程来源、agent 任务分配生命周期、runtime 调度、知识持久化缺口与克制设计态度** |
+| 自主编码 Agent / 规则与审批 UX | **Cline** | **条件规则 (glob frontmatter)、多源规则兼容、细粒度 Auto-Approve、可编程 Hooks、Plan/Act 双模式** |
 
 ## 全量研究地图
 
@@ -44,6 +45,8 @@
 | [OpenAI Agents SDK](./openai-agents-sdk.md) | handoff / tracing / guardrails | handoff 一等原语、guardrail 边界、tracing、tripwire | 高 | 想设计 handoff schema 与 tracing 时 |
 | [Claude Managed Agents](./claude-managed-agents-platform.md) | skills / multi-agent / events / permissions | Skills 三级渐进加载、事件驱动 session、permission policy 分层覆盖、单层委派+上下文隔离 | 高 | 想设计 Pack 渐进加载、子 agent 上下文隔离、工具权限分层时 |
 | [Multica](./multica/) | skills-lock / agent-as-teammate / runtime / knowledge-gap | Skills hash 锁定 + GitHub 来源、agent 任务生命周期、daemon runtime 调度、知识持久化缺口分析 | 中 | 想设计 pack 版本锁定、远程来源安装、子 agent 任务追踪、或知识管理策略对比时 |
+| [Cline](./cline.md) | rules UX / conditional rules / auto-approve / hooks / plan-act | 条件规则 glob 匹配、多源规则兼容（.cursorrules/.windsurfrules/AGENTS.md）、细粒度 Auto-Approve + YOLO、可编程 Hooks、Plan/Act 双模式 | 低 | 想设计 Pack toggle UI、条件激活规则、操作审批策略、或外部规则兼容性时 |
+| [llmdoc](./llmdoc.md) | doc workflow / lightweight operating skill / knowledge persistence | 单一 operating skill + helper entries、stable vs temp docs 分离、reflection 记忆轨道、Claude/Codex 双客户端轻量分发 | 中 | 想设计轻量文档工作流入口、知识持久化分流、或 companion plugin 包装时 |
 
 > **Multica 深度研究**: [架构深潜](./multica/01-architecture-deep-dive.md) · [方向与不足](./multica/02-direction-and-weaknesses.md) · [借鉴洞察](../review/multica-borrowing/borrowing-insights.md)
 
@@ -58,8 +61,7 @@
 
 补充读：
 
-3. [OpenAI Agents SDK](./openai-agents-sdk.md)
-
+3. [OpenAI Agents SDK](./openai-agents-sdk.md)4. [Cline](./cline.md)（Auto-Approve 体系 = 用户级执行审批；Hooks = 可编程策略执行点）
 ### 如果你想看“pack / skill / plugin 应该长什么样”
 
 优先读：
@@ -71,8 +73,7 @@
 
 补充读：
 
-5. [Backstage](./backstage.md)
-
+5. [Backstage](./backstage.md)6. [Cline](./cline.md)（Skills/Workflows 与 Rules 的分离设计、规则 Toggle UI）
 ### 如果你想看“always-on context 与按需加载”
 
 优先读：
@@ -129,6 +130,7 @@
 
 1. [Backstage](./backstage.md)
 2. [OpenHands](./openhands.md)
+3. [llmdoc](./llmdoc.md)
 
 ### 如果你想看“事件输入 / trigger / webhook”
 
@@ -150,7 +152,7 @@
 | 平台层 | 最相关研究 |
 |---|---|
 | 核心治理层 | [open-policy-agent.md](./open-policy-agent.md), [continue.md](./continue.md) |
-| pack 扩展层 | [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md), [multica/](./multica/) |
+| pack 扩展层 | [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [openhands.md](./openhands.md), [continue.md](./continue.md), [semantic-kernel.md](./semantic-kernel.md), [multica/](./multica/), [cline.md](./cline.md) |
 | review / approval 层 | [langgraph-langchain.md](./langgraph-langchain.md), [crewai.md](./crewai.md), [autogen.md](./autogen.md) |
 | subagent orchestration 层 | [langgraph-langchain.md](./langgraph-langchain.md), [autogen.md](./autogen.md), [crewai.md](./crewai.md), [openai-agents-sdk.md](./openai-agents-sdk.md), [semantic-kernel.md](./semantic-kernel.md), [claude-managed-agents-platform.md](./claude-managed-agents-platform.md), [multica/](./multica/) |
 | validator / checks 层 | [guardrails-ai.md](./guardrails-ai.md), [continue.md](./continue.md) |

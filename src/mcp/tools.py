@@ -249,10 +249,19 @@ class GovernanceTools:
             result = self._pipeline.process_scoped(input_text, scope_path)
         else:
             result = self._pipeline.process(input_text)
-        pack_info = dict(result.pack_info)
-        pack_info["external_skill_interaction_contract"] = (
-            self._external_skill_interaction_contract()
-        )
+        # Slim pack_info summary (full details via get_pack_info tool)
+        full_info = result.pack_info
+        pack_info_summary: dict[str, Any] = {
+            "packs": [
+                {"name": p["name"], "version": p.get("version", ""), "kind": p.get("kind", "")}
+                for p in full_info.get("packs", [])
+            ],
+            "merged_intents": full_info.get("merged_intents", []),
+            "merged_gates": full_info.get("merged_gates", []),
+        }
+        # For scoped calls, include pack_tree resolution chain
+        if "pack_tree" in full_info:
+            pack_info_summary["pack_tree"] = full_info["pack_tree"]
         response: dict[str, Any] = {
             "decision": "ALLOW",
             "envelope": result.envelope,
@@ -262,7 +271,7 @@ class GovernanceTools:
             "intent": result.envelope.get("intent_result", {}).get("intent", "unknown"),
             "gate": result.envelope.get("gate_decision", {}).get("gate_level", "review"),
             "audit_event_count": len(result.audit_events),
-            "pack_info": pack_info,
+            "pack_info": pack_info_summary,
             "decision_log_entry": result.decision_log_entry,
         }
 
@@ -351,11 +360,13 @@ class GovernanceTools:
         trace_id: str = "",
         decision: str = "",
         intent: str = "",
+        has_merge_conflicts: bool | None = None,
         limit: int = 50,
     ) -> dict:
         """Query persisted decision log entries.
 
-        Supports filtering by trace_id, decision (ALLOW/BLOCK), and intent.
+        Supports filtering by trace_id, decision (ALLOW/BLOCK), intent,
+        and whether merge conflicts were recorded.
         Returns the most recent entries first, up to *limit*.
         """
         from ..audit.decision_log import DecisionLogStore
@@ -365,16 +376,20 @@ class GovernanceTools:
             trace_id=trace_id or None,
             decision=decision or None,
             intent=intent or None,
+            has_merge_conflicts=has_merge_conflicts,
             limit=limit,
         )
+        filters: dict = {
+            k: v for k, v in
+            {"trace_id": trace_id, "decision": decision, "intent": intent}.items()
+            if v
+        }
+        if has_merge_conflicts is not None:
+            filters["has_merge_conflicts"] = has_merge_conflicts
         return {
             "entries": entries,
             "count": len(entries),
-            "filters": {
-                k: v for k, v in
-                {"trace_id": trace_id, "decision": decision, "intent": intent}.items()
-                if v
-            },
+            "filters": filters,
         }
 
     def workflow_interrupt(self, reason: str, discovered_item: str, current_scope_ref: str = "") -> dict:

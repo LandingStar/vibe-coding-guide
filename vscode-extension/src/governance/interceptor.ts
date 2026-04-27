@@ -8,7 +8,7 @@
 import * as vscode from 'vscode';
 import { MCPClient } from '../mcp/client';
 import { GovernanceDecideResult } from '../mcp/types';
-import { CopilotLLMProvider } from '../llm/copilot';
+import { LLMProvider } from '../llm/types';
 import {
     GovernanceInterceptor,
     GovernanceDecision,
@@ -18,12 +18,12 @@ import { ReviewPanelProvider } from './reviewPanel';
 
 export class MCPGovernanceInterceptor implements GovernanceInterceptor {
     private _mcpClient: MCPClient | null;
-    private _copilot: CopilotLLMProvider | null;
+    private _llmProvider: LLMProvider | null;
     private readonly _outputChannel: vscode.OutputChannel;
 
-    constructor(mcpClient: MCPClient | null, outputChannel: vscode.OutputChannel, copilot?: CopilotLLMProvider) {
+    constructor(mcpClient: MCPClient | null, outputChannel: vscode.OutputChannel, llmProvider?: LLMProvider) {
         this._mcpClient = mcpClient;
-        this._copilot = copilot ?? null;
+        this._llmProvider = llmProvider ?? null;
         this._outputChannel = outputChannel;
     }
 
@@ -31,8 +31,12 @@ export class MCPGovernanceInterceptor implements GovernanceInterceptor {
         this._mcpClient = client;
     }
 
-    updateCopilot(copilot: CopilotLLMProvider): void {
-        this._copilot = copilot;
+    updateLLMProvider(provider: LLMProvider): void {
+        this._llmProvider = provider;
+    }
+
+    updateCopilot(copilot: LLMProvider): void {
+        this.updateLLMProvider(copilot);
     }
 
     async beforeFileWrite(uri: string, _content: string): Promise<GovernanceDecision> {
@@ -92,11 +96,11 @@ export class MCPGovernanceInterceptor implements GovernanceInterceptor {
     }
 
     /**
-     * Use Copilot LLM to explain why a governance decision blocked and suggest fixes.
-     * Returns null if Copilot is unavailable or fails.
+     * Use the active LLM provider to explain why a governance decision blocked and suggest fixes.
+     * Returns null if the provider is unavailable or fails.
      */
     private async _explainBlock(inputText: string, result: GovernanceDecideResult): Promise<string | null> {
-        if (!this._copilot || !this._copilot.isAvailable) {
+        if (!this._llmProvider || !this._llmProvider.isAvailable) {
             return null;
         }
 
@@ -112,7 +116,7 @@ export class MCPGovernanceInterceptor implements GovernanceInterceptor {
                 'Be concise and actionable.',
             ].join('\n');
 
-            const explanation = await this._copilot.generate(prompt);
+            const explanation = await this._llmProvider.generate(prompt);
             return explanation.trim().slice(0, 300);
         } catch {
             return null;

@@ -201,7 +201,8 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 name="query_decision_logs",
                 description=(
                     "Query persisted decision log entries. "
-                    "Supports filtering by trace_id, decision (ALLOW/BLOCK), and intent. "
+                    "Supports filtering by trace_id, decision (ALLOW/BLOCK), intent, "
+                    "and whether merge conflicts were recorded. "
                     "Returns the most recent entries first, up to the specified limit."
                 ),
                 inputSchema={
@@ -219,6 +220,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         "intent": {
                             "type": "string",
                             "description": "Filter by intent classification.",
+                        },
+                        "has_merge_conflicts": {
+                            "type": "boolean",
+                            "description": "If true, only entries with merge conflicts; if false, only without.",
                         },
                         "limit": {
                             "type": "integer",
@@ -563,6 +568,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 trace_id=arguments.get("trace_id", ""),
                 decision=arguments.get("decision", ""),
                 intent=arguments.get("intent", ""),
+                has_merge_conflicts=arguments.get("has_merge_conflicts"),
                 limit=arguments.get("limit", 50),
             )
         elif name == "impact_analysis":

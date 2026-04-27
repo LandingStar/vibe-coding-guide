@@ -5,7 +5,7 @@ Installed entry point:
     doc-based-coding info                      — Show loaded pack info
     doc-based-coding validate                  — Check project constraints
     doc-based-coding check [input text]        — Run constraint/state check only
-    doc-based-coding generate-instructions     — Generate copilot-instructions segment
+    doc-based-coding generate-instructions     — Generate agent instructions segment
 
 Module entry point:
     python -m src process "input text"
@@ -143,18 +143,41 @@ def cmd_check(args: list[str]) -> int:
 
 
 def cmd_generate_instructions(args: list[str]) -> int:
-    """Generate copilot-instructions.md segment from loaded packs."""
+    """Generate agent instructions from loaded packs."""
     root = _find_project_root()
 
-    # Optional output path
     output_path = None
-    if args and args[0] == "--output" and len(args) > 1:
-        output_path = Path(args[1])
+    explicit_target = None
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--output":
+            if i + 1 >= len(args):
+                print("Usage: doc-based-coding generate-instructions [--target generic|codex|copilot] [--output PATH]", file=sys.stderr)
+                return 1
+            output_path = Path(args[i + 1])
+            i += 2
+            continue
+        if arg == "--target":
+            if i + 1 >= len(args):
+                print("Usage: doc-based-coding generate-instructions [--target generic|codex|copilot] [--output PATH]", file=sys.stderr)
+                return 1
+            explicit_target = args[i + 1]
+            i += 2
+            continue
+        print(f"Unknown generate-instructions option: {arg}", file=sys.stderr)
+        print("Usage: doc-based-coding generate-instructions [--target generic|codex|copilot] [--output PATH]", file=sys.stderr)
+        return 1
 
     try:
-        from .workflow.instructions_generator import generate_instructions_from_project
+        from .workflow.instructions_generator import (
+            generate_instructions_from_project,
+            infer_instruction_target,
+        )
 
-        text = generate_instructions_from_project(root)
+        target = explicit_target or infer_instruction_target(output_path) or "generic"
+        text = generate_instructions_from_project(root, target=target)
     except Exception as e:
         return _handle_error("Error generating instructions", e, category="process_failed")
 
@@ -278,7 +301,7 @@ def main() -> int:
             "  info                    Show loaded pack info\n"
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
-            "  generate-instructions   Generate copilot-instructions segment\n"
+            "  generate-instructions   Generate agent instructions segment\n"
             "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"
             "  --debug                 Show full traceback on errors\n\n"

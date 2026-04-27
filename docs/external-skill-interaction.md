@@ -99,6 +99,8 @@ skill 自己仍可以保留领域化 payload、状态枚举或详细报告，但
 - 本文件回答"skill 应如何暴露结果"
 - `driver-responsibilities.md` 回答"driver 应如何消费这些结果"
 
+按 `docs/host-interaction-model.md` 的四层模型，这组 contract 应继续落在 Core Contract / Portable Runtime 边界，而不是被某个具体宿主 UI 或插件层重新定义。
+
 ## 当前边界
 
 本文件只固定最小 external skill interaction contract。

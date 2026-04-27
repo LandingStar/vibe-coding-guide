@@ -213,7 +213,10 @@ _KEY_STATE_FILES = [
     ".codex/checkpoints/latest.md",
 ]
 
-_EMPTY_PLANNING_GATE_MARKERS = frozenset({"", "(none)", "—", "-"})
+_EMPTY_PLANNING_GATE_MARKERS = frozenset({
+    "", "(none)", "—", "-", "none", "n/a",
+    "无活跃 gate", "无活跃gate", "无", "无活跃",
+})
 
 _MACHINE_CHECKED_CONSTRAINTS = (
     ConstraintScope(

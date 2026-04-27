@@ -1,7 +1,7 @@
 {
   "manifest_version": "1.0",
   "name": "doc-loop-vibe-coding",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "kind": "official-instance",
   "description": "Provides document-driven vibe coding workflow rules, including planning-gate enforcement, phase progression, and session handoff governance. Use when the project follows a doc-loop development methodology with structured review gates.",
   "scope": "Official prototype pack for document-driven vibe coding on the workflow-driver platform.",
@@ -32,6 +32,7 @@
     "rejection",
     "request-for-writeback",
     "issue-report",
+    "implementation",
     "unknown"
   ],
   "gates": [
@@ -65,7 +66,7 @@
   "depends_on": [
     "platform-core-defaults"
   ],
-  "runtime_compatibility": ">=0.9.3,<1.0.0",
+  "runtime_compatibility": ">=0.9.5,<1.0.0",
   "overrides": [],
   "prompts": [
     "assets/bootstrap/.codex/prompts/doc-loop/01-planning-gate.md",

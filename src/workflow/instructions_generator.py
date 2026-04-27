@@ -1,8 +1,8 @@
-"""Instructions Generator — produce copilot-instructions.md segments from Pack context.
+"""Instructions Generator — produce agent-instruction segments from Pack context.
 
 Reads loaded PackContext (from Pipeline) and generates Markdown that can be
-injected into `.github/copilot-instructions.md` to enforce constraints at the
-static/instructions layer (the first layer of Method E's dual-layer defense).
+injected into Codex `AGENTS.md`, Copilot instruction files, or another static
+instruction surface to enforce constraints at the instructions layer.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from ..pack.context_builder import PackContext
 
 
 class InstructionsGenerator:
-    """Generate copilot-instructions.md content from a PackContext.
+    """Generate instruction content from a PackContext.
 
     The generated Markdown includes:
     - Pack metadata (name, version, kind)
@@ -25,14 +25,15 @@ class InstructionsGenerator:
     - Workflow stage descriptions
     """
 
-    def __init__(self, pack_context: PackContext) -> None:
+    def __init__(self, pack_context: PackContext, target: str = "generic") -> None:
         self._ctx = pack_context
+        self._target = _normalize_instruction_target(target)
 
     def generate(self) -> str:
         """Generate the full Markdown instructions block.
 
-        Returns a string that can be written to copilot-instructions.md
-        or appended to an existing file.
+        Returns a string that can be written to AGENTS.md, a Copilot
+        instructions file, or appended to an existing instruction surface.
         """
         sections: list[str] = []
         sections.append(self._header())
@@ -48,7 +49,8 @@ class InstructionsGenerator:
         return "\n".join(s for s in sections if s)
 
     def _header(self) -> str:
-        lines = ["# Governance Instructions (auto-generated from Pack)", ""]
+        meta = _TARGET_METADATA[self._target]
+        lines = [f"# {meta['title']}", "", f"> {meta['note']}", ""]
         for m in self._ctx.manifests:
             lines.append(f"- Pack: **{m.name}** v{m.version} ({m.kind})")
             if m.scope:
@@ -369,13 +371,14 @@ class InstructionsGenerator:
         return "\n".join(out)
 
 
-def generate_instructions(pack_context: PackContext) -> str:
+def generate_instructions(pack_context: PackContext, target: str = "generic") -> str:
     """Convenience function — generate instructions from a PackContext."""
-    return InstructionsGenerator(pack_context).generate()
+    return InstructionsGenerator(pack_context, target=target).generate()
 
 
 def generate_instructions_from_project(
     project_root: str | Path,
+    target: str = "generic",
 ) -> str:
     """Generate instructions by auto-discovering packs from a project root.
 
@@ -385,10 +388,55 @@ def generate_instructions_from_project(
     from .pipeline import Pipeline
 
     pipeline = Pipeline.from_project(project_root, dry_run=True, audit=False)
-    return InstructionsGenerator(pipeline.pack_context).generate()
+    return InstructionsGenerator(pipeline.pack_context, target=target).generate()
+
+
+def infer_instruction_target(output_path: str | Path | None) -> str | None:
+    """Infer a target from a conventional output filename."""
+    if output_path is None:
+        return None
+
+    name = Path(output_path).name.lower()
+    if name in {"agents.md", "agents.override.md"}:
+        return "codex"
+    if name == "copilot-instructions.md":
+        return "copilot"
+    return None
 
 
 # ── Constants ────────────────────────────────────────────────────────────
+
+_TARGET_METADATA: dict[str, dict[str, str]] = {
+    "generic": {
+        "title": "Governance Instructions (auto-generated from Pack)",
+        "note": (
+            "This block is tool-agnostic. Paste it into `AGENTS.md` or another "
+            "instruction surface used by your coding agent."
+        ),
+    },
+    "codex": {
+        "title": "Governance Instructions for Codex",
+        "note": (
+            "Paste this content into a repository-level `AGENTS.md` so Codex can "
+            "discover it automatically."
+        ),
+    },
+    "copilot": {
+        "title": "Copilot Workspace Instructions",
+        "note": (
+            "Paste this content into `.github/copilot-instructions.md` or another "
+            "Copilot instruction file."
+        ),
+    },
+}
+
+
+def _normalize_instruction_target(target: str) -> str:
+    normalized = target.strip().lower()
+    if normalized not in _TARGET_METADATA:
+        allowed = ", ".join(sorted(_TARGET_METADATA))
+        raise ValueError(f"Unsupported instructions target: {target!r}. Expected one of: {allowed}.")
+    return normalized
 
 _GATE_DESCRIPTIONS: dict[str, str] = {
     "inform": "Low-impact action; proceed and inform the user",

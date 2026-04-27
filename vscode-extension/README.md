@@ -18,11 +18,13 @@ Document-driven governance workflow platform for VS Code. Enforces project const
 - **Decision Log Viewer** — Recent governance decisions with intent, outcome, and trace IDs
 - **Status Bar** — Violation count indicator with quick access to constraint details
 
-### AI Integration (Copilot)
+### AI Integration
 
-- **Intent Classification** — Classify user input via Copilot LLM
+Current default provider: GitHub Copilot. The extension command layer is provider-abstracted so future runtimes can plug in without rewriting governance commands.
+
+- **Intent Classification** — Classify user input via the active extension model provider
 - **BLOCK Explanation** — AI-generated explanation and fix suggestions when governance blocks an action
-- **Pack Description Generator** — Copilot-assisted pack description authoring
+- **Pack Description Generator** — AI-assisted pack description authoring
 - **Pack Rules Generator** — AI-generated governance rules from natural language requirements
 
 ### Infrastructure
@@ -56,7 +58,7 @@ Document-driven governance workflow platform for VS Code. Enforces project const
 | Setup Wizard | Guided first-run configuration |
 | Refresh Packs | Reload pack topology |
 | Refresh Decision Logs | Reload recent decisions |
-| Classify Intent | Classify text via Copilot LLM |
+| Classify Intent | Classify text via the active extension model provider |
 | Generate Pack Description | AI-assisted pack description |
 | Generate Pack Rules | AI-assisted governance rules |
 | Open Governance Review Panel | Info about the review workflow |
@@ -66,7 +68,7 @@ Document-driven governance workflow platform for VS Code. Enforces project const
 - VS Code 1.93 or later
 - Python 3.10+ with `doc-based-coding` runtime installed
 - Shell Integration enabled in terminal (for terminal governance)
-- GitHub Copilot extension (optional, for AI features)
+- GitHub Copilot extension (optional, current default provider for AI features)
 
 ## Release Notes
 

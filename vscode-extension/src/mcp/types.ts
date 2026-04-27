@@ -83,6 +83,7 @@ export interface DecisionLogEntry {
     decision: 'ALLOW' | 'BLOCK';
     intent: string;
     gate: string;
+    merge_conflicts?: string[];
 }
 
 // ── MCP Tool Call ──────────────────────────────────────────────────

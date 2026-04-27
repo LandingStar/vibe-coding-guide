@@ -11,7 +11,8 @@ Validates that the version string is consistent across:
 - wheel filenames in release/
 
 Usage:
-    python release/verify_version_consistency.py [--fix]
+    python release/verify_version_consistency.py
+    python release/verify_version_consistency.py --skip-wheel-files
 
 Exit codes:
     0  All versions consistent
@@ -20,6 +21,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -71,6 +73,14 @@ def _find_wheel_versions(release_dir: Path) -> dict[str, str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate release version consistency")
+    parser.add_argument(
+        "--skip-wheel-files",
+        action="store_true",
+        help="Skip checking wheel filenames currently present in release/",
+    )
+    args = parser.parse_args()
+
     errors: list[str] = []
 
     # 1. Canonical version from runtime pyproject.toml
@@ -101,10 +111,11 @@ def main() -> int:
 
     # 4. Wheel filenames in release/
     release_dir = ROOT / "release"
-    wheel_versions = _find_wheel_versions(release_dir)
-    for pkg, ver in wheel_versions.items():
-        if ver != canonical:
-            errors.append(f"Wheel {pkg} has version {ver}, expected {canonical}")
+    if not args.skip_wheel_files:
+        wheel_versions = _find_wheel_versions(release_dir)
+        for pkg, ver in wheel_versions.items():
+            if ver != canonical:
+                errors.append(f"Wheel {pkg} has version {ver}, expected {canonical}")
 
     # 5. Markdown files: check for stale version references
     #    Pattern matches common version formats like 0.9.1, 1.0.0

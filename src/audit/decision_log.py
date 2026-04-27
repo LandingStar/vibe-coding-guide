@@ -36,6 +36,7 @@ class DecisionLogEntry:
     pep_action_count: int = 0
     final_state: str | None = None
     audit_event_count: int = 0
+    merge_conflicts: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -79,6 +80,7 @@ def build_entry(
         pep_action_count=len(execution.get("actions", [])),
         final_state=execution.get("final_state"),
         audit_event_count=len(audit_events),
+        merge_conflicts=pack_info.get("merge_conflicts") or [],
     )
 
 
@@ -106,12 +108,16 @@ class DecisionLogStore:
         trace_id: str | None = None,
         decision: str | None = None,
         intent: str | None = None,
+        has_merge_conflicts: bool | None = None,
         limit: int = 50,
     ) -> list[dict]:
         """Query stored entries with optional filters.
 
         Scans all ``.jsonl`` files in reverse chronological order (newest
         first).  Returns at most *limit* matching entries.
+
+        When *has_merge_conflicts* is ``True``, only entries that recorded
+        at least one merge conflict are returned.
         """
         if not self._log_dir.is_dir():
             return []
@@ -132,6 +138,10 @@ class DecisionLogStore:
                 if decision and data.get("decision") != decision:
                     continue
                 if intent and data.get("intent") != intent:
+                    continue
+                if has_merge_conflicts is True and not data.get("merge_conflicts"):
+                    continue
+                if has_merge_conflicts is False and data.get("merge_conflicts"):
                     continue
                 results.append(data)
                 if len(results) >= limit:

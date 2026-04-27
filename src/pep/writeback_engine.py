@@ -67,8 +67,20 @@ class WritebackEngine:
             return []
 
         plans: list[WritebackPlan] = []
-        report_plans, report_summary = self._plan_report_payloads(execution_result)
+        child_execution_records = execution_result.get("child_execution_records") or []
+        if isinstance(child_execution_records, list) and child_execution_records:
+            report_plans = []
+            report_summary = {
+                "planned_payloads": [],
+                "skipped_payloads": [],
+            }
+        else:
+            report_plans, report_summary = self._plan_report_payloads(execution_result)
         execution_result["report_writeback_summary"] = report_summary
+        grouped_review_summary = self._summarize_grouped_review(execution_result)
+        execution_result["grouped_review_writeback_summary"] = grouped_review_summary
+        grouped_child_plans, grouped_child_summary = self._plan_grouped_review_payloads(execution_result)
+        execution_result["grouped_child_writeback_summary"] = grouped_child_summary
 
         # Build a default plan from the execution detail.
         envelope_id = execution_result.get("envelope_id", "unknown")
@@ -84,8 +96,25 @@ class WritebackEngine:
             f"- Detail: {detail}\n"
             f"- Report payload-derived plans: {len(report_summary['planned_payloads'])}\n"
             f"- Report payloads skipped: {len(report_summary['skipped_payloads'])}\n"
+            f"- Grouped child payload-derived plans: {len(grouped_child_summary['planned_payloads'])}\n"
+            f"- Grouped child payloads skipped: {len(grouped_child_summary['skipped_payloads'])}\n"
+            f"- Grouped child writeback eligibility: {grouped_child_summary['eligibility_basis']}\n"
+            f"- Grouped review outcome: {grouped_review_summary['outcome']}\n"
+            f"- Grouped review driver: {grouped_review_summary['review_driver']}\n"
+            f"- Shared-review zones: {', '.join(grouped_review_summary['shared_review_zone_ids'])}\n"
+            f"- Grouped review child count: {grouped_review_summary['child_count']}\n"
+            f"- Grouped review unresolved items: {grouped_review_summary['unresolved_count']}\n"
+            f"- Merge barrier classification: {grouped_review_summary['conflict_classification']}\n"
+            f"- Children with payload candidates: {len(grouped_review_summary['children_with_payloads'])}\n"
+            f"- Merge barrier blocked reason: {grouped_review_summary['blocked_reason']}\n"
             f"- Timestamp: {datetime.now(timezone.utc).isoformat()}\n"
         )
+        terminal_kind = grouped_review_summary.get("terminal_kind")
+        if isinstance(terminal_kind, str) and terminal_kind:
+            summary += f"- Group terminal kind: {terminal_kind}\n"
+        suppressed_surfaces = grouped_review_summary.get("suppressed_surfaces")
+        if isinstance(suppressed_surfaces, list) and suppressed_surfaces:
+            summary += f"- Suppressed surfaces: {', '.join(str(item) for item in suppressed_surfaces)}\n"
 
         plans.append(WritebackPlan(
             target_path=f".codex/writebacks/{envelope_id}.md",
@@ -94,8 +123,190 @@ class WritebackEngine:
             content_type="markdown",
         ))
         plans.extend(report_plans)
+        plans.extend(grouped_child_plans)
 
         return plans
+
+    def _plan_grouped_review_payloads(
+        self, execution_result: dict,
+    ) -> tuple[list[WritebackPlan], dict[str, object]]:
+        """Plan child payload writeback for all_clear or zone-approved grouped review."""
+        grouped_review = execution_result.get("grouped_review_outcome") or {}
+        group_terminal = execution_result.get("group_terminal_outcome") or {}
+        child_execution_records = execution_result.get("child_execution_records") or []
+        task_group = execution_result.get("task_group") or {}
+
+        summary: dict[str, object] = {
+            "planned_payloads": [],
+            "skipped_payloads": [],
+            "eligibility_basis": "",
+        }
+        if isinstance(group_terminal, dict) and group_terminal:
+            suppressed_surfaces = list(group_terminal.get("suppressed_surfaces") or [])
+            if "grouped_child_writeback" in suppressed_surfaces:
+                summary["eligibility_basis"] = "group_terminal_suppressed"
+                summary["terminal_kind"] = group_terminal.get("terminal_kind", "")
+                summary["suppressed_surfaces"] = suppressed_surfaces
+                skipped_payloads = summary["skipped_payloads"]
+                assert isinstance(skipped_payloads, list)
+                skipped_payloads.append({
+                    "path": "",
+                    "reason": "group terminal outcome suppresses grouped child writeback",
+                })
+                return [], summary
+
+        if not isinstance(child_execution_records, list) or not child_execution_records:
+            return [], summary
+
+        outcome = grouped_review.get("outcome") if isinstance(grouped_review, dict) else None
+        eligibility_basis = self._resolve_grouped_review_payload_writeback_eligibility(
+            execution_result,
+        )
+        summary["eligibility_basis"] = eligibility_basis
+        if not eligibility_basis:
+            skipped_payloads = summary["skipped_payloads"]
+            assert isinstance(skipped_payloads, list)
+            skipped_payloads.append({
+                "path": "",
+                "reason": f"grouped review outcome is {outcome or 'unknown'} without writeback eligibility",
+            })
+            return [], summary
+
+        child_boundaries: dict[str, list[object]] = {}
+        children = task_group.get("children") if isinstance(task_group, dict) else None
+        if isinstance(children, list):
+            for child in children:
+                if not isinstance(child, dict):
+                    continue
+                child_task_id = child.get("child_task_id")
+                if isinstance(child_task_id, str):
+                    child_boundaries[child_task_id] = list(child.get("allowed_artifacts") or [])
+
+        plans: list[WritebackPlan] = []
+        for record in child_execution_records:
+            if not isinstance(record, dict):
+                skipped_payloads = summary["skipped_payloads"]
+                assert isinstance(skipped_payloads, list)
+                skipped_payloads.append({
+                    "path": "",
+                    "reason": "child execution record must be an object",
+                })
+                continue
+
+            child_task_id = record.get("child_task_id")
+            if not isinstance(child_task_id, str):
+                skipped_payloads = summary["skipped_payloads"]
+                assert isinstance(skipped_payloads, list)
+                skipped_payloads.append({
+                    "path": "",
+                    "reason": "child execution record missing child_task_id",
+                })
+                continue
+
+            report = record.get("report") or {}
+            payloads = report.get("artifact_payloads") if isinstance(report, dict) else None
+            child_plans, child_summary = self._plan_payload_entries(
+                payloads,
+                child_boundaries.get(child_task_id, []),
+                summary_context={"child_task_id": child_task_id},
+                empty_boundary_reason="child allowed_artifacts is empty",
+            )
+            plans.extend(child_plans)
+            planned_payloads = summary["planned_payloads"]
+            skipped_payloads = summary["skipped_payloads"]
+            assert isinstance(planned_payloads, list)
+            assert isinstance(skipped_payloads, list)
+            planned_payloads.extend(child_summary["planned_payloads"])
+            skipped_payloads.extend(child_summary["skipped_payloads"])
+
+        return plans, summary
+
+    def _resolve_grouped_review_payload_writeback_eligibility(
+        self,
+        execution_result: dict,
+    ) -> str:
+        """Return the basis that allows grouped child payload writeback."""
+        grouped_review = execution_result.get("grouped_review_outcome") or {}
+        merge_barrier = execution_result.get("merge_barrier_outcome") or {}
+        if not isinstance(grouped_review, dict):
+            grouped_review = {}
+        if not isinstance(merge_barrier, dict):
+            merge_barrier = {}
+
+        outcome = grouped_review.get("outcome")
+        if outcome == "all_clear":
+            return "all_clear"
+
+        review_state = execution_result.get("review_state")
+        review_driver = grouped_review.get("review_driver") or merge_barrier.get("review_driver")
+        shared_review_zone_ids = list(
+            grouped_review.get("shared_review_zone_ids")
+            or merge_barrier.get("shared_review_zone_ids")
+            or []
+        )
+        if (
+            review_state == "applied"
+            and outcome == "review_required"
+            and review_driver == "shared-review-zone"
+            and shared_review_zone_ids
+        ):
+            return "shared-review-zone-approved"
+
+        return ""
+
+    def _summarize_grouped_review(self, execution_result: dict) -> dict[str, object]:
+        """Summarize grouped review and merge barrier metadata for writeback."""
+        grouped_review = execution_result.get("grouped_review_outcome")
+        merge_barrier = execution_result.get("merge_barrier_outcome")
+        group_terminal = execution_result.get("group_terminal_outcome")
+        child_execution_records = execution_result.get("child_execution_records") or []
+
+        children_with_payloads: list[str] = []
+        if isinstance(child_execution_records, list):
+            for record in child_execution_records:
+                if not isinstance(record, dict):
+                    continue
+                report = record.get("report") or {}
+                payloads = report.get("artifact_payloads") if isinstance(report, dict) else None
+                if isinstance(payloads, list) and payloads:
+                    child_task_id = record.get("child_task_id")
+                    if isinstance(child_task_id, str):
+                        children_with_payloads.append(child_task_id)
+
+        if not isinstance(grouped_review, dict):
+            grouped_review = {}
+        if not isinstance(merge_barrier, dict):
+            merge_barrier = {}
+        if not isinstance(group_terminal, dict):
+            group_terminal = {}
+
+        if group_terminal:
+            return {
+                "outcome": "suppressed_by_group_terminal",
+                "review_driver": "",
+                "shared_review_zone_ids": [],
+                "child_count": 0,
+                "unresolved_count": 0,
+                "conflict_classification": "",
+                "children_with_payloads": children_with_payloads,
+                "blocked_reason": group_terminal.get("blocked_reason", ""),
+                "terminal_kind": group_terminal.get("terminal_kind", ""),
+                "suppressed_surfaces": list(group_terminal.get("suppressed_surfaces") or []),
+            }
+
+        child_reviews = grouped_review.get("child_reviews")
+        unresolved_items = grouped_review.get("unresolved_items")
+
+        return {
+            "outcome": grouped_review.get("outcome", ""),
+            "review_driver": grouped_review.get("review_driver") or merge_barrier.get("review_driver", ""),
+            "shared_review_zone_ids": list(grouped_review.get("shared_review_zone_ids") or merge_barrier.get("shared_review_zone_ids") or []),
+            "child_count": len(child_reviews) if isinstance(child_reviews, dict) else 0,
+            "unresolved_count": len(unresolved_items) if isinstance(unresolved_items, list) else 0,
+            "conflict_classification": merge_barrier.get("conflict_classification", ""),
+            "children_with_payloads": children_with_payloads,
+            "blocked_reason": merge_barrier.get("blocked_reason") or grouped_review.get("blocked_reason", ""),
+        }
 
     def _plan_report_payloads(
         self, execution_result: dict,
@@ -105,6 +316,21 @@ class WritebackEngine:
         contract = execution_result.get("contract") or {}
         payloads = report.get("artifact_payloads")
 
+        return self._plan_payload_entries(
+            payloads,
+            contract.get("allowed_artifacts") or [],
+        )
+
+    def _plan_payload_entries(
+        self,
+        payloads: object,
+        allowed_artifacts: list[object],
+        *,
+        summary_context: dict[str, str] | None = None,
+        empty_boundary_reason: str = "contract.allowed_artifacts is empty",
+    ) -> tuple[list[WritebackPlan], dict[str, list[dict[str, str]]]]:
+        """Convert payload entries into safe writeback plans under a boundary."""
+
         summary: dict[str, list[dict[str, str]]] = {
             "planned_payloads": [],
             "skipped_payloads": [],
@@ -112,14 +338,14 @@ class WritebackEngine:
         if not isinstance(payloads, list) or not payloads:
             return [], summary
 
-        allowed_artifacts = self._normalize_allowed_artifacts(
-            contract.get("allowed_artifacts") or []
-        )
+        normalized_allowed_artifacts = self._normalize_allowed_artifacts(allowed_artifacts)
         plans: list[WritebackPlan] = []
 
         for payload in payloads:
+            entry_prefix = dict(summary_context or {})
             if not isinstance(payload, dict):
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": "",
                     "reason": "payload must be an object",
                 })
@@ -129,20 +355,23 @@ class WritebackEngine:
             normalized_path = self._normalize_relative_path(raw_path)
             if normalized_path is None:
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": raw_path,
                     "reason": "path must be a non-empty project-relative path inside base_dir",
                 })
                 continue
 
-            if not allowed_artifacts:
+            if not normalized_allowed_artifacts:
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": normalized_path,
-                    "reason": "contract.allowed_artifacts is empty",
+                    "reason": empty_boundary_reason,
                 })
                 continue
 
-            if not self._is_path_allowed(normalized_path, allowed_artifacts):
+            if not self._is_path_allowed(normalized_path, normalized_allowed_artifacts):
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": normalized_path,
                     "reason": "path is outside contract.allowed_artifacts",
                 })
@@ -151,6 +380,7 @@ class WritebackEngine:
             content = payload.get("content")
             if not isinstance(content, str):
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": normalized_path,
                     "reason": "content must be a string",
                 })
@@ -159,6 +389,7 @@ class WritebackEngine:
             operation = payload.get("operation")
             if operation not in {"create", "update", "append"}:
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": normalized_path,
                     "reason": f"unsupported operation: {operation}",
                 })
@@ -167,6 +398,7 @@ class WritebackEngine:
             content_type = payload.get("content_type")
             if content_type not in {"markdown", "json", "yaml", "text"}:
                 summary["skipped_payloads"].append({
+                    **entry_prefix,
                     "path": normalized_path,
                     "reason": f"unsupported content_type: {content_type}",
                 })
@@ -179,6 +411,7 @@ class WritebackEngine:
                 content_type=content_type,
             ))
             summary["planned_payloads"].append({
+                **entry_prefix,
                 "path": normalized_path,
                 "operation": operation,
             })

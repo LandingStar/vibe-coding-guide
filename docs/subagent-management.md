@@ -46,6 +46,12 @@
 
 但应作为扩展模式而不是基础模式。
 
+当前对 `subgraph` 还需要固定一条实现态边界：
+
+- 已有 `parent-managed` 的 parallel-safe foundation，但还不是完整多 child runtime
+- 当前已实现的基础面包括：`TaskGroup` / `ParallelChildTask` / `ChildExecutionRecord` / `MergeBarrierOutcome` / `GroupedReviewOutcome` companion objects、parent-issued `task_group_id` / `child_task_id` / `namespace`、显式 lineage hints 下的 dispatch preflight、executor-local 的真实 multi-child deterministic dispatch loop、真实多 child `child_execution_records` / grouped review / grouped child payload write-back，以及对现有 review state 的 `grouped_review_state` 镜像；当前第一版 real multi-child 权威边界固定为：**strict preflight 下默认只承诺 `all_clear-only` 自动写回**。在此基础上，平台现已完成 shared-review zone 的最小 companion / result / summary 闭环：`ParallelChildTask.shared_review_zone_id`、preflight `overlap_decisions`、same-artifact zone-driven overlap 例外、merge/grouped review `review_driver` 与 `shared_review_zone_ids`、grouped review writeback summary 对齐，以及 shared-review-zone `review_required` 在 reviewer `approve` 后进入 grouped child payload writeback planning 的 approval-driven eligibility surface（`grouped_child_writeback_summary.eligibility_basis`）。
+- 当前还没有完整 fan-out scheduler、独立于现有 review state 的 grouped review 状态机、group 内 handoff / escalation terminal semantics、或 `team/swarm` runtime lifecycle
+
 ## Core Objects
 
 平台中的子 agent 管理至少涉及：
@@ -57,6 +63,16 @@
 - `Subagent Report`
 - `Handoff`
 - `Escalation`
+
+在当前 `subgraph` 的并行安全收口里，还允许出现一组不替代三分 schema 的 companion objects：
+
+- `TaskGroup`
+- `ParallelChildTask`
+- `ChildExecutionRecord`
+- `MergeBarrierOutcome`
+- `GroupedReviewOutcome`
+
+它们只负责 parent 侧的 orchestration / lineage / preflight，不替代 `Subagent Contract`、`Subagent Report` 或 `Handoff`。
 
 对应最小 schema 见：
 
@@ -181,3 +197,5 @@
 - 某个实例内部的具体合同模板
 - 某个 runtime 的具体 API
 - team / swarm / subgraph 的最终执行协议
+
+当前额外明确：`subgraph` 的 parallel-safe foundation 已经落在现有 runtime 表面，但它仍属于 `supervisor-managed` 扩展，不意味着平台已经具备完整并行 task runtime。

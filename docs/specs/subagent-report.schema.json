@@ -52,6 +52,10 @@
       "items": { "type": "string" },
       "description": "Assumptions made during execution that the supervisor should verify."
     },
+    "handoff": {
+      "$ref": "#/$defs/handoff",
+      "description": "Optional explicit authority-transfer evidence carried alongside the report for parent-managed terminal-bundle decisions."
+    },
     "escalation_recommendation": {
       "type": "string",
       "description": "Whether escalation is recommended and to whom.",
@@ -81,6 +85,66 @@
           "type": "string",
           "description": "Declared content type for downstream writeback mapping.",
           "enum": ["markdown", "json", "yaml", "text"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "handoff": {
+      "type": "object",
+      "required": [
+        "handoff_id",
+        "from_role",
+        "to_role",
+        "reason",
+        "active_scope",
+        "authoritative_refs",
+        "carried_constraints",
+        "open_items",
+        "current_gate_state",
+        "intake_requirements"
+      ],
+      "properties": {
+        "handoff_id": {
+          "type": "string",
+          "pattern": "^handoff-.+"
+        },
+        "from_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authoritative_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "carried_constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "open_items": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "current_gate_state": {
+          "type": "string",
+          "enum": ["proposed", "waiting_review", "approved", "rejected", "revised", "applied"]
+        },
+        "intake_requirements": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
         }
       },
       "additionalProperties": false

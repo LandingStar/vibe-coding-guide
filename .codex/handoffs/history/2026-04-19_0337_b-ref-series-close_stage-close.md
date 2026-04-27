@@ -2,7 +2,7 @@
 handoff_id: 2026-04-19_0337_b-ref-series-close_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: b-ref-series-close
 safe_stop_kind: stage-complete
 created_at: 2026-04-19T03:37:42+08:00

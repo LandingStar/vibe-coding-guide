@@ -11,6 +11,12 @@
 - 安装后如何做最小验证
 - 如何把 MCP 以“安装态”方式接入 VS Code、Codex 等兼容客户端
 
+如果你现在只想知道“先看什么、我属于哪条入口”，先读 `docs/starter-surface.md`。
+
+如果你已经明确自己要在 Codex 中接入，先读 `docs/codex-entry-contract.md`，再回到本文件看安装与注册细节。
+
+关于这些宿主/客户端差异在平台中的分层位置，见 `docs/host-interaction-model.md`。
+
 它不定义远程 registry、发布自动化和 marketplace；当前仓库尚未固定这些分发层协议。
 
 ## 当前结论
@@ -134,6 +140,25 @@ doc-based-coding validate
 
 如果目标仓库结构完整，这两条命令应能读取当前项目文档与 pack 信息，而不是依赖发布者源码工作区路径。
 
+### 4. 指令面生成验证
+
+如果你的目标客户端是 Codex，建议额外验证 `AGENTS.md` 指令面可以直接生成：
+
+```powershell
+doc-based-coding generate-instructions --target codex --output .\AGENTS.generated.md
+```
+
+如果你的目标客户端仍是 Copilot，则可继续生成 Copilot 指令文件片段：
+
+```powershell
+doc-based-coding generate-instructions --target copilot --output .\.github\copilot-instructions.generated.md
+```
+
+若你已经确定输出文件名，也可以省略 `--target`：
+
+- 输出到 `AGENTS.md` / `AGENTS.override.md` 时，CLI 会自动按 Codex 目标生成标题和说明
+- 输出到 `copilot-instructions.md` 时，CLI 会自动按 Copilot 目标生成标题和说明
+
 ## MCP 安装态接入
 
 ### 当前 MCP 运行情况
@@ -157,13 +182,49 @@ doc-based-coding validate
 
 ### 安装态推荐方式
 
+对 Codex，优先采用项目级 `.codex/config.toml` 或 `codex mcp add`。
+对 VS Code / Copilot Chat，则继续使用 workspace 级 `mcp.json`。
+
+关于 Codex 这条入口本身的职责边界，见 `docs/codex-entry-contract.md`。
+
 安装态项目应优先引用已经安装好的 `doc-based-coding-mcp` 入口。
+
+从平台分层看，这里的 `.codex/config.toml`、`codex mcp add`、`mcp.json` 都属于宿主注册适配面，而不是平台核心语义本身；相关总纲见 `docs/host-interaction-model.md`。
 
 这个入口并不依赖 Copilot 专有协议；凡是支持 stdio MCP server 的客户端，都应能复用同一条 server 启动命令。当前至少应按以下方式理解：
 
+- Codex：优先在项目内配置 `.codex/config.toml`，或通过 `codex mcp add` 注册 stdio server
 - VS Code / Copilot Chat：使用 workspace 级 `mcp.json` 指向安装后的 `doc-based-coding-mcp`
-- Codex 或其他 MCP host：只要能配置 stdio server，同样应指向安装后的 `doc-based-coding-mcp` 与目标项目根目录
+- 其他 MCP host：只要能配置 stdio server，同样应指向安装后的 `doc-based-coding-mcp` 与目标项目根目录
 - 不应把 server 绑定成“只能由 Copilot 使用”的实现
+
+Codex 项目级 `.codex/config.toml` 示例：
+
+```toml
+[mcp_servers.doc_based_coding_governance]
+command = ".venv\\Scripts\\doc-based-coding-mcp.exe"
+args = []
+cwd = "."
+```
+
+macOS / Linux 可写成：
+
+```toml
+[mcp_servers.doc_based_coding_governance]
+command = ".venv/bin/doc-based-coding-mcp"
+args = []
+cwd = "."
+```
+
+如果你更习惯命令式注册，也可以在目标项目根目录运行：
+
+```powershell
+codex mcp add doc-based-coding-governance -- .\.venv\Scripts\doc-based-coding-mcp.exe
+```
+
+```bash
+codex mcp add doc-based-coding-governance -- ./.venv/bin/doc-based-coding-mcp
+```
 
 Windows PowerShell / VS Code `mcp.json` 示例：
 
@@ -207,13 +268,19 @@ macOS / Linux 示例：
 
 如果你的目标不是“在当前仓库里体验命令”，而是“把这套机制接到另一个真实项目”，请继续阅读：
 
+- [starter-surface.md](starter-surface.md)
+- [codex-entry-contract.md](codex-entry-contract.md)
 - [project-adoption.md](project-adoption.md)
 - [official-instance-doc-loop.md](official-instance-doc-loop.md)
+- [host-interaction-model.md](host-interaction-model.md)
 
 其中：
 
 - 本文解决“如何安装与启动入口”
+- `starter-surface.md` 解决“第一次进入仓库时先看哪里”
+- `codex-entry-contract.md` 解决“如果目标宿主是 Codex，最短入口闭环是什么”
 - adoption 文档解决“安装后如何让一个真实仓库挂上来”
+- `host-interaction-model.md` 解决“这些入口差异属于平台哪一层”
 
 ## 当前边界
 

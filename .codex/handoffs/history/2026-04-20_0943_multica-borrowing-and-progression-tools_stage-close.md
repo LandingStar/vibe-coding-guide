@@ -2,7 +2,7 @@
 handoff_id: 2026-04-20_0943_multica-borrowing-and-progression-tools_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: multica-borrowing-and-progression-tools
 safe_stop_kind: stage-complete
 created_at: 2026-04-20T09:43:05+08:00
