@@ -1,7 +1,7 @@
 # Planning Gate — Release-Close Handoff / CURRENT Refresh Hardening
 
 > 日期: 2026-04-27
-> 状态: ACTIVE
+> 状态: COMPLETED
 > 来源: `design_docs/v0.9.5-preview-release-followup-direction-analysis.md`、`design_docs/Project Master Checklist.md`
 
 ## Why this exists
@@ -46,19 +46,30 @@
 
 - 固定 release-close 后必须对齐的状态面、成功标准与 out-of-scope
 
-当前状态：ACTIVE。
+当前状态：已完成；release-close 后必须对齐的 pointer surface、成功标准与 out-of-scope 已固定到当前 gate 与 slice draft。
 
 ### Slice 2 — Minimal refresh path decision
 
 - 判断应沿既有 handoff workflow 串联收口，还是需要补最小 automation/hardening
 
-当前状态：pending。
+当前状态：已完成；已确认当前问题是“缺少新的 canonical release-close handoff”，沿既有 `generate handoff -> refresh current` workflow 即可收口，不需要新增 automation/hardening code path。
 
 ### Slice 3 — Smallest repair and verification
 
 - 实施选定最小路径，更新状态面并刷新 progress graph artifacts，再留下最小验证
 
-当前状态：pending。
+当前状态：已完成；新的 release-close canonical handoff 已生成并轮转为 `CURRENT.md` 镜像源，Checklist / Phase Map / checkpoint 也已统一到同一 handoff，`.codex/progress-graph/latest.json` / `.dot` / `.html` 已按新状态面刷新。
+
+## Execution outcome
+
+1. 确认本次 drift 不是 handoff schema 或 refresh helper 失效，而是 release-close 之后没有生成新的 canonical handoff
+2. 复用既有 `generate handoff -> refresh current` 路径生成并激活 release-close canonical handoff
+3. 将 Checklist、Phase Map、checkpoint 与 `CURRENT.md` 的 handoff footprint 对齐到同一 release-close handoff
+4. 刷新 `.codex/progress-graph/latest.json` / `.dot` / `.html`，使真实 artifact 反映新的 authority state
+
+## Result
+
+当前 gate 已确认：既有 handoff workflow 足以完成本次 release-close 收口；本轮不需要再进入额外的 handoff automation hardening 或 code repair。
 
 ## Validation gate
 

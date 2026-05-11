@@ -37,6 +37,16 @@ if TYPE_CHECKING:
     from src.workers.registry import WorkerRegistry
 
 
+def persist_handoff_json(handoff_dir: str | Path, handoff: dict) -> Path:
+    """Persist *handoff* JSON using the executor's canonical file layout."""
+
+    directory = Path(handoff_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{handoff['handoff_id']}.json"
+    path.write_text(json.dumps(handoff, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
 class Executor:
     """Execute actions permitted by a PDP Decision Envelope.
 
@@ -1604,9 +1614,7 @@ class Executor:
     def _persist_handoff(self, handoff: dict, envelope_id: str) -> None:
         """Write handoff JSON to the handoff directory."""
         assert self._handoff_dir is not None
-        self._handoff_dir.mkdir(parents=True, exist_ok=True)
-        path = self._handoff_dir / f"{handoff['handoff_id']}.json"
-        path.write_text(json.dumps(handoff, indent=2, ensure_ascii=False), encoding="utf-8")
+        path = persist_handoff_json(self._handoff_dir, handoff)
         self.log.record(
             "handoff-persisted",
             f"Handoff {handoff['handoff_id']} written to {path}.",

@@ -1,20 +1,21 @@
 ---
-handoff_id: 2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close
+handoff_id: 2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close
 entry_role: current-mirror
-source_handoff_id: 2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close
-source_path: .codex/handoffs/history/2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close.md
-source_hash: sha256:64c349ec74dbc8652c9d051ac0384f524aac01bbd3f74f5f386dba368ce61bca
+source_handoff_id: 2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close
+source_path: .codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md
+source_hash: sha256:2a982b199014c070e60033f11008c6d9c30cd8c5ede3cfc73264d41b4290da79
 kind: stage-close
 status: active
-scope_key: global-direction-candidates-section-recency-semantics
+scope_key: project-progress-richer-interactive-preview-over-current-export-surface
 safe_stop_kind: stage-complete
-created_at: 2026-04-27T19:31:29+08:00
+created_at: 2026-05-03T12:10:19+08:00
 authoritative_refs:
   - design_docs/Project Master Checklist.md
   - design_docs/Global Phase Map and Current Position.md
+  - design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md
   - design_docs/direction-candidates-after-phase-35.md
-  - design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md
-  - design_docs/project-progress-global-direction-candidates-recency-semantics-followup-direction-analysis.md
+  - design_docs/project-progress-richer-interactive-preview-slice1-draft.md
+  - design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md
 conditional_blocks:
   - phase-acceptance-close
   - code-change
@@ -26,17 +27,18 @@ other_count: 0
 
 当前入口镜像当前 active canonical handoff。继续工作前，应回到 canonical handoff 与其 authoritative refs。
 
-- Source handoff id: `2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close`
-- Source path: `.codex/handoffs/history/2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close.md`
+- Source handoff id: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
+- Source path: `.codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md`
 
 ## Summary
 
-本会话完成 `Global Direction-Candidates Section Recency Semantics` 的 stage-close：`tools/progress_graph/doc_projection.py` 已把 `direction-candidates-global` 的 latest numbered section 选择从“最后出现者获胜”改为显式 recency 规则，优先取 section title 日期、在同日或缺失日期时回退到更早文档位置；`tests/test_progress_graph_doc_projection.py` 已补充顶部插入 numbered section 的 targeted probe 并通过，真实 `.codex/progress-graph/latest.json`、`.dot`、`.html` 已刷新。当前仓库已回到无 active planning-gate 的可恢复 safe stop，下一条主线明确转向 `companion prose projection`，且用户已在方向选择上收窄到 A2 完整 prose projection，但当前轮先做 safe stop 收口。
+本会话完成 `Project Progress Richer Interactive Preview Over Current Export Surface` 的 stage-close：把现有 HTML / host preview 的第一版交互层稳定在 graph-local search、status filter、selected node detail、focused reveal 与 zoom surface 上，同时保持 `doc_projection`、`export` schema 与 host wiring 不变；随后通过 `tests/test_progress_graph_html_preview.py` 的 focused validation（4 passed）、补齐 follow-up direction analysis，并将 Checklist / Phase Map / checkpoint / direction candidates / progress-graph artifacts / `CURRENT.md` 收口到同一 safe-stop 口径。当前可以安全停下，因为这条 gate 的 stop condition 已满足，仓库重新回到无 active planning-gate 状态，下一会话只需从已固定的 graph follow-up 候选中选一条新的窄主线继续。
 
 ## Authoritative Sources
 
 - `design_docs/Project Master Checklist.md`
 - `design_docs/Global Phase Map and Current Position.md`
+- `design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`
 - `design_docs/direction-candidates-after-phase-35.md`
-- `design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
-- `design_docs/project-progress-global-direction-candidates-recency-semantics-followup-direction-analysis.md`
+- `design_docs/project-progress-richer-interactive-preview-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`

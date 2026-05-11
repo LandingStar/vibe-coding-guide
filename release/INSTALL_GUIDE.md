@@ -8,10 +8,10 @@
 
 | 文件 | 包名 | 职责 |
 |------|------|------|
-| `doc_based_coding_runtime-0.9.5-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
-| `doc_loop_vibe_coding-0.9.5-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
+| `doc_based_coding_runtime-0.9.6-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
+| `doc_loop_vibe_coding-0.9.6-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
 
-依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.5,<1.0.0`）。
+依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.6,<1.0.0`）。
 
 ## 前置要求
 
@@ -33,7 +33,7 @@ source .venv/bin/activate
 ### 2. 安装 runtime 包
 
 ```bash
-pip install doc_based_coding_runtime-0.9.5-py3-none-any.whl
+pip install doc_based_coding_runtime-0.9.6-py3-none-any.whl
 ```
 
 这将同时安装所有依赖（jsonschema、mcp 等）。
@@ -41,7 +41,7 @@ pip install doc_based_coding_runtime-0.9.5-py3-none-any.whl
 ### 3. 安装官方实例包
 
 ```bash
-pip install doc_loop_vibe_coding-0.9.5-py3-none-any.whl
+pip install doc_loop_vibe_coding-0.9.6-py3-none-any.whl
 ```
 
 由于 runtime 已安装，此步骤不会重复拉取依赖。
@@ -50,11 +50,11 @@ pip install doc_loop_vibe_coding-0.9.5-py3-none-any.whl
 >
 > ```bash
 > # 方式 A：按顺序逐个安装（推荐）
-> pip install --force-reinstall doc_based_coding_runtime-0.9.5-py3-none-any.whl
-> pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.5-py3-none-any.whl
+> pip install --force-reinstall doc_based_coding_runtime-0.9.6-py3-none-any.whl
+> pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.6-py3-none-any.whl
 >
 > # 方式 B：使用 --find-links 让 pip 从当前目录查找依赖
-> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.5-py3-none-any.whl
+> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.6-py3-none-any.whl
 > ```
 >
 > 如果之前已安装旧版本，建议先 `pip uninstall` 再安装，避免版本冲突。

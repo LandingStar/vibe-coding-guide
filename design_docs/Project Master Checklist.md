@@ -13,21 +13,21 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-04-27`
+- Snapshot Date: `2026-05-07`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.5` (preview)
 - Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成 + Codex 主链适配与 VS Code extension provider abstraction + 2026-04-23 docs-only 宿主交互/入口面收口 + 2026-04-24 scratch 轻量恢复协议（docs-only 收口完成）`
-- Active Slice: `Release-Close Handoff / CURRENT Refresh Hardening (ACTIVE planning-gate)`
-- Latest Completed Slice: `Project Progress Global Direction-Candidates Artifact Consistency Audit`
-- Safe Stop Status: `2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close`
+- Active Slice: `G6 V2 Graph View PoC (ACTIVE planning-gate; 当前图面基础交互已闭环，hover/selected 高亮由 G6 state 接管，真实宿主 spot check 已确认无 shrink 回归；下一步应只在颜色组迁移或更细视觉调校中继续推进)`
+- Latest Completed Slice: `Parallel V2 Graph Renderer And Library Selection`
+- Safe Stop Status: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
 - Test Baseline: `1366 passed, 2 skipped`
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close`
-- source_path: `.codex/handoffs/history/2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close.md`
-- scope_key: `global-direction-candidates-section-recency-semantics`
-- created_at: `2026-04-27T19:31:29+08:00`
+- handoff_id: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
+- source_path: `.codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md`
+- scope_key: `project-progress-richer-interactive-preview-over-current-export-surface`
+- created_at: `2026-05-03T12:10:19+08:00`
 
 ## 当前文档入口
 
@@ -57,7 +57,43 @@
 - `review/live-payload-rerun-verification-2026-04-16.md`
 - `review/real-worker-payload-adoption-judgment-2026-04-16.md`
 - `design_docs/direction-candidates-after-phase-35.md`
+- `design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md`
+- `design_docs/orchestration-bridge-mvp-boundary-draft.md`
+- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice1-draft.md`
+- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice2-draft.md`
+- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice3-draft.md`
+- `design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md`
+- `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`
+- `design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`
+- `design_docs/project-progress-graph-interactive-control-surface-direction-analysis.md`
+- `design_docs/project-progress-graph-interactive-control-surface-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md`
+- `design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md`
+- `design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md`
+- `design_docs/project-progress-v2-graph-library-selection-comparison.md`
+- `design_docs/project-progress-v2-graph-asset-boundary-draft.md`
+- `design_docs/project-progress-v2-graph-adapter-shape-draft.md`
+- `design_docs/project-progress-v2-graph-focused-validation-draft.md`
+- `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md`
+- `design_docs/project-progress-preview-freshness-signaling-and-workflow-polishing-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`
+- `design_docs/project-progress-richer-interactive-preview-slice1-draft.md`
+- `design_docs/project-progress-graph-component-planning.md`
+- `design_docs/project-progress-graph-open-work-breakdown.md`
 - `design_docs/v0.9.5-preview-release-followup-direction-analysis.md`
+- `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md`
+- `design_docs/orchestration-bridge-daemon-contract-first-slice2-group-item-projection-draft.md`
+- `design_docs/orchestration-bridge-daemon-contract-first-slice2-work-item-rollup-draft.md`
+- `design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md`
+- `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`
+- `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md`
+- `design_docs/orchestration-bridge-contract-runtime-alignment-slice2-delivery-signal-backflow-draft.md`
+- `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md`
+- `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`
+- `design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md`
+- `design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`
+- `design_docs/project-progress-companion-prose-projection-slice1-draft.md`
+- `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`
 - `design_docs/release-close-handoff-current-refresh-hardening-slice1-draft.md`
 - `design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md`
 - `design_docs/project-progress-multi-graph-direction-analysis.md`
@@ -65,6 +101,8 @@
 - `design_docs/project-progress-multi-graph-slice1-draft.md`
 - `design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md`
 - `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`
+- `design_docs/orchestration-bridge-landing-dispatch-integration-direction-analysis.md`
+- `design_docs/orchestration-bridge-landing-dispatch-integration-slice1-draft.md`
 - `design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
 - `design_docs/stages/planning-gate/2026-04-24-parallel-safe-subgraph-fanout-fanin.md`
 - `design_docs/host-interaction-surface-isolation-direction-analysis.md`
@@ -120,6 +158,79 @@
 ## 当前待办与风险
 
 > Phase 4–26 的详细完成记录已归档至 `design_docs/phase-0-26-review.md`。
+
+- [x] 2026-04-28：已完成 `design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md`；release-close canonical handoff、`CURRENT.md`、Checklist、Phase Map 与 checkpoint 已统一到同一 handoff，progress graph artifacts 已按新状态面刷新
+- [x] 2026-04-28：已重新选定下一条 post-release 窄主线为 `companion prose projection recovery`
+- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`
+- [x] 2026-04-28：已创建 Slice 1 设计草案 `design_docs/project-progress-companion-prose-projection-slice1-draft.md`
+- [x] 2026-04-28：已完成 `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`；`direction-candidates-global` 现已支持 pure companion prose sections、section-local companion nodes，以及 explicit actual-next-gate -> planning-gates-index linkage
+- [x] 2026-04-28：`tests/test_progress_graph_doc_projection.py` 已通过 companion prose targeted validation（3 passed），真实 `.codex/progress-graph/latest.json` / `.dot` / `.html` 已刷新
+- [x] 2026-04-28：已按未执行议案视角重审候选，并明确选择恢复 `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`；当前 gate 已从 `PAUSED` 恢复为 `ACTIVE`
+- [x] 2026-04-28：已定稿 `design_docs/orchestration-bridge-landing-dispatch-integration-slice1-draft.md`；`build_landing_consumer_payload()`、handoff consumer protocol、`EscalationNotifier.notify()`、review-intake adapter 与 unified delivery result 的边界已固定
+- [x] 2026-04-28：`src/runtime/orchestration/landing_dispatch.py` 已落地最小 dispatch helper / protocol；`tests/test_runtime_orchestration_landing_dispatch.py` 与 `tests/test_runtime_orchestration_landing_consumers.py` 联合通过（8 passed）
+- [x] 2026-04-28：已把显式 handoff consumer 与 review-intake adapter 接到真实 owner surface：handoff 复用 executor handoff JSON 持久化语义，review_intake 复用 `FeedbackAPI.register()` pending review surface
+- [x] 2026-04-28：`tests/test_runtime_orchestration_landing_dispatch.py` 已补 owner-surface wiring 验证；当前与 `tests/test_runtime_orchestration_landing_consumers.py` 联合通过（10 passed）
+- [x] 2026-04-28：已扩大 landing dispatch 验证到 `tests/test_runtime_orchestration*.py` 相关 6 文件；orchestration 联合验证通过（30 passed）
+- [x] 2026-04-28：已完成 landing dispatch gate-close writeback；planning-gate 已关闭，follow-up direction analysis 与 direction candidates 已同步，safe-stop handoff / `CURRENT.md` / checkpoint / Checklist / Phase Map 已统一到同一 canonical handoff
+- [x] 2026-04-28：已从 `design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md` 选定 Candidate 1 `thin orchestration bridge / daemon contract-first`
+- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`
+- [x] 2026-04-28：已创建 Slice 1 草案 `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md`
+- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md` 固定 bridge-owned lifecycle / recovery boundary 与 governance-kernel / landing-dispatch ownership matrix
+- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice2-group-item-projection-draft.md` 定义 `GroupTerminalOutcome` / grouped review / writeback summary / landing dispatch result 的 group-item-first upward projection contract
+- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice2-work-item-rollup-draft.md` 定义 `BridgeWorkItem` 如何基于 group-item projection 做 deterministic roll-up 的 boundary-level contract
+- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md` 定义哪些 dominant roll-up 会推动 `waiting_external_resolution`、哪些只意味着继续等待
+- [x] 2026-04-28：已判断当前 docs-only gate 满足 close 条件，并将 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md` 切为 `COMPLETED`
+- [x] 2026-04-28：已创建 follow-up analysis `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`
+- [x] 2026-04-28：已从 `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md` 选定 Candidate A `contract/runtime alignment over existing bridge surface`
+- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md`
+- [x] 2026-04-28：已创建 Slice 1 草案 `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md`
+- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md` 建立 `models.py` / `projection.py` / `rollup.py` / `stop_conditions.py` / `landing.py` 的 contract/runtime 对齐清单
+- [x] 2026-04-28：已选定第一条 conformance edit：owner-facing delivery signal 是否需要最小回流到 bridge model surface
+- [x] 2026-04-28：已创建 Slice 2 草案 `design_docs/orchestration-bridge-contract-runtime-alignment-slice2-delivery-signal-backflow-draft.md`
+- [x] 2026-04-28：已决定最小 delivery signal 采用 group-item-first 落点：`models.py` 承载 compact signal，`projection.py` 负责归一化，`landing_dispatch.py` 保持 source-of-truth
+- [x] 2026-04-28：已把最小 delivery signal 收窄为 delivery family / delivery state / record clue / failure clue 四类 compact clue
+- [x] 2026-04-28：已决定最小代码接入方式为 `models.py` 增字段 + `projection.py` 独立 delivery projector，现有治理 projector 不混入 delivery kwargs
+- [x] 2026-04-28：已决定当前 Slice 2 暂不接 integration hook，先保持 isolated conformance surface
+- [x] 2026-04-28：已定义独立 delivery projector 的最小 contract
+- [x] 2026-04-28：已按该 contract 落最小代码实现并补 targeted tests；`tests/test_runtime_orchestration.py` 通过（10 passed）
+- [x] 2026-04-29：已判断当前 `orchestration-bridge-contract-runtime-alignment` gate 在内容面已满足 close 条件；当前 gate 仅因 follow-up direction analysis 与 safe-stop writeback bundle 尚未执行而继续保持 `ACTIVE`
+- [x] 2026-04-29：已确认此前 close 规则执行不精确的主要原因是本 gate 本地 `Stop condition` 未显式复写 safe-stop writeback bundle，且 `/memories/repo/project-state.md` 仍停留在“无 active planning gate”的过期状态
+- [x] 2026-04-29：已补 current-gate follow-up direction analysis，并同步 direction candidates / Phase Map / checkpoint / handoff bundle；`orchestration-bridge-contract-runtime-alignment` gate 已正式关闭
+- [x] 2026-04-29：已完成 `orchestration-bridge-contract-runtime-alignment` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-04-29_1925_orchestration-bridge-contract-runtime-alignment_stage-close`，当前仓库重新回到无 active planning-gate 状态
+- [x] 2026-04-29：已从 `design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md` 选定 Candidate A `delivery signal integration hook over existing bridge surface`
+- [x] 2026-04-29：已创建并激活 `design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md`
+- [x] 2026-04-29：已创建 Slice 1 草案 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice1-draft.md`
+- [x] 2026-04-30：已创建 Slice 2 / Slice 3 草案 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice2-draft.md` 与 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice3-draft.md`
+- [x] 2026-04-30：已在 `src/runtime/orchestration/landing.py` 落地最小 post-dispatch overlay helper `overlay_delivery_dispatch_result(...)`，并在 `tests/test_runtime_orchestration_landing_dispatch.py` 完成 focused validation（9 passed）
+- [x] 2026-04-30：`design_docs/orchestration-bridge-mvp-boundary-draft.md` 已确认 bridge MVP 的四个 completion signals 全部成立，bridge MVP 技术验收条件满足
+- [x] 2026-04-30：已完成 `orchestration-bridge-delivery-signal-integration-hook` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-04-30_1818_orchestration-bridge-delivery-signal-integration-hook_stage-close`，当前仓库重新回到无 active planning-gate 状态
+- [x] 2026-04-30：已创建 `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`，当前默认回到 graph 用户交互候选面，推荐 Candidate A `richer interactive preview over current export surface`
+- [x] 2026-04-30：已从 `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md` 选定 Candidate A `richer interactive preview over current export surface`
+- [x] 2026-04-30：已创建并激活 `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`
+- [x] 2026-04-30：已创建 Slice 1 草案 `design_docs/project-progress-richer-interactive-preview-slice1-draft.md`，当前第一刀收窄为 graph-local filter / node detail / focused reveal，不重开 projection、freshness signaling 或 handoff/safe-stop coverage
+- [x] 2026-05-03：已完成 `project-progress-richer-interactive-preview-over-current-export-surface` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`，`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md` 与 `design_docs/direction-candidates-after-phase-35.md` 已固定 close 后的下一步候选，当前仓库重新回到无 active planning-gate 状态
+- [x] 2026-05-03：已从 `design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md` 选定 Candidate A `preview freshness signaling and workflow polishing`
+- [x] 2026-05-03：已创建并激活 `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md`
+- [x] 2026-05-03：已创建 Slice 1 草案 `design_docs/project-progress-preview-freshness-signaling-and-workflow-polishing-slice1-draft.md`，当前第一刀收窄为 stale hint、dirty badge、refresh-state 与 artifact freshness 可见性，不进入 watcher / auto-refresh、compound node 或 source coverage 扩面
+- [x] 2026-05-05：Candidate A 已启动 Slice 2 实装；`vscode-extension/src/views/progressGraphPreview.ts` 不再让 raw `latest.html` 直接绕开宿主 shell，当前最小 host wrapper / chrome 已接入 artifact mtime、last-loaded time 与 refresh lifecycle，可表达 `fresh` / `stale` / `refreshing` / `failed` / `missing` 五类 freshness state，且 `npm run build` 已通过
+- [x] 2026-05-05：当前已确认 Candidate A 的承载策略：在 UX 彻底稳定接管前，继续保持原始 HTML 与宿主 UX 并行；raw `latest.html` 仍是 graph 主内容，host shell 只并行提供 freshness / refresh-state 与操作入口
+- [x] 2026-05-06：已补 `missing` / `stale` / `failed` 三类 freshness helper 的可执行 Node spot check，当前 freshness signaling gate 满足收口条件
+- [x] 2026-05-06：已完成 `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md` 的 close writeback，当前该 gate 已关闭
+- [x] 2026-05-06：已创建并激活 `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md`
+- [x] 2026-05-06：已创建 Slice 1 草案 `design_docs/project-progress-graph-interactive-control-surface-slice1-draft.md`，当前第一刀收窄为 read-only control overlay + orchestration compact snapshot contract，不进入 direct mutation controls 或 daemon persistence
+- [x] 2026-05-06：已继续完成当前 active gate 的 contract-only groundwork：`design_docs/project-progress-graph-interactive-control-surface-snapshot-schema-draft.md`、`design_docs/project-progress-graph-interactive-control-surface-slice2-projection-helper-contract-draft.md`、`design_docs/project-progress-graph-interactive-control-surface-slice2-graph-binding-contract-draft.md` 与 `design_docs/project-progress-graph-interactive-control-surface-slice3-overlay-consumer-surface-draft.md` 已收口 snapshot schema、projection helper、graph binding 与 read-only overlay consumer 四层 contract；当前下一窄切口已转为最小代码骨架，而不再继续扩 contract 文档
+- [x] 2026-05-06：当前 active gate 已继续进入最小代码骨架实现：`tools/progress_graph/control_snapshot.py` / `tools/progress_graph/control_binding.py` 已落地，`vscode-extension/src/views/progressGraphArtifacts.ts` 已把 `control-snapshot.json` 接入真实 regenerate pipeline，且 `vscode-extension/src/views/progressGraphPreview.ts` 已能消费该 artifact；随后 `write_control_snapshot(...)` 的默认 source 已进一步接到当前 `.codex/checkpoints/latest.md` + active planning-gate，使 workspace 中的 `control-snapshot.json` 不再是空壳，而是 active gate + open todo 的最小非空 bridge 观察面。此后 `vscode-extension/src/views/progressGraphPreviewHtml.ts` 与 `vscode-extension/src/test/progressGraphPreviewHtml.test.ts` 又已完成 focused host spot check，当前下一窄切口转为最小 source coverage，而不是继续停留在空 snapshot 入口或宿主壳层占位
+- [x] 2026-05-06：已把 persisted current handoff mirror `.codex/handoffs/CURRENT.md` 接入 `write_control_snapshot(...)` fallback；当前 handoff 已作为 completed work item + delivered handoff row 进入 unbound runtime panel，`tests/test_progress_graph_control_snapshot.py` 现通过（8 passed），实际 `.codex/progress-graph/control-snapshot.json` 也已刷新到包含 active planning-gate、open checkpoint todo 与 current handoff persisted source 的状态
+- [x] 2026-05-06：已完成 escalation source 调研收口：当前 `review_intake` 仍只落到 `FeedbackAPI` in-memory surface；escalation 当前只有 `EscalationNotifier.notify()` contract 与可选 `FileNotifier` utility，没有默认 wiring、默认输出目录或现成 JSON artifact，因此不在当前 active gate 内伪造新的 persisted source；相关 future slice 已记录到 `design_docs/stages/planning-gate/2026-05-06-escalation-notification-persisted-surface-contract.md`
+- [x] 2026-05-07：已把 `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md` 暂停在 stable baseline，并按用户采纳切出 V2 并行展示线；`design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md` 已完成 docs-first 收口，当前最窄执行线已切到 `design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md`
+- [x] 2026-05-07：Sigma.js + Graphology V2 graph-view PoC 已直接接入现有 VS Code preview：`vscode-extension/src/views/progressGraphPreview.ts` 现从 `.codex/progress-graph/latest.json` 选图构建 V2 payload，`vscode-extension/src/views/progressGraphPreviewHtml.ts` 已注入并行 V2 section，`vscode-extension/src/webviews/progressGraphV2PoC.ts` 已实现 Sigma.js + Graphology + ForceAtlas2 的浏览器侧 graph-view，`vscode-extension/esbuild.config.mjs` 已改为双构建，依赖已写入 `vscode-extension/package.json`
+- [x] 2026-05-07：当前 focused validation 已通过：`npm run build` 成功、`vscode-extension/src/test/progressGraphPreviewHtml.test.ts` 已补 V2 shell 注入断言并通过、关键入口文件 diagnostics clean
+- [x] 2026-05-07：已完成真实 VS Code 宿主视觉 spot check；此前暴露的 edge=0、Sigma `x/y` 初始化错误与 `project-checklist-current` 零边问题已修复，当前用户验证已确认边可见且无 `x/y` 报错
+- [x] 2026-05-07：已把当前 PoC 的图感微调推进到可见实现态；`vscode-extension/src/webviews/progressGraphV2PoC.ts` 现已接入 idle label anchors、click-to-focus camera follow，以及 semantic-band seed + ForceAtlas2 cloud tuning；`npm run build` 与关键 diagnostics 持续通过
+- [x] 2026-05-08：已在 `vscode-extension/src/views/progressGraphPreviewHtml.ts` + `vscode-extension/src/webviews/progressGraphV2PoC.ts` 接入最小 Obsidian-ish Graph Config：外观滑杆、力度滑杆与 query-based 颜色组均已可用，且配置会通过 webview state 保留
+- [x] 2026-05-08：已完成当前配置面的 focused validation：`npm run build` 通过，`vscode-extension/src/views/progressGraphPreviewHtml.ts` 的 in-memory helper validation 通过，相关 diagnostics clean；现有 `vscode-extension/package.json` 的 `npm test` 入口仍指向缺失的 `dist/test/runTest.js`，暂未在本切片内修复
+- [x] 2026-05-08：已补做 Obsidian 颜色组语义对齐调研并落实到实现：官方 Graph 文档确认 Groups 只包含 `search term + color`，且查询直接复用 Search；公开讨论与版本线索显示颜色组顺序影响优先级，首个匹配组获胜，因此当前实现已补入 Search 风格核心语法与颜色组顺序调整
+- [x] 2026-05-09：G6 graph-view 当前交互收口已成立：`vscode-extension/src/webviews/progressGraphV2G6.ts` 现已把 hover / selected 高亮切到 G6 element state，修复了 hover / click / node-scale 相关 shrink 回归，selected 相对 hover 的确认感已单独拉开，节点标签也已切到深色可读文案；真实 VS Code 宿主 spot check 已确认当前图面闭环成立
 
 ### 活跃待办
 

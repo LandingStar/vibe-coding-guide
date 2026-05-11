@@ -4,31 +4,17 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 const RESULT_PREFIX = '__DOC_BASED_CODING_PROGRESS_GRAPH__=';
-const BUILD_PROGRESS_GRAPH_ARTIFACTS_SCRIPT = [
-    'import json',
-    'from pathlib import Path',
-    'from tools.progress_graph import build_doc_progress_history, write_doc_progress_history, write_history_dot, write_history_html',
-    '',
-    'root = Path.cwd()',
-    'history = build_doc_progress_history(root)',
-    'history_path = write_doc_progress_history(root, history=history)',
-    'dot_path = write_history_dot(root, history=history)',
-    'html_path = write_history_html(root, history=history)',
-    `print(${JSON.stringify(RESULT_PREFIX)} + json.dumps({`,
-    `    'history_path': str(history_path),`,
-    `    'dot_path': str(dot_path),`,
-    `    'html_path': str(html_path),`,
-    '}))',
-].join('\n');
 
 type RegeneratedArtifacts = {
     history_path: string;
     dot_path: string;
     html_path: string;
+    control_snapshot_path: string;
 };
 
 type RegenerateProgressGraphArtifactsOptions = {
     projectRoot: string;
+    sourceRoot: string;
     pythonPath: string;
     outputChannel: vscode.OutputChannel;
 };
@@ -36,13 +22,34 @@ type RegenerateProgressGraphArtifactsOptions = {
 export async function regenerateProgressGraphArtifacts(
     options: RegenerateProgressGraphArtifactsOptions,
 ): Promise<RegeneratedArtifacts> {
-    const { projectRoot, pythonPath, outputChannel } = options;
+    const { projectRoot, sourceRoot, pythonPath, outputChannel } = options;
+    const buildProgressGraphArtifactsScript = [
+        'import json',
+        'import sys',
+        'from pathlib import Path',
+        `sys.path.insert(0, ${JSON.stringify(sourceRoot)})`,
+        'from tools.progress_graph import build_doc_progress_history, write_control_snapshot, write_doc_progress_history, write_history_dot, write_history_html',
+        '',
+        'root = Path.cwd()',
+        'history = build_doc_progress_history(root)',
+        'history_path = write_doc_progress_history(root, history=history)',
+        'dot_path = write_history_dot(root, history=history)',
+        'html_path = write_history_html(root, history=history)',
+        'control_snapshot_path = write_control_snapshot(root)',
+        `print(${JSON.stringify(RESULT_PREFIX)} + json.dumps({`,
+        `    'history_path': str(history_path),`,
+        `    'dot_path': str(dot_path),`,
+        `    'html_path': str(html_path),`,
+        `    'control_snapshot_path': str(control_snapshot_path),`,
+        '}))',
+    ].join('\n');
 
     outputChannel.appendLine(`[ProgressGraphPreview] Regenerating artifacts with Python: ${pythonPath}`);
+    outputChannel.appendLine(`[ProgressGraphPreview] Using source root: ${sourceRoot}`);
 
     const { stdout, stderr } = await execFileAsync(
         pythonPath,
-        ['-c', BUILD_PROGRESS_GRAPH_ARTIFACTS_SCRIPT],
+        ['-c', buildProgressGraphArtifactsScript],
         {
             cwd: projectRoot,
             maxBuffer: 1024 * 1024,
@@ -56,7 +63,7 @@ export async function regenerateProgressGraphArtifacts(
 
     const parsed = parseArtifactsResult(stdout);
     outputChannel.appendLine(
-        `[ProgressGraphPreview] Regenerated artifacts: ${parsed.history_path}, ${parsed.dot_path}, ${parsed.html_path}`,
+        `[ProgressGraphPreview] Regenerated artifacts: ${parsed.history_path}, ${parsed.dot_path}, ${parsed.html_path}, ${parsed.control_snapshot_path}`,
     );
     return parsed;
 }

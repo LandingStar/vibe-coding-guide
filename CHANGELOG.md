@@ -2,6 +2,27 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v0.9.6 — 2026-05-10
+
+**G6 关系图谱预览闭环 + preview release 批次更新。**
+
+### 新增
+
+- 在 VS Code progress graph preview 中并行挂载 G6 驱动的关系图谱 V2 预览，补齐 hover / click / adjacency highlight / node detail / runtime binding 强调
+- `Reset Zoom/Pan`、顶部 host chrome 折叠与 Graph Config 收口为右上角浮条的宿主交互闭环进入当前 release 批次
+
+### 改进
+
+- metrics 已固定为图面顶部 overlay 摘要条，左右分栏重新支持拖拽宽度调整
+- `Graph Config` 标题动画回撤到更稳的本位 fade 路线，并以真实折叠按钮接管收起态，消除 jump / shrink / scrollbar 抖动
+- dual-package 版本面与 release 文档同步推进到 `0.9.6`，VS Code extension 推进到 `0.1.4`
+
+### 验证
+
+- `npm run build`（passed）
+- `release/verify_version_consistency.py`（All versions consistent）
+- `scripts/release.py --skip-tests --no-isolation` 生成 `release/doc-based-coding-v0.9.6.zip`
+
 ## v0.9.5 — 2026-04-27
 
 **Progress graph artifact consistency audit 收口 + preview release surface refresh。**

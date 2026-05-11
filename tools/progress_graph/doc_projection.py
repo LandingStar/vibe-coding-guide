@@ -469,14 +469,14 @@ def build_checklist_graph(
             )
         previous_todo_id = node_id
 
-        if first_content_node_id:
-            graph.add_edge(
-                ProgressEdge(
-                    source=source_node_id,
-                    target=first_content_node_id,
-                    kind="reference",
-                )
+    if first_content_node_id:
+        graph.add_edge(
+            ProgressEdge(
+                source=source_node_id,
+                target=first_content_node_id,
+                kind="reference",
             )
+        )
 
     return graph
 
@@ -712,6 +712,33 @@ def build_global_direction_candidates_graph(
                 )
             )
 
+        companion_status = section_status
+        for companion in section.get("companions", []):
+            companion_key = str(companion["key"])
+            companion_id = f"{section_id}:companion:{companion_key}"
+            graph.add_node(
+                ProgressNode(
+                    id=companion_id,
+                    title=str(companion["title"]),
+                    kind=str(companion.get("kind", "reference")),
+                    status=companion_status,
+                    summary=str(companion.get("summary", "")),
+                    metadata={
+                        "source_section": str(section["title"]),
+                        "source_path": source_path.relative_to(root).as_posix(),
+                        "companion_kind": companion_key,
+                        "planning_gate_refs": "|".join(companion.get("planning_gate_refs", [])),
+                    },
+                )
+            )
+            graph.add_edge(
+                ProgressEdge(
+                    source=section_id,
+                    target=companion_id,
+                    kind="linkage",
+                )
+            )
+
     if first_section_id:
         graph.add_edge(
             ProgressEdge(
@@ -871,6 +898,25 @@ def _build_cross_graph_edges(
             add_edge(
                 CrossGraphEdge(
                     source_graph_id="phase-map-current-position",
+                    source_node_id=node.id,
+                    target_graph_id="planning-gates-index",
+                    target_node_id=gate_path,
+                    kind="linkage",
+                )
+            )
+
+    for node in global_direction_candidates_graph.nodes.values():
+        planning_gate_refs = [
+            ref
+            for ref in node.metadata.get("planning_gate_refs", "").split("|")
+            if ref
+        ]
+        for gate_path in planning_gate_refs:
+            if gate_path not in planning_gate_graph.nodes:
+                continue
+            add_edge(
+                CrossGraphEdge(
+                    source_graph_id="direction-candidates-global",
                     source_node_id=node.id,
                     target_graph_id="planning-gates-index",
                     target_node_id=gate_path,
@@ -1293,6 +1339,9 @@ def _parse_global_direction_candidate_sections(text: str) -> list[dict[str, obje
             return
         if _contains_lettered_global_direction_candidate_blocks(section_text):
             sections.append(_parse_lettered_global_direction_candidate_section(current_title, section_text))
+            return
+        if _contains_companion_global_direction_blocks(current_title, section_text):
+            sections.append(_parse_companion_global_direction_candidate_section(current_title, section_text))
 
     for line in text.splitlines():
         match = _HEADING_RE.match(line.strip())
@@ -1318,6 +1367,18 @@ def _contains_lettered_global_direction_candidate_blocks(section_text: str) -> b
 def _match_global_lettered_candidate_heading(line: str) -> re.Match[str] | None:
     match = _GLOBAL_DIRECTION_LETTERED_CANDIDATE_RE.match(line.strip())
     return match
+
+
+def _contains_companion_global_direction_blocks(section_title: str, section_text: str) -> bool:
+    if "用户选定下一步" in section_title:
+        return True
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if "当前更窄的" in stripped and "入口" in stripped:
+            return True
+        if "当前实际下一条 planning-gate" in stripped:
+            return True
+    return False
 
 
 def _parse_numbered_global_direction_candidate_section(
@@ -1367,6 +1428,7 @@ def _parse_numbered_global_direction_candidate_section(
         "recommended_candidate": recommended_candidate,
         "status_mode": "latest",
         "candidates": candidates,
+        "companions": _parse_global_direction_companion_entries(section_text),
     }
 
 
@@ -1427,7 +1489,154 @@ def _parse_lettered_global_direction_candidate_section(
         "recommended_candidate": recommended_candidate,
         "status_mode": "recommended",
         "candidates": candidates,
+        "companions": _parse_global_direction_companion_entries(section_text),
     }
+
+
+def _parse_companion_global_direction_candidate_section(
+    section_title: str,
+    section_text: str,
+) -> dict[str, object]:
+    completed_boundary = _extract_prefixed_line_value(section_text, "已完成边界")
+    companions = _parse_global_direction_companion_entries(section_text)
+    current_preference = next(
+        (
+            str(companion.get("summary", ""))
+            for companion in companions
+            if str(companion.get("key", "")) == "selected-next-step"
+        ),
+        "",
+    )
+    return {
+        "title": section_title,
+        "completed_boundary": completed_boundary,
+        "current_preference": current_preference,
+        "recommended_candidate": "",
+        "status_mode": "latest",
+        "candidates": [],
+        "companions": companions,
+    }
+
+
+def _parse_global_direction_companion_entries(section_text: str) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+
+    selected_items = _extract_global_companion_list_items(
+        section_text,
+        matcher=lambda line: "用户" in line and (
+            "明确选择" in line or "改选" in line or "选择：" in line
+        ),
+    )
+    if selected_items:
+        entries.append(
+            {
+                "key": "selected-next-step",
+                "kind": "decision",
+                "title": _build_companion_title("用户选定下一步", selected_items[0]),
+                "summary": " / ".join(selected_items),
+                "planning_gate_refs": [],
+            }
+        )
+
+    narrowed_items = _extract_global_companion_list_items(
+        section_text,
+        matcher=lambda line: "当前更窄的" in line and "入口" in line,
+    )
+    if narrowed_items:
+        entries.append(
+            {
+                "key": "narrowed-entry",
+                "kind": "decision",
+                "title": _build_companion_title("当前更窄的入口", narrowed_items[0]),
+                "summary": " / ".join(narrowed_items),
+                "planning_gate_refs": [],
+            }
+        )
+
+    actual_next_gate_refs = _extract_global_actual_next_gate_refs(section_text)
+    if actual_next_gate_refs:
+        entries.append(
+            {
+                "key": "actual-next-gate",
+                "kind": "reference",
+                "title": _build_companion_title("当前实际下一条 planning-gate", actual_next_gate_refs[0]),
+                "summary": " / ".join(actual_next_gate_refs),
+                "planning_gate_refs": actual_next_gate_refs,
+            }
+        )
+
+    return entries
+
+
+def _extract_global_companion_list_items(
+    section_text: str,
+    *,
+    matcher: Callable[[str], bool],
+) -> list[str]:
+    lines = section_text.splitlines()
+    for index, raw_line in enumerate(lines):
+        stripped = raw_line.strip()
+        if not matcher(stripped):
+            continue
+        items = _collect_following_list_items(lines, start_index=index)
+        if items:
+            return items
+    return []
+
+
+def _collect_following_list_items(lines: list[str], *, start_index: int) -> list[str]:
+    items: list[str] = []
+    for raw_line in lines[start_index + 1 :]:
+        stripped = raw_line.strip()
+        if not stripped:
+            if items:
+                break
+            continue
+        if _HEADING_RE.match(stripped):
+            break
+        bullet_match = re.match(r"^-\s+(.+)$", stripped)
+        ordered_match = re.match(r"^\d+\.\s+(.+)$", stripped)
+        if bullet_match:
+            items.append(bullet_match.group(1).strip())
+            continue
+        if ordered_match:
+            items.append(ordered_match.group(1).strip())
+            continue
+        if items:
+            break
+    return items
+
+
+def _extract_global_actual_next_gate_refs(section_text: str) -> list[str]:
+    lines = section_text.splitlines()
+    for index, raw_line in enumerate(lines):
+        stripped = raw_line.strip()
+        if "当前实际下一条 planning-gate" not in stripped:
+            continue
+        block_lines = [raw_line]
+        for trailing_line in lines[index + 1 :]:
+            trailing_stripped = trailing_line.strip()
+            if not trailing_stripped:
+                if len(block_lines) > 1:
+                    break
+                continue
+            if _HEADING_RE.match(trailing_stripped):
+                break
+            block_lines.append(trailing_line)
+            refs = _extract_planning_gate_refs("\n".join(block_lines))
+            if refs:
+                return refs
+        refs = _extract_planning_gate_refs("\n".join(block_lines))
+        if refs:
+            return refs
+    return []
+
+
+def _build_companion_title(label: str, value: str) -> str:
+    compact = value.replace("`", "").strip()
+    if len(compact) > 88:
+        compact = f"{compact[:85].rstrip()}..."
+    return f"{label}: {compact}" if compact else label
 
 
 def _is_recommended_global_candidate_judgment(judgment: str) -> bool:

@@ -29,6 +29,7 @@ export async function installFromReleaseZip(
     pythonPath: string,
     outputChannel: vscode.OutputChannel,
     preselectedZipPath?: string,
+    options: { forceReinstall?: boolean } = {},
 ): Promise<InstallResult> {
     const result: InstallResult = {
         success: false,
@@ -100,7 +101,12 @@ export async function installFromReleaseZip(
                 // Install all wheels in a single pip call so dependencies resolve locally
                 progress.report({ message: `Installing ${wheels.length} wheel(s)...` });
                 const wheelPaths = wheels.map(w => path.join(tempDir, w));
-                await pipInstallBatch(pythonPath, wheelPaths, outputChannel);
+                await pipInstallBatch(
+                    pythonPath,
+                    wheelPaths,
+                    outputChannel,
+                    options.forceReinstall ?? false,
+                );
                 result.installedWheels.push(...wheels);
 
                 // Verify installation
@@ -184,10 +190,17 @@ async function pipInstallBatch(
     pythonPath: string,
     wheelPaths: string[],
     outputChannel: vscode.OutputChannel,
+    forceReinstall = false,
 ): Promise<void> {
+    const args = ['-m', 'pip', 'install'];
+    if (forceReinstall) {
+        args.push('--force-reinstall');
+    }
+    args.push(...wheelPaths);
+
     const { stdout, stderr } = await execFileAsync(
         pythonPath,
-        ['-m', 'pip', 'install', ...wheelPaths],
+        args,
         { timeout: 120000 },
     );
     outputChannel.appendLine(`[pip] ${stdout.trim()}`);
@@ -203,6 +216,7 @@ export async function installFromWheelFiles(
     pythonPath: string,
     wheelPaths: string[],
     outputChannel: vscode.OutputChannel,
+    options: { forceReinstall?: boolean } = {},
 ): Promise<InstallResult> {
     const result: InstallResult = {
         success: false,
@@ -232,7 +246,12 @@ export async function installFromWheelFiles(
                 }
 
                 progress.report({ message: `Installing ${sorted.length} wheel(s)...` });
-                await pipInstallBatch(pythonPath, sorted, outputChannel);
+                await pipInstallBatch(
+                    pythonPath,
+                    sorted,
+                    outputChannel,
+                    options.forceReinstall ?? false,
+                );
 
                 // Verify
                 progress.report({ message: 'Verifying installation...' });

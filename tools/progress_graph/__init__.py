@@ -1,5 +1,7 @@
 """Progress graph foundation models, queries, projection, and export helpers."""
 
+from .control_binding import normalize_control_bindings
+from .control_snapshot import build_control_snapshot, control_snapshot_path, write_control_snapshot
 from .doc_projection import (
     build_doc_progress_history,
     history_json_path,
@@ -26,12 +28,14 @@ from .query import (
 )
 
 __all__ = [
+    "build_control_snapshot",
     "build_doc_progress_history",
     "build_export_surface_dot",
     "build_export_surface_html",
     "build_history_dot",
     "build_history_html",
     "CrossGraphEdge",
+    "control_snapshot_path",
     "dot_preview_path",
     "export_graph_surface",
     "export_history_surface",
@@ -39,6 +43,7 @@ __all__ = [
     "history_json_path",
     "load_export_surface",
     "load_doc_progress_history",
+    "normalize_control_bindings",
     "ProgressCluster",
     "ProgressEdge",
     "ProgressGraph",
@@ -49,6 +54,7 @@ __all__ = [
     "query_independent_graph_sets",
     "query_ready_nodes",
     "query_topological_layers",
+    "write_control_snapshot",
     "write_history_html",
     "write_history_dot",
     "write_doc_progress_history",

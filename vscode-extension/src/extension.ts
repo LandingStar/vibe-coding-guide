@@ -41,6 +41,7 @@ let outputChannel: vscode.OutputChannel;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     outputChannel = vscode.window.createOutputChannel('Doc-Based Coding');
     outputChannel.appendLine('Doc-Based Coding extension activating...');
+    const extensionVersion = String(context.extension.packageJSON.version ?? 'unknown');
 
     // Resolve project root (first workspace folder)
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -105,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         outputChannel.appendLine('[Extension] MCP server started.');
         outputChannel.appendLine(`[Extension] Python: ${pythonPath}`);
         outputChannel.appendLine(`[Extension] Server mode: ${config.get<string>('serverMode') ?? 'auto'}`);
-        outputChannel.appendLine(`[Extension] Extension version: 0.1.3`);
+        outputChannel.appendLine(`[Extension] Extension version: ${extensionVersion}`);
 
         // Ensure .vscode/mcp.json exists for VS Code native MCP integration
         ensureMcpJson(projectRoot, pythonPath, config.get<string[]>('serverArgs') ?? []);
@@ -176,7 +177,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(configTreeView);
 
     // Register Config Panel WebviewView
-    configPanelProvider = new ConfigPanelProvider(outputChannel);
+    configPanelProvider = new ConfigPanelProvider(
+        {
+            outputChannel,
+            projectRoot,
+            extensionVersion,
+            resolvePythonPath: async () => {
+                const config = vscode.workspace.getConfiguration('docBasedCoding');
+                const configuredPythonPath = config.get<string>('pythonPath');
+                if (configuredPythonPath && existsSync(configuredPythonPath)) {
+                    return configuredPythonPath;
+                }
+                return resolvePythonPath(projectRoot);
+            },
+            startServer: startMCPServer,
+            stopServer: () => {
+                mcpClient?.stop();
+            },
+            isServerRunning: () => mcpClient?.isRunning ?? false,
+        },
+    );
     updateLLMProviderBindings(getLLMProvider());
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, configPanelProvider),
@@ -186,12 +206,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     statusBar = new GovernanceStatusBar();
     context.subscriptions.push(statusBar);
 
-    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(outputChannel, async (workspaceFolder) => {
+    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(context.extensionUri, outputChannel, async (workspaceFolder) => {
         const workspaceRoot = workspaceFolder.uri.fsPath;
         const config = vscode.workspace.getConfiguration('docBasedCoding', workspaceFolder.uri);
         const pythonPath = config.get<string>('pythonPath') || await resolvePythonPath(workspaceRoot);
+        const sourceRoot = resolveProgressGraphSourceRoot(
+            workspaceRoot,
+            pythonPath,
+            config.get<string>('sourceRoot') || '',
+        );
         await regenerateProgressGraphArtifacts({
             projectRoot: workspaceRoot,
+            sourceRoot,
             pythonPath,
             outputChannel,
         });
@@ -570,4 +596,30 @@ async function resolvePythonPath(projectRoot: string): Promise<string> {
     }
 
     return 'python';
+}
+
+function resolveProgressGraphSourceRoot(
+    workspaceRoot: string,
+    pythonPath: string,
+    configuredSourceRoot: string,
+): string {
+    const candidates: string[] = [];
+
+    if (configuredSourceRoot) {
+        candidates.push(path.resolve(configuredSourceRoot));
+    }
+
+    candidates.push(path.resolve(workspaceRoot));
+
+    if (path.isAbsolute(pythonPath)) {
+        candidates.push(path.resolve(path.dirname(pythonPath), '..', '..'));
+    }
+
+    for (const candidate of candidates) {
+        if (existsSync(path.join(candidate, 'tools', 'progress_graph', '__init__.py'))) {
+            return candidate;
+        }
+    }
+
+    return path.resolve(workspaceRoot);
 }

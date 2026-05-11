@@ -1,0 +1,395 @@
+{
+  "snapshot_version": "v1alpha1",
+  "snapshot_kind": "orchestration-bridge-compact",
+  "generated_at": "2026-05-07T05:55:50.073427+00:00",
+  "work_items": [
+    {
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "lifecycle_state": "dispatching",
+      "rollup_surface_kind": "none",
+      "rollup_surface_state": "",
+      "rollup_blocked_reason": null,
+      "rollup_writeback_disposition": "pending",
+      "dominant_group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:024",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:030",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:031",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:032",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:033",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:034",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:041"
+      ],
+      "open_group_item_count": 7,
+      "source_trace_id": "2026-04-30T21:41:59.3250002+08:00"
+    },
+    {
+      "work_item_id": "doc-loop-work::handoff::project-progress-richer-interactive-preview-over-current-export-surface",
+      "lifecycle_state": "completed",
+      "rollup_surface_kind": "group_terminal",
+      "rollup_surface_state": "handoff",
+      "rollup_blocked_reason": null,
+      "rollup_writeback_disposition": "none",
+      "dominant_group_item_ids": [
+        "doc-loop-group::handoff::project-progress-richer-interactive-preview-over-current-export-surface::current-mirror"
+      ],
+      "open_group_item_count": 0,
+      "source_trace_id": "2026-05-03T12:10:19+08:00"
+    }
+  ],
+  "group_items": [
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::planning-gate",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:024",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:030",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:031",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:032",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:033",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:034",
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:041"
+      ],
+      "lifecycle_state": "settled",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "保持 no-change boundary：当前不进入 direct mutation controls、daemon persistence / replay 或新的 renderer 重写",
+        "若未来仍需要 escalation source coverage，先回到 `design_docs/stages/planning-gate/2026-05-06-escalation-notification-persisted-surface-contract.md`，而不是在当前 gate 内顺手发明新的 file sink contract",
+        "后续进入节点呈现增强时，当前第一目标应先复刻更完整的 Obsidian graph view 视觉与浏览语言：低 chrome 关系网络观感、邻接聚焦、cluster/cloud 图感、自由力导式浏览体验与大图可探索性；仍先基于现有 preview / host overlay 推进，不把它立即误扩成新的 renderer 重写",
+        "节点团折叠、network control panel 扩展、非线性工作流组件与潜在独立资产化都放在“先复刻 Obsidian graph view 样式”之后的 follow-up slice",
+        "当“复刻 Obsidian graph view”达到初步可用时，进入任何 control panel / control surface 深化前都必须先检查 graph 与实际工作对接接口是否已经支持目标状态/动作；若接口未完善，则工作应回到接口处理切片",
+        "若决定保留现有 graph 作为稳定 baseline，并并行规划更适合 Obsidian-like graph view 的 V2 展示层，先回到 `design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md`，不要在当前 slice 内直接把展示架构重做",
+        "在新 PoC gate 内继续固定最小页面结构，不提前扩到 control panel / folding 正式实现"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:024",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "保持 no-change boundary：当前不进入 direct mutation controls、daemon persistence / replay 或新的 renderer 重写"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:030",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "若未来仍需要 escalation source coverage，先回到 `design_docs/stages/planning-gate/2026-05-06-escalation-notification-persisted-surface-contract.md`，而不是在当前 gate 内顺手发明新的 file sink contract"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md",
+        "design_docs/stages/planning-gate/2026-05-06-escalation-notification-persisted-surface-contract.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:031",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "后续进入节点呈现增强时，当前第一目标应先复刻更完整的 Obsidian graph view 视觉与浏览语言：低 chrome 关系网络观感、邻接聚焦、cluster/cloud 图感、自由力导式浏览体验与大图可探索性；仍先基于现有 preview / host overlay 推进，不把它立即误扩成新的 renderer 重写"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:032",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "节点团折叠、network control panel 扩展、非线性工作流组件与潜在独立资产化都放在“先复刻 Obsidian graph view 样式”之后的 follow-up slice"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:033",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "当“复刻 Obsidian graph view”达到初步可用时，进入任何 control panel / control surface 深化前都必须先检查 graph 与实际工作对接接口是否已经支持目标状态/动作；若接口未完善，则工作应回到接口处理切片"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:034",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "若决定保留现有 graph 作为稳定 baseline，并并行规划更适合 Obsidian-like graph view 的 V2 展示层，先回到 `design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md`，不要在当前 slice 内直接把展示架构重做"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md",
+        "design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:041",
+      "work_item_id": "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc",
+      "task_group_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "active",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "在新 PoC gate 内继续固定最小页面结构，不提前扩到 control panel / folding 正式实现"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": "2026-04-30T21:41:59.3250002+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::handoff::project-progress-richer-interactive-preview-over-current-export-surface::current-mirror",
+      "work_item_id": "doc-loop-work::handoff::project-progress-richer-interactive-preview-over-current-export-surface",
+      "task_group_id": ".codex/handoffs/CURRENT.md",
+      "child_task_ids": [],
+      "lifecycle_state": "settled",
+      "governance_surface_kind": "group_terminal",
+      "governance_surface_state": "handoff",
+      "current_gate_state": "active",
+      "writeback_disposition": "none",
+      "delivery_surface_kind": "handoff",
+      "delivery_state": "delivered",
+      "blocked_reason": "",
+      "open_items": [
+        "current handoff: 2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close",
+        "source path: .codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md"
+      ],
+      "authoritative_refs": [
+        ".codex/handoffs/CURRENT.md",
+        ".codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md"
+      ],
+      "latest_trace_id": "2026-05-03T12:10:19+08:00",
+      "latest_envelope_id": null,
+      "actor_label": null
+    }
+  ],
+  "bindings": [
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::planning-gate",
+      "binding_kind": "node",
+      "graph_id": "planning-gates-index",
+      "graph_target_id": "design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "graph_target_key": "planning-gates-index::design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md",
+      "work_item_ids": [
+        "doc-loop-work::2026-05-07-sigma-graphology-v2-graph-view-poc"
+      ],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::planning-gate"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:024",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:024",
+      "graph_target_key": "checkpoint-current::todo:024",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:024"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:030",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:030",
+      "graph_target_key": "checkpoint-current::todo:030",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:030"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:031",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:031",
+      "graph_target_key": "checkpoint-current::todo:031",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:031"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:032",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:032",
+      "graph_target_key": "checkpoint-current::todo:032",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:032"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:033",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:033",
+      "graph_target_key": "checkpoint-current::todo:033",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:033"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:034",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:034",
+      "graph_target_key": "checkpoint-current::todo:034",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:034"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:041",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:041",
+      "graph_target_key": "checkpoint-current::todo:041",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-05-07-sigma-graphology-v2-graph-view-poc::todo:041"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::handoff::project-progress-richer-interactive-preview-over-current-export-surface::current-mirror",
+      "binding_kind": "unbound-runtime-panel",
+      "graph_id": null,
+      "graph_target_id": null,
+      "graph_target_key": null,
+      "work_item_ids": [
+        "doc-loop-work::handoff::project-progress-richer-interactive-preview-over-current-export-surface"
+      ],
+      "group_item_ids": [
+        "doc-loop-group::handoff::project-progress-richer-interactive-preview-over-current-export-surface::current-mirror"
+      ],
+      "binding_reason": "current-handoff-mirror"
+    }
+  ],
+  "summary": {
+    "open_work_item_count": 1,
+    "blocked_work_item_count": 0,
+    "waiting_external_resolution_count": 0,
+    "active_group_item_count": 7,
+    "unbound_group_item_count": 0
+  }
+}

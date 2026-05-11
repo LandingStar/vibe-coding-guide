@@ -5,7 +5,7 @@ const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
 /** @type {esbuild.BuildOptions} */
-const buildOptions = {
+const extensionBuildOptions = {
     entryPoints: ['src/extension.ts'],
     bundle: true,
     outfile: 'dist/extension.js',
@@ -18,13 +18,30 @@ const buildOptions = {
     treeShaking: true,
 };
 
+/** @type {esbuild.BuildOptions} */
+const webviewBuildOptions = {
+    entryPoints: ['src/webviews/progressGraphV2G6.ts'],
+    bundle: true,
+    outdir: 'dist/webviews',
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2022',
+    sourcemap: !production,
+    minify: production,
+    treeShaking: true,
+};
+
 async function main() {
     if (watch) {
-        const ctx = await esbuild.context(buildOptions);
-        await ctx.watch();
+        const extensionContext = await esbuild.context(extensionBuildOptions);
+        const webviewContext = await esbuild.context(webviewBuildOptions);
+        await Promise.all([extensionContext.watch(), webviewContext.watch()]);
         console.log('[watch] build started');
     } else {
-        await esbuild.build(buildOptions);
+        await Promise.all([
+            esbuild.build(extensionBuildOptions),
+            esbuild.build(webviewBuildOptions),
+        ]);
         console.log('build complete');
     }
 }

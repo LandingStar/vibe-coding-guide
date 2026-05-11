@@ -29,6 +29,10 @@ GovernanceSurfaceState = Literal[
 
 WritebackDisposition = Literal["pending", "eligible", "suppressed", "blocked", "none"]
 
+DeliverySurfaceKind = Literal["none", "handoff", "review_intake", "escalation_notification"]
+
+DeliveryState = Literal["", "pending", "delivered", "failed"]
+
 
 @dataclass(frozen=True, slots=True)
 class BridgeGroupItem:
@@ -48,6 +52,10 @@ class BridgeGroupItem:
     open_items: tuple[str, ...] = ()
     current_gate_state: str = ""
     writeback_disposition: WritebackDisposition = "pending"
+    delivery_surface_kind: DeliverySurfaceKind = "none"
+    delivery_state: DeliveryState = ""
+    delivery_record_id: str = ""
+    delivery_failure_detail: str = ""
 
 
 @dataclass(frozen=True, slots=True)

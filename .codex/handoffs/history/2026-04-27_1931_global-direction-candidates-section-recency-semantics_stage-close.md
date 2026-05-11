@@ -2,7 +2,7 @@
 handoff_id: 2026-04-27_1931_global-direction-candidates-section-recency-semantics_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: global-direction-candidates-section-recency-semantics
 safe_stop_kind: stage-complete
 created_at: 2026-04-27T19:31:29+08:00

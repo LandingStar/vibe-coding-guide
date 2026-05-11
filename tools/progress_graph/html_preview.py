@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from html import escape
 from pathlib import Path
 
@@ -40,6 +41,7 @@ def build_export_surface_html(surface: dict[str, object]) -> str:
     cross_graph_html = _render_cross_graph_edges(cross_graph_edges)
     ready_nodes_html = _render_global_ready_nodes(ready_nodes)
     generated_at = str(history_metadata.get("latest_projection_at", ""))
+    interaction_script = _render_interaction_script()
 
     return f"""<!DOCTYPE html>
 <html lang=\"zh-CN\">
@@ -116,6 +118,19 @@ def build_export_surface_html(surface: dict[str, object]) -> str:
     .section .subtle {{ color: var(--muted); font-size: 13px; }}
     .graph-grid {{ display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }}
     .graph-side {{ display: grid; gap: 12px; }}
+    .graph-tools, .detail-stack {{ display: grid; gap: 10px; }}
+    .filter-strip {{ display: grid; gap: 10px; }}
+    .filter-search {{ width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 12px; color: var(--ink); font: inherit; }}
+    .filter-search::placeholder {{ color: var(--muted); }}
+    .filter-chip-row {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+    .filter-chip {{ border: 1px solid rgba(17, 75, 95, 0.12); background: rgba(17, 75, 95, 0.04); color: var(--ink); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }}
+    .filter-chip.is-active {{ background: var(--accent); color: #f8f4ef; border-color: var(--accent); }}
+    .zoom-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }}
+    .zoom-button {{ border: 1px solid rgba(17, 75, 95, 0.12); background: rgba(17, 75, 95, 0.04); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; }}
+    .zoom-button:disabled {{ cursor: default; opacity: 0.45; }}
+    .zoom-level {{ color: var(--muted); font-size: 12px; min-width: 52px; text-align: right; }}
+    .zoom-hint {{ color: var(--muted); font-size: 11px; }}
+    .filter-summary {{ color: var(--muted); font-size: 12px; }}
     .badge-list, .edge-list, .ready-list {{ display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }}
     .badge, .edge-item, .ready-item {{
       background: rgba(17, 75, 95, 0.04);
@@ -125,6 +140,9 @@ def build_export_surface_html(surface: dict[str, object]) -> str:
       font-size: 13px;
       line-height: 1.45;
     }}
+    .ready-item.is-hidden {{ display: none; }}
+    .ready-item.is-selected {{ border-color: rgba(17, 75, 95, 0.24); background: rgba(17, 75, 95, 0.1); }}
+    .list-action {{ display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }}
     .edge-kind, .status-pill {{
       display: inline-block;
       padding: 2px 8px;
@@ -142,10 +160,25 @@ def build_export_surface_html(surface: dict[str, object]) -> str:
     .status-pill.blocked {{ background: rgba(255, 216, 210, 0.75); }}
     .status-pill.completed {{ background: rgba(216, 240, 220, 0.85); }}
     .status-pill.archived {{ background: rgba(236, 236, 236, 0.9); }}
-    .svg-wrap {{ overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); background: white; }}
-    svg {{ display: block; width: 100%; height: auto; background: linear-gradient(180deg, #fffdf9 0%, #f8f5ef 100%); }}
+    .svg-wrap {{ overflow: auto; max-height: min(72vh, 960px); border-radius: 16px; border: 1px solid var(--line); background: white; }}
+    svg {{ display: block; width: auto; max-width: none; height: auto; margin: 0 auto; background: linear-gradient(180deg, #fffdf9 0%, #f8f5ef 100%); }}
     .node-label {{ font-size: 12px; fill: var(--ink); font-weight: 600; }}
     .node-sub {{ font-size: 11px; fill: var(--muted); }}
+    .interactive-node {{ cursor: pointer; transition: opacity 0.15s ease; }}
+    .interactive-node .node-shape {{ transition: stroke 0.15s ease, stroke-width 0.15s ease, filter 0.15s ease; }}
+    .interactive-node.is-muted {{ opacity: 0.18; }}
+    .interactive-node.is-selected .node-shape, .interactive-node:focus-visible .node-shape {{ stroke: var(--accent); stroke-width: 3; filter: drop-shadow(0 0 10px rgba(17, 75, 95, 0.18)); }}
+    .interactive-edge {{ transition: opacity 0.15s ease; }}
+    .interactive-edge.is-muted {{ opacity: 0.12; }}
+    .detail-card {{ background: var(--panel); border: 1px solid rgba(17, 75, 95, 0.08); border-radius: 16px; padding: 14px 16px; }}
+    .detail-card h3 {{ margin: 0 0 8px; font-size: 16px; }}
+    .detail-placeholder {{ margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }}
+    .detail-row {{ display: grid; gap: 4px; }}
+    .detail-label {{ color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }}
+    .detail-value {{ font-size: 13px; line-height: 1.5; word-break: break-word; }}
+    .detail-tags {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+    .detail-tag {{ background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; }}
+    .detail-meta {{ margin: 0; padding: 10px 12px; background: rgba(17, 75, 95, 0.04); border: 1px solid rgba(17, 75, 95, 0.08); border-radius: 12px; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow: auto; }}
     .footer-note {{ color: var(--muted); font-size: 12px; margin-top: 8px; }}
     @media (max-width: 980px) {{
       .graph-grid {{ grid-template-columns: 1fr; }}
@@ -176,6 +209,7 @@ def build_export_surface_html(surface: dict[str, object]) -> str:
       <p class=\"footer-note\">第一版 HTML preview 暂不做跨图空间连线布局，跨图关系先以 display-aware 摘要列表呈现。</p>
     </section>
   </main>
+  <script>{interaction_script}</script>
 </body>
 </html>
 """
@@ -219,15 +253,21 @@ def write_history_html(
 
 def _render_graph_section(graph: dict[str, object]) -> str:
     summary = dict(graph.get("summary", {}))
+    display = dict(graph.get("display", {}))
+    mapping = {str(raw_id): str(display_id) for raw_id, display_id in dict(display.get("mapping", {})).items()}
     layout = _build_graph_layout(graph)
     ready_nodes = list(graph.get("ready_nodes", []))
     graph_svg = _render_graph_svg(layout)
+    graph_payload = _serialize_json_for_html(_build_graph_interaction_payload(graph))
     ready_html = (
         "<p class=\"subtle\">当前没有 ready nodes。</p>"
         if not ready_nodes
         else "<ul class=\"ready-list\">"
         + "".join(
-            f"<li class=\"ready-item\"><span class=\"status-pill {_status_class(str(node.get('status', 'pending')))}\">{escape(str(node.get('status', 'pending')))}</span>{escape(str(node.get('title', '')))}</li>"
+            f"<li class=\"ready-item\" data-display-id=\"{escape(mapping.get(str(node.get('id', '')), str(node.get('id', ''))))}\">"
+            f"<button type=\"button\" class=\"list-action\">"
+            f"<span class=\"status-pill {_status_class(str(node.get('status', 'pending')))}\">{escape(str(node.get('status', 'pending')))}</span>{escape(str(node.get('title', '')))}"
+            "</button></li>"
             for node in ready_nodes
         )
         + "</ul>"
@@ -242,20 +282,63 @@ def _render_graph_section(graph: dict[str, object]) -> str:
     )
 
     return f"""
-    <section class=\"section\" data-graph-id=\"{escape(str(graph.get('graph_id', '')))}\">
+    <section class=\"section graph-section\" data-graph-id=\"{escape(str(graph.get('graph_id', '')))}\">
       <h2>{escape(str(graph.get('title', '')))}</h2>
       <div class=\"subtle\">graph_id={escape(str(graph.get('graph_id', '')))} · recorded_at={escape(str(graph.get('recorded_at', '')))}</div>
       <div class=\"graph-grid\">
         <div class=\"svg-wrap\">{graph_svg}</div>
         <div class=\"graph-side\">
           <ul class=\"badge-list\">{badges}</ul>
+          <div class=\"graph-tools\">
+            {_render_graph_controls()}
+            {_render_graph_detail_panel()}
+          </div>
           <div>
             <h3>Ready Nodes</h3>
             {ready_html}
           </div>
         </div>
       </div>
+      <script type=\"application/json\" data-role=\"graph-payload\">{graph_payload}</script>
     </section>
+    """
+
+
+def _render_graph_controls() -> str:
+    return """
+    <div class="detail-card">
+      <h3>Graph Controls</h3>
+      <div class="filter-strip">
+        <div class="zoom-row">
+          <button type="button" class="zoom-button" data-role="zoom-out" aria-label="Zoom out current graph">-</button>
+          <button type="button" class="zoom-button" data-role="zoom-reset" aria-label="Reset current graph zoom">100%</button>
+          <button type="button" class="zoom-button" data-role="zoom-in" aria-label="Zoom in current graph">+</button>
+          <div class="zoom-level" data-role="zoom-level">100%</div>
+        </div>
+        <div class="zoom-hint">Ctrl + 滚轮可缩放当前图。</div>
+        <input type="search" class="filter-search" data-role="graph-search" placeholder="搜索当前图中的节点标题、ID 或摘要">
+        <div class="filter-chip-row">
+          <button type="button" class="filter-chip is-active" data-status-filter="all">All</button>
+          <button type="button" class="filter-chip" data-status-filter="pending">Pending</button>
+          <button type="button" class="filter-chip" data-status-filter="in_progress">In Progress</button>
+          <button type="button" class="filter-chip" data-status-filter="blocked">Blocked</button>
+          <button type="button" class="filter-chip" data-status-filter="completed">Completed</button>
+          <button type="button" class="filter-chip" data-status-filter="archived">Archived</button>
+        </div>
+        <div class="filter-summary" data-role="filter-summary">visible 0 / 0</div>
+      </div>
+    </div>
+    """
+
+
+def _render_graph_detail_panel() -> str:
+    return """
+    <div class="detail-card" data-role="node-detail">
+      <h3>Node Detail</h3>
+      <div data-role="detail-body">
+        <p class="detail-placeholder">选择图中的节点或 ready item 查看详情。</p>
+      </div>
+    </div>
     """
 
 
@@ -313,6 +396,8 @@ def _build_graph_layout(graph: dict[str, object]) -> dict[str, object]:
         positioned_edges.append(
             {
                 "path": path,
+            "source": source_id,
+            "target": target_id,
                 "kind": str(edge.get("kind", "workflow")),
                 "count": float(edge.get("count", 1)),
             }
@@ -338,12 +423,12 @@ def _render_graph_svg(layout: dict[str, object]) -> str:
     height = int(layout.get("height", 240))
 
     edge_markup = "".join(
-        f"<path d=\"{escape(str(edge['path']))}\" class=\"edge edge-{escape(str(edge['kind']))}\" marker-end=\"url(#arrow-{escape(str(edge['kind']))})\"></path>"
+      f"<path d=\"{escape(str(edge['path']))}\" data-source-id=\"{escape(str(edge['source']))}\" data-target-id=\"{escape(str(edge['target']))}\" class=\"edge interactive-edge edge-{escape(str(edge['kind']))}\" marker-end=\"url(#arrow-{escape(str(edge['kind']))})\"></path>"
         for edge in edges
     )
     node_markup = "".join(_render_svg_node(node) for node in nodes)
     return f"""
-    <svg viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"Progress graph preview\">
+    <svg width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"Progress graph preview\">
       <defs>
         <marker id=\"arrow-workflow\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto-start-reverse\"><path d=\"M 0 0 L 10 5 L 0 10 z\" fill=\"#45515f\"></path></marker>
         <marker id=\"arrow-dependency\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto-start-reverse\"><path d=\"M 0 0 L 10 5 L 0 10 z\" fill=\"#8a6d1f\"></path></marker>
@@ -382,7 +467,7 @@ def _render_svg_node(node: dict[str, object]) -> str:
     text_x = x + (width / 2)
     text_y = y + (height / 2) - 6
     return f"""
-      <g data-node-id=\"{escape(node_id)}\">
+      <g class=\"interactive-node\" data-node-id=\"{escape(node_id)}\" tabindex=\"0\" role=\"button\" aria-label=\"Inspect {escape(str(node.get('title', node_id)))}\">
         {shape_markup}
         <text x=\"{text_x:.1f}\" y=\"{text_y:.1f}\" text-anchor=\"middle\" class=\"node-label\">
           <tspan x=\"{text_x:.1f}\" dy=\"0\">{escape(title)}</tspan>
@@ -474,3 +559,275 @@ def _truncate(value: str, limit: int) -> str:
     if len(value) <= limit:
         return value
     return value[: max(0, limit - 1)] + "…"
+
+
+def _build_graph_interaction_payload(graph: dict[str, object]) -> dict[str, object]:
+    raw = dict(graph.get("raw", {}))
+    display = dict(graph.get("display", {}))
+    raw_nodes = {str(node["id"]): dict(node) for node in list(raw.get("nodes", []))}
+    display_nodes = {str(node["id"]): dict(node) for node in list(display.get("nodes", []))}
+    mapping = {str(raw_id): str(display_id) for raw_id, display_id in dict(display.get("mapping", {})).items()}
+
+    raw_ids_by_display: dict[str, list[str]] = {}
+    for raw_id, display_id in mapping.items():
+        raw_ids_by_display.setdefault(display_id, []).append(raw_id)
+
+    payload_nodes: dict[str, dict[str, object]] = {}
+    for display_id, display_node in display_nodes.items():
+        raw_ids = sorted(
+            set(raw_ids_by_display.get(display_id, []))
+            or set(str(member_id) for member_id in list(display_node.get("member_ids", [])))
+            or ({display_id} if display_id in raw_nodes else set())
+        )
+        raw_titles = [str(raw_nodes[raw_id].get("title", raw_id)) for raw_id in raw_ids if raw_id in raw_nodes]
+        raw_summaries = [
+            str(raw_nodes[raw_id].get("summary", "")).strip()
+            for raw_id in raw_ids
+            if raw_id in raw_nodes and str(raw_nodes[raw_id].get("summary", "")).strip()
+        ]
+        tags = sorted(
+            {
+                str(tag)
+                for raw_id in raw_ids
+                for tag in list(raw_nodes.get(raw_id, {}).get("tags", []))
+                if str(tag).strip()
+            }
+        )
+        title = str(display_node.get("title", display_id))
+        kind = str(display_node.get("kind", "task"))
+        status = str(display_node.get("status", "pending"))
+        summary = str(display_node.get("summary", "")).strip() or (raw_summaries[0] if raw_summaries else "")
+        payload_nodes[display_id] = {
+            "id": display_id,
+            "title": title,
+            "kind": kind,
+            "status": status,
+            "summary": summary,
+            "memberIds": raw_ids,
+            "rawTitles": raw_titles,
+            "tags": tags,
+            "metadata": dict(display_node.get("metadata", {})),
+            "searchText": " ".join(
+                value
+                for value in [display_id, title, kind, status, summary, *raw_ids, *raw_titles, *tags]
+                if value
+            ).lower(),
+        }
+
+    return {
+        "graphId": str(graph.get("graph_id", "")),
+        "nodeCount": len(payload_nodes),
+        "nodes": payload_nodes,
+    }
+
+
+def _serialize_json_for_html(value: dict[str, object]) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
+
+
+def _render_interaction_script() -> str:
+    return """
+(() => {
+  const escapeHtml = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  for (const section of document.querySelectorAll('.graph-section')) {
+    const payloadEl = section.querySelector('[data-role="graph-payload"]');
+    if (!payloadEl || !payloadEl.textContent) {
+      continue;
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(payloadEl.textContent);
+    } catch {
+      continue;
+    }
+
+    const searchInput = section.querySelector('[data-role="graph-search"]');
+    const filterSummary = section.querySelector('[data-role="filter-summary"]');
+    const detailBody = section.querySelector('[data-role="detail-body"]');
+    const svgWrap = section.querySelector('.svg-wrap');
+    const svg = section.querySelector('.svg-wrap svg');
+    const zoomOutButton = section.querySelector('[data-role="zoom-out"]');
+    const zoomResetButton = section.querySelector('[data-role="zoom-reset"]');
+    const zoomInButton = section.querySelector('[data-role="zoom-in"]');
+    const zoomLevel = section.querySelector('[data-role="zoom-level"]');
+    const filterButtons = Array.from(section.querySelectorAll('[data-status-filter]'));
+    const nodeGroups = Array.from(section.querySelectorAll('g[data-node-id]'));
+    const edgePaths = Array.from(section.querySelectorAll('path[data-source-id][data-target-id]'));
+    const readyItems = Array.from(section.querySelectorAll('.ready-item[data-display-id]'));
+
+    let activeStatus = 'all';
+    let searchText = '';
+    let selectedId = '';
+    let zoom = 1;
+    const minZoom = 0.6;
+    const maxZoom = 2.4;
+    const zoomStep = 0.2;
+    const intrinsicWidth = svg ? Number(svg.getAttribute('width')) || svg.viewBox?.baseVal?.width || svg.getBoundingClientRect().width || 0 : 0;
+    const intrinsicHeight = svg ? Number(svg.getAttribute('height')) || svg.viewBox?.baseVal?.height || svg.getBoundingClientRect().height || 0 : 0;
+
+    const applyZoom = () => {
+      if (!svg || !intrinsicWidth || !intrinsicHeight) {
+        return;
+      }
+
+      const width = Math.max(1, Math.round(intrinsicWidth * zoom));
+      const height = Math.max(1, Math.round(intrinsicHeight * zoom));
+      svg.style.width = `${width}px`;
+      svg.style.height = `${height}px`;
+
+      if (zoomLevel) {
+        zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
+      }
+      if (zoomOutButton instanceof HTMLButtonElement) {
+        zoomOutButton.disabled = zoom <= minZoom + 0.001;
+      }
+      if (zoomInButton instanceof HTMLButtonElement) {
+        zoomInButton.disabled = zoom >= maxZoom - 0.001;
+      }
+    };
+
+    const setZoom = (nextZoom) => {
+      zoom = Math.max(minZoom, Math.min(maxZoom, Number(nextZoom.toFixed(2))));
+      applyZoom();
+    };
+
+    const renderDetail = (nodeId) => {
+      if (!detailBody) {
+        return;
+      }
+
+      const node = payload.nodes[nodeId];
+      if (!node) {
+        detailBody.innerHTML = '<p class="detail-placeholder">选择图中的节点或 ready item 查看详情。</p>';
+        return;
+      }
+
+      const tags = Array.isArray(node.tags) && node.tags.length
+        ? `<div class="detail-row"><span class="detail-label">Tags</span><div class="detail-tags">${node.tags.map((tag) => `<span class="detail-tag">${escapeHtml(tag)}</span>`).join('')}</div></div>`
+        : '';
+      const members = Array.isArray(node.rawTitles) && node.rawTitles.length
+        ? `<div class="detail-row"><span class="detail-label">Raw Nodes</span><div class="detail-value">${node.rawTitles.map((title) => escapeHtml(title)).join(' · ')}</div></div>`
+        : '';
+      const summary = node.summary
+        ? `<div class="detail-row"><span class="detail-label">Summary</span><div class="detail-value">${escapeHtml(node.summary)}</div></div>`
+        : '';
+      const metadata = node.metadata && Object.keys(node.metadata).length
+        ? `<div class="detail-row"><span class="detail-label">Metadata</span><pre class="detail-meta">${escapeHtml(JSON.stringify(node.metadata, null, 2))}</pre></div>`
+        : '';
+
+      detailBody.innerHTML = `
+        <div class="detail-stack">
+          <div class="detail-row"><span class="detail-label">Title</span><div class="detail-value">${escapeHtml(node.title)}</div></div>
+          <div class="detail-row"><span class="detail-label">ID</span><div class="detail-value">${escapeHtml(node.id)}</div></div>
+          <div class="detail-row"><span class="detail-label">Kind / Status</span><div class="detail-value">${escapeHtml(node.kind)} / ${escapeHtml(node.status)}</div></div>
+          ${summary}
+          ${members}
+          ${tags}
+          ${metadata}
+        </div>`;
+    };
+
+    const updateVisibility = () => {
+      const visibleIds = new Set();
+
+      for (const node of Object.values(payload.nodes)) {
+        const matchesStatus = activeStatus === 'all' || node.status === activeStatus;
+        const matchesSearch = !searchText || String(node.searchText || '').includes(searchText);
+        if (matchesStatus && matchesSearch) {
+          visibleIds.add(node.id);
+        }
+      }
+
+      if (selectedId && !visibleIds.has(selectedId)) {
+        selectedId = '';
+      }
+
+      for (const group of nodeGroups) {
+        const nodeId = group.dataset.nodeId || '';
+        group.classList.toggle('is-muted', !visibleIds.has(nodeId));
+        group.classList.toggle('is-selected', nodeId === selectedId);
+      }
+
+      for (const edge of edgePaths) {
+        const sourceId = edge.dataset.sourceId || '';
+        const targetId = edge.dataset.targetId || '';
+        edge.classList.toggle('is-muted', !(visibleIds.has(sourceId) && visibleIds.has(targetId)));
+      }
+
+      for (const item of readyItems) {
+        const displayId = item.dataset.displayId || '';
+        item.classList.toggle('is-hidden', !visibleIds.has(displayId));
+        item.classList.toggle('is-selected', displayId === selectedId);
+      }
+
+      if (filterSummary) {
+        filterSummary.textContent = `visible ${visibleIds.size} / ${payload.nodeCount}`;
+      }
+
+      renderDetail(selectedId);
+    };
+
+    const selectNode = (nodeId) => {
+      if (!payload.nodes[nodeId]) {
+        return;
+      }
+      selectedId = nodeId;
+      updateVisibility();
+      const selectedGroup = nodeGroups.find((group) => group.dataset.nodeId === nodeId);
+      selectedGroup?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    };
+
+    searchInput?.addEventListener('input', (event) => {
+      searchText = String(event.target?.value || '').trim().toLowerCase();
+      updateVisibility();
+    });
+
+    zoomOutButton?.addEventListener('click', () => setZoom(zoom - zoomStep));
+    zoomResetButton?.addEventListener('click', () => setZoom(1));
+    zoomInButton?.addEventListener('click', () => setZoom(zoom + zoomStep));
+    svgWrap?.addEventListener('wheel', (event) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      setZoom(zoom + (event.deltaY < 0 ? 0.1 : -0.1));
+    }, { passive: false });
+
+    for (const button of filterButtons) {
+      button.addEventListener('click', () => {
+        activeStatus = button.dataset.statusFilter || 'all';
+        for (const candidate of filterButtons) {
+          candidate.classList.toggle('is-active', candidate === button);
+        }
+        updateVisibility();
+      });
+    }
+
+    for (const group of nodeGroups) {
+      const nodeId = group.dataset.nodeId || '';
+      group.addEventListener('click', () => selectNode(nodeId));
+      group.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectNode(nodeId);
+        }
+      });
+    }
+
+    for (const item of readyItems) {
+      const displayId = item.dataset.displayId || '';
+      item.addEventListener('click', () => selectNode(displayId));
+    }
+
+    applyZoom();
+    updateVisibility();
+  }
+})();
+    """

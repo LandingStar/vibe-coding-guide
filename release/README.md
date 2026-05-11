@@ -19,11 +19,11 @@
 
 - [x] pyproject.toml metadata 已定义（包名 / 版本 / 入口 / 依赖）
 - [x] 双发行包标准已固化
-- [x] 当前 preview 版本号已在 runtime / instance / release 文档中同步
+- [x] 当前 preview 版本号已在 runtime / instance / release 文档中同步到 `0.9.6`
 - [x] 构建验证通过（双包均可成功构建 wheel / sdist，内容物完整）
 - [x] clean environment 安装验证通过（干净 venv 安装 → CLI 入口可用 → 资产可发现）
 - [x] adoption 端到端验证通过（空项目 bootstrap → validate → runtime info → MCP 启动）
-- [x] 可分发安装包已打包（`doc-based-coding-v0.9.5.zip`，含 AI 安装指南）
+- [x] 可分发安装包已打包（`doc-based-coding-v0.9.6.zip`，含 AI 安装指南）
 - [ ] 发布流程 / CI 配置
 
 ## 构建验证结果（2026-04-12）
@@ -62,9 +62,9 @@
 
 | 组件 | 当前版本 | 说明 |
 |------|---------|------|
-| VS Code Extension (`.vsix`) | `0.1.3` | 前端插件，独立版本线 |
-| Runtime (`.whl`) | `0.9.5` | 平台 runtime / CLI / MCP server |
-| Instance Pack (`.whl`) | `0.9.5` | 官方 doc-loop 实例资产 |
+| VS Code Extension (`.vsix`) | `0.1.4` | 前端插件，独立版本线 |
+| Runtime (`.whl`) | `0.9.6` | 平台 runtime / CLI / MCP server |
+| Instance Pack (`.whl`) | `0.9.6` | 官方 doc-loop 实例资产 |
 
 **兼容性规则**：
 - Extension `0.1.x` 兼容 Runtime `0.9.x`
@@ -113,7 +113,7 @@ release/
 
 | 步骤 | 结果 |
 |------|------|
-| 解压 `doc-based-coding-v1.0.0.zip` | OK 3 个文件正确解压 |
+| 解压 `doc-based-coding-v0.9.6.zip` | OK 3 个文件正确解压 |
 | 在干净 venv 中安装双包 | OK runtime + 实例安装成功 |
 | `doc-loop-bootstrap --target ./my-project --project-name "My New Project"` | OK 21 个文件生成，项目名自动注入 |
 | `doc-based-coding info`（从新项目目录） | OK 正确发现 project-local pack（名称 "My New Project-local-pack"） |

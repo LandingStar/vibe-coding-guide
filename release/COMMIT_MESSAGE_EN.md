@@ -1,25 +1,21 @@
 # Commit Message (English)
 
 ```
-release: finalize the v0.9.5 preview release surface and packaging consistency
+release: package the v0.9.6 preview release around the graph-view work
 
-Complete the progress-graph artifact consistency audit and converge the runtime, official instance, pack manifest, and release docs on 0.9.5. Harden the release pipeline with VSIX build/sync, stale artifact cleanup, Windows npm resolution, and installed-state MCP verification so the preview artifacts, version surfaces, and installation path stay aligned.
+Package the current graph-view work into a new preview release batch: move the runtime and official instance to 0.9.6, bump the VS Code extension to 0.1.4, and carry the G6 graph-view PoC, host-side parallel preview, and Graph Config interaction into a fresh distributable surface.
 
 ## Changes
 
-- Refresh the real `.codex/progress-graph/latest.json`, `.dot`, and `.html` artifacts to remove the stale-artifact drift introduced after the recency-semantics safe stop, and recheck direction-candidate status consistency
-- Synchronize the dual-package release surface to `0.9.5`, including the runtime, instance pack, pack manifest, official instance `__version__` / `runtime_compatibility`, and release docs
-- Align the release docs and artifact surface on VS Code extension version `0.1.3`
-- Update `scripts/release.py` to read the current extension version from `vscode-extension/package.json`, build and sync the VSIX into `release/`, and remove stale wheel / VSIX artifacts from older batches
-- Resolve `npm.cmd` explicitly on Windows so Python subprocess packaging does not fail when `npm` is not shell-resolved
-- Keep the delivery boundary unchanged: `doc-based-coding-v0.9.5.zip` continues to contain only the two wheels and release docs, while the VSIX remains a separate artifact
+- Land the G6-driven relation-graph V2 preview in the VS Code progress-graph surface while keeping the original baseline preview intact, including hover / click / adjacency highlight / node detail / runtime-binding emphasis
+- Close the host-side interaction slice with Reset Zoom/Pan, collapsible host chrome, a Graph Config bar that shrinks into the top-right floating trigger, metrics overlay, and draggable split sizing
+- Eliminate the remaining Graph Config title jump / shrink / scrollbar artifacts by ending collapse on the real collapsed button instead of a cross-container moving title layer
+- Move the dual-package and release docs surface to `0.9.6` and bump the extension artifact line to `0.1.4`
+- Keep the delivery boundary unchanged: `doc-based-coding-v0.9.6.zip` still carries only the two wheels and release docs, the VSIX remains separate, and control-panel action semantics stay out of scope for this batch
 
 ## Verified
 
-- `pytest tests/test_progress_graph_doc_projection.py -q`: 3 passed
-- `pytest tests -v --tb=short`: 1366 passed, 2 skipped
+- `npm run build`: passed
 - `release/verify_version_consistency.py`: All versions consistent
-- `scripts/release.py --no-isolation`: generated `release/doc-based-coding-v0.9.5.zip`
-- `scripts/release.py --skip-tests --no-isolation`: generated and synced `release/doc-based-coding-0.1.3.vsix`
-- Installed-state validation: `doc-based-coding-mcp --help`, `doc-based-coding info`, `doc-based-coding validate`, and `pytest tests/test_dual_package_distribution.py -q` (6 passed)
+- `scripts/release.py --skip-tests --no-isolation`: generated `release/doc-based-coding-v0.9.6.zip` and synced the new wheel / VSIX batch
 ```

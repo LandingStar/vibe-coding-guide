@@ -1,14 +1,28 @@
 /**
- * Config Panel WebviewView (Slice B).
+ * Config Panel WebviewView.
  *
- * Provides a form-based UI for editing user-global config fields
- * (~/.doc-based-coding/config.json).  Embedded in the Activity Bar
- * sidebar via WebviewViewProvider.
+ * Provides user-global config editing together with a small installed-state
+ * runtime/package management surface for the current workspace.
  */
 
 import * as vscode from 'vscode';
 import { MCPClient } from '../mcp/client';
 import { ManagedLLMProvider } from '../llm/types';
+import {
+    getRuntimePackageStatus,
+    installRuntimePackagesFromWorkspaceRelease,
+    uninstallRuntimePackages,
+} from '../setup/runtimePackageManager';
+
+interface ConfigPanelProviderOptions {
+    outputChannel: vscode.OutputChannel;
+    projectRoot: string;
+    extensionVersion: string;
+    resolvePythonPath: () => Promise<string>;
+    startServer: (pythonPath: string) => Promise<void>;
+    stopServer: () => void;
+    isServerRunning: () => boolean;
+}
 
 export class ConfigPanelProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'configPanel';
@@ -17,9 +31,21 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
     private _mcpClient: MCPClient | null;
     private _llmProvider: ManagedLLMProvider | null;
     private readonly _outputChannel: vscode.OutputChannel;
+    private readonly _projectRoot: string;
+    private readonly _extensionVersion: string;
+    private readonly _resolvePythonPath: () => Promise<string>;
+    private readonly _startServer: (pythonPath: string) => Promise<void>;
+    private readonly _stopServer: () => void;
+    private readonly _isServerRunning: () => boolean;
 
-    constructor(outputChannel: vscode.OutputChannel, mcpClient?: MCPClient, llmProvider?: ManagedLLMProvider) {
-        this._outputChannel = outputChannel;
+    constructor(options: ConfigPanelProviderOptions, mcpClient?: MCPClient, llmProvider?: ManagedLLMProvider) {
+        this._outputChannel = options.outputChannel;
+        this._projectRoot = options.projectRoot;
+        this._extensionVersion = options.extensionVersion;
+        this._resolvePythonPath = options.resolvePythonPath;
+        this._startServer = options.startServer;
+        this._stopServer = options.stopServer;
+        this._isServerRunning = options.isServerRunning;
         this._mcpClient = mcpClient ?? null;
         this._llmProvider = llmProvider ?? null;
     }
@@ -43,15 +69,26 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
         };
 
-        webviewView.webview.onDidReceiveMessage(async (message: { command: string; field?: string; value?: unknown }) => {
+        webviewView.webview.onDidReceiveMessage(async (message: {
+            command: string;
+            field?: string;
+            value?: unknown;
+            action?: string;
+        }) => {
             switch (message.command) {
                 case 'load':
                     await this._sendConfigToWebview();
+                    await this._sendPackageStatusToWebview();
                     await this._sendAvailableModels();
                     break;
                 case 'save':
                     if (message.field && message.value !== undefined) {
                         await this._saveField(message.field, message.value);
+                    }
+                    break;
+                case 'packageAction':
+                    if (message.action) {
+                        await this._handlePackageAction(message.action);
                     }
                     break;
             }
@@ -63,6 +100,7 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
     async refresh(): Promise<void> {
         if (this._view) {
             await this._sendConfigToWebview();
+            await this._sendPackageStatusToWebview();
         }
     }
 
@@ -89,6 +127,26 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    private async _sendPackageStatusToWebview(): Promise<void> {
+        if (!this._view) { return; }
+
+        try {
+            const config = vscode.workspace.getConfiguration('docBasedCoding');
+            const status = await getRuntimePackageStatus({
+                projectRoot: this._projectRoot,
+                extensionVersion: this._extensionVersion,
+                mcpServerRunning: this._isServerRunning(),
+                autoStart: config.get<boolean>('autoStart') ?? true,
+                serverMode: config.get<string>('serverMode') ?? 'auto',
+                outputChannel: this._outputChannel,
+            });
+            this._view.webview.postMessage({ command: 'packageStatus', data: status, error: null });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this._view.webview.postMessage({ command: 'packageStatus', data: null, error: msg });
+        }
+    }
+
     /** Fetch available model families from the active provider and send them to the webview. */
     private async _sendAvailableModels(): Promise<void> {
         if (!this._view) { return; }
@@ -101,7 +159,6 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             const families = await this._llmProvider.listModelFamilies();
             this._view.webview.postMessage({ command: 'models', families });
         } catch {
-            // Provider not available — send empty list, user can still type manually
             this._view.webview.postMessage({ command: 'models', families: [] });
         }
     }
@@ -118,12 +175,105 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             const result = await this._mcpClient.callTool('update_user_config', { field, value });
             this._view.webview.postMessage({ command: 'saveResult', ok: true, data: result });
             this._outputChannel.appendLine(`[ConfigPanel] Updated field '${field}'.`);
-            // Also fire a refresh event so the TreeView stays in sync
             vscode.commands.executeCommand('docBasedCoding.refreshConfig');
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             this._view.webview.postMessage({ command: 'saveResult', ok: false, error: msg });
         }
+    }
+
+    private async _handlePackageAction(action: string): Promise<void> {
+        if (!this._view) { return; }
+
+        try {
+            if (action === 'disable') {
+                this._stopServer();
+                await vscode.workspace.getConfiguration('docBasedCoding').update(
+                    'autoStart',
+                    false,
+                    vscode.ConfigurationTarget.Workspace,
+                );
+                this._view.webview.postMessage({
+                    command: 'packageActionResult',
+                    ok: true,
+                    message: 'Stopped the current MCP server and disabled auto-start for this workspace.',
+                });
+                await vscode.commands.executeCommand('docBasedCoding.refreshConfig');
+                await this._sendPackageStatusToWebview();
+                return;
+            }
+
+            const pythonPath = await this._resolvePythonPath();
+            const wasRunning = this._isServerRunning();
+
+            if (action === 'uninstall') {
+                const choice = await vscode.window.showWarningMessage(
+                    'Uninstall doc-based-coding-runtime and doc-loop-vibe-coding from the selected Python environment?',
+                    { modal: true },
+                    'Uninstall',
+                );
+                if (choice !== 'Uninstall') {
+                    this._view.webview.postMessage({
+                        command: 'packageActionResult',
+                        ok: false,
+                        message: 'Uninstall cancelled.',
+                    });
+                    await this._sendPackageStatusToWebview();
+                    return;
+                }
+            }
+
+            if (wasRunning) {
+                this._stopServer();
+            }
+
+            let result;
+            if (action === 'reinstall' || action === 'update') {
+                result = await installRuntimePackagesFromWorkspaceRelease(
+                    this._projectRoot,
+                    pythonPath,
+                    this._outputChannel,
+                );
+                if (result.ok && wasRunning) {
+                    try {
+                        await this._startServer(pythonPath);
+                    } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        result = {
+                            ok: false,
+                            message: `Packages updated, but MCP restart failed: ${msg}`,
+                            runtimeVersion: result.runtimeVersion,
+                            instanceVersion: result.instanceVersion,
+                        };
+                    }
+                }
+            } else if (action === 'uninstall') {
+                result = await uninstallRuntimePackages(pythonPath, this._outputChannel);
+            } else {
+                result = {
+                    ok: false,
+                    message: `Unknown package action: ${action}`,
+                    runtimeVersion: null,
+                    instanceVersion: null,
+                };
+            }
+
+            this._view.webview.postMessage({
+                command: 'packageActionResult',
+                ok: result.ok,
+                message: result.message,
+            });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this._view.webview.postMessage({
+                command: 'packageActionResult',
+                ok: false,
+                message: msg,
+            });
+        }
+
+        await vscode.commands.executeCommand('docBasedCoding.refreshConfig');
+        await this._sendPackageStatusToWebview();
     }
 
     private _updateHtml(): void {
@@ -228,13 +378,50 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-descriptionForeground);
             font-style: italic;
         }
+        .package-grid {
+            display: grid;
+            grid-template-columns: minmax(110px, 132px) 1fr;
+            gap: 6px 12px;
+            align-items: start;
+        }
+        .package-label {
+            color: var(--vscode-descriptionForeground);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
-    <h3>User-Global Config</h3>
+    <h3>Runtime & Package Status</h3>
 
-    <div id="content" class="loading">Loading...</div>
-    <div id="form" style="display:none;">
+    <div id="packageLoading" class="loading">Loading package status...</div>
+    <div id="packageSection" style="display:none;">
+        <div class="field-group">
+            <div id="packageSummary" style="color:var(--vscode-descriptionForeground); margin-bottom: 10px;"></div>
+            <div class="package-grid">
+                <div class="package-label">Extension</div><div id="pkgExtensionVersion"></div>
+                <div class="package-label">Python</div><div id="pkgPythonVersion"></div>
+                <div class="package-label">Python Path</div><div id="pkgPythonPath"></div>
+                <div class="package-label">Runtime</div><div id="pkgRuntimeVersion"></div>
+                <div class="package-label">Instance Pack</div><div id="pkgInstanceVersion"></div>
+                <div class="package-label">Server</div><div id="pkgServerStatus"></div>
+                <div class="package-label">Auto Start</div><div id="pkgAutoStart"></div>
+                <div class="package-label">Server Mode</div><div id="pkgServerMode"></div>
+                <div class="package-label">Workspace Release</div><div id="pkgReleaseArtifacts"></div>
+            </div>
+            <div class="btn-row" style="margin-top:12px; flex-wrap: wrap;">
+                <button class="btn-save" data-package-action="update" onclick="runPackageAction('update')">Update</button>
+                <button class="btn-save" data-package-action="reinstall" onclick="runPackageAction('reinstall')">Reinstall</button>
+                <button class="btn-reload" data-package-action="disable" onclick="runPackageAction('disable')">Disable</button>
+                <button class="btn-reload" data-package-action="uninstall" onclick="runPackageAction('uninstall')">Uninstall</button>
+                <button class="btn-reload" onclick="loadPanel()">↻ Refresh Status</button>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="margin-top: 18px;">User-Global Config</h3>
+
+    <div id="configContent" class="loading">Loading...</div>
+    <div id="configForm" style="display:none;">
         <div class="field-group">
             <label for="extraPackDirs">extra_pack_dirs</label>
             <input type="text" id="extraPackDirs" placeholder="/path/to/packs1, /path/to/packs2">
@@ -257,12 +444,12 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             <label>default_llm_params</label>
             <div id="llmParamsPreview" style="padding:4px 0;color:var(--vscode-descriptionForeground);font-size:0.9em;">(empty)</div>
             <div class="btn-row">
-                <button class="btn-reload" disabled title="Complex editor — planned for future release">Edit (coming soon)</button>
+                <button class="btn-reload" disabled title="Complex editor - planned for future release">Edit (coming soon)</button>
             </div>
         </div>
 
         <div class="btn-row" style="margin-top:12px;">
-            <button class="btn-reload" onclick="loadConfig()">↻ Reload</button>
+            <button class="btn-reload" onclick="loadPanel()">↻ Reload</button>
         </div>
     </div>
 
@@ -271,10 +458,12 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
     <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
 
-        function loadConfig() {
-            document.getElementById('content').style.display = 'block';
-            document.getElementById('content').textContent = 'Loading...';
-            document.getElementById('form').style.display = 'none';
+        function loadPanel() {
+            document.getElementById('packageLoading').style.display = 'block';
+            document.getElementById('packageSection').style.display = 'none';
+            document.getElementById('configContent').style.display = 'block';
+            document.getElementById('configContent').textContent = 'Loading...';
+            document.getElementById('configForm').style.display = 'none';
             hideStatus();
             vscode.postMessage({ command: 'load' });
         }
@@ -291,6 +480,64 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ command: 'save', field, value });
         }
 
+        function runPackageAction(action) {
+            setPackageButtonsDisabled(true);
+            hideStatus();
+            vscode.postMessage({ command: 'packageAction', action });
+        }
+
+        function setPackageButtonsDisabled(disabled) {
+            document.querySelectorAll('[data-package-action]').forEach(button => {
+                button.disabled = disabled;
+            });
+        }
+
+        function setPackageField(id, value) {
+            document.getElementById(id).textContent = value;
+        }
+
+        function renderPackageStatus(data, error) {
+            document.getElementById('packageLoading').style.display = 'none';
+            document.getElementById('packageSection').style.display = 'block';
+            setPackageButtonsDisabled(false);
+
+            if (error || !data) {
+                document.getElementById('packageSummary').textContent = error || 'Failed to load package status.';
+                setPackageField('pkgExtensionVersion', '(unknown)');
+                setPackageField('pkgPythonVersion', '(unavailable)');
+                setPackageField('pkgPythonPath', '(unavailable)');
+                setPackageField('pkgRuntimeVersion', '(unavailable)');
+                setPackageField('pkgInstanceVersion', '(unavailable)');
+                setPackageField('pkgServerStatus', '(unavailable)');
+                setPackageField('pkgAutoStart', '(unavailable)');
+                setPackageField('pkgServerMode', '(unavailable)');
+                setPackageField('pkgReleaseArtifacts', '(unavailable)');
+                return;
+            }
+
+            document.getElementById('packageSummary').textContent = data.summary || '';
+            setPackageField('pkgExtensionVersion', data.extensionVersion || '(unknown)');
+            setPackageField('pkgPythonVersion', data.pythonVersion || '(not found)');
+            setPackageField('pkgPythonPath', data.pythonPath || '(not found)');
+            setPackageField('pkgRuntimeVersion', data.runtimeVersion || '(not installed)');
+            setPackageField('pkgInstanceVersion', data.instanceVersion || '(not installed)');
+            setPackageField('pkgServerStatus', data.mcpServerRunning ? 'running' : 'stopped');
+            setPackageField('pkgAutoStart', data.autoStart ? 'enabled' : 'disabled');
+            setPackageField('pkgServerMode', data.serverMode || '(default)');
+
+            const releaseItems = [];
+            if ((data.releaseArtifacts.wheelFiles || []).length > 0) {
+                releaseItems.push((data.releaseArtifacts.wheelFiles || []).join(', '));
+            }
+            if (data.releaseArtifacts.zipFile) {
+                releaseItems.push(data.releaseArtifacts.zipFile);
+            }
+            if ((data.releaseArtifacts.vsixFiles || []).length > 0) {
+                releaseItems.push((data.releaseArtifacts.vsixFiles || []).join(', '));
+            }
+            setPackageField('pkgReleaseArtifacts', releaseItems.length > 0 ? releaseItems.join(' | ') : '(none found)');
+        }
+
         function showStatus(msg, isError) {
             const el = document.getElementById('status');
             el.textContent = msg;
@@ -305,37 +552,36 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
         window.addEventListener('message', event => {
             const msg = event.data;
             if (msg.command === 'config') {
-                document.getElementById('content').style.display = 'none';
+                document.getElementById('configContent').style.display = 'none';
                 if (msg.error) {
-                    document.getElementById('content').style.display = 'block';
-                    document.getElementById('content').textContent = msg.error;
-                    document.getElementById('form').style.display = 'none';
+                    document.getElementById('configContent').style.display = 'block';
+                    document.getElementById('configContent').textContent = msg.error;
+                    document.getElementById('configForm').style.display = 'none';
                     return;
                 }
                 const data = msg.data;
                 if (!data) {
-                    document.getElementById('content').style.display = 'block';
-                    document.getElementById('content').textContent = 'No user config loaded (config.json may not exist).';
-                    document.getElementById('form').style.display = 'block';
+                    document.getElementById('configContent').style.display = 'block';
+                    document.getElementById('configContent').textContent = 'No user config loaded (config.json may not exist).';
+                    document.getElementById('configForm').style.display = 'block';
                     return;
                 }
-                document.getElementById('form').style.display = 'block';
+                document.getElementById('configForm').style.display = 'block';
                 document.getElementById('extraPackDirs').value =
                     (data.extra_pack_dirs || []).join(', ');
-                // Set model select — the option may not exist yet if models haven't loaded
                 setSelectedModel(data.default_model || '');
-                // Show llm params preview
                 const params = data.default_llm_params || {};
                 document.getElementById('llmParamsPreview').textContent =
                     Object.keys(params).length > 0
                         ? JSON.stringify(params, null, 2)
                         : '(empty)';
+            } else if (msg.command === 'packageStatus') {
+                renderPackageStatus(msg.data, msg.error);
             } else if (msg.command === 'models') {
                 populateModelSelect(msg.families || []);
             } else if (msg.command === 'saveResult') {
                 if (msg.ok) {
                     showStatus('Saved successfully.', false);
-                    // Reload data to reflect actual state
                     if (msg.data) {
                         document.getElementById('extraPackDirs').value =
                             (msg.data.extra_pack_dirs || []).join(', ');
@@ -349,6 +595,10 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
                 } else {
                     showStatus('Save failed: ' + (msg.error || 'Unknown error'), true);
                 }
+            } else if (msg.command === 'packageActionResult') {
+                setPackageButtonsDisabled(false);
+                showStatus(msg.message || 'Package action completed.', !msg.ok);
+                loadPanel();
             }
         });
 
@@ -356,7 +606,6 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
         function populateModelSelect(families) {
             const sel = document.getElementById('defaultModel');
-            // Preserve current selection
             const prev = sel.value || _currentModel;
             sel.innerHTML = '<option value="">(none)</option>';
             families.forEach(f => {
@@ -365,16 +614,13 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
                 opt.textContent = f;
                 sel.appendChild(opt);
             });
-            // Add "Other..." option for future custom model entry
             const otherOpt = document.createElement('option');
             otherOpt.value = '__other__';
             otherOpt.textContent = 'Other... (coming soon)';
             otherOpt.disabled = true;
             sel.appendChild(otherOpt);
-            // Restore selection
             if (prev) {
                 sel.value = prev;
-                // If prev model isn't in the list, add it as a custom option
                 if (sel.value !== prev) {
                     const custom = document.createElement('option');
                     custom.value = prev;
@@ -390,13 +636,11 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
             const sel = document.getElementById('defaultModel');
             sel.value = model;
             if (sel.value !== model && model) {
-                // Model not yet in list — will be set when models load
                 _currentModel = model;
             }
         }
 
-        // Auto-load on panel open
-        loadConfig();
+        loadPanel();
     </script>
 </body>
 </html>`;

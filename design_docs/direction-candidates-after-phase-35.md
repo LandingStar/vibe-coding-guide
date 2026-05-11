@@ -1,5 +1,225 @@
 # Direction Candidates — After Phase 35
 
+## 2026-05-06 补充候选：project progress preview freshness signaling 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md` 已完成并关闭；host preview 已具备 `fresh` / `stale` / `refreshing` / `failed` / `missing` 五类 freshness state，宿主承载已稳定在“原始 HTML artifact + 宿主 UX 并行”的单文档模式，并已补齐 `missing` / `stale` / `failed` 的 helper-level spot check。
+- 候选 1：`graph interactive control surface`
+  - 做什么：把 graph 从 preview/explorer 推到只读 control surface 第一版，先让 graph 直接看见节点状态、当前 work-item / group-item 观察面，以及各个 agent / worker 当前处理线索。
+  - 依据：`design_docs/project-progress-graph-interactive-control-surface-direction-analysis.md`、`design_docs/project-progress-graph-component-planning.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 候选 2：`hierarchical roll-up / expandable compound node over current preview`
+  - 做什么：围绕显式 `ProgressCluster` 或等价手工分组，把部分相关节点先打包为更大的 compound node，并提供按需 expand/collapse，用于控制大型项目里 graph 一次性暴露给用户的规模。
+  - 依据：`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`、`design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 候选 3：`orchestration state projection first, UI second`
+  - 做什么：先把 `BridgeWorkItem` / `BridgeGroupItem` 的 compact state 收口成 graph-facing projection / snapshot，再让后续 preview/host surface 消费它。
+  - 依据：`design_docs/project-progress-graph-interactive-control-surface-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-contract-first-slice2-group-item-projection-draft.md`、`design_docs/orchestration-bridge-delivery-signal-integration-hook-slice2-draft.md`
+- 当前倾向：默认先进入候选 1。因为用户当前要的是“graph 成为控制页面”，而第一版最稳的实现方式不是立刻开放 direct actions，而是先把 graph 提升为只读 control surface。
+
+## 2026-05-06 用户选定下一步 — Graph Interactive Control Surface
+
+用户已在 preview freshness gate 收口后继续推进：
+
+- 候选 1 `graph interactive control surface`
+
+因此当前更窄的入口更新为：
+
+1. 先固定 read-only control overlay + orchestration compact snapshot contract
+2. 当前继续沿现有 preview / host surface 增强，不直接进入 direct mutation controls、daemon persistence 或新的 renderer 重写
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md`
+4. 当前 Slice 1 草案已切到 `design_docs/project-progress-graph-interactive-control-surface-slice1-draft.md`
+
+## 2026-05-03 补充候选：project progress richer interactive preview 第一刀收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md` 已完成并关闭；现有 HTML / host preview 上的 graph-local search、status filter、selected node detail、focused reveal、zoom controls 与 Ctrl+滚轮缩放均已成立，`tests/test_progress_graph_html_preview.py` 已通过 focused validation（4 passed）。
+- 候选 1：`preview freshness signaling and workflow polishing`
+  - 做什么：围绕现有 host preview / artifact refresh workflow，补 stale hint、dirty badge、refresh state 与 artifact freshness 可见性，让当前交互面从“可探索”进一步变成“可稳定使用”。
+  - 依据：`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`、`design_docs/project-progress-preview-artifact-refresh-pipeline-integration-followup-direction-analysis.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 候选 2：`hierarchical roll-up / expandable compound node over current preview`
+  - 做什么：围绕显式 `ProgressCluster` 或等价手工分组，把部分相关节点先打包为更大的 compound node，并提供按需 expand/collapse，用于控制大型项目里 graph 一次性暴露给用户的规模。
+  - 依据：`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`、`design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 候选 3：`handoff / safe-stop projection before further interaction expansion`
+  - 做什么：先把 graph 当前仍缺的 handoff / safe-stop family source 补进图面，再继续扩大更重的用户交互层。
+  - 依据：`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`、`design_docs/project-progress-graph-component-planning.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 当前倾向：默认先进入候选 1。因为当前 richer interactive preview 的第一刀已经成立，继续沿 preview freshness / workflow polish 收窄，最符合“回到原主线”的节奏；而 compound-node 需求虽已明确记录，但用户已要求先停在记录层，不在此刻直接并入主执行线。
+
+## 2026-05-03 用户选定下一步 — Preview Freshness Signaling And Workflow Polishing
+
+用户已在 graph interactive preview 第一刀收口后继续推进：
+
+- 候选 1 `preview freshness signaling and workflow polishing`
+
+因此当前更窄的入口更新为：
+
+1. 先围绕现有 host preview / artifact refresh workflow 固定 stale hint、dirty badge、refresh-state 与 artifact freshness 可见性
+2. 当前继续沿现有 preview / host workflow 收窄，不进入 watcher-driven auto refresh、compound node / hierarchical roll-up 或 handoff / safe-stop projection
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md`
+4. 不在这条新 gate 内顺手重开 `doc_projection.py` / `export.py` schema、source coverage 扩展或新的 renderer 重写
+
+## 2026-04-30 补充候选：orchestration bridge MVP formal close 后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md` 已完成并关闭；`src/runtime/orchestration/landing.py` 已落最小 post-dispatch overlay helper，`tests/test_runtime_orchestration_landing_dispatch.py` 已通过 focused validation（9 passed）；`design_docs/orchestration-bridge-mvp-boundary-draft.md` 已确认 bridge MVP 的四个 completion signals 全部成立，formal close writeback 也已同步到 canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint。
+- 候选 1：`richer interactive preview over current export surface`
+  - 做什么：在现有 HTML / host preview 基础上，补最小交互层，例如 graph filter、node detail、cluster expand/collapse、focused reveal。
+  - 依据：`design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`、`design_docs/project-progress-graph-component-planning.md`、`design_docs/project-progress-html-preview-followup-direction-analysis.md`、`design_docs/project-progress-host-preview-integration-followup-direction-analysis.md`
+- 候选 2：`preview freshness signaling and workflow polishing`
+  - 做什么：围绕现有 host preview，补 stale hint、dirty badge、refresh state 与 artifact freshness 可见性。
+  - 依据：`design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`、`design_docs/project-progress-preview-artifact-refresh-pipeline-integration-followup-direction-analysis.md`、`design_docs/project-progress-graph-open-work-breakdown.md`
+- 候选 3：`handoff / safe-stop projection before interaction expansion`
+  - 做什么：先把 graph 当前最缺的 handoff / safe-stop family source 补进图面，再进入更重的 interaction layer。
+  - 依据：`design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`、`design_docs/project-progress-graph-open-work-breakdown.md`、`design_docs/project-progress-graph-component-planning.md`
+- 当前倾向：默认先进入候选 1。因为 bridge MVP 已经 formal close，当前 graph preview / host surface 也已经具备最小闭环；相比继续补 coverage 或只做 workflow polish，优先增强现有 preview 的用户交互，最直接承接了用户此前的顺序决定。
+
+## 2026-04-30 用户选定下一步 — Richer Interactive Preview Over Current Export Surface
+
+用户已在 bridge MVP formal close 后继续推进：
+
+- 候选 1 `richer interactive preview over current export surface`
+
+因此当前更窄的入口更新为：
+
+1. 先把第一刀收窄为现有 HTML artifact / host preview 之上的 graph-local interaction controls，优先固定 text filter、status filter、node detail 与 focused reveal
+2. 当前继续沿 export-surface-backed HTML interaction 推进，不重开 `doc_projection.py` / `export.py` schema，也不先进入 preview freshness signaling 或 handoff / safe-stop projection
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`
+4. 不在这条新 gate 内顺手扩大到 cluster expand/collapse、watcher / auto-refresh、第二宿主 UI 或新的前端框架化 renderer
+
+## 2026-04-29 补充候选：orchestration bridge contract/runtime alignment 收口后的下一步
+
+- 已完成边界（当前已达 close-ready，待执行 gate-close bundle）：`design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md` 已完成 Slice 1 inventory、Slice 2 delivery-signal isolated conformance edit，以及 `tests/test_runtime_orchestration.py` 的 targeted validation（10 passed）；当前刻意未把 scope 扩到 integration hook、landing dispatch 重聚合或 broader daemon queue / persistence runtime。
+- 候选 1：`delivery signal integration hook over existing bridge surface`
+  - 做什么：围绕现有 `project_group_item_delivery_signal(...)`，补一条最小 live integration hook，让 compact delivery clue 在真实 orchestration runtime entry 上回流到 `BridgeGroupItem`，但仍不改变 roll-up / stop-condition family，也不把 `landing_dispatch.py` 变成新的 bridge-state owner。
+  - 依据：`design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md`、`design_docs/orchestration-bridge-contract-runtime-alignment-slice2-delivery-signal-backflow-draft.md`、`src/runtime/orchestration/projection.py`
+- 候选 2：`external-resolution landing conformance narrowing`
+  - 做什么：围绕 `wait_external_resolution` 之后的 landing artifact、consumer payload 与 dispatch result，再收窄一条只谈 conformance / traceability 的 planning-gate，明确 record clue / failure clue 与 handoff / review-intake / escalation surface 的最小回跳口径。
+  - 依据：`design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md`、`src/runtime/orchestration/landing_dispatch.py`
+- 候选 3：`broader daemon queue / persistence runtime`
+  - 做什么：继续把 bridge / daemon 主线推进到 queue、persistence、resume / replay、外部 worker orchestration 等 runtime 能力。
+  - 依据：`design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-layer-direction-analysis.md`、`design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。因为当前 gate 已经把最小 delivery clue shape 与 isolated helper boundary 固定下来，下一条最有价值的新信息是“这条边界能否在一个最小 live hook 上成立”，而不是继续停留在静态对齐或过早扩大到 daemon runtime。
+
+## 2026-04-29 用户选定下一步 — Delivery Signal Integration Hook Over Existing Bridge Surface
+
+用户已在 alignment gate close 后重新选择：
+
+- 候选 1 `delivery signal integration hook over existing bridge surface`
+
+因此当前更窄的入口更新为：
+
+1. 先固定 delivery dispatch result 与 `BridgeGroupItem` 回写目标同时可见的最小 runtime entry
+2. 当前继续沿 coordinator / landing boundary 邻侧的 post-dispatch overlay hook 收窄，不直接扩大到 external-resolution landing conformance 或 broader daemon runtime
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md`
+4. 不在这条新 gate 内顺手把 `landing_dispatch.py` 变成新的 bridge-state owner，或重写现有 governance projection contract
+
+## 2026-04-28 补充候选：orchestration bridge landing dispatch integration 收口后的下一步（未执行议案视角）
+
+## 2026-04-28 补充候选：orchestration bridge daemon contract-first 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md` 已按 docs-only boundary 完成并关闭；Slice 1-3 已固定 ownership boundary、group-item projection、work-item roll-up、stop-boundary trigger family 与 next runtime entry。
+- 候选 1：`contract/runtime alignment over existing bridge surface`
+  - 做什么：围绕 `src/runtime/orchestration/models.py`、`rollup.py`、`stop_conditions.py`、`landing.py` 做最小 contract/runtime alignment，确认现有 runtime helper 与 Slice 1-3 文档口径一致，并只修补真正的 contract 缺口。
+  - 依据：`design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`、`src/runtime/orchestration/rollup.py`
+- 候选 2：`external-resolution landing conformance narrowing`
+  - 做什么：围绕 `wait_external_resolution` 之后的 handoff / review-intake / escalation landing surface，再收窄一条只谈 conformance 与最小验证面的 planning-gate。
+  - 依据：`design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md`、`src/runtime/orchestration/landing.py`
+- 候选 3：`broader daemon queue / persistence runtime`
+  - 做什么：继续往 daemon queue、persistence、resume / replay、外部 worker orchestration 推进。
+  - 依据：`design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-layer-direction-analysis.md`、`design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。因为 contract 面已经写清，当前最有价值的新信息是现有 runtime helper 与 contract 是否真正对齐，而不是继续扩大 daemon 设计边界。
+
+## 2026-04-28 用户选定下一步 — Contract/Runtime Alignment Over Existing Bridge Surface
+
+用户已在 daemon contract-first close 后重新选择：
+
+- 候选 1 `contract/runtime alignment over existing bridge surface`
+
+因此当前更窄的入口更新为：
+
+1. 先盘点 `src/runtime/orchestration/models.py`、`rollup.py`、`stop_conditions.py`、`landing.py` 与 Slice 1-3 contract 的对应关系
+2. 当前继续沿最小 contract/runtime alignment 推进，不直接进入 broader daemon queue / persistence / replay runtime
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md`
+4. 不在这条新 gate 内顺手扩到 external-resolution landing conformance 或 broader daemon runtime
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 已完成并关闭；landing dispatch helper 已把 `handoff`、`escalation`、`review_intake` 三类 payload 接到真实 owner surface，并已通过 30 项 orchestration 窄范围联合验证。
+- 候选 1：`thin orchestration bridge / daemon contract-first`
+  - 做什么：把下一刀收窄为 bridge / daemon 与现有治理内核之间的最小调度 contract，先回答 work-item / group-item lifecycle、terminal landing 向上回传与恢复边界，而不是直接进入 full daemon runtime。
+  - 依据：`design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md`、`design_docs/orchestration-bridge-daemon-layer-direction-analysis.md`、`design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
+- 候选 2：`broader companion prose surface expansion`
+  - 做什么：回到 `project progress` 主线，把 companion prose projection 从当前 `design_docs/direction-candidates-after-phase-35.md` 的 section-level prose，继续扩到相邻的 follow-up analysis、Checklist 或 Phase Map prose surface。
+  - 依据：`design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md`、`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/Global Phase Map and Current Position.md`
+- 候选 3：`dogfood evidence / issue / feedback component-or-skill integration backlog`
+  - 做什么：回到 Checklist 中仍未完全收口的 dogfood backlog，但先把“证据收集 / 问题收集 / 反馈整合”重新压成新的组件或 skill 入口方向，再据此起一条新的窄 gate。
+  - 依据：`design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md`、`design_docs/dogfood-evidence-issue-feedback-boundary.md`、`design_docs/Project Master Checklist.md`
+- 当前倾向：默认先进入候选 1。因为 landing dispatch 已经把当前最直接的 delivery 缺口收口，真正上移出来的未执行议案已变成 bridge / daemon 调度 contract；候选 2/3 虽仍成立，但都不如候选 1 直接承接这次收口结果。
+
+## 2026-04-28 用户选定下一步 — Thin Orchestration Bridge / Daemon Contract-First
+
+用户已在 landing dispatch safe stop 后重新选择：
+
+- 候选 1 `thin orchestration bridge / daemon contract-first`
+
+因此当前更窄的入口更新为：
+
+1. 先固定 bridge-owned work-item / group-item lifecycle、terminal landing 向上回传，以及 bridge 与 governance kernel / landing dispatch surface 的 ownership matrix
+2. 当前继续沿 docs-first contract 收窄，不直接进入 full daemon runtime、queue / persistence / replay 实现
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`
+4. 不在这条新 gate 内顺手切回 broader companion prose surface expansion 或 dogfood evidence / issue / feedback backlog
+
+## 2026-04-28 补充候选：orchestration bridge landing dispatch integration 收口后的下一步（未执行议案视角）
+
+## 2026-04-28 重新审查候选：project progress companion prose projection 收口后的下一步（未执行议案视角）
+
+- 用户已明确纠正 framing：当前不是继续沿 `post-release` 收口，而是应从仓库里仍未执行、被暂停或仅停留在 backlog 的真实议案中，重新选择下一条窄主线。
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md` 已完成并关闭；`direction-candidates-global` 已支持 pure companion prose sections、section-local companion nodes 与 explicit actual-next-gate linkage。
+- 候选 1：`resume paused orchestration bridge landing dispatch integration`
+  - 做什么：恢复 `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 这条已暂停 gate，从现有 Slice 1 入口继续固定 landing dispatch contract。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`、`design_docs/orchestration-bridge-landing-dispatch-integration-direction-analysis.md`
+- 候选 2：`broader companion prose surface expansion`
+  - 做什么：把 companion prose projection 从当前 `direction-candidates-after-phase-35` section-level prose，继续扩到相邻的 progress-graph source surface，例如 current follow-up analysis、Checklist 或 Phase Map 中与“下一步为何如此选择”直接相关的 prose。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`、`design_docs/Global Phase Map and Current Position.md`
+- 候选 3：`dogfood evidence / issue / feedback component-or-skill integration backlog`
+  - 做什么：回到 Checklist 中仍未收口的 dogfood backlog，但先把“证据收集 / 问题收集 / 反馈整合”重新压成新的组件或 skill 入口方向，而不是直接重做已完成的 pipeline 实现。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/dogfood-evidence-issue-feedback-boundary.md`、`design_docs/Project Master Checklist.md`
+- 当前倾向：默认先进入候选 1。因为它是当前文档里最明确、最窄且被显式暂停而不是被放弃的真实议案；候选 2 虽更贴近刚完成的 progress graph 主线，但会继续扩大 source boundary；候选 3 价值明确，却仍需要先把 backlog 重新切成新的窄 gate。
+
+## 2026-04-28 补充候选：project progress companion prose projection 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md` 已完成并关闭；`direction-candidates-global` 已支持 pure companion prose sections、section-local companion nodes 与 explicit actual-next-gate linkage。
+- 候选 1：`post-release dogfood / install path tightening`
+  - 做什么：围绕 `release/doc-based-coding-v0.9.5.zip` 做 clean-venv 安装、CLI smoke 或 extension install-path 验证，把当前 release 从“已构建”推进到“已按目标路径验证”。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/v0.9.5-preview-release-followup-direction-analysis.md`、`docs/first-stable-release-boundary.md`
+- 候选 2：`extension runtime/package management follow-up validation`
+  - 做什么：针对已完成的 VS Code extension runtime/package 管理最小实现，补真实点击级验证，或继续收窄成 validation/UX follow-up slice。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-04-28-vscode-extension-runtime-package-management.md`、`design_docs/vscode-extension-runtime-package-management-slice1-draft.md`
+- 候选 3：`broader companion prose surface expansion`
+  - 做什么：把 companion prose projection 从 `design_docs/direction-candidates-after-phase-35.md` 继续扩到 release follow-up、Checklist 或 Phase Map 的相邻 prose surface。
+  - 依据：`design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`、`design_docs/v0.9.5-preview-release-followup-direction-analysis.md`、`design_docs/Global Phase Map and Current Position.md`
+- 当前倾向：默认先进入候选 1。因为 companion prose 第一刀已经成立，下一步更缺的是真实 release 路径验证，而不是继续扩大 prose source boundary。
+
+## 2026-04-28 补充候选：release-close handoff / CURRENT refresh hardening 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md` 已完成并关闭；当前 release-close canonical handoff、`CURRENT.md`、Checklist、Phase Map 与 checkpoint 已重新对齐。
+- 候选 1：`companion prose projection recovery`
+  - 做什么：回到此前被 release / audit 打断的 progress graph 主线，为 `用户选定下一步`、`当前更窄的入口`、`因此当前实际下一条 planning-gate` 这类 companion prose 提供最小语义投影。
+  - 依据：`design_docs/v0.9.5-preview-release-followup-direction-analysis.md`、`design_docs/project-progress-global-direction-candidates-recency-semantics-followup-direction-analysis.md`、`design_docs/Project Master Checklist.md`
+- 候选 2：`post-release dogfood / install path tightening`
+  - 做什么：围绕 `release/doc-based-coding-v0.9.5.zip` 做 clean-venv 安装、CLI smoke 或受控 extension install-path 验证，把这次 release 从“已构建”推进到“按目标分发路径被验证”。
+  - 依据：`design_docs/v0.9.5-preview-release-followup-direction-analysis.md`、`docs/first-stable-release-boundary.md`、`design_docs/Project Master Checklist.md`
+- 候选 3：`extension runtime/package management follow-up validation`
+  - 做什么：针对已完成的 VS Code extension runtime/package 管理最小实现，补真实点击级验证或继续收窄成 validation/UX follow-up slice，而不是继续把它混在 release-close 里。
+  - 依据：`design_docs/stages/planning-gate/2026-04-28-vscode-extension-runtime-package-management.md`、`design_docs/vscode-extension-runtime-package-management-slice1-draft.md`、`design_docs/v0.9.5-preview-release-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1；它最直接承接当前 progress graph 主线。若你现在更在意真实安装路径或 extension 管理面的落地验证，再分别切到候选 2 或候选 3。
+
+## 2026-04-28 用户选定下一步 — Companion Prose Projection Recovery
+
+用户已在 release-close safe stop 收口后重新选择：
+
+- 候选 1 `companion prose projection recovery`
+
+因此当前更窄的入口更新为：
+
+1. 先固定 `用户选定下一步`、`当前更窄的入口`、`当前实际下一条 planning-gate` 三类 companion prose 的 projection contract
+2. 当前继续沿完整 companion prose projection 推进，不退回只做最小 `selected-next-step linkage`
+3. 当前实际下一条 planning-gate 已切到 `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`
+4. 不在这条新 gate 内顺手扩到 post-release dogfood/install path tightening 或 extension runtime/package follow-up validation
+
 ## 2026-04-27 补充候选：global direction-candidates recency semantics 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md` 已完成并关闭。
