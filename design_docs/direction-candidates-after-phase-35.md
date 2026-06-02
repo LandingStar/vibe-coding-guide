@@ -1,5 +1,14 @@
 # Direction Candidates — After Phase 35
 
+## 2026-05-28 补充候选：knowledge-graph-engine 接入暴露的跨组件协同流程标准化
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md` 已把 VS Code progress graph preview 切到外部 `knowledge-graph-engine`，并通过接口需求文档驱动了颜色组、viewport、label controls 等组件/宿主协作问题。
+- 暴露问题：当前协作流程依赖对话中临时判断，缺少标准化的“宿主侧临时 glue 何时允许、组件侧接口需求如何写、组件侧完成后宿主如何验收、何时清理 glue”的流程模板。
+- 候选 1：`cross-component integration workflow standard`
+  - 做什么：在 `design_docs/tooling/` 下形成跨组件协同开发标准，定义组件接口需求文档模板、宿主临时规避登记、组件侧完成回验清单、删除 glue 的退出条件，以及外部工作区路径/owner 记录规则。
+  - 依据：`design_docs/knowledge-graph-engine-progress-preview-interface-requirements.md`、`design_docs/knowledge-graph-engine-color-groups-interface-requirements.md`、`design_docs/knowledge-graph-engine-label-controls-interface-requirements.md`、`design_docs/tooling/Backlog and Reserve Management Standard.md`
+- 当前倾向：先登记为 BL-9 条件触发待办，而不是立即切出当前 active graph gate。当前用户仍在图谱接入验收中，流程标准化应在本轮视觉/交互问题稳定后作为独立窄切片推进。
+
 ## 2026-05-06 补充候选：project progress preview freshness signaling 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md` 已完成并关闭；host preview 已具备 `fresh` / `stale` / `refreshing` / `failed` / `missing` 五类 freshness state，宿主承载已稳定在“原始 HTML artifact + 宿主 UX 并行”的单文档模式，并已补齐 `missing` / `stale` / `failed` 的 helper-level spot check。

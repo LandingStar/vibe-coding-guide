@@ -26,6 +26,7 @@ export interface LLMProvider {
 
     classify(input: string, schema: Record<string, unknown>): Promise<ClassificationResult>;
     generate(prompt: string): Promise<string>;
+    streamGenerate?(prompt: string, onText: (chunk: string) => void): Promise<string>;
 }
 
 /**

@@ -1,6 +1,11 @@
 /// <reference lib="dom" />
 
 import { Graph } from '@antv/g6';
+import {
+  createDefaultMotionController,
+  type MotionControlControllerFactory,
+  type MotionControlNode,
+} from './progressGraphMotionControl';
 
 type ProgressGraphPreviewV2PoCNode = {
   id: string;
@@ -85,6 +90,14 @@ type NodePosition = {
   x: number;
   y: number;
 };
+
+type G6ForceMonitorParams = {
+  energy?: number;
+  iterations?: number;
+  nodes?: MotionControlNode[];
+};
+
+const createGraphMotionController: MotionControlControllerFactory = createDefaultMotionController;
 
 type GraphNodeRenderData = ProgressGraphPreviewV2PoCNode & {
   visualColor: string;
@@ -237,13 +250,26 @@ async function main(): Promise<void> {
   const persistConfigState = createDebouncedCallback(() => {
     persistGraphConfigState(configState);
   }, 120);
+  const scheduleForceLayoutRefresh = createDebouncedCallback(() => {
+    scheduleVisualRefresh({ rerunLayout: true });
+  }, 160);
 
   let destroyed = false;
   let refreshScheduled = false;
+  let refreshInFlight = false;
+  let refreshQueued = false;
   let layoutRefreshPending = false;
+  let activeForceLayoutRunId = 0;
+  let draggingNodeId: string | null = null;
+  let hoverResumeTimer: number | null = null;
+  let hoverSuppressedUntil = 0;
+  let suppressNextNodeClick = false;
+  let suppressNodeClickTimer: number | null = null;
   let observedWidth = canvasShell.clientWidth;
   let observedHeight = canvasShell.clientHeight;
   let fitViewFrameId: number | null = null;
+  let fitViewSettledFrameId: number | null = null;
+  let canvasResizeObserver: ResizeObserver | null = null;
   let metricsCollapsed = false;
   let resizingSidePanel = false;
   let configCardMorphAnimation: Animation | null = null;
@@ -263,6 +289,7 @@ async function main(): Promise<void> {
   const layoutRoot = document.getElementById('pgHostV2Layout');
   const sideArea = document.getElementById('pgHostV2Side');
   const detailCard = document.getElementById('pgHostV2NodeDetailCard');
+  const clearSelectionButton = document.getElementById('pgHostV2ClearSelection');
   const resizeHandle = document.getElementById('pgHostV2ResizeHandle');
 
   const graph = new Graph({
@@ -347,11 +374,14 @@ async function main(): Promise<void> {
       { type: 'zoom-canvas', sensitivity: 0.9 },
       'drag-element',
     ],
-    layout: buildLayoutConfig(canvasShell, configState),
+    layout: buildLayoutConfig(canvasShell, configState, payload),
     data: buildGraphData(payload, configState, interactionState, degrees, neighborsByNode, connectedEdgesByNode),
   });
 
   const renderCurrentDetail = (): void => {
+    if (clearSelectionButton instanceof HTMLButtonElement) {
+      clearSelectionButton.disabled = !interactionState.selectedNode;
+    }
     renderNodeDetail(
       detail,
       interactionState.selectedNode
@@ -375,14 +405,25 @@ async function main(): Promise<void> {
 
     renderCurrentDetail();
 
-    if (refreshScheduled) {
+    refreshQueued = true;
+    if (refreshScheduled || refreshInFlight) {
       return;
     }
 
     refreshScheduled = true;
     requestAnimationFrame(() => {
       refreshScheduled = false;
-      void applyVisualState();
+      refreshInFlight = true;
+      refreshQueued = false;
+      void applyVisualState().finally(() => {
+        refreshInFlight = false;
+        if (destroyed) {
+          return;
+        }
+        if (refreshQueued || layoutRefreshPending) {
+          scheduleVisualRefresh();
+        }
+      });
     });
   };
 
@@ -788,7 +829,16 @@ async function main(): Promise<void> {
       if (destroyed) {
         return;
       }
-      void resetViewport();
+      if (fitViewSettledFrameId !== null) {
+        window.cancelAnimationFrame(fitViewSettledFrameId);
+      }
+      fitViewSettledFrameId = window.requestAnimationFrame(() => {
+        fitViewSettledFrameId = null;
+        if (destroyed) {
+          return;
+        }
+        void resetViewport();
+      });
     });
   };
 
@@ -806,7 +856,14 @@ async function main(): Promise<void> {
     }
   };
 
+  const isHoverSuppressed = (): boolean => {
+    return Boolean(draggingNodeId) || Date.now() < hoverSuppressedUntil;
+  };
+
   const clearHover = (): void => {
+    if (isHoverSuppressed()) {
+      return;
+    }
     if (!interactionState.hoveredNode) {
       return;
     }
@@ -815,6 +872,17 @@ async function main(): Promise<void> {
       renderCurrentDetail();
       return;
     }
+    renderCurrentDetail();
+    void applyInteractionState();
+  };
+
+  const clearActiveNode = (): void => {
+    if (!interactionState.selectedNode && !interactionState.hoveredNode) {
+      return;
+    }
+
+    interactionState.selectedNode = null;
+    interactionState.hoveredNode = null;
     renderCurrentDetail();
     void applyInteractionState();
   };
@@ -873,10 +941,23 @@ async function main(): Promise<void> {
     ));
     if (layoutRefreshPending) {
       layoutRefreshPending = false;
-      // Re-run force layout in-place instead of restarting full render pipeline.
-      // This keeps force and appearance sliders on a single runtime path.
-      await graph.layout(buildLayoutConfig(canvasShell, configState));
-      await graph.draw();
+      // Re-run force layout in-place, but only through the single-flight
+      // scheduler above. Keep the long-tail force animation non-blocking so
+      // new slider input can immediately stop/restart the current evolution.
+      graph.stopLayout();
+      const layoutRunId = activeForceLayoutRunId + 1;
+      activeForceLayoutRunId = layoutRunId;
+      void graph.layout(buildLayoutConfig(canvasShell, configState, payload)).then(() => {
+        if (destroyed || layoutRunId !== activeForceLayoutRunId) {
+          return;
+        }
+        if (getActiveNodeId(interactionState)) {
+          void applyInteractionState();
+        }
+      }).catch(() => {
+        // A stopped force layout can leave the previous promise unresolved in
+        // G6; this catch only prevents unexpected rejected layouts from leaking.
+      });
     } else {
       await graph.draw();
     }
@@ -887,6 +968,9 @@ async function main(): Promise<void> {
   };
 
   graph.on('node:pointerenter', (event: { target?: { id?: string }; originalTarget?: GraphEventTargetShape }) => {
+    if (isHoverSuppressed()) {
+      return;
+    }
     const nodeId = getEventTargetId(event, { keyShapeOnly: true });
     if (!nodeId) {
       return;
@@ -900,6 +984,9 @@ async function main(): Promise<void> {
   });
 
   graph.on('node:pointerleave', (event: { target?: { id?: string }; originalTarget?: GraphEventTargetShape }) => {
+    if (isHoverSuppressed()) {
+      return;
+    }
     const nodeId = getEventTargetId(event, { keyShapeOnly: true });
     if (!nodeId || interactionState.hoveredNode !== nodeId) {
       return;
@@ -908,6 +995,9 @@ async function main(): Promise<void> {
   });
 
   graph.on('node:pointerout', (event: { target?: { id?: string }; originalTarget?: GraphEventTargetShape }) => {
+    if (isHoverSuppressed()) {
+      return;
+    }
     const nodeId = getEventTargetId(event, { keyShapeOnly: true });
     if (!nodeId || interactionState.hoveredNode !== nodeId) {
       return;
@@ -915,7 +1005,47 @@ async function main(): Promise<void> {
     clearHover();
   });
 
+  graph.on('node:dragstart', (event: { target?: { id?: string }; originalTarget?: GraphEventTargetShape }) => {
+    const nodeId = getEventTargetId(event);
+    draggingNodeId = nodeId;
+    hoverSuppressedUntil = Date.now() + 120;
+    suppressNextNodeClick = Boolean(nodeId);
+    if (hoverResumeTimer !== null) {
+      window.clearTimeout(hoverResumeTimer);
+      hoverResumeTimer = null;
+    }
+    if (suppressNodeClickTimer !== null) {
+      window.clearTimeout(suppressNodeClickTimer);
+      suppressNodeClickTimer = null;
+    }
+    if (!nodeId || interactionState.selectedNode) {
+      return;
+    }
+    interactionState.hoveredNode = nodeId;
+    renderCurrentDetail();
+    void applyInteractionState();
+  });
+
+  graph.on('node:dragend', () => {
+    draggingNodeId = null;
+    hoverSuppressedUntil = Date.now() + 120;
+    hoverResumeTimer = window.setTimeout(() => {
+      hoverResumeTimer = null;
+      if (!destroyed && !interactionState.selectedNode) {
+        void applyInteractionState();
+      }
+    }, 120);
+    suppressNodeClickTimer = window.setTimeout(() => {
+      suppressNextNodeClick = false;
+      suppressNodeClickTimer = null;
+    }, 80);
+  });
+
   graph.on('node:click', (event: { target?: { id?: string }; originalTarget?: GraphEventTargetShape }) => {
+    if (suppressNextNodeClick) {
+      suppressNextNodeClick = false;
+      return;
+    }
     const nodeId = getEventTargetId(event, { keyShapeOnly: true });
     if (!nodeId) {
       return;
@@ -928,25 +1058,18 @@ async function main(): Promise<void> {
   });
 
   graph.on('canvas:click', () => {
-    if (!interactionState.selectedNode && !interactionState.hoveredNode) {
-      return;
-    }
-
-    interactionState.selectedNode = null;
-    interactionState.hoveredNode = null;
-    renderCurrentDetail();
-    void applyInteractionState();
+    clearActiveNode();
   });
 
   graph.on('canvas:pointermove', () => {
-    if (interactionState.selectedNode) {
+    if (isHoverSuppressed() || interactionState.selectedNode) {
       return;
     }
     clearHover();
   });
 
   graph.on('canvas:pointerleave', () => {
-    if (interactionState.selectedNode) {
+    if (isHoverSuppressed() || interactionState.selectedNode) {
       return;
     }
     clearHover();
@@ -959,7 +1082,7 @@ async function main(): Promise<void> {
     },
     onForceChange: () => {
       persistConfigState();
-      scheduleVisualRefresh({ rerunLayout: true });
+      scheduleForceLayoutRefresh();
     },
     onColorGroupChange: () => {
       persistConfigState();
@@ -988,6 +1111,11 @@ async function main(): Promise<void> {
       setInlineMetricsCollapsed(true);
     });
   }
+  if (clearSelectionButton instanceof HTMLButtonElement) {
+    clearSelectionButton.addEventListener('click', () => {
+      clearActiveNode();
+    });
+  }
   if (resizeHandle instanceof HTMLElement) {
     resizeHandle.addEventListener('pointerdown', (event) => {
       resizingSidePanel = true;
@@ -1008,7 +1136,7 @@ async function main(): Promise<void> {
     };
   }
 
-  renderNodeDetail(detail, null, payload.runtimeSummary, null);
+  renderCurrentDetail();
   await graph.render();
   await resetViewport();
   await applyInteractionState();
@@ -1020,6 +1148,12 @@ async function main(): Promise<void> {
     syncGraphViewportToShell();
   };
   window.addEventListener('resize', handleWindowResize);
+  if (typeof ResizeObserver === 'function') {
+    canvasResizeObserver = new ResizeObserver(() => {
+      syncGraphViewportToShell();
+    });
+    canvasResizeObserver.observe(canvasShell);
+  }
 
   const cleanup = () => {
     if (destroyed) {
@@ -1033,6 +1167,22 @@ async function main(): Promise<void> {
     if (fitViewFrameId !== null) {
       window.cancelAnimationFrame(fitViewFrameId);
       fitViewFrameId = null;
+    }
+    if (fitViewSettledFrameId !== null) {
+      window.cancelAnimationFrame(fitViewSettledFrameId);
+      fitViewSettledFrameId = null;
+    }
+    canvasResizeObserver?.disconnect();
+    canvasResizeObserver = null;
+    activeForceLayoutRunId += 1;
+    graph.stopLayout();
+    if (hoverResumeTimer !== null) {
+      window.clearTimeout(hoverResumeTimer);
+      hoverResumeTimer = null;
+    }
+    if (suppressNodeClickTimer !== null) {
+      window.clearTimeout(suppressNodeClickTimer);
+      suppressNodeClickTimer = null;
     }
     cancelConfigPanelMorphAnimations();
     graph.destroy();
@@ -1063,7 +1213,7 @@ function buildGraphData(
     nodes: payload.nodes.map((node, index) => ({
       id: node.id,
       data: { ...node, visualColor: resolvedNodeColors.get(node.id) ?? defaultNodeColor(node) },
-      style: buildNodeStyle(node, resolvedNodeColors.get(node.id) ?? defaultNodeColor(node), configState.appearance, labelIds, highlightedNodeIds, interactionState, index, undefined),
+      style: buildNodeStyle(node, resolvedNodeColors.get(node.id) ?? defaultNodeColor(node), configState.appearance, labelIds, highlightedNodeIds, interactionState, index, payload.nodes.length, undefined),
     })),
     edges: payload.edges.map((edge) => ({
       id: edge.id,
@@ -1100,6 +1250,7 @@ function buildGraphUpdates(
         highlightedNodeIds,
         interactionState,
         index,
+        payload.nodes.length,
         undefined,
       );
       void _x; void _y;
@@ -1124,13 +1275,14 @@ function buildNodeStyle(
   highlightedNodeIds: Set<string>,
   interactionState: GraphInteractionState,
   index: number,
+  nodeCount: number,
   currentPosition?: NodePosition,
 ): Record<string, unknown> {
   const color = statusColors[node.status] ?? '#6f8192';
   const baseSize = computeBaseNodeSize(node);
   const size = Math.round(baseSize * appearance.nodeScale);
   const labelVisible = labelIds.has(node.id);
-  const seed = currentPosition ?? computeSeedPosition(index, Math.max(1, labelIds.size));
+  const seed = currentPosition ?? computeSeedPosition(index, Math.max(1, nodeCount));
   const stableLineWidth = node.hasRuntimeBinding ? 1.8 : 1.3;
 
   return {
@@ -1175,28 +1327,55 @@ function buildEdgeStyle(
 function buildLayoutConfig(
   container: HTMLElement,
   configState: V2GraphConfigState,
+  payload: ProgressGraphPreviewV2PoCPayload,
 ): Record<string, unknown> {
   const width = Math.max(container.clientWidth, 720);
   const height = Math.max(container.clientHeight, 520);
+  const nodeCount = payload.nodes.length;
   const collisionSize = Math.max(22, Math.round(28 * configState.appearance.nodeScale));
+  const largeGraphFactor = Math.min(1, Math.max(0, (Math.max(1, nodeCount) - 48) / 120));
+  const nodeSpacing = Math.max(6, Math.round(collisionSize * (0.24 + largeGraphFactor * 0.1)));
+  const gravity = configState.forces.gravity * (1 - largeGraphFactor * 0.38);
+  const nodeStrength = configState.forces.repulsion * (1 + largeGraphFactor * 0.08);
+  const edgeStrength = configState.forces.attraction * (1 - largeGraphFactor * 0.16);
+  const linkDistance = configState.forces.linkLength * (1 + largeGraphFactor * 0.22);
+  const maxIteration = Math.round(1200 - largeGraphFactor * 420);
+  const maxSpeed = Math.round(72 - largeGraphFactor * 34);
+  const minMovement = 0;
+  const motionController = createGraphMotionController({
+    edges: payload.edges.map((edge) => ({ source: edge.source, target: edge.target })),
+    largeGraphFactor,
+    nodeCount,
+    nodeSpacing,
+  });
 
   return {
     type: 'force',
+    animation: true,
+    iterations: maxIteration,
     width,
     height,
     preventOverlap: true,
     nodeSize: collisionSize,
-    nodeSpacing: Math.max(6, Math.round(collisionSize * 0.24)),
-    gravity: configState.forces.gravity,
-    nodeStrength: configState.forces.repulsion,
-    edgeStrength: configState.forces.attraction,
-    linkDistance: configState.forces.linkLength,
-    damping: 0.96,
-    maxIteration: 400,
-    minMovement: 0.6,
-    maxSpeed: 40,
-    interval: 0.02,
-    collideStrength: 0.9,
+    nodeSpacing,
+    gravity,
+    nodeStrength,
+    edgeStrength,
+    linkDistance,
+    damping: 0.91,
+    maxIteration,
+    minMovement,
+    maxSpeed,
+    interval: 0.034,
+    distanceThresholdMode: 'max',
+    collideStrength: 0.82,
+    monitor: (params: G6ForceMonitorParams): void => {
+      motionController.onTick({
+        energy: params.energy,
+        iteration: params.iterations,
+        nodes: params.nodes ?? [],
+      });
+    },
   };
 }
 
@@ -1575,11 +1754,21 @@ function getActiveNodeId(interactionState: GraphInteractionState): string | null
 }
 
 function computeSeedPosition(index: number, count: number): NodePosition {
-  const angle = (index / Math.max(1, count)) * Math.PI * 2;
-  const radius = 140 + Math.sqrt(count) * 18;
+  const normalizedCount = Math.max(1, count);
+  if (normalizedCount === 1) {
+    return { x: 0, y: 0 };
+  }
+
+  const normalizedIndex = index + 0.5;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const radialRatio = normalizedIndex / normalizedCount;
+  const radius = (64 + Math.sqrt(normalizedCount) * 20) * Math.pow(radialRatio, 0.82);
+  const angle = normalizedIndex * goldenAngle;
+  const jitter = Math.min(18, 6 + Math.sqrt(normalizedCount) * 0.8) * (0.35 + radialRatio * 0.65);
+
   return {
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius,
+    x: Math.cos(angle) * radius + Math.cos(index * 2.17) * jitter,
+    y: Math.sin(angle) * radius + Math.sin(index * 2.63) * jitter,
   };
 }
 

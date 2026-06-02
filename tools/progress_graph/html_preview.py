@@ -245,10 +245,15 @@ def write_history_html(
             history,
             collapsed_clusters_by_graph=collapsed_clusters_by_graph,
         )
+    html = _strip_trailing_line_whitespace(html)
     path = html_preview_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(html, encoding="utf-8")
     return path
+
+
+def _strip_trailing_line_whitespace(text: str) -> str:
+    return "\n".join(line.rstrip() for line in text.splitlines()) + "\n"
 
 
 def _render_graph_section(graph: dict[str, object]) -> str:

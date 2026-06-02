@@ -56,6 +56,7 @@ export class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
     updateLLMProvider(provider: ManagedLLMProvider): void {
         this._llmProvider = provider;
+        void this._sendAvailableModels();
     }
 
     resolveWebviewView(

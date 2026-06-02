@@ -2,7 +2,7 @@
 handoff_id: 2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close
 entry_role: canonical
 kind: stage-close
-status: active
+status: superseded
 scope_key: project-progress-richer-interactive-preview-over-current-export-surface
 safe_stop_kind: stage-complete
 created_at: 2026-05-03T12:10:19+08:00

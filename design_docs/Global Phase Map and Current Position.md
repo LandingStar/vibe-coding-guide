@@ -446,6 +446,8 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 2026-05-09 新增：当前 graph 主线已进一步从旧 Sigma residual path 收口到新的 ACTIVE gate `design_docs/stages/planning-gate/2026-05-08-g6-v2-graph-view-poc.md`。`vscode-extension/src/webviews/progressGraphV2G6.ts` 当前已完成一轮真实宿主驱动的交互稳定化：hover / selected 高亮不再依赖浏览器侧手写 redraw，而是改由 G6 element state 直接接管；本节点、相邻点、相接边与其余节点已形成稳定的分层高亮语义，selected 相对 hover 的确认感也已单独拉开，节点标签已切到深色文案。此前 hover / click / node-scale 相关 shrink 回归也已定位并移除。当前 focused validation 继续成立：`npm run build` 通过、touched files diagnostics clean、真实 VS Code 宿主 spot check 已确认当前图面交互闭环成立。当前 active slice 后续不应回到 Sigma/Sigma-like 双链路修补，而应只在 G6 路线下继续推进下一项增量能力，例如颜色组迁移或更细的视觉调校。
 
+2026-05-27 新增：用户已明确把关系图谱实现源切换到外部工作区 `E:\workspace\tool develop\graph engine\knowledge-graph-engine`，并要求完全放弃当前 G6 相关成果。`design_docs/stages/planning-gate/2026-05-08-g6-v2-graph-view-poc.md` 现已降级为 `SUPERSEDED / ARCHIVED REFERENCE`，只保留已指定功能与效果经验；新的 ACTIVE gate 为 `design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md`。当前第一刀只做 VS Code progress graph preview 对外部 `GraphModel` / `SimulationClient` / `Canvas2DRenderer` 的接入、G6 构建链移除，以及外部组件接口缺口文档化。
+
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 
 低优先级 backlog（BL-2/3 adapter-registry/转接层）已结构化记录在 `design_docs/direction-candidates-after-phase-35.md`。
@@ -454,10 +456,10 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
-- source_path: `.codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md`
-- scope_key: `project-progress-richer-interactive-preview-over-current-export-surface`
-- created_at: `2026-05-03T12:10:19+08:00`
+- handoff_id: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
+- source_path: `.codex/handoffs/history/2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close.md`
+- scope_key: `plugin-side-codex-host-support-gap`
+- created_at: `2026-05-12T09:00:58+08:00`
 
 施工中提取的子 agent 机制需求（全部完成）：
 

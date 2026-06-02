@@ -20,6 +20,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+from release_versioning import require_normal_semver
+
 ROOT = Path(__file__).resolve().parent.parent
 RUNTIME_DIR = ROOT
 INSTANCE_DIR = ROOT / "doc-loop-vibe-coding"
@@ -39,7 +41,11 @@ def _read_version(pyproject: Path) -> str:
     if not m:
         print(f"ERROR: Cannot read version from {pyproject}", file=sys.stderr)
         sys.exit(1)
-    return m.group(1)
+    try:
+        return require_normal_semver(m.group(1), str(pyproject.relative_to(ROOT)))
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 def _clean(dry_run: bool = False) -> None:

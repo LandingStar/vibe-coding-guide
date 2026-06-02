@@ -13,21 +13,21 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-05-07`
+- Snapshot Date: `2026-05-12`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.5` (preview)
 - Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成 + Codex 主链适配与 VS Code extension provider abstraction + 2026-04-23 docs-only 宿主交互/入口面收口 + 2026-04-24 scratch 轻量恢复协议（docs-only 收口完成）`
-- Active Slice: `G6 V2 Graph View PoC (ACTIVE planning-gate; 当前图面基础交互已闭环，hover/selected 高亮由 G6 state 接管，真实宿主 spot check 已确认无 shrink 回归；下一步应只在颜色组迁移或更细视觉调校中继续推进)`
+- Active Slice: `Knowledge Graph Engine Progress Preview Integration (ACTIVE planning-gate; 用户已明确要求放弃当前 G6 相关实现成果并接入外部 E:\workspace\tool develop\graph engine\knowledge-graph-engine；G6 gate 现只作为归档参考保留效果目标与经验记录)`
 - Latest Completed Slice: `Parallel V2 Graph Renderer And Library Selection`
-- Safe Stop Status: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
+- Safe Stop Status: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
 - Test Baseline: `1366 passed, 2 skipped`
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`
-- source_path: `.codex/handoffs/history/2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close.md`
-- scope_key: `project-progress-richer-interactive-preview-over-current-export-surface`
-- created_at: `2026-05-03T12:10:19+08:00`
+- handoff_id: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
+- source_path: `.codex/handoffs/history/2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close.md`
+- scope_key: `plugin-side-codex-host-support-gap`
+- created_at: `2026-05-12T09:00:58+08:00`
 
 ## 当前文档入口
 
@@ -364,6 +364,8 @@
 - [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
   - **2026-04-21 MCP 真实场景 dogfood**：7 工具调用，5 症状，1 提升（IC-001 意图分类器覆盖率）；S3（`get_next_action` 无 gate 矛盾指令）已修复——`_EMPTY_PLANNING_GATE_MARKERS` 扩展中文标记；详见 `feedback/dogfood-2026-04-21-mcp-realworld.md`；1284 passed, 2 skipped
 - [ ] post-v1.0 backlog：将 dogfood 所需的证据收集、问题收集、问题反馈整合收口为组件或 skill；当前先完成 adoption judgment，并在其 1/2 步里同步观察哪些流程值得抽象固化，再决定是否起独立 planning-gate
+- [ ] 2026-05-12：按 `design_docs/stages/planning-gate/2026-05-12-plugin-side-codex-host-support-gap.md` 收口插件侧 Codex 支持缺口；当前仅登记为 `PROPOSED` future slice，不混入当前 `Knowledge Graph Engine Progress Preview Integration` 主线，待当前图谱接入主线收口或用户显式改优先级后再决定是否激活
+- [ ] 2026-05-12：记录“工作流管线可视化功能”为 post-v1.0 future backlog；当前仅保留为待规划需求，后续若提升优先级，再按窄 planning-gate 明确可视化范围、数据来源与交互边界
 - [x] Multica 借鉴 — 条件化 always_on 加载（scope_paths 驱动跳过不相关 pack 内容）— `ContextBuilder.build(scope_path=)` 新增条件化过滤：有 scope_paths 声明但不匹配的 pack 跳过 always_on 加载，universal pack 始终包含。6 新测试 — 1229 passed, 2 skipped
 - [x] Multica 借鉴 — RuntimeBridge 三入口统一初始化抽象 — `src/runtime/bridge.py` 新增；WorkerHealth 状态跟踪 + _TrackedWorker + refresh()/reload_config()；CLI 已迁移；MCP 集成待 worker 启用时接入。13 新测试 — 1242 passed, 2 skipped
 - [x] Multica 借鉴 — 依赖方向反转（consumes 字段）— PackManifest 新增 `consumes: list[str]`，`check_consumes()` 校验所有 consumes 是否被 merged provides 满足；Pipeline.info() 暴露 consumes_status；warning-only 不阻塞加载。5 新测试 — 1247 passed, 2 skipped

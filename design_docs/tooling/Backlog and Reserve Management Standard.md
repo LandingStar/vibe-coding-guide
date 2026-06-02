@@ -107,6 +107,7 @@
 | BL-6 | IDE 扩展层输出拦截 | 平台决定打包为独立 VS Code 扩展，且 R-2 Chat Participant output gate 进入实施 | 设计+实现 | 中 | conversation-progression-contract 方案 D 分析 | 待触发 |
 | BL-7 | decision log 持久化独立于 dry_run | dogfood 中确认审计日志需要独立于 dry_run 持久化，或出现审计回溯需求 | 设计+实现 | 低-中 | MCP 0.9.1 dogfood 验证 | 已完成（decision log 现始终持久化，不受 dry_run 控制） |
 | BL-8 | merge 层冲突解决结果对 decision log 可见 | dogfood 中出现审计回溯需求，需要知道"哪个 pack 赢了哪条规则" | 设计+实现 | 低 | MCP 0.9.1 dogfood 字段分析 | 已完成（DecisionLogEntry.merge_conflicts + has_merge_conflicts 查询过滤） |
+| BL-9 | 跨组件协同开发流程标准化 | 外部组件与宿主仓库反复出现“宿主临时 glue / 组件侧接口补齐 / 接入回验”的协作闭环 | 流程文档+模板 | 中 | `2026-05-27-knowledge-graph-engine-progress-preview-integration` | 待触发 |
 
 ### 第 3 层：储备方案注册表
 

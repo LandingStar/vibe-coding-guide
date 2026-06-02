@@ -26,6 +26,7 @@
 - 远程 registry / marketplace
 - 多官方实例同时挂载同一仓库时的冲突消解
 - 发布自动化流水线
+- VSIX 内部前端组件的源码治理；该场景由 SemVer / packaging 标准定义为“组件独立版本、VSIX 自包含运行时制品”
 
 ## 为什么采用双发行包
 
@@ -319,6 +320,7 @@ MCP 接入在安装态下必须遵守“消费已安装 runtime，而不是消�
 - 安装入口归属
 - 安装态 MCP 接入原则
 - 最小验证门
+- Python 双发行包与 VSIX 一体 release zip 可以共存，但 VSIX 不是第三个 Python 发行包
 
 本文件当前不固定：
 
@@ -328,3 +330,14 @@ MCP 接入在安装态下必须遵守“消费已安装 runtime，而不是消�
 - 发布渠道与自动化流程
 - 更完整的兼容矩阵
 - 自动化发布回归流程
+
+## VSIX 与前端组件的关系
+
+当前 release zip 可以携带 VSIX，便于用户从单一包中完成 Python runtime、official instance 与 VS Code extension 更新。
+
+但 VSIX 的内部前端依赖不改变双发行包模型：
+
+1. 图谱组件等前端组件应作为独立 npm 组件维护版本与 API。
+2. VSIX 应携带已构建的 webview runtime，使用户安装 VSIX 后无需单独安装 npm 包。
+3. release zip 可以携带组件 tarball 作为可复现构建输入。
+4. 扩展侧“一键安装”只应面向 Python runtime / official instance 这类目标环境依赖，不应用于在用户环境中安装 graph engine 这类已内嵌 webview runtime。

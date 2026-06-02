@@ -24,6 +24,7 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
     v2GraphPayload: null,
     v2GraphPayloadError: null,
     v2GraphScriptUri: null,
+    v2GraphWorkerUri: null,
     freshness: 'fresh',
     freshnessLabel: 'Fresh',
     freshnessMessage: '当前面板与最新已知 artifact 一致。',
@@ -145,7 +146,7 @@ test('buildProgressGraphPreviewHtml exposes failed control snapshot status when 
   assert.match(html, /runtime snapshot 加载失败：unexpected token/);
 });
 
-test('buildProgressGraphPreviewHtml injects G6 graph PoC shell when V2 payload is available', () => {
+test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2 payload is available', () => {
   const v2Payload: ProgressGraphPreviewV2PoCPayload = {
     graphId: 'planning-gates-index',
     title: 'Planning Gates Index',
@@ -197,10 +198,11 @@ test('buildProgressGraphPreviewHtml injects G6 graph PoC shell when V2 payload i
 
   const html = buildProgressGraphPreviewHtml(buildBaseState({
     v2GraphPayload: v2Payload,
-    v2GraphScriptUri: 'vscode-webview-resource://test/progressGraphV2G6.js',
+    v2GraphScriptUri: 'vscode-webview-resource://test/progressGraphV2Engine.js',
+    v2GraphWorkerUri: 'vscode-webview-resource://test/knowledgeGraphForceWorker.js',
   }));
 
-  assert.match(html, /G6 Graph View PoC/);
+  assert.match(html, /Knowledge Graph Engine/);
   assert.match(html, /Planning Gates Index/);
   assert.match(html, /graph_id=planning-gates-index/);
   assert.match(html, /id="pgHostChromeDock"/);
@@ -222,17 +224,24 @@ test('buildProgressGraphPreviewHtml injects G6 graph PoC shell when V2 payload i
   assert.match(html, /id="pgHostV2GraphMain"/);
   assert.match(html, /id="pgHostV2ResizeHandle"/);
   assert.match(html, /id="pgHostV2Side"/);
+  assert.match(html, /id="pgHostV2EngineStatus"/);
+  assert.match(html, /data-pg-v2-worker-uri="vscode-webview-resource:\/\/test\/knowledgeGraphForceWorker\.js"/);
   assert.match(html, /id="pgHostV2NodeDetailCard"/);
+  assert.match(html, /id="pgHostV2ClearSelection"/);
+  assert.match(html, /Clear Selection/);
   assert.match(html, /id="pgHostV2MetricsDock"/);
   assert.match(html, /id="pgHostV2MetricsInline"/);
   assert.match(html, /id="pgHostV2MetricsSide"/);
+  assert.match(html, /id="pgHostV2ShakeLayout"/);
+  assert.match(html, /Shake Layout/);
   assert.match(html, /id="pgHostV2ResetViewport"/);
   assert.match(html, /Reset Zoom\/Pan/);
   assert.match(html, /id="pgHostV2AppearanceLabelDensity"/);
+  assert.match(html, /id="pgHostV2AppearanceLabelDensity"[^>]*min="0"[^>]*max="1"/);
   assert.match(html, /id="pgHostV2ForceGravity"/);
   assert.match(html, /id="pgHostV2ColorGroups"/);
   assert.match(html, /id="pgHostV2AddColorGroup"/);
-  assert.match(html, /Search 风格的查询语义/);
+  assert.match(html, /外部 knowledge-graph-engine 渲染/);
   assert.match(html, /globalThis\.__pgHostVsCodeApi = vscode/);
-  assert.match(html, /progressGraphV2G6\.js/);
+  assert.match(html, /progressGraphV2Engine\.js/);
 });

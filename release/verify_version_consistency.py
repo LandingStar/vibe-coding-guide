@@ -22,11 +22,17 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from release_versioning import require_normal_semver  # noqa: E402
 
 
 def _read_toml_version(path: Path) -> str | None:
@@ -36,7 +42,7 @@ def _read_toml_version(path: Path) -> str | None:
     for line in path.read_text(encoding="utf-8").splitlines():
         m = re.match(r'^version\s*=\s*"([^"]+)"', line)
         if m:
-            return m.group(1)
+            return require_normal_semver(m.group(1), str(path.relative_to(ROOT)))
     return None
 
 
@@ -46,11 +52,36 @@ def _read_manifest_version(path: Path) -> str | None:
 
     if not path.exists():
         return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return data.get("version")
-    except Exception:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    version = data.get("version")
+    if isinstance(version, str):
+        return require_normal_semver(version, str(path.relative_to(ROOT)))
+    if version is None:
         return None
+    raise ValueError(f"{path.relative_to(ROOT)} version must be a string")
+
+
+def _read_package_json_version(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    version = data.get("version")
+    if isinstance(version, str):
+        return require_normal_semver(version, str(path.relative_to(ROOT)))
+    if version is None:
+        return None
+    raise ValueError(f"{path.relative_to(ROOT)} version must be a string")
+
+
+def _read_extension_graph_dependency(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    dependencies = data.get("dependencies", {})
+    if not isinstance(dependencies, dict):
+        return None
+    dependency = dependencies.get("@note-web/knowledge-graph-engine")
+    return dependency if isinstance(dependency, str) else None
 
 
 def _find_version_refs_in_md(path: Path, pattern: re.Pattern[str]) -> list[str]:
@@ -93,6 +124,11 @@ def main() -> int:
 
     print(f"Canonical version: {canonical}")
 
+    extension_package = ROOT / "vscode-extension" / "package.json"
+    extension_ver = _read_package_json_version(extension_package)
+    if extension_ver:
+        print(f"VS Code extension version: {extension_ver}")
+
     # 2. Instance pack pyproject.toml
     instance_toml = ROOT / "doc-loop-vibe-coding" / "pyproject.toml"
     instance_ver = _read_toml_version(instance_toml)
@@ -109,6 +145,17 @@ def main() -> int:
             f"pack-manifest.json version={manifest_ver}, expected {canonical}"
         )
 
+    # 3b. VS Code extension graph engine dependency must be release-local or registry-pinned.
+    graph_dependency = _read_extension_graph_dependency(extension_package)
+    if graph_dependency:
+        normalized_dependency = graph_dependency.replace("\\", "/")
+        if normalized_dependency.startswith("file:") and not normalized_dependency.startswith("file:vendor/"):
+            errors.append(
+                "vscode-extension/package.json uses a development-only graph engine "
+                f"file dependency {graph_dependency!r}; expected a release-local "
+                "vendor tarball or a registry version"
+            )
+
     # 4. Wheel filenames in release/
     release_dir = ROOT / "release"
     if not args.skip_wheel_files:
@@ -121,7 +168,7 @@ def main() -> int:
     #    Pattern matches common version formats like 0.9.1, 1.0.0
     #    in wheel names, zip names, and version headers
     version_in_filename = re.compile(
-        r"(?:doc_based_coding_runtime|doc_loop_vibe_coding|doc-based-coding)[_-v]?"
+        r"(?:doc_based_coding_runtime|doc_loop_vibe_coding|doc-based-coding-v)[_-v]?"
         r"(\d+\.\d+\.\d+[a-z0-9]*)"
     )
     version_in_header = re.compile(
@@ -145,6 +192,19 @@ def main() -> int:
                     errors.append(
                         f"{md_path.name}: found version {found_ver} "
                         f"(in '{match.group(0)}'), expected {canonical}"
+                    )
+
+        if extension_ver:
+            vsix_refs = re.finditer(
+                r"doc-based-coding-(\d+\.\d+\.\d+[a-z0-9]*)\.vsix",
+                content,
+            )
+            for match in vsix_refs:
+                found_ver = match.group(1)
+                if found_ver != extension_ver:
+                    errors.append(
+                        f"{md_path.name}: found VSIX version {found_ver} "
+                        f"(in '{match.group(0)}'), expected {extension_ver}"
                     )
 
     # 6. RELEASE_NOTE.md title line

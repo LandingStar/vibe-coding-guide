@@ -100,6 +100,10 @@ export class CopilotLLMProvider implements ManagedLLMProvider {
     }
 
     async generate(prompt: string): Promise<string> {
+        return this.streamGenerate(prompt, () => {});
+    }
+
+    async streamGenerate(prompt: string, onText: (chunk: string) => void): Promise<string> {
         if (!this._model) {
             throw new Error('Copilot model not initialized. Call initialize() first.');
         }
@@ -117,6 +121,7 @@ export class CopilotLLMProvider implements ManagedLLMProvider {
         let text = '';
         for await (const fragment of response.text) {
             text += fragment;
+            onText(fragment);
         }
 
         return text;

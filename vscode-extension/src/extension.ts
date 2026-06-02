@@ -24,8 +24,10 @@ import { registerFileLifecycleListeners } from './governance/fileLifecycle';
 import { createDefaultLLMProvider } from './llm/providerFactory';
 import { generatePackDescription, generatePackRules } from './llm/packGenerator';
 import { ManagedLLMProvider } from './llm/types';
+import { OPENAI_COMPATIBLE_API_KEY_SECRET } from './llm/openaiCompatible';
 import { registerChatParticipant } from './chat/participant';
 import { runSetupWizard } from './setup/wizard';
+import { AiChatViewProvider } from './views/aiChatView';
 
 let mcpClient: MCPClient | undefined;
 let constraintDashboard: ConstraintDashboardProvider | undefined;
@@ -36,6 +38,7 @@ let configPanelProvider: ConfigPanelProvider | undefined;
 let statusBar: GovernanceStatusBar | undefined;
 let progressGraphPreviewPanel: ProgressGraphPreviewPanel | undefined;
 let llmProvider: ManagedLLMProvider | undefined;
+let aiChatViewProvider: AiChatViewProvider | undefined;
 let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -54,13 +57,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     function getLLMProvider(): ManagedLLMProvider {
         if (!llmProvider) {
-            llmProvider = createDefaultLLMProvider();
+            llmProvider = createDefaultLLMProvider(context);
         }
         return llmProvider;
     }
 
     function updateLLMProviderBindings(provider: ManagedLLMProvider): void {
         configPanelProvider?.updateLLMProvider(provider);
+        aiChatViewProvider?.updateLLMProvider(provider);
         interceptor.updateLLMProvider(provider);
     }
 
@@ -200,6 +204,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     updateLLMProviderBindings(getLLMProvider());
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, configPanelProvider),
+    );
+
+    aiChatViewProvider = new AiChatViewProvider(outputChannel, getLLMProvider());
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(AiChatViewProvider.viewType, aiChatViewProvider),
     );
 
     // Register Governance Status Bar
@@ -428,14 +437,87 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     title: `Select ${provider.displayName} Model Family`,
                 });
                 if (!pick) { return; }
+                const modelConfigKey = provider.name === 'openai-compatible'
+                    ? 'llm.openaiCompatible.model'
+                    : 'llm.family';
                 await vscode.workspace.getConfiguration('docBasedCoding').update(
-                    'llm.family', pick.label, vscode.ConfigurationTarget.Workspace,
+                    modelConfigKey, pick.label, vscode.ConfigurationTarget.Workspace,
                 );
                 // Re-init is handled by onDidChangeConfiguration below
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 vscode.window.showErrorMessage(`Model selection failed: ${msg}`);
             }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.selectLLMProvider', async () => {
+            const config = vscode.workspace.getConfiguration('docBasedCoding');
+            const currentProvider = config.get<string>('llm.provider') ?? 'copilot';
+            const pick = await vscode.window.showQuickPick([
+                {
+                    label: 'GitHub Copilot',
+                    description: 'copilot',
+                    detail: currentProvider === 'copilot' ? '$(check) Current' : undefined,
+                },
+                {
+                    label: 'OpenAI-Compatible API',
+                    description: 'openai-compatible',
+                    detail: currentProvider === 'openai-compatible' ? '$(check) Current' : undefined,
+                },
+            ], {
+                placeHolder: 'Select the LLM provider used by AI Chat and extension AI features',
+                title: 'Select LLM Provider',
+            });
+            if (!pick?.description) {
+                return;
+            }
+            await config.update('llm.provider', pick.description, vscode.ConfigurationTarget.Workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.configureExternalApiKey', async () => {
+            const apiKey = await vscode.window.showInputBox({
+                prompt: 'Enter the API key for your OpenAI-compatible endpoint',
+                password: true,
+                ignoreFocusOut: true,
+            });
+            if (!apiKey) {
+                return;
+            }
+            await context.secrets.store(OPENAI_COMPATIBLE_API_KEY_SECRET, apiKey.trim());
+            vscode.window.showInformationMessage('External API key saved to VS Code secret storage.');
+            llmProvider = createDefaultLLMProvider(context);
+            const provider = getLLMProvider();
+            await provider.initialize();
+            updateLLMProviderBindings(provider);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.configureExternalApiBaseUrl', async () => {
+            const config = vscode.workspace.getConfiguration('docBasedCoding');
+            const currentBaseUrl = config.get<string>('llm.openaiCompatible.baseUrl') ?? 'https://api.openai.com/v1';
+            const baseUrl = await vscode.window.showInputBox({
+                prompt: 'Enter the base URL for your OpenAI-compatible endpoint',
+                value: currentBaseUrl,
+                ignoreFocusOut: true,
+            });
+            if (!baseUrl) {
+                return;
+            }
+            await config.update('llm.openaiCompatible.baseUrl', baseUrl.trim(), vscode.ConfigurationTarget.Workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.clearExternalApiKey', async () => {
+            await context.secrets.delete(OPENAI_COMPATIBLE_API_KEY_SECRET);
+            vscode.window.showInformationMessage('External API key removed from VS Code secret storage.');
+            llmProvider = createDefaultLLMProvider(context);
+            updateLLMProviderBindings(getLLMProvider());
         }),
     );
 
@@ -460,7 +542,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Re-initialize the active LLM provider when llm.family config changes
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(async (e) => {
-            if (e.affectsConfiguration('docBasedCoding.llm.family')) {
+            if (
+                e.affectsConfiguration('docBasedCoding.llm.provider')
+                || e.affectsConfiguration('docBasedCoding.llm.family')
+                || e.affectsConfiguration('docBasedCoding.llm.openaiCompatible.baseUrl')
+                || e.affectsConfiguration('docBasedCoding.llm.openaiCompatible.model')
+            ) {
+                llmProvider = createDefaultLLMProvider(context);
                 const provider = getLLMProvider();
                 const ok = await provider.initialize();
                 if (ok) {

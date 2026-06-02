@@ -125,6 +125,7 @@ export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
   lastRefreshCompletedAt: string | null;
   lastRefreshError: string | null;
   v2GraphScriptUri: string | null;
+  v2GraphWorkerUri: string | null;
 };
 
 export function buildProgressGraphPreviewHtml(state: ProgressGraphPreviewState): string {
@@ -789,6 +790,12 @@ function buildParallelPreviewHtml(
     border: 1px solid rgba(84, 129, 171, 0.12);
     font-size: 12px;
   }
+  .pg-host-v2-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
   .pg-host-v2-reset-button {
     border: 0;
     border-radius: 999px;
@@ -803,6 +810,11 @@ function buildParallelPreviewHtml(
   }
   .pg-host-v2-reset-button:hover {
     filter: brightness(1.04);
+  }
+  .pg-host-v2-reset-button:disabled {
+    cursor: default;
+    opacity: 0.72;
+    filter: none;
   }
   .pg-host-v2-layout {
     --pg-host-v2-side-width: 344px;
@@ -838,6 +850,28 @@ function buildParallelPreviewHtml(
   .pg-host-v2-graph-canvas canvas {
     position: absolute;
     inset: 0;
+  }
+  .pg-host-v2-engine-status {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 3;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: rgba(47, 62, 76, 0.72);
+    background: rgba(250, 247, 240, 0.78);
+    border: 1px solid rgba(84, 129, 171, 0.12);
+    font-size: 0.74rem;
+    pointer-events: none;
+    backdrop-filter: blur(12px);
+  }
+  .pg-host-v2-empty {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    min-height: 420px;
+    color: rgba(47, 62, 76, 0.72);
+    font-size: 0.9rem;
   }
   .pg-host-v2-metrics-dock {
     position: absolute;
@@ -1255,6 +1289,38 @@ function buildParallelPreviewHtml(
     display: grid;
     gap: 10px;
   }
+  .pg-host-v2-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .pg-host-v2-detail-head .pg-host-v2-card-title {
+    margin: 0;
+    min-width: 0;
+  }
+  .pg-host-v2-detail-clear {
+    border: 1px solid rgba(84, 129, 171, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.68);
+    color: rgba(43, 60, 76, 0.82);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 7px 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
+  }
+  .pg-host-v2-detail-clear:hover:not(:disabled) {
+    border-color: rgba(84, 129, 171, 0.28);
+    background: rgba(255, 255, 255, 0.86);
+    color: #274057;
+  }
+  .pg-host-v2-detail-clear:disabled {
+    cursor: default;
+    opacity: 0.42;
+  }
   .pg-host-v2-detail-empty,
   .pg-host-v2-detail-copy {
     margin: 0;
@@ -1605,7 +1671,7 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
     return `<section class="pg-host-v2-poc" data-pg-v2-status="unavailable">
   <div class="pg-host-v2-head">
     <div class="pg-host-v2-title-wrap">
-      <div class="pg-host-v2-eyebrow">G6 Graph View PoC</div>
+      <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
       <h2 class="pg-host-v2-title">V2 Graph View PoC 未就绪</h2>
       <p class="pg-host-v2-subtitle">${escapeHtml(v2GraphUnavailableMessage(state))}</p>
     </div>
@@ -1630,21 +1696,24 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
     ['Open Work', String(runtimeSummary.openWorkItemCount)],
   ].map(([label, value]) => `<div class="pg-host-v2-metric"><div class="pg-host-v2-metric-label">${escapeHtml(label)}</div><div class="pg-host-v2-metric-value">${escapeHtml(value)}</div></div>`).join('');
   const meta = [
-    '<span class="pg-host-v2-meta-pill">Mode G6 graph-view PoC</span>',
+    '<span class="pg-host-v2-meta-pill">Mode Knowledge Graph Engine</span>',
     `<span class="pg-host-v2-meta-pill">Bound ${escapeHtml(String(runtimeSummary.boundNodeCount))}</span>`,
     `<span class="pg-host-v2-meta-pill">Runtime groups ${escapeHtml(String(runtimeSummary.activeGroupItemCount))}</span>`,
   ].join('');
 
-  return `<section class="pg-host-v2-poc" data-pg-v2-status="available">
+  return `<section class="pg-host-v2-poc" data-pg-v2-status="available" data-pg-v2-worker-uri="${escapeHtml(state.v2GraphWorkerUri ?? '')}">
   <div class="pg-host-v2-head">
     <div class="pg-host-v2-title-wrap">
-      <div class="pg-host-v2-eyebrow">G6 Graph View PoC</div>
+      <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
       <h2 class="pg-host-v2-title">${escapeHtml(payload.title)}</h2>
       <p class="pg-host-v2-subtitle">${subtitleParts.join(' · ')}</p>
     </div>
     <div class="pg-host-v2-head-actions">
       <div class="pg-host-v2-meta">${meta}</div>
-      <button id="pgHostV2ResetViewport" type="button" class="pg-host-v2-reset-button">Reset Zoom/Pan</button>
+      <div class="pg-host-v2-action-buttons">
+        <button id="pgHostV2ShakeLayout" type="button" class="pg-host-v2-reset-button">Shake Layout</button>
+        <button id="pgHostV2ResetViewport" type="button" class="pg-host-v2-reset-button">Reset Zoom/Pan</button>
+      </div>
     </div>
   </div>
   <div id="pgHostV2ConfigTitleGhost" class="pg-host-v2-config-title-ghost pg-host-v2-config-title-text" aria-hidden="true">Graph Config</div>
@@ -1656,6 +1725,7 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
         </div>
         <button id="pgHostV2ConfigCollapsedBar" type="button" class="pg-host-v2-config-collapsed-bar" data-pg-config-collapsed="false" aria-controls="pgHostV2ConfigCard" aria-expanded="true"><span id="pgHostV2ConfigCollapsedLabel" class="pg-host-v2-config-collapsed-label pg-host-v2-config-title-text">Graph Config</span></button>
         <div id="pgHostV2GraphCanvas" class="pg-host-v2-graph-canvas"></div>
+        <div id="pgHostV2EngineStatus" class="pg-host-v2-engine-status" aria-live="polite"></div>
       </div>
     </div>
     <div id="pgHostV2ResizeHandle" class="pg-host-v2-resize-handle" data-pg-dragging="false" role="separator" aria-orientation="vertical" aria-label="Resize graph and side panel"></div>
@@ -1663,7 +1733,10 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
       ${buildV2GraphConfigCard()}
       <section id="pgHostV2MetricsSide" class="pg-host-v2-metrics pg-host-v2-metrics-side" data-pg-config-collapsed="false">${metrics}</section>
       <section id="pgHostV2NodeDetailCard" class="pg-host-v2-card pg-host-v2-detail-card">
-        <h3 class="pg-host-v2-card-title">Node Detail</h3>
+        <div class="pg-host-v2-detail-head">
+          <h3 class="pg-host-v2-card-title">Node Detail</h3>
+          <button id="pgHostV2ClearSelection" type="button" class="pg-host-v2-detail-clear" disabled>Clear Selection</button>
+        </div>
         <div id="pgHostV2GraphDetail" class="pg-host-v2-detail-body">
           <p class="pg-host-v2-detail-empty">悬停或点击节点后，这里会显示 kind、status、summary 与 runtime binding 摘要。</p>
         </div>
@@ -1680,7 +1753,7 @@ function buildV2GraphConfigCard(): string {
   <div class="pg-host-v2-config-card-head">
     <div class="pg-host-v2-config-card-copy">
       <h3 id="pgHostV2ConfigCardTitle" class="pg-host-v2-card-title pg-host-v2-config-card-title pg-host-v2-config-title-text">Graph Config</h3>
-      <p class="pg-host-v2-card-subtitle">当前 G6 图面已稳定到可继续增量收口；颜色组现已回到当前切片，并继续沿用 Search 风格的查询语义。</p>
+      <p class="pg-host-v2-card-subtitle">当前图面由外部 knowledge-graph-engine 渲染；宿主只保留 progress graph payload 适配、控制面板和详情面板。</p>
     </div>
     <button id="pgHostV2ConfigToggle" class="pg-host-v2-config-toggle" type="button" aria-expanded="true">Collapse</button>
   </div>
@@ -1692,7 +1765,7 @@ function buildV2GraphConfigCard(): string {
           <label class="pg-host-v2-config-label" for="pgHostV2AppearanceLabelDensity">标签覆盖率</label>
           <output id="pgHostV2AppearanceLabelDensityValue" class="pg-host-v2-config-value">14%</output>
         </div>
-        <input id="pgHostV2AppearanceLabelDensity" class="pg-host-v2-config-range" type="range" min="0.06" max="0.3" step="0.01" value="0.14">
+        <input id="pgHostV2AppearanceLabelDensity" class="pg-host-v2-config-range" type="range" min="0" max="1" step="0.01" value="0.14">
       </div>
       <div class="pg-host-v2-config-row">
         <div class="pg-host-v2-config-row-head">
@@ -1702,12 +1775,12 @@ function buildV2GraphConfigCard(): string {
         <input id="pgHostV2AppearanceLabelSize" class="pg-host-v2-config-range" type="range" min="11" max="20" step="1" value="13">
       </div>
       <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2AppearanceNodeScale">节点大小</label>
-          <output id="pgHostV2AppearanceNodeScaleValue" class="pg-host-v2-config-value">1.00x</output>
+          <div class="pg-host-v2-config-row-head">
+            <label class="pg-host-v2-config-label" for="pgHostV2AppearanceNodeScale">节点大小</label>
+            <output id="pgHostV2AppearanceNodeScaleValue" class="pg-host-v2-config-value">1.12x</output>
+          </div>
+        <input id="pgHostV2AppearanceNodeScale" class="pg-host-v2-config-range" type="range" min="0.75" max="1.8" step="0.05" value="1.12">
         </div>
-        <input id="pgHostV2AppearanceNodeScale" class="pg-host-v2-config-range" type="range" min="0.75" max="1.6" step="0.05" value="1">
-      </div>
       <div class="pg-host-v2-config-row">
         <div class="pg-host-v2-config-row-head">
           <label class="pg-host-v2-config-label" for="pgHostV2AppearanceEdgeScale">连线粗细</label>
@@ -1850,7 +1923,10 @@ function v2GraphUnavailableMessage(state: ProgressGraphPreviewState): string {
     return `等待 ${state.historyArtifactPath} 出现后再构建 V2 graph payload。`;
   }
   if (!state.v2GraphScriptUri) {
-    return '浏览器 bundle 尚未可用，当前无法挂载 G6 graph-view PoC。';
+    return '浏览器 bundle 尚未可用，当前无法挂载 Knowledge Graph Engine 图面。';
+  }
+  if (!state.v2GraphWorkerUri) {
+    return 'force worker bundle 尚未可用，当前无法启动 Knowledge Graph Engine 布局。';
   }
   return '当前没有可用的 V2 graph payload。';
 }

@@ -2,7 +2,7 @@
   "name": "doc-based-coding",
   "displayName": "Doc-Based Coding",
   "description": "Document-driven governance workflow platform for VS Code — enforces project constraints, manages pack topology, and provides AI-assisted governance across all IDE operations.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "doc-based-coding",
   "license": "MIT",
   "icon": "icon.png",
@@ -72,6 +72,11 @@
     },
     "views": {
       "doc-based-coding": [
+        {
+          "id": "aiChatView",
+          "name": "AI Chat",
+          "type": "webview"
+        },
         {
           "id": "constraintDashboard",
           "name": "Constraints (C1-C8)"
@@ -193,6 +198,26 @@
         "command": "docBasedCoding.selectModel",
         "title": "Select LLM Model",
         "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.selectLLMProvider",
+        "title": "Select LLM Provider",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.configureExternalApiKey",
+        "title": "Configure External API Key",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.configureExternalApiBaseUrl",
+        "title": "Configure External API Base URL",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.clearExternalApiKey",
+        "title": "Clear External API Key",
+        "category": "Doc-Based Coding"
       }
     ],
     "menus": {
@@ -276,6 +301,25 @@
           "type": "string",
           "default": "gpt-4o",
           "description": "Language model family used for extension AI features (intent classification, pack generation, governance explanations). Current default provider: GitHub Copilot. Examples: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, o1-preview."
+        },
+        "docBasedCoding.llm.provider": {
+          "type": "string",
+          "default": "copilot",
+          "enum": [
+            "copilot",
+            "openai-compatible"
+          ],
+          "description": "LLM provider used by the extension AI surfaces. Use openai-compatible to call an external OpenAI-style API endpoint."
+        },
+        "docBasedCoding.llm.openaiCompatible.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL for the external OpenAI-compatible API. Example: https://api.openai.com/v1 or your gateway base URL."
+        },
+        "docBasedCoding.llm.openaiCompatible.model": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "Model name sent to the external OpenAI-compatible API."
         }
       }
     }
@@ -285,7 +329,7 @@
     "build": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint src/",
-    "test": "npm run build && node ./dist/test/runTest.js",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
@@ -298,6 +342,6 @@
     "typescript": "^5.3.0"
   },
   "dependencies": {
-    "@antv/g6": "^5.1.0"
+    "@note-web/knowledge-graph-engine": "file:vendor/note-web-knowledge-graph-engine-0.1.0.tgz"
   }
 }

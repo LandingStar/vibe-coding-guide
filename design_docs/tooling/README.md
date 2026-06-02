@@ -8,6 +8,7 @@
 - `Dual-Package Distribution Standard.md`
 - `Module Dependency Direction Standard.md`
 - `Session Handoff Standard.md`
+- `Semantic Versioning and Packaging Standard.md`
 - `Subagent Delegation Standard.md`
 
 放置规则：

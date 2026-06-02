@@ -42,6 +42,14 @@ _GLOBAL_DIRECTION_SECTION_DATE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\b")
 _DOC_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 _DOC_LINK_WITH_LABEL_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 _BACKTICK_REF_RE = re.compile(r"`([^`]+)`")
+_CHECKPOINT_TEST_EDGE_RE = re.compile(
+    r"^(?P<source>`?[^`\s]+`?)\s*"
+    r"(?P<arrow>->|--)\s*"
+    r"(?P<target>`?[^`\s]+`?)"
+    r"(?:\s+\((?P<kind>workflow|dependency|linkage)\))?"
+    r"(?:\s*[-:：]\s*(?P<summary>.*))?$",
+    re.IGNORECASE,
+)
 _PROJECT_PROGRESS_FOLLOWUP_PATH_RE = re.compile(
     r"design_docs/project-progress-[^`\s)]+followup-direction-analysis\.md"
 )
@@ -161,6 +169,7 @@ def build_checkpoint_graph(
 ) -> ProgressGraph:
     root = Path(project_root)
     checkpoint_path = root / ".codex/checkpoints/latest.md"
+    checkpoint_text = checkpoint_path.read_text(encoding="utf-8")
     data = read_checkpoint(checkpoint_path)
     graph = ProgressGraph(
         graph_id="checkpoint-current",
@@ -235,6 +244,11 @@ def build_checkpoint_graph(
                 )
             )
         previous_todo_id = node_id
+
+    for edge in _parse_checkpoint_test_edges(checkpoint_text):
+        if edge.source not in graph.nodes or edge.target not in graph.nodes:
+            continue
+        graph.add_edge(edge)
 
     return graph
 
@@ -1037,6 +1051,8 @@ def _map_gate_status(status_raw: str) -> str:
     normalized = status_raw.strip().lower()
     if normalized in {"active", "in-progress", "in progress"}:
         return "in_progress"
+    if "archived" in normalized or "superseded" in normalized:
+        return "archived"
     if normalized in {"complete", "completed", "closed", "done"}:
         return "completed"
     if normalized in {"paused", "blocked"}:
@@ -1105,6 +1121,52 @@ def _parse_checkbox_lines(text: str) -> list[tuple[str, str]]:
         title = stripped[6:].strip() if len(stripped) > 6 else ""
         items.append((title, _map_checkbox_status({"x": "done", "-": "in-progress"}.get(marker, "not-started"))))
     return items
+
+
+def _parse_checkpoint_test_edges(text: str) -> list[ProgressEdge]:
+    section = _extract_section(text, "Progress Graph Test Edges")
+    if not section:
+        return []
+
+    edges: list[ProgressEdge] = []
+    seen: set[tuple[str, str, str, bool]] = set()
+    for index, line in enumerate(section.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or not stripped.startswith("- "):
+            continue
+        match = _CHECKPOINT_TEST_EDGE_RE.match(stripped[2:].strip())
+        if not match:
+            continue
+
+        source = _strip_optional_backticks(match.group("source"))
+        target = _strip_optional_backticks(match.group("target"))
+        kind = (match.group("kind") or "linkage").strip().lower()
+        is_directed = match.group("arrow") == "->"
+        key = (source, target, kind, is_directed)
+        if source == target or key in seen:
+            continue
+        seen.add(key)
+        edges.append(
+            ProgressEdge(
+                source=source,
+                target=target,
+                kind=kind,
+                is_directed=is_directed,
+                summary=(match.group("summary") or "").strip(),
+                metadata={
+                    "source_section": "Progress Graph Test Edges",
+                    "position": str(index),
+                },
+            )
+        )
+    return edges
+
+
+def _strip_optional_backticks(value: str) -> str:
+    stripped = value.strip()
+    if stripped.startswith("`") and stripped.endswith("`") and len(stripped) >= 2:
+        return stripped[1:-1].strip()
+    return stripped
 
 
 def _parse_recent_phase_map_entries(text: str) -> list[dict[str, object]]:

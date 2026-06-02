@@ -21,10 +21,13 @@ import sys
 import zipfile
 from pathlib import Path
 
+from release_versioning import require_normal_semver
+
 ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 RELEASE_DIR = ROOT / "release"
 EXTENSION_DIR = ROOT / "vscode-extension"
+EXTENSION_VENDOR_DIR = EXTENSION_DIR / "vendor"
 
 # Files to include in the release zip alongside the wheels
 RELEASE_EXTRAS = [
@@ -37,7 +40,9 @@ RELEASE_EXTRAS = [
 def _read_version() -> str:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
-    return m.group(1) if m else "unknown"
+    if not m:
+        return "unknown"
+    return require_normal_semver(m.group(1), "runtime pyproject.toml")
 
 
 def _read_extension_package_metadata() -> tuple[str, str]:
@@ -112,6 +117,13 @@ def _build_extension_package(dry_run: bool = False) -> Path | None:
     return vsix_path
 
 
+def _extension_vendor_artifacts() -> list[Path]:
+    """Return extension-side pinned build inputs that should be auditable in the release zip."""
+    if not EXTENSION_VENDOR_DIR.exists():
+        return []
+    return sorted(EXTENSION_VENDOR_DIR.glob("*.tgz"))
+
+
 def _package_release(version: str, extension_vsix: Path, dry_run: bool = False) -> Path | None:
     """Package wheels and docs into a release zip."""
     zip_name = f"doc-based-coding-v{version}.zip"
@@ -123,6 +135,7 @@ def _package_release(version: str, extension_vsix: Path, dry_run: bool = False) 
         return None
 
     extras = [f for f in RELEASE_EXTRAS if f.exists()]
+    extension_vendor_artifacts = _extension_vendor_artifacts()
 
     print(f"\n{'='*60}")
     print(f"Packaging release: {zip_name}")
@@ -135,10 +148,16 @@ def _package_release(version: str, extension_vsix: Path, dry_run: bool = False) 
         print(f"    - {e.name}")
     print(f"  VS Code Extension:")
     print(f"    - {extension_vsix.name}")
+    if extension_vendor_artifacts:
+        print(f"  Extension build inputs:")
+        for artifact in extension_vendor_artifacts:
+            print(f"    - vscode-extension/vendor/{artifact.name}")
 
     if dry_run:
         print(f"  [dry-run] Would create: {zip_path.relative_to(ROOT)}")
         print(f"  [dry-run] Would sync VSIX to: {(RELEASE_DIR / extension_vsix.name).relative_to(ROOT)}")
+        for artifact in extension_vendor_artifacts:
+            print(f"  [dry-run] Would include: vscode-extension/vendor/{artifact.name}")
         return zip_path
 
     # Remove old zip if exists
@@ -150,6 +169,9 @@ def _package_release(version: str, extension_vsix: Path, dry_run: bool = False) 
             zf.write(w, w.name)
         for e in extras:
             zf.write(e, e.name)
+        zf.write(extension_vsix, extension_vsix.name)
+        for artifact in extension_vendor_artifacts:
+            zf.write(artifact, f"vscode-extension/vendor/{artifact.name}")
 
     size_kb = zip_path.stat().st_size / 1024
     print(f"\n  Created: {zip_path.relative_to(ROOT)} ({size_kb:.1f} KB)")
@@ -190,7 +212,21 @@ def main() -> int:
     parser.add_argument("--version", type=str, help="Override version for zip name")
     args = parser.parse_args()
 
-    version = args.version or _read_version()
+    canonical_version = _read_version()
+    try:
+        version = require_normal_semver(args.version, "--version") if args.version else canonical_version
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    if version != canonical_version:
+        print(
+            "ERROR: --version only selects the release batch name and must match "
+            f"the canonical runtime package version {canonical_version}. "
+            "Update pyproject.toml and related package metadata before packaging "
+            f"{version}.",
+            file=sys.stderr,
+        )
+        return 1
 
     print(f"doc-based-coding Release Script")
     print(f"{'='*60}")

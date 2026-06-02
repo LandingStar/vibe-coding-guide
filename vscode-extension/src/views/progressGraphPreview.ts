@@ -299,7 +299,12 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       lastRefreshError: this._refreshLifecycle.errorMessage,
       v2GraphScriptUri: this._panel
         ? this._panel.webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'progressGraphV2G6.js'),
+            vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'progressGraphV2Engine.js'),
+        ).toString()
+        : null,
+      v2GraphWorkerUri: this._panel
+        ? this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'knowledgeGraphForceWorker.js'),
         ).toString()
         : null,
     };
@@ -395,6 +400,8 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       historyArtifactExists: state.historyArtifactExists,
       v2GraphId: state.v2GraphPayload?.graphId ?? null,
       v2GraphPayloadError: state.v2GraphPayloadError,
+      v2GraphScriptUri: state.v2GraphScriptUri,
+      v2GraphWorkerUri: state.v2GraphWorkerUri,
       lastLoadedAt: state.lastLoadedAt,
       lastRefreshStartedAt: state.lastRefreshStartedAt,
       lastRefreshCompletedAt: state.lastRefreshCompletedAt,
@@ -500,7 +507,7 @@ function selectV2Graph(graphs: RawSnapshotGraph[]): RawSnapshotGraph | null {
     return null;
   }
 
-  const preferredOrder = ['planning-gates-index', 'project-checklist-current', 'checkpoint-current'];
+  const preferredOrder = ['planning-gates-index', 'checkpoint-current', 'project-checklist-current'];
   const preferenceIndex = new Map(preferredOrder.map((graphId, index) => [graphId, preferredOrder.length - index]));
   const edgefulGraphs = graphs.filter((graph) => graph.edges.length > 0);
   const selectionPool = edgefulGraphs.length > 0 ? edgefulGraphs : graphs;

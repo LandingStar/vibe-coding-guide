@@ -2,6 +2,31 @@
 
 All notable changes to the doc-based-coding-platform are documented in this file.
 
+## v0.9.7 — 2026-06-02
+
+**Knowledge Graph Engine 接入 + 图谱组件发布边界固定。**
+
+### 新增
+
+- VS Code progress graph preview 接入外部 `@note-web/knowledge-graph-engine`，使用独立组件提供的 model、simulation worker 与 Canvas renderer
+- `Shake Layout` 入口支持短时极端力参数摇散布局，并在 refresh graph 后自动执行一次
+- release zip 现在携带 VSIX 与 graph engine tarball，作为一体分发与可复现构建材料
+
+### 改进
+
+- VSIX 运行时自包含当前 graph webview renderer / worker，用户无需单独安装 graph engine npm 包或准备外部组件工作区
+- `vscode-extension/package.json` 的 graph engine 依赖固定到 `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz`
+- VSIX 打包边界收紧：不携带 `node_modules/`、`vendor/`、`archive/` 或旧图谱 webview bundle
+- release 检查会拒绝 graph engine 回退到仓库外部 `file:` 开发路径，并区分 runtime 批次号与 VSIX 独立版本线
+
+### 验证
+
+- `python release/verify_version_consistency.py`（All versions consistent）
+- `node --test dist/test/progressGraphPreviewHtml.test.js`（3 passed）
+- `node --test dist/test/progressGraphColorGroups.test.js`（1 passed）
+- `node --test dist/test/aiChatToolLoop.test.js`（4 passed）
+- `scripts/release.py --skip-tests --no-isolation` 生成 `release/doc-based-coding-v0.9.7.zip`
+
 ## v0.9.6 — 2026-05-10
 
 **G6 关系图谱预览闭环 + preview release 批次更新。**
