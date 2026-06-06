@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Local Work Trajectory
+      - heading "Implement temporary reliance overlay for Local Work Trajectory UI" [level=2] [ref=e7]
+      - paragraph [ref=e8]: trajectory_id=local-work:single-line-current · guide=design_docs/progress-graph-local-work-trajectory-multiline-relation-completion.md · recorded_at=2026/6/6 02:27:15
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Mode: React Flow lanes"
+      - generic [ref=e11]: "Layout: lanes"
+      - generic [ref=e12]: "Lanes: 1"
+      - generic [ref=e13]: "Events: 2"
+      - generic [ref=e14]: "Relations: 1"
+  - generic "Local work trajectory graph" [ref=e15]:
+    - application [ref=e16]:
+      - generic [ref=e18]:
+        - generic:
+          - generic:
+            - img
+            - img:
+              - group "Edge from lane:main to event:001"
+            - img:
+              - group "Edge from event:001 to event:002"
+          - generic:
+            - group [ref=e32] [cursor=pointer]:
+              - generic [ref=e33]:
+                - strong [ref=e34]: local trajectory ui
+                - generic [ref=e35]: active
+            - group [ref=e36] [cursor=pointer]:
+              - generic [ref=e37]:
+                - strong [ref=e38]: Add reliance overlay as independent visual layer
+                - generic [ref=e39]: "task · completed · #1"
+            - group [ref=e40] [cursor=pointer]:
+              - generic [ref=e41]:
+                - strong [ref=e42]: Validate reliance overlay implementation
+                - generic [ref=e43]: "validation · in_progress · #2"
+      - img
+      - img "Mini Map" [ref=e20]
+      - generic "Control Panel" [ref=e21]:
+        - button "Zoom In" [ref=e22] [cursor=pointer]:
+          - img [ref=e23]
+        - button "Zoom Out" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+        - button "Fit View" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]

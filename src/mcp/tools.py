@@ -108,7 +108,6 @@ class GovernanceTools:
             "termination_requires_user_permission": True,
             "final_reply_requires_forward_question": True,
             "question_must_include_analysis": True,
-            "structured_confirmation_tool": "askQuestions",
             "structured_confirmation_required_for": [
                 "choice",
                 "approval",
@@ -136,7 +135,7 @@ class GovernanceTools:
     def _question_instruction() -> str:
         return (
             "Provide your analysis or recommendation first, then continue with a forward question. "
-            "Use askQuestions when the user needs a structured choice, approval, direction confirmation, or phase progression decision."
+            "When the user needs a structured choice, approval, direction confirmation, or phase progression decision, use the host's available confirmation surface when one exists; otherwise use a clear textual forward question."
         )
 
     # ── Hardcoded git remote guard (not overridable) ──────────────
@@ -833,7 +832,7 @@ class GovernanceTools:
                         "No pending gates found. "
                         "Write back status to Checklist and Phase Map, then "
                         "prepare a direction analysis document for the next phase. "
-                        "Use askQuestions to confirm direction with the user."
+                        "Use a forward question to confirm direction with the user."
                     )
                 ),
                 "files_to_update": [

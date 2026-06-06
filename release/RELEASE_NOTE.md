@@ -6,6 +6,11 @@ local trajectory view, the MCP surface exposes the trajectory lifecycle, Codex i
 restored as the primary supported host chain, and release builds now include
 secret hygiene checks.
 
+This package is a same-version rebuild of the `v0.9.8` batch. It does not bump
+runtime, instance, or VSIX versions. The rebuild adds the conversation-progression
+rule cleanup that removes the obsolete `askQuestions`-specific requirement from
+active rules, generated prompts, bootstrap assets, and MCP interaction metadata.
+
 ## Package Contents
 
 | Artifact | Version | Notes |
@@ -36,6 +41,10 @@ secret hygiene checks.
   replacement for Codex support.
 - Extended host-side AI chat/tool loop integration and tests around tool result
   handling and progress graph panel behavior.
+- Removed the stale `askQuestions` tool binding from the active conversation
+  progression contract. Current rules now require analysis/recommendation first,
+  followed by a clear forward-driving question or the host's available
+  confirmation surface.
 
 ### 3. Secret Hygiene And Release Guardrails
 
@@ -58,6 +67,7 @@ secret hygiene checks.
 - `python release/verify_version_consistency.py`: passed
 - `python scripts/scan_secrets.py --scope worktree`: passed
 - `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: `3 passed`
+- `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`: `100 passed`
 - `python scripts/release.py --no-isolation`: passed
   - built both wheels
   - ran full Python test suite: `1432 passed, 3 skipped`

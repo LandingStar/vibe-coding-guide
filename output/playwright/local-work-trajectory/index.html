@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Work Trajectory Harness</title>
+  <link rel="stylesheet" href="./assets/localWorkTrajectory.css">
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: #f7f3eb;
+    }
+
+    body {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #pgHostLocalWorkTrajectoryRoot {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="pgHostLocalWorkTrajectoryRoot" data-pg-trajectory-error=""></div>
+  <script id="pgHostLocalWorkTrajectoryPayload" type="application/json">{"trajectoryId":"local-work:multiline-fixture","title":"Local Work Trajectory Multi-Line Fixture","recordedAt":"2026-06-06T08:12:00+00:00","sourceGraphId":"local-work","sourceNodeId":"fixture:multiline","guideContext":"design_docs/progress-graph-local-work-trajectory-multiline-relation-completion.md","metadata":{"projection":"multi-lane-lifecycle","lane_mode":"multi","lifecycle_version":"1","fixture":"true","purpose":"Visual regression fixture for open lane, reliance overlay, badges, and merge alignment."},"lanes":[{"id":"lane:main","label":"main acceptance","status":"active","summary":"Primary task flow that opens specialist lanes and receives the merge.","metadata":{"line_kind":"main","context":"fixture-main"}},{"id":"lane:parser","label":"parser slice","status":"waiting","summary":"Focused lane for input model and parsing details.","metadata":{"line_kind":"child","context":"fixture-parser"}},{"id":"lane:verification","label":"verification slice","status":"active","summary":"Focused lane for examples, edge cases, and final checks.","metadata":{"line_kind":"child","context":"fixture-verification"}}],"events":[{"id":"event:001","laneId":"lane:main","title":"Accept fixture task and define outcome","kind":"start","status":"completed","order":1,"summary":"Root event for the visual fixture.","metadata":{"created_at":"2026-06-06T08:12:00+00:00","source":"fixture"}},{"id":"event:002","laneId":"lane:main","title":"Shape main acceptance path","kind":"task","status":"completed","order":2,"summary":"Defines the main line before opening child lanes.","metadata":{"created_at":"2026-06-06T08:12:10+00:00","source":"fixture"}},{"id":"event:003","laneId":"lane:main","title":"Open parser-focused lane","kind":"decision","status":"completed","order":3,"summary":"Opens the parser lane from the main path.","metadata":{"created_at":"2026-06-06T08:12:20+00:00","source":"fixture"}},{"id":"event:004","laneId":"lane:main","title":"Open verification lane after parser split","kind":"decision","status":"completed","order":4,"summary":"Opens the verification lane later than the parser lane.","metadata":{"created_at":"2026-06-06T08:12:30+00:00","source":"fixture"}},{"id":"event:005","laneId":"lane:parser","title":"Parser lane kickoff","kind":"start","status":"completed","order":5,"summary":"First event on the parser lane.","metadata":{"created_at":"2026-06-06T08:12:40+00:00","source":"fixture"}},{"id":"event:006","laneId":"lane:parser","title":"Draft parser contract","kind":"task","status":"waiting","order":6,"summary":"Represents a lane that contributes an upstream result.","metadata":{"created_at":"2026-06-06T08:12:50+00:00","source":"fixture"}},{"id":"event:008","laneId":"lane:verification","title":"Check examples and edge cases","kind":"validation","status":"in_progress","order":8,"summary":"Active event for reliance overlay and badge testing.","metadata":{"created_at":"2026-06-06T08:13:00+00:00","activated_at":"2026-06-06T08:13:00+00:00","source":"fixture"}},{"id":"event:009","laneId":"lane:main","title":"Merge and finalize accepted result","kind":"merge","status":"pending","order":9,"summary":"Main-line merge point aligned with incoming child work.","metadata":{"created_at":"2026-06-06T08:13:20+00:00","source":"fixture"}}],"relations":[{"sourceEventId":"event:001","targetEventId":"event:002","kind":"sequence","summary":"Continue main task shaping.","metadata":{"source":"fixture"}},{"sourceEventId":"event:002","targetEventId":"event:003","kind":"sequence","summary":"Move to first lane-opening decision.","metadata":{"source":"fixture"}},{"sourceEventId":"event:003","targetEventId":"event:004","kind":"sequence","summary":"Main line continues to second lane opening.","metadata":{"source":"fixture"}},{"sourceEventId":"event:004","targetEventId":"event:009","kind":"sequence","summary":"Main line waits for child-lane work before merge.","metadata":{"source":"fixture"}},{"sourceEventId":"event:003","targetEventId":"event:005","kind":"proposes_new_line","summary":"Parser lane opens at the parser split point.","metadata":{"source":"fixture"}},{"sourceEventId":"event:005","targetEventId":"event:006","kind":"sequence","summary":"Parser lane moves from kickoff to contract drafting.","metadata":{"source":"fixture"}},{"sourceEventId":"event:004","targetEventId":"event:008","kind":"approves_new_line","summary":"Verification lane opens directly at active validation.","metadata":{"source":"fixture"}},{"sourceEventId":"event:006","targetEventId":"event:009","kind":"merges_into","summary":"Parser findings merge back into the main path.","metadata":{"source":"fixture"}},{"sourceEventId":"event:006","targetEventId":"event:008","kind":"depends_on","summary":"Verification depends on the parser contract.","metadata":{"source":"fixture"}},{"sourceEventId":"event:008","targetEventId":"event:009","kind":"syncs_from","summary":"Main merge syncs from active verification.","metadata":{"source":"fixture"}},{"sourceEventId":"event:009","targetEventId":"event:006","kind":"waits_for","summary":"Main merge waits for parser completion before final acceptance.","metadata":{"source":"fixture"}}]}</script>
+  <script src="./assets/localWorkTrajectory.js"></script>
+</body>
+</html>

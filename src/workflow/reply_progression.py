@@ -29,8 +29,6 @@ _FORBIDDEN_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 # Patterns indicating good forward-driving content
 _FORWARD_INDICATORS: list[re.Pattern[str]] = [
-    # askQuestions tool usage
-    re.compile(r"vscode_askQuestions|askQuestions", re.IGNORECASE),
     # Question mark in the last paragraph with analytical tone
     re.compile(r"(我倾向|我的分析|我判断|从.*角度看|基于.*考虑).*[？?]", re.DOTALL),
     # Explicit recommendation + question

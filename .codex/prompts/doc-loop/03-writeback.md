@@ -1,6 +1,6 @@
 # Write-Back Prompt
 
-Structured confirmation note: after write-back, continue with the AI analysis/recommendation for the next narrow mainline, then use `askQuestions` or an explicit forward-driving question instead of stopping at a summary.
+Progression note: after write-back, continue with the AI analysis/recommendation for the next narrow mainline, then use an explicit forward-driving question instead of stopping at a summary.
 
 请基于当前切片的真实实现结果，完成 write-back。
 

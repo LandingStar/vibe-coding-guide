@@ -1,6 +1,6 @@
 # Planning Gate Prompt
 
-Structured confirmation note: when direction approval, review approval, or scope tradeoff is needed, present the AI analysis/recommendation first, then continue with `askQuestions` or an explicit forward-driving question.
+Progression note: when direction approval, review approval, or scope tradeoff is needed, present the AI analysis/recommendation first, then continue with an explicit forward-driving question.
 
 请先不要直接编码。
 

@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Local Work Trajectory
+      - heading "Implement temporary reliance overlay for Local Work Trajectory UI" [level=2] [ref=e7]
+      - paragraph [ref=e8]: trajectory_id=local-work:single-line-current · guide=design_docs/progress-graph-local-work-trajectory-multiline-relation-completion.md · recorded_at=2026/6/6 02:16:27
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Mode: React Flow lanes"
+      - generic [ref=e11]: "Layout: lanes"
+      - generic [ref=e12]: "Lanes: 1"
+      - generic [ref=e13]: "Events: 2"
+      - generic [ref=e14]: "Relations: 1"
+  - generic "Local work trajectory graph" [ref=e15]:
+    - application [ref=e16]:
+      - generic [ref=e18]:
+        - generic:
+          - generic:
+            - img
+            - img:
+              - group "Edge from lane:main to event:001"
+            - img:
+              - group "Edge from event:001 to event:002" [ref=e19] [cursor=pointer]
+          - generic:
+            - group [ref=e22] [cursor=pointer]:
+              - generic [ref=e23]:
+                - strong [ref=e24]: local trajectory ui
+                - generic [ref=e25]: active
+            - group [ref=e26] [cursor=pointer]:
+              - generic [ref=e27]:
+                - strong [ref=e28]: Add reliance overlay as independent visual layer
+                - generic [ref=e29]: "task · completed · #1"
+            - group [ref=e30] [cursor=pointer]:
+              - generic [ref=e31]:
+                - strong [ref=e32]: Validate reliance overlay implementation
+                - generic [ref=e33]: "validation · in_progress · #2"
+      - img
+      - img "Mini Map" [ref=e35]
+      - generic "Control Panel" [ref=e36]:
+        - button "Zoom In" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+        - button "Zoom Out" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+        - button "Fit View" [ref=e43] [cursor=pointer]:
+          - img [ref=e44]

@@ -1,0 +1,128 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Local Work Trajectory
+      - heading "Local Work Trajectory Multi-Line Fixture" [level=2] [ref=e7]
+      - paragraph [ref=e8]: trajectory_id=local-work:multiline-fixture · guide=design_docs/progress-graph-local-work-trajectory-multiline-relation-completion.md · recorded_at=2026/6/6 16:12:00
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Mode: React Flow lanes"
+      - generic [ref=e11]: "Layout: lanes"
+      - generic [ref=e12]: "Lanes: 3"
+      - generic [ref=e13]: "Events: 10"
+      - generic [ref=e14]: "Relations: 13"
+  - generic "Local work trajectory graph" [ref=e15]:
+    - application [ref=e16]:
+      - generic [ref=e18]:
+        - generic:
+          - generic:
+            - img
+            - img:
+              - group "Edge from lane:main to event:001"
+            - img:
+              - group "Edge from event:001 to event:002"
+            - img:
+              - group "Edge from event:002 to event:003"
+            - img:
+              - group "Edge from event:003 to event:004"
+            - img:
+              - group "Edge from event:004 to event:009"
+            - img:
+              - group "Edge from event:009 to event:010"
+            - img:
+              - group "Edge from lane:parser to event:005"
+            - img:
+              - group "Edge from event:005 to event:006"
+            - img:
+              - group "Edge from lane:verification to event:007"
+            - img:
+              - group "Edge from event:007 to event:008"
+            - img:
+              - group "Edge from event:003 to event:005" [ref=e19] [cursor=pointer]:
+                - generic [ref=e22]:
+                  - generic: open lane
+            - img:
+              - group "Edge from event:004 to event:007" [ref=e24] [cursor=pointer]:
+                - generic [ref=e27]:
+                  - generic: approved
+            - img:
+              - group "Edge from event:006 to event:009" [ref=e29] [cursor=pointer]:
+                - generic [ref=e32]:
+                  - generic: merge
+            - img:
+              - group "Edge from event:006 to event:008" [ref=e34] [cursor=pointer]:
+                - generic [ref=e37]:
+                  - generic: depends
+            - img:
+              - group "Edge from event:008 to event:009" [ref=e39] [cursor=pointer]:
+                - generic [ref=e40]:
+                  - generic: sync
+            - img:
+              - group "Edge from event:008 to event:006" [ref=e42] [cursor=pointer]:
+                - generic [ref=e45]:
+                  - generic: waits
+          - generic:
+            - group [ref=e47] [cursor=pointer]:
+              - generic [ref=e48]:
+                - strong [ref=e49]: main acceptance
+                - generic [ref=e50]: active
+            - group [ref=e51] [cursor=pointer]:
+              - generic [ref=e52]:
+                - strong [ref=e53]: Accept fixture task and define outcome
+                - generic [ref=e54]: "start · completed · #1"
+            - group [ref=e55] [cursor=pointer]:
+              - generic [ref=e56]:
+                - strong [ref=e57]: Shape main acceptance path
+                - generic [ref=e58]: "task · completed · #2"
+            - group [ref=e59] [cursor=pointer]:
+              - generic [ref=e60]:
+                - strong [ref=e61]: Open parser-focused lane
+                - generic [ref=e62]: "decision · completed · #3"
+            - group [ref=e63] [cursor=pointer]:
+              - generic [ref=e64]:
+                - strong [ref=e65]: Open verification lane after parser split
+                - generic [ref=e66]: "decision · completed · #4"
+            - group [ref=e67] [cursor=pointer]:
+              - generic [ref=e68]:
+                - strong [ref=e69]: Merge child-lane findings
+                - generic [ref=e70]: "merge · pending · #9"
+            - group [ref=e71] [cursor=pointer]:
+              - generic [ref=e72]:
+                - strong [ref=e73]: Finalize accepted result
+                - generic [ref=e74]: "close · pending · #10"
+            - group [ref=e75] [cursor=pointer]:
+              - generic [ref=e76]:
+                - strong [ref=e77]: parser slice
+                - generic [ref=e78]: waiting
+            - group [ref=e79] [cursor=pointer]:
+              - generic [ref=e80]:
+                - strong [ref=e81]: Parser lane kickoff
+                - generic [ref=e82]: "start · completed · #5"
+            - group [ref=e83] [cursor=pointer]:
+              - generic [ref=e84]:
+                - strong [ref=e85]: Draft parser contract
+                - generic "Verification depends on the parser contract." [ref=e87]: "depends #8"
+                - generic [ref=e88]: "task · waiting · #6"
+            - group [ref=e89] [cursor=pointer]:
+              - generic [ref=e90]:
+                - strong [ref=e91]: verification slice
+                - generic [ref=e92]: active
+            - group [ref=e93] [cursor=pointer]:
+              - generic [ref=e94]:
+                - strong [ref=e95]: Verification lane kickoff
+                - generic [ref=e96]: "start · completed · #7"
+            - group [ref=e97] [cursor=pointer]:
+              - generic [ref=e98]:
+                - strong [ref=e99]: Check examples and edge cases
+                - generic [ref=e100]:
+                  - generic "Main merge syncs from active verification." [ref=e101]: "sync #9"
+                  - generic "Verification is waiting for parser completion." [ref=e102]: "waits #6"
+                - generic [ref=e103]: "validation · in_progress · #8"
+      - img
+      - img "Mini Map" [ref=e105]
+      - generic "Control Panel" [ref=e106]:
+        - button "Zoom In" [ref=e107] [cursor=pointer]:
+          - img [ref=e108]
+        - button "Zoom Out" [ref=e110] [cursor=pointer]:
+          - img [ref=e111]
+        - button "Fit View" [ref=e113] [cursor=pointer]:
+          - img [ref=e114]

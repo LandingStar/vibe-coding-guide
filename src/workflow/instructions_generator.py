@@ -84,15 +84,12 @@ class InstructionsGenerator:
                 "- The closing question must include your own analysis, recommendation, or tentative judgment."
             )
 
-        tool = contract.get("structured_confirmation_tool")
         required_for = contract.get("structured_confirmation_required_for", [])
-        if tool and isinstance(required_for, list) and required_for:
+        if isinstance(required_for, list) and required_for:
             lines.append(
-                f"- Use `{tool}` for structured confirmation during: {', '.join(str(item) for item in required_for)}."
-            )
-        elif tool:
-            lines.append(
-                f"- Use `{tool}` when structured user confirmation is needed, after presenting your recommendation."
+                "- For structured confirmation during "
+                + ", ".join(str(item) for item in required_for)
+                + ", use the host's available confirmation surface when one exists; otherwise use a clear textual forward question after presenting your recommendation."
             )
 
         if contract.get("phase_completion_requires_next_direction"):
