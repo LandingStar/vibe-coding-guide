@@ -10,6 +10,7 @@ type RegeneratedArtifacts = {
     dot_path: string;
     html_path: string;
     control_snapshot_path: string;
+    trajectory_path: string;
 };
 
 type RegenerateProgressGraphArtifactsOptions = {
@@ -28,7 +29,7 @@ export async function regenerateProgressGraphArtifacts(
         'import sys',
         'from pathlib import Path',
         `sys.path.insert(0, ${JSON.stringify(sourceRoot)})`,
-        'from tools.progress_graph import build_doc_progress_history, write_control_snapshot, write_doc_progress_history, write_history_dot, write_history_html',
+        'from tools.progress_graph import build_doc_progress_history, write_control_snapshot, write_doc_progress_history, write_history_dot, write_history_html, write_local_work_trajectory_artifact',
         '',
         'root = Path.cwd()',
         'history = build_doc_progress_history(root)',
@@ -36,11 +37,13 @@ export async function regenerateProgressGraphArtifacts(
         'dot_path = write_history_dot(root, history=history)',
         'html_path = write_history_html(root, history=history)',
         'control_snapshot_path = write_control_snapshot(root)',
+        'trajectory_path = write_local_work_trajectory_artifact(root)',
         `print(${JSON.stringify(RESULT_PREFIX)} + json.dumps({`,
         `    'history_path': str(history_path),`,
         `    'dot_path': str(dot_path),`,
         `    'html_path': str(html_path),`,
         `    'control_snapshot_path': str(control_snapshot_path),`,
+        `    'trajectory_path': str(trajectory_path),`,
         '}))',
     ].join('\n');
 
@@ -63,7 +66,7 @@ export async function regenerateProgressGraphArtifacts(
 
     const parsed = parseArtifactsResult(stdout);
     outputChannel.appendLine(
-        `[ProgressGraphPreview] Regenerated artifacts: ${parsed.history_path}, ${parsed.dot_path}, ${parsed.html_path}, ${parsed.control_snapshot_path}`,
+        `[ProgressGraphPreview] Regenerated artifacts: ${parsed.history_path}, ${parsed.dot_path}, ${parsed.html_path}, ${parsed.control_snapshot_path}, ${parsed.trajectory_path}`,
     );
     return parsed;
 }

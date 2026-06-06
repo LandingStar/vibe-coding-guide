@@ -147,6 +147,7 @@ const layoutShakeForces: V2GraphForceSettings = {
 const layoutShakeTiming = {
   autoDelayMs: 140,
   forceHoldMs: 300,
+  resetAfterMs: 520,
 };
 
 const layoutShakeEvolutionMultiplier = 3;
@@ -192,6 +193,7 @@ async function main(): Promise<void> {
 
   const payload = readPayload();
   const workerUri = readWorkerUri(container);
+  const autoShakeEnabled = readAutoShakeEnabled(container);
   if (!payload || payload.nodes.length === 0) {
     renderEmpty(container, detail, 'No graph payload is available.');
     return;
@@ -224,7 +226,8 @@ async function main(): Promise<void> {
   let workerObjectUrl: string | null = null;
   let layoutShakeTimer: number | null = null;
   let autoShakeTimer: number | null = null;
-  let autoShakePending = true;
+  let postShakeResetTimer: number | null = null;
+  let autoShakePending = autoShakeEnabled;
   const motionController = createProgressMotionController();
 
   const renderDetailForNode = (nodeId: string | null): void => {
@@ -324,6 +327,26 @@ async function main(): Promise<void> {
     }
   };
 
+  const clearPostShakeResetTimer = (): void => {
+    if (postShakeResetTimer !== null) {
+      window.clearTimeout(postShakeResetTimer);
+      postShakeResetTimer = null;
+    }
+  };
+
+  const schedulePostShakeReset = (): void => {
+    clearPostShakeResetTimer();
+    postShakeResetTimer = window.setTimeout(() => {
+      postShakeResetTimer = null;
+      if (destroyed) {
+        return;
+      }
+      renderer?.resize();
+      resetRendererZoom(renderer);
+      updateStatusText('Layout shake fitted to viewport', lastMetrics);
+    }, layoutShakeTiming.resetAfterMs);
+  };
+
   const runLayoutShake = (reason: 'manual' | 'refresh'): void => {
     if (destroyed || !simulation) {
       return;
@@ -332,6 +355,7 @@ async function main(): Promise<void> {
     autoShakePending = false;
     clearAutoShakeTimer();
     clearLayoutShakeTimer();
+    clearPostShakeResetTimer();
     motionController.reset();
     syncShakeLayoutButton(true);
     updateStatusText(reason === 'manual' ? 'Shaking layout' : 'Untangling refreshed graph', lastMetrics);
@@ -349,11 +373,14 @@ async function main(): Promise<void> {
       simulation.stop();
       simulation.updateForces(buildForceOptions(configState), 0.95);
       updateStatusText('Layout shake restoring saved forces', lastMetrics);
+      if (reason === 'refresh') {
+        schedulePostShakeReset();
+      }
     }, layoutShakeTiming.forceHoldMs);
   };
 
   const scheduleAutoLayoutShake = (): void => {
-    if (!autoShakePending) {
+    if (!autoShakeEnabled || !autoShakePending) {
       return;
     }
     autoShakePending = false;
@@ -501,7 +528,7 @@ async function main(): Promise<void> {
   renderer.render();
   requestAnimationFrame(() => {
     renderer?.resize();
-    resetRendererZoom(renderer);
+    renderer?.render();
   });
   updateStatusText('Static graph ready', null);
 
@@ -512,6 +539,7 @@ async function main(): Promise<void> {
     destroyed = true;
     clearLayoutShakeTimer();
     clearAutoShakeTimer();
+    clearPostShakeResetTimer();
     resizeObserver?.disconnect();
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('pointermove', handleSidePanelResize);
@@ -554,7 +582,6 @@ async function main(): Promise<void> {
           lastMetrics = metrics;
           if (fitOnNextTick) {
             fitOnNextTick = false;
-            resetRendererZoom(renderer);
             scheduleAutoLayoutShake();
           } else {
             renderer?.render();
@@ -1117,6 +1144,11 @@ function readPayload(): ProgressGraphPreviewV2PoCPayload | null {
 function readWorkerUri(container: HTMLElement): string {
   const section = container.closest('.pg-host-v2-poc');
   return section instanceof HTMLElement ? section.dataset.pgV2WorkerUri ?? '' : '';
+}
+
+function readAutoShakeEnabled(container: HTMLElement): boolean {
+  const section = container.closest('.pg-host-v2-poc');
+  return !(section instanceof HTMLElement) || section.dataset.pgV2AutoShake !== 'false';
 }
 
 async function resolveSimulationWorkerUrl(workerUri: string): Promise<{ url: string; objectUrl: string | null }> {

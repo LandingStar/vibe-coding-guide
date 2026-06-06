@@ -237,7 +237,7 @@ def main() -> int:
         print("[DRY RUN MODE]")
         print()
         print("Release plan:")
-        print(f"  1. Build dual-package wheels")
+        print(f"  1. Build dual-package wheels with version and secret hygiene checks")
         print(f"  2. Run full test suite")
         print(f"  3. Build VS Code extension VSIX")
         print(f"  4. Package release zip: doc-based-coding-v{version}.zip")

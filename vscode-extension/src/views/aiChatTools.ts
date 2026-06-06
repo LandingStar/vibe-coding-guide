@@ -1,6 +1,12 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { execFile } from 'node:child_process';
+import { accessSync } from 'node:fs';
+import { promisify } from 'node:util';
 import type { AiChatToolName } from './aiChatActionProtocol';
+
+const execFileAsync = promisify(execFile);
+const LOCAL_TRAJECTORY_RESULT_PREFIX = '__DOC_BASED_CODING_LOCAL_TRAJECTORY__=';
 
 interface AiChatToolDefinition {
     readonly name: AiChatToolName;
@@ -36,6 +42,11 @@ const AI_CHAT_TOOL_DEFINITIONS: readonly AiChatToolDefinition[] = [
         description: 'Read VS Code diagnostics for one file or the whole workspace.',
         args: '{ path?: string }',
     },
+    {
+        name: 'localTrajectory',
+        description: 'Agent-owned Local Work Trajectory mutation. Use start at task start, append for planned/observed events, advance when active event is complete, update to refine current event, block/wait for impediments, resume to continue, and close when the single-line task is done. Use addLane only for the first multi-line expansion step: create another lane with its first event. Use merge to add an explicit target-lane merge event and a merges_into relation from a source lane event. Use relate to record explicit dependency/wait/unblock/handoff/sync/approval metadata between existing events; it does not schedule work or resolve conflicts. After validation or delivery completes, keep advancing until completed milestones are not left pending or in_progress. This is not a user-facing control.',
+        args: '{ action: "start"|"append"|"advance"|"update"|"block"|"wait"|"resume"|"close"|"addLane"|"merge"|"relate", laneLabel?: string, firstEventTitle?: string, title?: string, eventKind?: string, relationKind?: "depends_on"|"waits_for"|"unblocks"|"hands_off"|"syncs_from"|"approves_new_line", summary?: string, reason?: string, guideContext?: string, currentEventId?: string, laneId?: string, sourceEventId?: string, sourceLaneId?: string, targetLaneId?: string, targetEventId?: string }',
+    },
 ] as const;
 
 export function describeAiChatTools(): string {
@@ -66,6 +77,8 @@ export class AiChatToolExecutor {
                     return await this._searchText(args);
                 case 'getDiagnostics':
                     return this._getDiagnostics(args);
+                case 'localTrajectory':
+                    return await this._localTrajectory(args);
                 default:
                     return this._error(tool, `Unsupported tool: ${tool}`);
             }
@@ -240,6 +253,165 @@ export class AiChatToolExecutor {
         };
     }
 
+    private async _localTrajectory(args: Record<string, unknown>): Promise<AiChatToolResult> {
+        const action = this._readRequiredString(args.action, 'localTrajectory requires action.');
+        if (!['start', 'append', 'advance', 'update', 'block', 'wait', 'resume', 'close', 'addLane', 'merge', 'relate'].includes(action)) {
+            return this._error('localTrajectory', 'localTrajectory action must be start, append, advance, update, block, wait, resume, close, addLane, merge, or relate.');
+        }
+
+        const workspaceRoot = this.getWorkspaceRoot();
+        if (!workspaceRoot) {
+            return this._error('localTrajectory', 'No workspace folder is open.');
+        }
+
+        const sourceRoot = this._resolveProgressGraphSourceRoot(workspaceRoot);
+        const pythonPath = await this._resolvePythonPath(workspaceRoot);
+        const payload = {
+            kind: action,
+            title: this._readOptionalString(args.title) ?? 'Local Work Trajectory',
+            laneLabel: this._readOptionalString(args.laneLabel) ?? 'current work',
+            firstEventTitle: this._readOptionalString(args.firstEventTitle) ?? this._readOptionalString(args.title) ?? 'start current work',
+            firstEventKind: this._readOptionalString(args.eventKind) ?? 'start',
+            eventKind: this._readOptionalString(args.eventKind) ?? 'task',
+            summary: this._readOptionalString(args.summary) ?? '',
+            reason: this._readOptionalString(args.reason) ?? '',
+            guideContext: this._readOptionalString(args.guideContext) ?? 'ai-chat-agent',
+            currentEventId: this._readOptionalString(args.currentEventId) ?? '',
+            laneId: this._readOptionalString(args.laneId) ?? '',
+            sourceEventId: this._readOptionalString(args.sourceEventId) ?? '',
+            sourceLaneId: this._readOptionalString(args.sourceLaneId) ?? '',
+            targetLaneId: this._readOptionalString(args.targetLaneId) ?? '',
+            targetEventId: this._readOptionalString(args.targetEventId) ?? '',
+            relationKind: this._readOptionalString(args.relationKind) ?? '',
+        };
+        const script = [
+            'import json',
+            'import sys',
+            'from pathlib import Path',
+            `sys.path.insert(0, ${JSON.stringify(sourceRoot)})`,
+            'from tools.progress_graph import add_local_work_lane, add_local_work_relation, advance_single_line_event, append_single_line_event, block_single_line_event, close_single_line_trajectory, load_local_work_trajectory, merge_local_work_lane, resume_single_line_event, start_single_line_trajectory, update_single_line_event',
+            '',
+            'root = Path.cwd()',
+            `action = json.loads(${JSON.stringify(JSON.stringify(payload))})`,
+            'kind = action.get("kind")',
+            'if kind == "start":',
+            '    path = start_single_line_trajectory(',
+            '        root,',
+            '        title=action.get("title") or "Local Work Trajectory",',
+            '        lane_label=action.get("laneLabel") or "current work",',
+            '        first_event_title=action.get("firstEventTitle") or "start current work",',
+            '        first_event_kind=action.get("firstEventKind") or "start",',
+            '        guide_context=action.get("guideContext") or "ai-chat-agent",',
+            '    )',
+            'elif kind == "append":',
+            '    path = append_single_line_event(',
+            '        root,',
+            '        title=action.get("title") or "next milestone",',
+            '        kind=action.get("eventKind") or "task",',
+            '        summary=action.get("summary") or "",',
+            '        lane_id=action.get("laneId") or "",',
+            '    )',
+            'elif kind == "advance":',
+            '    path = advance_single_line_event(root, current_event_id=action.get("currentEventId") or None)',
+            'elif kind == "update":',
+            '    path = update_single_line_event(',
+            '        root,',
+            '        current_event_id=action.get("currentEventId") or None,',
+            '        title=action.get("title") or "",',
+            '        summary=action.get("summary") or "",',
+            '    )',
+            'elif kind in {"block", "wait"}:',
+            '    path = block_single_line_event(',
+            '        root,',
+            '        current_event_id=action.get("currentEventId") or None,',
+            '        reason=action.get("reason") or action.get("summary") or "",',
+            '        waiting=kind == "wait",',
+            '    )',
+            'elif kind == "resume":',
+            '    path = resume_single_line_event(',
+            '        root,',
+            '        current_event_id=action.get("currentEventId") or None,',
+            '        summary=action.get("summary") or "",',
+            '    )',
+            'elif kind == "close":',
+            '    path = close_single_line_trajectory(',
+            '        root,',
+            '        current_event_id=action.get("currentEventId") or None,',
+            '        summary=action.get("summary") or "",',
+            '    )',
+            'elif kind == "addLane":',
+            '    path = add_local_work_lane(',
+            '        root,',
+            '        lane_label=action.get("laneLabel") or "new lane",',
+            '        first_event_title=action.get("firstEventTitle") or action.get("title") or "start new lane",',
+            '        first_event_kind=action.get("eventKind") or "task",',
+            '        first_event_summary=action.get("summary") or "",',
+            '        source_event_id=action.get("sourceEventId") or action.get("currentEventId") or None,',
+            '        lane_id=action.get("laneId") or "",',
+            '    )',
+            'elif kind == "merge":',
+            '    path = merge_local_work_lane(',
+            '        root,',
+            '        source_lane_id=action.get("sourceLaneId") or action.get("laneId") or "",',
+            '        target_lane_id=action.get("targetLaneId") or "lane:main",',
+            '        title=action.get("title") or "merge",',
+            '        summary=action.get("summary") or "",',
+            '        source_event_id=action.get("sourceEventId") or action.get("currentEventId") or None,',
+            '        target_event_id=action.get("targetEventId") or None,',
+            '    )',
+            'elif kind == "relate":',
+            '    path = add_local_work_relation(',
+            '        root,',
+            '        source_event_id=action.get("sourceEventId") or "",',
+            '        target_event_id=action.get("targetEventId") or "",',
+            '        relation_kind=action.get("relationKind") or "",',
+            '        summary=action.get("summary") or "",',
+            '    )',
+            'else:',
+            '    raise ValueError(f"unknown local trajectory action: {kind}")',
+            'trajectory = load_local_work_trajectory(root)',
+            'active_event_id = None',
+            'active_event_ids = []',
+            'for event_id, event in sorted(trajectory.events.items(), key=lambda item: (item[1].order, item[0])):',
+            '    if event.status == "in_progress":',
+            '        active_event_ids.append(event_id)',
+            '        if active_event_id is None:',
+            '            active_event_id = event_id',
+            `print(${JSON.stringify(LOCAL_TRAJECTORY_RESULT_PREFIX)} + json.dumps({`,
+            '    "trajectory_path": str(path),',
+            '    "trajectory_id": trajectory.trajectory_id,',
+            '    "lane_count": len(trajectory.lanes),',
+            '    "event_count": len(trajectory.events),',
+            '    "relation_count": len(trajectory.relations),',
+            '    "active_event_id": active_event_id,',
+            '    "active_event_ids": active_event_ids,',
+            '}, ensure_ascii=False))',
+        ].join('\n');
+
+        const { stdout, stderr } = await execFileAsync(
+            pythonPath,
+            ['-c', script],
+            {
+                cwd: workspaceRoot,
+                maxBuffer: 1024 * 1024,
+            },
+        );
+        const resultLine = stdout
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .find((line) => line.startsWith(LOCAL_TRAJECTORY_RESULT_PREFIX));
+        if (!resultLine) {
+            throw new Error(`localTrajectory did not return a result.${stderr ? ` stderr: ${stderr}` : ''}`);
+        }
+        const result = JSON.parse(resultLine.slice(LOCAL_TRAJECTORY_RESULT_PREFIX.length)) as Record<string, unknown>;
+        return {
+            ok: true,
+            tool: 'localTrajectory',
+            summary: `Local trajectory ${action} wrote ${String(result.trajectory_path)}.`,
+            content: this._truncate(JSON.stringify(result, null, 2)),
+        };
+    }
+
     private _collectFileDiagnostics(filePath: string): readonly [vscode.Uri, readonly vscode.Diagnostic[]][] {
         const fileUri = this._resolveWorkspaceUriSync(filePath);
         return [[fileUri, vscode.languages.getDiagnostics(fileUri)]];
@@ -298,6 +470,18 @@ export class AiChatToolExecutor {
         return typeof value === 'string' && value.trim() ? value.trim() : undefined;
     }
 
+    private _readOptionalString(value: unknown): string | undefined {
+        return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+    }
+
+    private _readRequiredString(value: unknown, errorMessage: string): string {
+        const text = this._readOptionalString(value);
+        if (!text) {
+            throw new Error(errorMessage);
+        }
+        return text;
+    }
+
     private _readRequiredPath(value: unknown, errorMessage: string): string {
         const pathValue = this._readOptionalPath(value);
         if (!pathValue) {
@@ -346,5 +530,50 @@ export class AiChatToolExecutor {
             summary: `${tool} failed.`,
             content: message,
         };
+    }
+
+    private async _resolvePythonPath(workspaceRoot: string): Promise<string> {
+        const config = vscode.workspace.getConfiguration('docBasedCoding');
+        const configuredPythonPath = config.get<string>('pythonPath');
+        if (configuredPythonPath) {
+            return configuredPythonPath;
+        }
+        const candidates = [
+            path.join(workspaceRoot, '.venv', 'Scripts', 'python.exe'),
+            path.join(workspaceRoot, '.venv', 'bin', 'python'),
+            path.join(workspaceRoot, '.venv-release-test', 'Scripts', 'python.exe'),
+            path.join(workspaceRoot, '.venv-release-test', 'bin', 'python'),
+            path.join(workspaceRoot, 'venv', 'Scripts', 'python.exe'),
+            path.join(workspaceRoot, 'venv', 'bin', 'python'),
+        ];
+        for (const candidate of candidates) {
+            try {
+                await vscode.workspace.fs.stat(vscode.Uri.file(candidate));
+                return candidate;
+            } catch {
+                // Continue with the next candidate.
+            }
+        }
+        return 'python';
+    }
+
+    private _resolveProgressGraphSourceRoot(workspaceRoot: string): string {
+        const config = vscode.workspace.getConfiguration('docBasedCoding');
+        const configuredSourceRoot = config.get<string>('sourceRoot');
+        const candidates = [
+            configuredSourceRoot ? path.resolve(configuredSourceRoot) : '',
+            path.resolve(workspaceRoot),
+        ].filter(Boolean);
+        for (const candidate of candidates) {
+            try {
+                const marker = path.join(candidate, 'tools', 'progress_graph', '__init__.py');
+                // Synchronous path check keeps the generated Python command small and deterministic.
+                accessSync(marker);
+                return candidate;
+            } catch {
+                // Continue with the next candidate.
+            }
+        }
+        return path.resolve(workspaceRoot);
     }
 }

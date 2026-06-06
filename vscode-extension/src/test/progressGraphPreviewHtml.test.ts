@@ -23,8 +23,15 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
     previewHtml: '<!DOCTYPE html><html><head></head><body></body></html>',
     v2GraphPayload: null,
     v2GraphPayloadError: null,
+    trajectoryArtifactPath: '.codex/progress-graph/local-work-trajectory.json',
+    trajectoryArtifactExists: false,
+    localWorkTrajectory: null,
+    localWorkTrajectoryError: null,
     v2GraphScriptUri: null,
     v2GraphWorkerUri: null,
+    v2GraphAutoShake: true,
+    localWorkTrajectoryScriptUri: null,
+    localWorkTrajectoryStyleUri: null,
     freshness: 'fresh',
     freshnessLabel: 'Fresh',
     freshnessMessage: '当前面板与最新已知 artifact 一致。',
@@ -200,6 +207,8 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
     v2GraphPayload: v2Payload,
     v2GraphScriptUri: 'vscode-webview-resource://test/progressGraphV2Engine.js',
     v2GraphWorkerUri: 'vscode-webview-resource://test/knowledgeGraphForceWorker.js',
+    localWorkTrajectoryScriptUri: 'vscode-webview-resource://test/localWorkTrajectory.js',
+    localWorkTrajectoryStyleUri: 'vscode-webview-resource://test/localWorkTrajectory.css',
   }));
 
   assert.match(html, /Knowledge Graph Engine/);
@@ -226,6 +235,7 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
   assert.match(html, /id="pgHostV2Side"/);
   assert.match(html, /id="pgHostV2EngineStatus"/);
   assert.match(html, /data-pg-v2-worker-uri="vscode-webview-resource:\/\/test\/knowledgeGraphForceWorker\.js"/);
+  assert.match(html, /data-pg-v2-auto-shake="true"/);
   assert.match(html, /id="pgHostV2NodeDetailCard"/);
   assert.match(html, /id="pgHostV2ClearSelection"/);
   assert.match(html, /Clear Selection/);
@@ -244,4 +254,102 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
   assert.match(html, /外部 knowledge-graph-engine 渲染/);
   assert.match(html, /globalThis\.__pgHostVsCodeApi = vscode/);
   assert.match(html, /progressGraphV2Engine\.js/);
+  assert.match(html, /id="pgHostLocalWorkTrajectoryRoot"/);
+  assert.match(html, /localWorkTrajectory\.js/);
+  assert.match(html, /localWorkTrajectory\.css/);
+});
+
+test('buildProgressGraphPreviewHtml disables V2 auto shake during refreshing shell preservation', () => {
+  const v2Payload: ProgressGraphPreviewV2PoCPayload = {
+    graphId: 'project-checklist-current',
+    title: 'Project Checklist',
+    snapshotId: 'snapshot-refreshing',
+    recordedAt: '2026-06-04T06:00:00.000Z',
+    sourcePath: 'design_docs/Project Master Checklist.md',
+    nodeCount: 1,
+    edgeCount: 0,
+    nodes: [
+      {
+        id: 'node:1',
+        label: 'Node 1',
+        kind: 'task',
+        status: 'pending',
+        summary: '',
+        tags: [],
+        hasRuntimeBinding: false,
+        workItemIds: [],
+        groupItemIds: [],
+      },
+    ],
+    edges: [],
+    runtimeSummary: {
+      boundNodeCount: 0,
+      openWorkItemCount: 0,
+      activeGroupItemCount: 0,
+      unboundGroupItemCount: 0,
+    },
+  };
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    freshness: 'refreshing',
+    freshnessLabel: 'Refreshing',
+    isRefreshRunning: true,
+    v2GraphPayload: v2Payload,
+    v2GraphScriptUri: 'vscode-webview-resource://test/progressGraphV2Engine.js',
+    v2GraphWorkerUri: 'vscode-webview-resource://test/knowledgeGraphForceWorker.js',
+    v2GraphAutoShake: false,
+  }));
+
+  assert.match(html, /data-pg-v2-auto-shake="false"/);
+});
+
+test('buildProgressGraphPreviewHtml injects local work trajectory payload for React Flow mount', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    localWorkTrajectoryScriptUri: 'vscode-webview-resource://test/localWorkTrajectory.js',
+    localWorkTrajectoryStyleUri: 'vscode-webview-resource://test/localWorkTrajectory.css',
+    localWorkTrajectory: {
+      trajectoryId: 'local-work:checkpoint-current',
+      title: 'Checkpoint Local Work Trajectory',
+      recordedAt: '2026-06-04T00:00:00.000Z',
+      sourceGraphId: 'checkpoint-current',
+      sourceNodeId: 'milestone:current-phase',
+      guideContext: 'design_docs/stages/planning-gate/current.md',
+      metadata: {},
+      lanes: [
+        {
+          id: 'lane:main',
+          label: '当前工作',
+          status: 'active',
+          summary: '',
+          metadata: {},
+        },
+      ],
+      events: [
+        {
+          id: 'event:001',
+          laneId: 'lane:main',
+          title: '实现单线轨迹',
+          kind: 'task',
+          status: 'in_progress',
+          order: 1,
+          summary: '',
+          metadata: {},
+        },
+      ],
+      relations: [],
+    },
+  }));
+
+  assert.match(html, /id="pgHostLocalWorkTrajectoryRoot"/);
+  assert.match(html, /Agent managed/);
+  assert.doesNotMatch(html, /id="pgHostLwtStart"/);
+  assert.doesNotMatch(html, /id="pgHostLwtAppend"/);
+  assert.doesNotMatch(html, /id="pgHostLwtAdvance"/);
+  assert.doesNotMatch(html, /startLocalWorkTrajectory/);
+  assert.doesNotMatch(html, /appendLocalWorkTrajectoryEvent/);
+  assert.doesNotMatch(html, /advanceLocalWorkTrajectoryEvent/);
+  assert.match(html, /id="pgHostLocalWorkTrajectoryPayload"/);
+  assert.match(html, /Checkpoint Local Work Trajectory/);
+  assert.match(html, /localWorkTrajectory\.js/);
+  assert.match(html, /localWorkTrajectory\.css/);
 });

@@ -1,6 +1,8 @@
 # Doc-Based Coding
 
-Document-driven governance workflow platform for VS Code. Enforces project constraints, manages pack topology, and provides AI-assisted governance across all IDE operations.
+VS Code Host UX extension for the Doc-Based Coding platform. It consumes the shared Python runtime and MCP governance server to enforce project constraints, manage pack topology, and provide AI-assisted governance inside VS Code.
+
+Codex remains a first-class supported entry through `AGENTS.md` + MCP + CLI/validation. This extension is the VS Code / Copilot host surface over the same backend; it does not replace or redefine the Codex mainline.
 
 ## Features
 

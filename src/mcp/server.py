@@ -531,6 +531,126 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["reply_text"],
                 },
             ),
+            Tool(
+                name="localTrajectory",
+                description=(
+                    "Agent-owned Local Work Trajectory mutation. Use start when beginning "
+                    "a tracked task, append for planned or observed milestones, and advance "
+                    "when the active milestone is complete. Use update to refine the current "
+                    "milestone, block/wait for impediments, resume to continue, and close "
+                    "when the single-line task is done. Use addLane only for the first "
+                    "multi-line expansion step: create another lane with its first event. "
+                    "Use merge to add an explicit target-lane merge event and a merges_into "
+                    "relation from a source lane event. "
+                    "Use relate to record an explicit dependency, wait, unblock, handoff, "
+                    "sync, or approval relation between existing events; relate is metadata "
+                    "only and does not schedule work or resolve conflicts. "
+                    "After validation or delivery completes, keep advancing until completed "
+                    "milestones are not left pending or in_progress. This writes only the "
+                    "local trajectory metadata artifact, not source files."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "start",
+                                "append",
+                                "advance",
+                                "update",
+                                "block",
+                                "wait",
+                                "resume",
+                                "close",
+                                "addLane",
+                                "merge",
+                                "relate",
+                            ],
+                            "description": "Lifecycle action to perform.",
+                        },
+                        "laneLabel": {
+                            "type": "string",
+                            "description": "Short lane label for start.",
+                        },
+                        "firstEventTitle": {
+                            "type": "string",
+                            "description": "First active event title for start.",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Trajectory title for start or event title for append.",
+                        },
+                        "eventKind": {
+                            "type": "string",
+                            "enum": [
+                                "start",
+                                "task",
+                                "decision",
+                                "review",
+                                "wait",
+                                "validation",
+                                "writeback",
+                                "handoff",
+                                "merge",
+                                "close",
+                            ],
+                            "description": "Event kind for start or append.",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Optional summary for append/update/resume/close.",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Block or wait reason for block/wait.",
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Agent or document context responsible for this local trajectory.",
+                        },
+                        "currentEventId": {
+                            "type": "string",
+                            "description": "Optional active event id to advance.",
+                        },
+                        "laneId": {
+                            "type": "string",
+                            "description": "Optional lane id for addLane or append.",
+                        },
+                        "sourceEventId": {
+                            "type": "string",
+                            "description": "Optional event id that caused addLane, source event for merge, or source event for relate.",
+                        },
+                        "sourceLaneId": {
+                            "type": "string",
+                            "description": "Source lane id for merge.",
+                        },
+                        "targetLaneId": {
+                            "type": "string",
+                            "description": "Target lane id for merge. Defaults to lane:main.",
+                        },
+                        "targetEventId": {
+                            "type": "string",
+                            "description": "Optional target lane event id for merge or target event for relate.",
+                        },
+                        "relationKind": {
+                            "type": "string",
+                            "enum": [
+                                "depends_on",
+                                "waits_for",
+                                "unblocks",
+                                "hands_off",
+                                "syncs_from",
+                                "merges_into",
+                                "proposes_new_line",
+                                "approves_new_line",
+                            ],
+                            "description": "Relation kind for relate.",
+                        },
+                    },
+                    "required": ["action"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -629,6 +749,24 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
         elif name == "check_reply_progression":
             from ..workflow.reply_progression import check_reply_progression
             result = check_reply_progression(arguments["reply_text"]).to_dict()
+        elif name == "localTrajectory":
+            result = tools.local_trajectory(
+                arguments["action"],
+                lane_label=arguments.get("laneLabel", ""),
+                first_event_title=arguments.get("firstEventTitle", ""),
+                title=arguments.get("title", ""),
+                event_kind=arguments.get("eventKind", ""),
+                summary=arguments.get("summary", ""),
+                guide_context=arguments.get("guideContext", ""),
+                current_event_id=arguments.get("currentEventId", ""),
+                reason=arguments.get("reason", ""),
+                lane_id=arguments.get("laneId", ""),
+                source_event_id=arguments.get("sourceEventId", ""),
+                source_lane_id=arguments.get("sourceLaneId", ""),
+                target_lane_id=arguments.get("targetLaneId", ""),
+                target_event_id=arguments.get("targetEventId", ""),
+                relation_kind=arguments.get("relationKind", ""),
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
 

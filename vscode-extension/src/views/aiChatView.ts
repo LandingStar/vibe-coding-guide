@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import { ManagedLLMProvider } from '../llm/types';
 import { runAiChatToolLoop, type AiChatConversationMessage } from './aiChatToolLoop';
 import { AiChatToolExecutor } from './aiChatTools';
+import type { AiChatToolName } from './aiChatActionProtocol';
+
+type AiChatToolResultListener = (tool: AiChatToolName, ok: boolean) => void | Promise<void>;
 
 export class AiChatViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'aiChatView';
@@ -14,6 +17,7 @@ export class AiChatViewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _outputChannel: vscode.OutputChannel,
         llmProvider?: ManagedLLMProvider,
+        private readonly _onToolResult?: AiChatToolResultListener,
     ) {
         this._provider = llmProvider ?? null;
     }
@@ -98,6 +102,7 @@ export class AiChatViewProvider implements vscode.WebviewViewProvider {
             this._messages.push({ role: 'tool', content: message });
             this._sendMessages();
           },
+          onToolResult: this._onToolResult,
           });
           this._messages.push({ role: 'assistant', content: reply.trim() || 'No response returned.' });
             this._sendMessages();

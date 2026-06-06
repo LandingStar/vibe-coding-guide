@@ -72,12 +72,14 @@
 - 指令入口：`AGENTS.md`
 - MCP 注册：优先 `.codex/config.toml` 或 `codex mcp add`
 - 更深说明：`docs/codex-entry-contract.md` 与 `docs/installation-guide.md`
+- 当前定位：Codex 是明确支持的目标入口；若工具未暴露，先查 Codex MCP 注册面，而不是只查 `.vscode/mcp.json`
 
 ### VS Code / Copilot
 
 - 指令入口：`.github/copilot-instructions.md` 或生成后的 Copilot instructions
 - MCP 注册：workspace `mcp.json`
 - 若需要宿主分层说明：`docs/host-interaction-model.md`
+- 当前定位：这是 Host UX Layer 的 VS Code/Copilot 实现，复用同一后端，不替代 Codex 主链
 
 ### Claude / generic assistant
 

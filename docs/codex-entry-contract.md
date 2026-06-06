@@ -13,6 +13,26 @@
 
 它不定义 helper entry、第二 provider 或 Codex 专用 runtime。
 
+## 当前目标定位
+
+Codex 是当前平台明确支持的目标入口，而不是历史兼容路径。
+
+当前支持含义是：
+
+1. Codex 通过 `AGENTS.md` 获取仓库级长期规则。
+2. Codex 通过 MCP server 获取可执行治理工具。
+3. Codex 通过 CLI/validation 完成最小运行验证。
+4. Codex 与 VS Code / Copilot extension 共享 Core Contract Layer 与 Portable Runtime Layer。
+
+因此，当 Codex 侧出现接入问题时，优先检查 Interaction Adapter Layer：
+
+1. `AGENTS.md` 是否表达当前规则。
+2. `.codex/config.toml` 或 `codex mcp add` 是否注册了正确 MCP server。
+3. MCP server 是否通过 `tools/list` 暴露预期工具。
+4. CLI/validation 是否在目标 workspace 下运行。
+
+除非问题已经被定位为 Core Contract 或 Portable Runtime 缺口，否则不应优先修改后端。
+
 ## 最短入口闭环
 
 当前推荐把 Codex 的最短入口理解为四步：
@@ -70,6 +90,8 @@ VS Code extension 当前应被理解为 **Host UX Layer** 的一个宿主实现�
 - Codex 默认走 `AGENTS.md` + MCP + CLI/validation 闭环
 - VS Code/Copilot extension 默认走宿主 UI、TreeView、WebView、notification、chat participant 等交互面
 - 两者都消费同一条平台 authority contract，但不应互相替代
+- VS Code extension 当前默认 provider 是 Copilot，这只影响 extension 内部 AI surface，不改变 Codex 作为当前目标支持入口的定位
+- 若两者需要不同接入形态，应在 Interaction Adapter Layer 或 Host UX Layer 加薄适配，而不是分叉后端语义
 
 ## 为什么 Codex 不等于 extension 第二 provider
 

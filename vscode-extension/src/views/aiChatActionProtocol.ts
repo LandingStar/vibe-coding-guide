@@ -1,4 +1,4 @@
-export type AiChatToolName = 'listFiles' | 'readFile' | 'searchText' | 'getDiagnostics';
+export type AiChatToolName = 'listFiles' | 'readFile' | 'searchText' | 'getDiagnostics' | 'localTrajectory';
 
 export interface AiChatToolAction {
     readonly type: 'tool';
@@ -14,7 +14,7 @@ export interface AiChatFinalAction {
 
 export type AiChatAssistantAction = AiChatToolAction | AiChatFinalAction;
 
-const TOOL_NAMES: readonly AiChatToolName[] = ['listFiles', 'readFile', 'searchText', 'getDiagnostics'] as const;
+const TOOL_NAMES: readonly AiChatToolName[] = ['listFiles', 'readFile', 'searchText', 'getDiagnostics', 'localTrajectory'] as const;
 
 export function parseAssistantAction(rawResponse: string): AiChatAssistantAction | null {
     const jsonSource = extractJsonObject(rawResponse);

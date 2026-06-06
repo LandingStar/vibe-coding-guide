@@ -86,6 +86,22 @@ def _check_version_consistency() -> bool:
     return True
 
 
+def _check_secret_hygiene() -> bool:
+    """Run the repository secret hygiene scanner."""
+    script = ROOT / "scripts" / "scan_secrets.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--scope", "worktree"],
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
+    )
+    print(result.stdout, end="")
+    if result.returncode != 0:
+        print(result.stderr, end="", file=sys.stderr)
+        return False
+    return True
+
+
 def _build_wheel(project_dir: Path, output_dir: Path, label: str, *, no_isolation: bool = False) -> Path | None:
     """Build a wheel for the given project directory."""
     print(f"\n{'='*60}")
@@ -195,7 +211,7 @@ def main() -> int:
         print("Build plan:")
         print(f"  1. Clean old artifacts")
         _clean(dry_run=True)
-        print(f"  2. Run version consistency check")
+        print(f"  2. Run version consistency and secret hygiene checks")
         print(f"  3. Build runtime wheel: doc_based_coding_runtime-{version}-py3-none-any.whl")
         print(f"  4. Build instance wheel: doc_loop_vibe_coding-{instance_version}-py3-none-any.whl")
         print(f"  5. Verify wheel contents")
@@ -210,12 +226,17 @@ def main() -> int:
 
     # Step 2: Version consistency check
     if not args.skip_checks:
-        print("\nStep 2: Checking version consistency...")
+        print("\nStep 2: Running pre-build checks...")
+        print("  Checking version consistency...")
         if not _check_version_consistency():
             print("\nERROR: Version consistency check failed. Fix before building.", file=sys.stderr)
             return 1
+        print("  Checking secret hygiene...")
+        if not _check_secret_hygiene():
+            print("\nERROR: Secret hygiene check failed. Remove or redact secrets before building.", file=sys.stderr)
+            return 1
     else:
-        print("\nStep 2: Skipping version check (--skip-checks)")
+        print("\nStep 2: Skipping pre-build checks (--skip-checks)")
 
     # Ensure dist directory exists
     DIST_DIR.mkdir(exist_ok=True)

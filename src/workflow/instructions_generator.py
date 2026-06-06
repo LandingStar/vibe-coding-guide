@@ -39,6 +39,7 @@ class InstructionsGenerator:
         sections.append(self._header())
         sections.append(self._constraints_section())
         sections.append(self._conversation_progression_section())
+        sections.append(self._work_agent_local_trajectory_section())
         sections.append(self._temporary_override_section())
         sections.append(self._external_skill_interaction_section())
         sections.append(self._document_types_section())
@@ -120,6 +121,23 @@ class InstructionsGenerator:
             )
 
         lines.append("")
+        return "\n".join(lines)
+
+    def _work_agent_local_trajectory_section(self) -> str:
+        """Render generic guidance for execution agents that can mutate local trajectory."""
+
+        lines = [
+            "## Work Agent Local Trajectory",
+            "",
+            "- For task-like implementation or validation work, maintain Local Work Trajectory through the `localTrajectory` tool when that tool is available.",
+            "- Call `localTrajectory start` when beginning a tracked task, `append` for planned or observed milestones, and `advance` when the active milestone is complete.",
+            "- Use `localTrajectory addLane` only when a clearly separate work context must begin; use `merge` only to add an explicit fan-in marker when that lane rejoins a target lane.",
+            "- Use `localTrajectory relate` to record explicit `depends_on`, `waits_for`, `unblocks`, `hands_off`, `syncs_from`, or `approves_new_line` metadata between existing events when the relation matters for reading the work map.",
+            "- Do not treat Local Work Trajectory merge or relate as dependency scheduling, conflict resolution, or grouped review semantics.",
+            "- After validation or delivery is complete, continue calling `localTrajectory advance` until completed validation/delivery milestones are no longer left as `pending` or `in_progress`.",
+            "- Do not ask the user to manually maintain Local Work Trajectory nodes.",
+            "",
+        ]
         return "\n".join(lines)
 
     def _temporary_override_section(self) -> str:

@@ -16,6 +16,14 @@
 - `design_docs/` 主要承载状态板、planning/phase 文档与内部设计推导
 - 若两者冲突，以 `docs/` 为准
 
+当前目标宿主支持定位：
+
+- 当前目标明确支持 Codex；Codex 主链是 `AGENTS.md` + MCP + CLI/validation，不是历史兼容路径或次要路径。
+- VS Code / Copilot extension 是同一平台后端上的 Host UX Layer 实现；它不替代 Codex 主链，也不应让规则弱化 Codex 支持。
+- 需要接入 Codex 能力时，优先检查 Codex 实际入口：`AGENTS.md`、`.codex/config.toml` 或 `codex mcp add`、以及 `src/mcp/server.py` 暴露的工具。
+- `.vscode/mcp.json` 只覆盖 VS Code / Copilot Chat 注册面；不能据此判断 Codex 已加载 MCP。
+- 后端/运行时默认应保持宿主无关；若 Codex 与 Copilot 的差异只是实际应用入口不同，优先在 Interaction Adapter 或 Host UX 的薄组件处理，不要改写 Portable Runtime / Core Contract。
+
 执行规则：
 
 - 在没有窄 scope 文档前，不进入大规模实现。

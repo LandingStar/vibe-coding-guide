@@ -9,6 +9,7 @@
 - `Module Dependency Direction Standard.md`
 - `Session Handoff Standard.md`
 - `Semantic Versioning and Packaging Standard.md`
+- `Secret Hygiene and Log Redaction Standard.md`
 - `Subagent Delegation Standard.md`
 
 放置规则：

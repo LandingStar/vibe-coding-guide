@@ -206,7 +206,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, configPanelProvider),
     );
 
-    aiChatViewProvider = new AiChatViewProvider(outputChannel, getLLMProvider());
+    aiChatViewProvider = new AiChatViewProvider(outputChannel, getLLMProvider(), async (tool, ok) => {
+        if (tool === 'localTrajectory' && ok) {
+            try {
+                await progressGraphPreviewPanel?.reloadFromDiskIfOpen(vscode.workspace.workspaceFolders?.[0]);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                outputChannel.appendLine(`[AI Chat] Local trajectory preview reload failed: ${message}`);
+            }
+        }
+    });
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(AiChatViewProvider.viewType, aiChatViewProvider),
     );
@@ -215,7 +224,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     statusBar = new GovernanceStatusBar();
     context.subscriptions.push(statusBar);
 
-    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(context.extensionUri, outputChannel, async (workspaceFolder) => {
+    async function resolveProgressGraphRuntime(workspaceFolder: vscode.WorkspaceFolder): Promise<{
+        workspaceRoot: string;
+        pythonPath: string;
+        sourceRoot: string;
+    }> {
         const workspaceRoot = workspaceFolder.uri.fsPath;
         const config = vscode.workspace.getConfiguration('docBasedCoding', workspaceFolder.uri);
         const pythonPath = config.get<string>('pythonPath') || await resolvePythonPath(workspaceRoot);
@@ -224,6 +237,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             pythonPath,
             config.get<string>('sourceRoot') || '',
         );
+        return { workspaceRoot, pythonPath, sourceRoot };
+    }
+
+    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(context.extensionUri, outputChannel, async (workspaceFolder) => {
+        const { workspaceRoot, pythonPath, sourceRoot } = await resolveProgressGraphRuntime(workspaceFolder);
         await regenerateProgressGraphArtifacts({
             projectRoot: workspaceRoot,
             sourceRoot,

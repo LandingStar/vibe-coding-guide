@@ -1,8 +1,8 @@
 {
   "name": "doc-based-coding",
   "displayName": "Doc-Based Coding",
-  "description": "Document-driven governance workflow platform for VS Code — enforces project constraints, manages pack topology, and provides AI-assisted governance across all IDE operations.",
-  "version": "0.2.0",
+  "description": "VS Code Host UX extension for the Doc-Based Coding platform — consumes the shared MCP runtime to enforce constraints, manage pack topology, and provide AI-assisted governance.",
+  "version": "0.2.1",
   "publisher": "doc-based-coding",
   "license": "MIT",
   "icon": "icon.png",
@@ -334,6 +334,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.93.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^3.9.0",
@@ -342,6 +344,10 @@
     "typescript": "^5.3.0"
   },
   "dependencies": {
-    "@note-web/knowledge-graph-engine": "file:vendor/note-web-knowledge-graph-engine-0.1.0.tgz"
+    "@note-web/knowledge-graph-engine": "file:vendor/note-web-knowledge-graph-engine-0.1.0.tgz",
+    "@xyflow/react": "^12.11.0",
+    "elkjs": "^0.11.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }

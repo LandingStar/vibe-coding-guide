@@ -23,6 +23,13 @@
 
 真正需要被隔离出来的是第 3、4 层，而不是重写第 1、2 层。
 
+当前目标支持定位：
+
+1. **Codex 是当前明确支持的目标入口**：默认支持路径是 `AGENTS.md` + MCP + CLI/validation。
+2. **VS Code / Copilot extension 是 Host UX Layer 的一个实现**：它可以消费同一套 Portable Runtime，但不替代 Codex 主链，也不应把 Codex 降级为历史兼容或次要目标。
+3. **后端保持统一**：CLI、MCP server、Pipeline、GovernanceTools 和 progress graph 生成链应继续作为宿主无关后端；Codex / Copilot / VS Code 差异应优先落在 Interaction Adapter Layer 或 Host UX Layer 的薄组件上。
+4. **注册面必须按宿主区分**：Codex 看 `.codex/config.toml` 或 `codex mcp add`；VS Code / Copilot Chat 看 workspace `mcp.json`。不能用其中一个注册面推断另一个宿主已经接入。
+
 ## 四层模型
 
 | 层次 | 定义 | 当前代表资产 |
@@ -99,10 +106,11 @@
 
 ### Codex 独立入口 contract
 
-Codex 当前应被视为 **Interaction Adapter Layer** 的首个重点子案例：
+Codex 当前应被视为 **Interaction Adapter Layer** 的首个重点子案例，也是当前明确支持的目标入口：
 
 - 它主要关心 `AGENTS.md`、MCP 注册、CLI/验证链如何构成最短入口
 - 它不是 VS Code extension 第二 provider 的同义词
+- 若 Codex 使用面暴露问题，应先检查 Codex adapter/注册面，而不是默认改后端 runtime
 
 详见：`docs/codex-entry-contract.md` 与 `design_docs/codex-independent-entry-contract-direction-analysis.md`
 
@@ -112,6 +120,7 @@ VS Code extension 当前应被视为 **Host UX Layer** 的第一个实现：
 
 - provider abstraction 只解决该层内部的一部分调用解耦
 - 它不等于跨宿主模型本身
+- 它的默认 Copilot provider 只代表 VS Code extension 的当前 AI provider 选择，不改变平台当前支持 Codex 的目标定位
 
 ### 未来 Windsurf / Antigravity
 

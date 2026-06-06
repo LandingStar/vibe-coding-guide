@@ -18,6 +18,7 @@ interface RunAiChatToolLoopOptions {
     readonly currentPrompt: string;
     readonly executor: AiChatToolExecutor;
     readonly onToolMessage: (message: string) => void;
+    readonly onToolResult?: (tool: AiChatToolAction['tool'], ok: boolean) => void | Promise<void>;
     readonly maxSteps?: number;
 }
 
@@ -45,6 +46,7 @@ export async function runAiChatToolLoop(options: RunAiChatToolLoopOptions): Prom
         const result = await options.executor.execute(action.tool, action.args);
         const toolMessage = formatToolMessage(action, result.summary, result.content, result.ok);
         options.onToolMessage(toolMessage);
+        await options.onToolResult?.(action.tool, result.ok);
         transcript.push({ role: 'tool', content: toolMessage });
     }
 
@@ -57,12 +59,24 @@ function buildDecisionPrompt(
 ): string {
     return [
         'You are Doc-Based Coding assistant inside a VS Code extension custom chat panel.',
-        'You are currently in the read-only vibe-coding slice. You may inspect the workspace but you cannot edit files, apply patches, or run terminal commands.',
+        'You are currently in the read-only vibe-coding slice for workspace content. You may inspect files, but you cannot edit source files, apply patches, or run terminal commands.',
+        'The localTrajectory tool is the explicit exception: you must use it to update Local Work Trajectory metadata for tracked tasks.',
         'Reply with exactly one JSON object and nothing else.',
         'If you need more project context, request exactly one tool call.',
         'If you can answer, return a final response in Chinese.',
+        'For task-like user requests, you own Local Work Trajectory updates: call localTrajectory start when beginning a new task, append planned or observed milestones, update when current milestone details change, block/wait for impediments, resume when continuing, advance when the current milestone is complete, and close when the tracked task is done.',
+        'For the current multi-line expansion, use localTrajectory addLane when a clearly separate work context must begin, and localTrajectory merge when that separate lane is ready to rejoin a target lane.',
+        'Use localTrajectory relate to record explicit depends_on, waits_for, unblocks, hands_off, syncs_from, or approves_new_line metadata between existing events when that relation matters for reading the work map.',
+        'Treat merge and relate as visible trajectory metadata only: do not invent dependency scheduling, conflict resolution, or review-barrier semantics around them.',
+        'After validation or delivery is complete, keep calling localTrajectory advance as needed until no completed milestone remains pending or in_progress; your final answer should not leave a completed validation/delivery node unadvanced.',
+        'Do not ask the user to manually press Local Work Trajectory buttons.',
         'Allowed JSON shapes:',
         '{"type":"tool","tool":"listFiles","args":{"path":"."},"reason":"why this tool is needed"}',
+        '{"type":"tool","tool":"localTrajectory","args":{"action":"start","laneLabel":"short lane label","firstEventTitle":"first milestone"},"reason":"start tracking the task"}',
+        '{"type":"tool","tool":"localTrajectory","args":{"action":"addLane","laneLabel":"short lane label","firstEventTitle":"first milestone"},"reason":"start a separate work context"}',
+        '{"type":"tool","tool":"localTrajectory","args":{"action":"merge","sourceLaneId":"lane:002","targetLaneId":"lane:main","title":"merge milestone"},"reason":"merge a completed separate lane back into the main lane"}',
+        '{"type":"tool","tool":"localTrajectory","args":{"action":"relate","sourceEventId":"event:002","targetEventId":"event:004","relationKind":"depends_on","summary":"target needs source result"},"reason":"record a cross-lane dependency"}',
+        '{"type":"tool","tool":"localTrajectory","args":{"action":"close","summary":"done"},"reason":"close the single-line trajectory"}',
         '{"type":"final","content":"your final Chinese answer"}',
         'Tool rules:',
         '- Prefer the smallest useful read.',

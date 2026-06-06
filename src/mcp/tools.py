@@ -190,6 +190,262 @@ class GovernanceTools:
             merged_rules,
         )
 
+    def local_trajectory(
+        self,
+        action: str,
+        *,
+        lane_label: str = "",
+        first_event_title: str = "",
+        title: str = "",
+        event_kind: str = "",
+        summary: str = "",
+        guide_context: str = "",
+        current_event_id: str = "",
+        reason: str = "",
+        lane_id: str = "",
+        source_event_id: str = "",
+        target_lane_id: str = "",
+        target_event_id: str = "",
+        source_lane_id: str = "",
+        relation_kind: str = "",
+    ) -> dict[str, Any]:
+        """Mutate the agent-owned Local Work Trajectory artifact.
+
+        This is intentionally narrower than general file editing: it only writes
+        `.codex/progress-graph/local-work-trajectory.json` through the progress
+        graph lifecycle API so MCP hosts such as Codex can track work without a
+        human-maintained UI button path.
+        """
+
+        allowed_event_kinds = {
+            "start",
+            "task",
+            "decision",
+            "review",
+            "wait",
+            "validation",
+            "writeback",
+            "handoff",
+            "merge",
+            "close",
+        }
+
+        from tools.progress_graph import (
+            add_local_work_lane,
+            add_local_work_relation,
+            advance_single_line_event,
+            append_single_line_event,
+            block_single_line_event,
+            close_single_line_trajectory,
+            load_local_work_trajectory,
+            merge_local_work_lane,
+            resume_single_line_event,
+            start_single_line_trajectory,
+            trajectory_json_path,
+            update_single_line_event,
+        )
+
+        normalized_action = action.strip()
+        allowed_actions = {"start", "append", "advance", "update", "block", "wait", "resume", "close", "addLane", "merge", "relate"}
+        if normalized_action not in allowed_actions:
+            return {
+                "ok": False,
+                "error": (
+                    "localTrajectory action must be start, append, advance, "
+                    "update, block, wait, resume, close, addLane, merge, or relate."
+                ),
+                "action": action,
+            }
+
+        allowed_relation_kinds = {
+            "depends_on",
+            "waits_for",
+            "unblocks",
+            "hands_off",
+            "syncs_from",
+            "merges_into",
+            "proposes_new_line",
+            "approves_new_line",
+        }
+        normalized_relation_kind = relation_kind.strip()
+        if normalized_action == "relate":
+            if not source_event_id:
+                return {
+                    "ok": False,
+                    "error": "localTrajectory relate requires sourceEventId.",
+                    "action": normalized_action,
+                }
+            if not target_event_id:
+                return {
+                    "ok": False,
+                    "error": "localTrajectory relate requires targetEventId.",
+                    "action": normalized_action,
+                }
+            if normalized_relation_kind not in allowed_relation_kinds:
+                return {
+                    "ok": False,
+                    "error": (
+                        "localTrajectory relationKind must be one of: "
+                        f"{', '.join(sorted(allowed_relation_kinds))}."
+                    ),
+                    "action": normalized_action,
+                    "relationKind": relation_kind,
+                }
+
+        normalized_event_kind = event_kind.strip()
+        if normalized_event_kind and normalized_event_kind not in allowed_event_kinds:
+            return {
+                "ok": False,
+                "error": (
+                    "localTrajectory eventKind must be one of: "
+                    f"{', '.join(sorted(allowed_event_kinds))}."
+                ),
+                "action": normalized_action,
+                "eventKind": event_kind,
+            }
+
+        try:
+            if normalized_action == "start":
+                if not first_event_title and not title:
+                    return {
+                        "ok": False,
+                        "error": "localTrajectory start requires firstEventTitle or title.",
+                        "action": normalized_action,
+                    }
+                path = start_single_line_trajectory(
+                    self._project_root,
+                    title=title or "Local Work Trajectory",
+                    lane_label=lane_label or "当前工作",
+                    first_event_title=first_event_title or title,
+                    first_event_kind=normalized_event_kind or "start",
+                    guide_context=guide_context or "codex-mcp-agent",
+                )
+            elif normalized_action == "append":
+                if not title:
+                    return {
+                        "ok": False,
+                        "error": "localTrajectory append requires title.",
+                        "action": normalized_action,
+                    }
+                path = append_single_line_event(
+                    self._project_root,
+                    title=title,
+                    kind=normalized_event_kind or "task",
+                    summary=summary,
+                    lane_id=lane_id,
+                )
+            else:
+                if normalized_action == "advance":
+                    path = advance_single_line_event(
+                        self._project_root,
+                        current_event_id=current_event_id or None,
+                    )
+                elif normalized_action == "update":
+                    path = update_single_line_event(
+                        self._project_root,
+                        current_event_id=current_event_id or None,
+                        title=title,
+                        summary=summary,
+                    )
+                elif normalized_action in {"block", "wait"}:
+                    path = block_single_line_event(
+                        self._project_root,
+                        current_event_id=current_event_id or None,
+                        reason=reason or summary,
+                        waiting=normalized_action == "wait",
+                    )
+                elif normalized_action == "resume":
+                    path = resume_single_line_event(
+                        self._project_root,
+                        current_event_id=current_event_id or None,
+                        summary=summary,
+                    )
+                elif normalized_action == "addLane":
+                    if not lane_label:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory addLane requires laneLabel.",
+                            "action": normalized_action,
+                        }
+                    if not first_event_title and not title:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory addLane requires firstEventTitle or title.",
+                            "action": normalized_action,
+                        }
+                    path = add_local_work_lane(
+                        self._project_root,
+                        lane_label=lane_label,
+                        first_event_title=first_event_title or title,
+                        first_event_kind=normalized_event_kind or "task",
+                        first_event_summary=summary,
+                        source_event_id=source_event_id or current_event_id or None,
+                        lane_id=lane_id,
+                    )
+                elif normalized_action == "merge":
+                    merge_source_lane_id = source_lane_id or lane_id
+                    if not merge_source_lane_id:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory merge requires sourceLaneId or laneId.",
+                            "action": normalized_action,
+                        }
+                    path = merge_local_work_lane(
+                        self._project_root,
+                        source_lane_id=merge_source_lane_id,
+                        target_lane_id=target_lane_id or "lane:main",
+                        title=title or "merge",
+                        summary=summary,
+                        source_event_id=source_event_id or current_event_id or None,
+                        target_event_id=target_event_id or None,
+                    )
+                elif normalized_action == "relate":
+                    path = add_local_work_relation(
+                        self._project_root,
+                        source_event_id=source_event_id,
+                        target_event_id=target_event_id,
+                        relation_kind=normalized_relation_kind,
+                        summary=summary,
+                    )
+                else:
+                    path = close_single_line_trajectory(
+                        self._project_root,
+                        current_event_id=current_event_id or None,
+                        summary=summary,
+                    )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "action": normalized_action,
+                "trajectory_path": str(trajectory_json_path(self._project_root)),
+            }
+
+        trajectory = load_local_work_trajectory(self._project_root)
+        active_event_id = None
+        active_event_ids = []
+        for event_id, event in sorted(
+            trajectory.events.items(),
+            key=lambda item: (item[1].order, item[0]),
+        ):
+            if event.status == "in_progress":
+                active_event_ids.append(event_id)
+                if active_event_id is None:
+                    active_event_id = event_id
+
+        return {
+            "ok": True,
+            "action": normalized_action,
+            "trajectory_path": str(path),
+            "trajectory_id": trajectory.trajectory_id,
+            "event_count": len(trajectory.events),
+            "relation_count": len(trajectory.relations),
+            "active_event_id": active_event_id,
+            "active_event_ids": active_event_ids,
+            "lane_count": len(trajectory.lanes),
+            "metadata": dict(trajectory.metadata),
+        }
+
     def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 

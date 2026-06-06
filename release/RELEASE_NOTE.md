@@ -1,54 +1,76 @@
-# doc-based-coding v0.9.7 Preview Release (2026-06-02)
+# doc-based-coding v0.9.8 Preview Release (2026-06-07)
 
-本次 `v0.9.7` preview release 以外部 `knowledge-graph-engine` 接入和图谱发布边界收口为核心：VS Code progress graph preview 已从归档的 G6 路线切换为独立图谱组件驱动，并把运行时代码打入 VSIX，同时在 release zip 中保留固定 graph engine tarball 作为可复现构建材料。
+This `v0.9.8` preview release closes the current Local Work Trajectory and host
+coordination slice: the VS Code extension now packages the React Flow / ELK
+local trajectory view, the MCP surface exposes the trajectory lifecycle, Codex is
+restored as the primary supported host chain, and release builds now include
+secret hygiene checks.
 
-## 打包内容
+## Package Contents
 
-| 产物 | 版本 | 说明 |
-|------|------|------|
-| `doc_based_coding_runtime-0.9.7-py3-none-any.whl` | 0.9.7 | 平台运行时，包含 CLI、MCP server、PDP/PEP、workflow、pack runtime |
-| `doc_loop_vibe_coding-0.9.7-py3-none-any.whl` | 0.9.7 | 官方 doc-loop 实例 pack |
-| `doc-based-coding-0.2.0.vsix` | 0.2.0 | VS Code 扩展，内含已构建的 graph webview runtime |
-| `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz` | 0.1.0 | 固定 graph engine 构建输入，用于审计和可复现构建 |
-| `doc-based-coding-v0.9.7.zip` | 0.9.7 批次 | 一体 release 包，包含上述 wheel、VSIX、构建输入与安装文档 |
+| Artifact | Version | Notes |
+|---|---:|---|
+| `doc_based_coding_runtime-0.9.8-py3-none-any.whl` | 0.9.8 | Platform runtime, CLI, MCP server, PDP/PEP, workflow, pack runtime |
+| `doc_loop_vibe_coding-0.9.8-py3-none-any.whl` | 0.9.8 | Official doc-loop instance pack |
+| `doc-based-coding-0.2.1.vsix` | 0.2.1 | VS Code extension with built graph and Local Work Trajectory webview runtime |
+| `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz` | 0.1.0 | Pinned graph engine build input for audit and reproducible extension builds |
+| `doc-based-coding-v0.9.8.zip` | 0.9.8 batch | Local release bundle containing the wheels, VSIX, graph engine tarball, and install docs |
 
-## 本次版本重点
+## Highlights
 
-### 1. Knowledge Graph Engine 图谱接入
+### 1. Local Work Trajectory MVP
 
-- VS Code progress graph preview 已接入外部 `@note-web/knowledge-graph-engine` 的 `GraphModel`、`SimulationClient` 与 `Canvas2DRenderer`
-- 图谱支持缩放、平移、拖拽、标签覆盖率/大小、颜色组、邻域突出、节点大小策略与布局摇散入口
-- `Shake Layout` 会短暂使用极端力参数加速打开拓扑，并在 refresh graph 后自动执行一次
-- 旧 G6 路线已保留为归档参考，不再进入当前构建链路
+- Added the `localTrajectory` MCP lifecycle surface for starting, appending,
+  advancing, opening lanes, merging lanes, and recording explicit relations.
+- Added the VS Code Local Work Trajectory webview using React Flow + ELK.
+- Added multi-line visual mapping for lane opening, merge/fan-in, dependencies,
+  wait/sync/handoff style auxiliary relations, and lane labels.
+- Kept Local Work Trajectory as a projection artifact, not the scheduler
+  authority or a claim that lanes always equal real parallel agents.
 
-### 2. 发布态图谱依赖固定
+### 2. Host Coordination And Codex Mainline
 
-- VSIX 运行时不依赖用户机器上的 graph engine 工作区；webview renderer 与 worker 已由 esbuild 打包到 `dist/webviews`
-- `vscode-extension/package.json` 已从开发态外部路径切换到 release-local tarball：`file:vendor/note-web-knowledge-graph-engine-0.1.0.tgz`
-- release 检查会拒绝 graph engine 继续使用非 `vendor/` 的开发态 `file:` 依赖
-- release zip 现在包含 VSIX 和 graph engine tarball，便于一体分发、审计和复现构建
+- Re-aligned durable rules so Codex remains the primary supported target chain:
+  `AGENTS.md` + MCP + CLI/validation.
+- Kept VS Code / Copilot as a Host UX Layer over the same backend rather than a
+  replacement for Codex support.
+- Extended host-side AI chat/tool loop integration and tests around tool result
+  handling and progress graph panel behavior.
 
-### 3. 版本与包边界
+### 3. Secret Hygiene And Release Guardrails
 
-- runtime、instance、pack-manifest 与 release 文档同步到 `0.9.7`
-- VS Code extension 独立版本线推进到 `0.2.0`
-- 当前标准固定为：组件独立 SemVer、宿主固定依赖、VSIX 自包含运行时制品
+- Added `scripts/scan_secrets.py` and release/build integration for worktree
+  secret scanning.
+- Added the Secret Hygiene and Log Redaction standard.
+- Added scanner tests so high-confidence secrets are reported by detector and
+  location without printing matched values.
+- Refreshed `pack-lock.json` for the current official instance content.
 
-## 验证结果
+### 4. Graph Runtime Packaging Boundary
 
-- `python release/verify_version_consistency.py --skip-wheel-files`：通过
-- `python scripts/build.py --no-isolation`：通过
-- `npm run build`：通过
-- `node --test dist/test/progressGraphPreviewHtml.test.js`：通过
-- `node --test dist/test/progressGraphColorGroups.test.js`：通过
-- `node --test dist/test/aiChatToolLoop.test.js`：通过
-- `python scripts/release.py --skip-tests --no-isolation`：生成新的双 wheel、`release/doc-based-coding-v0.9.7.zip` 与 `release/doc-based-coding-0.2.0.vsix`
+- Preserved the pinned external `@note-web/knowledge-graph-engine` release-local
+  tarball boundary from the previous graph integration work.
+- The VSIX remains self-contained for graph webview renderer / worker runtime;
+  users do not need a separate graph engine workspace or npm install.
 
-## 安装顺序
+## Verification
+
+- `python release/verify_version_consistency.py`: passed
+- `python scripts/scan_secrets.py --scope worktree`: passed
+- `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: `3 passed`
+- `python scripts/release.py --no-isolation`: passed
+  - built both wheels
+  - ran full Python test suite: `1432 passed, 3 skipped`
+  - packaged VSIX `doc-based-coding-0.2.1.vsix`
+  - generated `release/doc-based-coding-v0.9.8.zip`
+
+## Install Order
 
 ```bash
-pip install --force-reinstall doc_based_coding_runtime-0.9.7-py3-none-any.whl
-pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.7-py3-none-any.whl
+pip install --force-reinstall doc_based_coding_runtime-0.9.8-py3-none-any.whl
+pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.8-py3-none-any.whl
 ```
 
-VS Code 扩展通过 "Install from VSIX" 安装 `doc-based-coding-0.2.0.vsix`。Graph engine 已内嵌在 VSIX 的 webview 构建产物中，用户不需要单独安装 npm 包或准备外部 graph engine 工作区。
+Install the VS Code extension with "Install from VSIX" and select
+`doc-based-coding-0.2.1.vsix`. The graph engine is already embedded in the VSIX
+webview build output.

@@ -3,15 +3,18 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import {
   buildProgressGraphPreviewHtml,
   coerceControlSnapshot,
+  coerceLocalWorkTrajectory,
   type ProgressGraphPreviewArtifactState,
   type ProgressGraphPreviewControlSnapshot,
   type ProgressGraphPreviewFreshness,
+  type ProgressGraphPreviewLocalWorkTrajectory,
   type ProgressGraphPreviewState,
   type ProgressGraphPreviewV2PoCPayload,
 } from './progressGraphPreviewHtml';
-
 type ProgressGraphPreviewMessage = {
-    command: 'refresh' | 'revealArtifact';
+    command:
+      | 'refresh'
+      | 'revealArtifact';
 };
 
 type ProgressGraphPreviewRefreshLifecycle = {
@@ -23,11 +26,13 @@ type ProgressGraphPreviewRefreshLifecycle = {
 
 type ProgressGraphArtifactRegenerator = (workspaceFolder: vscode.WorkspaceFolder) => Promise<void>;
 
+const DEFAULT_PROGRESS_GRAPH_VIEW_COLUMN = vscode.ViewColumn.One;
+
 export class ProgressGraphPreviewPanel implements vscode.Disposable {
     private _panel: vscode.WebviewPanel | undefined;
     private _workspaceFolder: vscode.WorkspaceFolder | undefined;
   private readonly _extensionUri: vscode.Uri;
-  private readonly _extensionDistUri: vscode.Uri;
+    private readonly _extensionDistUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
     private readonly _regenerateArtifacts: ProgressGraphArtifactRegenerator;
     private readonly _disposables: vscode.Disposable[] = [];
@@ -76,7 +81,6 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
             completedAt: null,
             errorMessage: null,
         };
-        this._renderShellState({ preserveCurrentPreview: true });
 
         try {
             await vscode.window.withProgress(
@@ -123,6 +127,16 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
         await vscode.commands.executeCommand('revealInExplorer', artifactUri);
     }
 
+    async reloadFromDiskIfOpen(workspaceFolder?: vscode.WorkspaceFolder): Promise<void> {
+      if (workspaceFolder) {
+        this._workspaceFolder = workspaceFolder;
+      }
+      if (!this._panel || !this._workspaceFolder) {
+        return;
+      }
+      await this._reload();
+    }
+
   dispose(): void {
     this._panel?.dispose();
     for (const disposable of this._disposables) {
@@ -153,14 +167,14 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
 
   private _ensurePanel(): void {
     if (this._panel) {
-      this._panel.reveal(this._panel.viewColumn ?? vscode.ViewColumn.Beside);
+      this._panel.reveal(DEFAULT_PROGRESS_GRAPH_VIEW_COLUMN);
       return;
         }
 
     this._panel = vscode.window.createWebviewPanel(
       'docBasedCoding.progressGraphPreview',
       'Progress Graph',
-      vscode.ViewColumn.Beside,
+      DEFAULT_PROGRESS_GRAPH_VIEW_COLUMN,
       {
         enableScripts: true,
         enableFindWidget: true,
@@ -210,17 +224,25 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     return vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'progress-graph', 'latest.json');
   }
 
+  private _trajectoryArtifactUri(workspaceFolder: vscode.WorkspaceFolder): vscode.Uri {
+    return vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'progress-graph', 'local-work-trajectory.json');
+  }
+
   private _readArtifactState(workspaceFolder: vscode.WorkspaceFolder): ProgressGraphPreviewArtifactState {
         const previewUri = this._previewUri(workspaceFolder);
         const controlSnapshotUri = this._controlSnapshotUri(workspaceFolder);
         const historyArtifactUri = this._historyArtifactUri(workspaceFolder);
+        const trajectoryArtifactUri = this._trajectoryArtifactUri(workspaceFolder);
         const previewExists = existsSync(previewUri.fsPath);
     const controlSnapshotExists = existsSync(controlSnapshotUri.fsPath);
     const historyArtifactExists = existsSync(historyArtifactUri.fsPath);
+    const trajectoryArtifactExists = existsSync(trajectoryArtifactUri.fsPath);
     const previewStat = previewExists ? statSync(previewUri.fsPath) : null;
         const previewHtml = previewExists ? readFileSync(previewUri.fsPath, 'utf-8') : null;
     let controlSnapshot: ProgressGraphPreviewControlSnapshot | null = null;
     let controlSnapshotError: string | null = null;
+    let localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null = null;
+    let localWorkTrajectoryError: string | null = null;
     let v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null = null;
     let v2GraphPayloadError: string | null = null;
 
@@ -245,6 +267,16 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       }
     }
 
+    if (trajectoryArtifactExists) {
+      try {
+        localWorkTrajectory = coerceLocalWorkTrajectory(
+          JSON.parse(readFileSync(trajectoryArtifactUri.fsPath, 'utf-8')),
+        );
+      } catch (error) {
+        localWorkTrajectoryError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
         return {
             artifactPath: previewUri.fsPath,
       artifactModifiedAt: previewStat ? previewStat.mtime.toISOString() : null,
@@ -255,8 +287,12 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
             controlSnapshotError,
             historyArtifactPath: historyArtifactUri.fsPath,
             historyArtifactExists,
+            trajectoryArtifactPath: trajectoryArtifactUri.fsPath,
+            trajectoryArtifactExists,
             previewExists,
             previewHtml,
+            localWorkTrajectory,
+            localWorkTrajectoryError,
             v2GraphPayload,
             v2GraphPayloadError,
         };
@@ -305,6 +341,17 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       v2GraphWorkerUri: this._panel
         ? this._panel.webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'knowledgeGraphForceWorker.js'),
+        ).toString()
+        : null,
+      v2GraphAutoShake: freshness !== 'refreshing',
+      localWorkTrajectoryScriptUri: this._panel
+        ? this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'localWorkTrajectory.js'),
+        ).toString()
+        : null,
+      localWorkTrajectoryStyleUri: this._panel
+        ? this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'dist', 'webviews', 'localWorkTrajectory.css'),
         ).toString()
         : null,
     };
@@ -398,10 +445,16 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       controlSnapshotGeneratedAt: state.controlSnapshot?.generated_at ?? null,
       controlSnapshotError: state.controlSnapshotError,
       historyArtifactExists: state.historyArtifactExists,
+      trajectoryArtifactExists: state.trajectoryArtifactExists,
+      trajectoryId: state.localWorkTrajectory?.trajectoryId ?? null,
+      trajectoryError: state.localWorkTrajectoryError,
       v2GraphId: state.v2GraphPayload?.graphId ?? null,
       v2GraphPayloadError: state.v2GraphPayloadError,
       v2GraphScriptUri: state.v2GraphScriptUri,
       v2GraphWorkerUri: state.v2GraphWorkerUri,
+      v2GraphAutoShake: state.v2GraphAutoShake,
+      localWorkTrajectoryScriptUri: state.localWorkTrajectoryScriptUri,
+      localWorkTrajectoryStyleUri: state.localWorkTrajectoryStyleUri,
       lastLoadedAt: state.lastLoadedAt,
       lastRefreshStartedAt: state.lastRefreshStartedAt,
       lastRefreshCompletedAt: state.lastRefreshCompletedAt,
@@ -412,6 +465,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     private _buildHtml(state: ProgressGraphPreviewState): string {
         return buildProgressGraphPreviewHtml(state);
     }
+
 }
 
 type RawSnapshotNode = {
@@ -507,7 +561,7 @@ function selectV2Graph(graphs: RawSnapshotGraph[]): RawSnapshotGraph | null {
     return null;
   }
 
-  const preferredOrder = ['planning-gates-index', 'checkpoint-current', 'project-checklist-current'];
+  const preferredOrder = ['project-checklist-current', 'planning-gates-index', 'checkpoint-current'];
   const preferenceIndex = new Map(preferredOrder.map((graphId, index) => [graphId, preferredOrder.length - index]));
   const edgefulGraphs = graphs.filter((graph) => graph.edges.length > 0);
   const selectionPool = edgefulGraphs.length > 0 ? edgefulGraphs : graphs;

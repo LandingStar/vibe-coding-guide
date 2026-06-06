@@ -10,8 +10,12 @@ export type ProgressGraphPreviewArtifactState = {
   controlSnapshotError: string | null;
   historyArtifactPath: string;
   historyArtifactExists: boolean;
+  trajectoryArtifactPath: string;
+  trajectoryArtifactExists: boolean;
   previewExists: boolean;
   previewHtml: string | null;
+  localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
+  localWorkTrajectoryError: string | null;
   v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null;
   v2GraphPayloadError: string | null;
 };
@@ -115,6 +119,46 @@ export type ProgressGraphPreviewV2PoCPayload = {
   };
 };
 
+export type ProgressGraphPreviewTrajectoryLane = {
+  id: string;
+  label: string;
+  status: string;
+  summary: string;
+  metadata: Record<string, string>;
+};
+
+export type ProgressGraphPreviewTrajectoryEvent = {
+  id: string;
+  laneId: string;
+  title: string;
+  kind: string;
+  status: string;
+  order: number;
+  summary: string;
+  metadata: Record<string, string>;
+};
+
+export type ProgressGraphPreviewTrajectoryRelation = {
+  sourceEventId: string;
+  targetEventId: string;
+  kind: string;
+  summary: string;
+  metadata: Record<string, string>;
+};
+
+export type ProgressGraphPreviewLocalWorkTrajectory = {
+  trajectoryId: string;
+  title: string;
+  recordedAt: string | null;
+  sourceGraphId: string | null;
+  sourceNodeId: string | null;
+  guideContext: string | null;
+  metadata: Record<string, string>;
+  lanes: ProgressGraphPreviewTrajectoryLane[];
+  events: ProgressGraphPreviewTrajectoryEvent[];
+  relations: ProgressGraphPreviewTrajectoryRelation[];
+};
+
 export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
   freshness: ProgressGraphPreviewFreshness;
   freshnessLabel: string;
@@ -126,6 +170,9 @@ export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
   lastRefreshError: string | null;
   v2GraphScriptUri: string | null;
   v2GraphWorkerUri: string | null;
+  v2GraphAutoShake: boolean;
+  localWorkTrajectoryScriptUri: string | null;
+  localWorkTrajectoryStyleUri: string | null;
 };
 
 export function buildProgressGraphPreviewHtml(state: ProgressGraphPreviewState): string {
@@ -372,6 +419,8 @@ export function buildProgressGraphPreviewHtml(state: ProgressGraphPreviewState):
     const revealButton = document.getElementById('revealButton');
 
     refreshButton?.addEventListener('click', () => {
+      refreshButton.disabled = true;
+      refreshButton.textContent = 'Refreshing...';
       vscode.postMessage({ command: 'refresh' });
     });
 
@@ -445,12 +494,68 @@ export function coerceControlSnapshot(value: unknown): ProgressGraphPreviewContr
   };
 }
 
+export function coerceLocalWorkTrajectory(value: unknown): ProgressGraphPreviewLocalWorkTrajectory {
+  if (!isRecord(value)) {
+    throw new Error('local work trajectory must be an object');
+  }
+
+  const lanes = readObjectCollection(value.lanes).map((item) => ({
+    id: readString(item.id, 'unknown-lane'),
+    label: readString(item.label, 'untitled lane'),
+    status: readString(item.status, 'pending'),
+    summary: readString(item.summary, ''),
+    metadata: readStringRecord(item.metadata),
+  }));
+  const events = readObjectCollection(value.events)
+    .map((item) => ({
+      id: readString(item.id, 'unknown-event'),
+      laneId: readString(item.lane_id, readString(item.laneId, 'unknown-lane')),
+      title: readString(item.title, 'untitled event'),
+      kind: readString(item.kind, 'task'),
+      status: readString(item.status, 'pending'),
+      order: readNumber(item.order),
+      summary: readString(item.summary, ''),
+      metadata: readStringRecord(item.metadata),
+    }))
+    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
+  const relations = readObjectArray(value.relations).map((item) => ({
+    sourceEventId: readString(
+      item.source_event_id,
+      readString(item.sourceEventId, 'unknown-source'),
+    ),
+    targetEventId: readString(
+      item.target_event_id,
+      readString(item.targetEventId, 'unknown-target'),
+    ),
+    kind: readString(item.kind, 'sequence'),
+    summary: readString(item.summary, ''),
+    metadata: readStringRecord(item.metadata),
+  }));
+
+  return {
+    trajectoryId: readString(value.trajectory_id, readString(value.trajectoryId, 'unknown-trajectory')),
+    title: readString(value.title, 'Local Work Trajectory'),
+    recordedAt: readNullableString(value.recorded_at) ?? readNullableString(value.recordedAt),
+    sourceGraphId: readNullableString(value.source_graph_id) ?? readNullableString(value.sourceGraphId),
+    sourceNodeId: readNullableString(value.source_node_id) ?? readNullableString(value.sourceNodeId),
+    guideContext: readNullableString(value.guide_context) ?? readNullableString(value.guideContext),
+    metadata: readStringRecord(value.metadata),
+    lanes,
+    events,
+    relations,
+  };
+}
+
 function buildParallelPreviewHtml(
   state: ProgressGraphPreviewState,
   previewHtml: string,
 ): string {
   const controlOverlay = buildControlOverlay(state);
   const v2GraphPoC = buildV2GraphPoCSection(state);
+  const localTrajectory = buildLocalWorkTrajectoryMountSection(state);
+  const localWorkTrajectoryStyle = state.localWorkTrajectoryStyleUri
+    ? `<link rel="stylesheet" href="${escapeHtml(state.localWorkTrajectoryStyleUri)}">`
+    : '';
   const escapedPath = escapeHtml(state.artifactPath);
   const escapedLoadedAt = escapeHtml(formatTimestamp(state.lastLoadedAt));
   const escapedArtifactUpdatedAt = escapeHtml(formatTimestamp(state.artifactModifiedAt));
@@ -718,6 +823,40 @@ function buildParallelPreviewHtml(
     background: rgba(22, 31, 41, 0.9);
     border-color: rgba(255, 255, 255, 0.08);
     box-shadow: 0 18px 34px rgba(0, 0, 0, 0.12);
+  }
+  .pg-host-lwt-mount-section {
+    margin: 18px;
+    min-height: 420px;
+  }
+  .pg-host-lwt-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(84, 129, 171, 0.14);
+    background: rgba(255, 255, 255, 0.72);
+  }
+  .pg-host-lwt-toolbar-copy {
+    min-width: 0;
+  }
+  .pg-host-lwt-toolbar-title {
+    margin: 0;
+    color: #22303a;
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+  .pg-host-lwt-toolbar-meta {
+    margin: 3px 0 0;
+    color: rgba(71, 87, 101, 0.76);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+  .pg-host-lwt-mount {
+    min-height: 420px;
   }
   .pg-host-v2-head {
     display: flex;
@@ -1584,6 +1723,9 @@ function buildParallelPreviewHtml(
   const v2GraphScript = state.v2GraphPayload && state.v2GraphScriptUri
     ? `<script src="${escapeHtml(state.v2GraphScriptUri)}"></script>`
     : '';
+  const localWorkTrajectoryScript = state.localWorkTrajectoryScriptUri
+    ? `<script src="${escapeHtml(state.localWorkTrajectoryScriptUri)}"></script>`
+    : '';
   const hostScript = `<script>
   const vscode = acquireVsCodeApi();
   globalThis.__pgHostVsCodeApi = vscode;
@@ -1591,7 +1733,12 @@ function buildParallelPreviewHtml(
   const hostChromeContent = document.getElementById('pgHostChromeContent');
   const hostChromePeek = document.getElementById('pgHostChromePeek');
   const collapsePanelButton = document.getElementById('pgHostCollapsePanel');
-  document.getElementById('pgHostRefreshButton')?.addEventListener('click', () => {
+  document.getElementById('pgHostRefreshButton')?.addEventListener('click', (event) => {
+    const button = event.currentTarget;
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = true;
+      button.textContent = 'Refreshing...';
+    }
     vscode.postMessage({ command: 'refresh' });
   });
   document.getElementById('pgHostRevealButton')?.addEventListener('click', () => {
@@ -1660,9 +1807,9 @@ function buildParallelPreviewHtml(
 </script>`;
 
   return injectIntoHtmlDocument(previewHtml, {
-    beforeHeadClose: hostStyle,
-    afterBodyOpen: `${hostChrome}\n${v2GraphPoC}`,
-    beforeBodyClose: `${hostScript}\n${v2GraphScript}`,
+    beforeHeadClose: `${hostStyle}\n${localWorkTrajectoryStyle}`,
+    afterBodyOpen: `${hostChrome}\n${v2GraphPoC}\n${localTrajectory}`,
+    beforeBodyClose: `${hostScript}\n${v2GraphScript}\n${localWorkTrajectoryScript}`,
   });
 }
 
@@ -1701,7 +1848,7 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
     `<span class="pg-host-v2-meta-pill">Runtime groups ${escapeHtml(String(runtimeSummary.activeGroupItemCount))}</span>`,
   ].join('');
 
-  return `<section class="pg-host-v2-poc" data-pg-v2-status="available" data-pg-v2-worker-uri="${escapeHtml(state.v2GraphWorkerUri ?? '')}">
+  return `<section class="pg-host-v2-poc" data-pg-v2-status="available" data-pg-v2-worker-uri="${escapeHtml(state.v2GraphWorkerUri ?? '')}" data-pg-v2-auto-shake="${state.v2GraphAutoShake ? 'true' : 'false'}">
   <div class="pg-host-v2-head">
     <div class="pg-host-v2-title-wrap">
       <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
@@ -1744,6 +1891,44 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
     </div>
   </div>
   <script type="application/json" id="pgHostV2GraphPayload">${serializeJsonForHtml(payload)}</script>
+</section>`;
+}
+
+function buildLocalWorkTrajectoryMountSection(state: ProgressGraphPreviewState): string {
+  const payloadScript = state.localWorkTrajectory
+    ? `<script type="application/json" id="pgHostLocalWorkTrajectoryPayload">${serializeJsonForHtml(state.localWorkTrajectory)}</script>`
+    : '';
+  const status = state.localWorkTrajectoryError
+    ? 'failed'
+    : state.localWorkTrajectory
+      ? 'available'
+      : 'unavailable';
+  const error = state.localWorkTrajectoryError
+    ?? (!state.localWorkTrajectory && state.trajectoryArtifactExists
+      ? 'local-work-trajectory artifact is not usable'
+      : '');
+  const activeEvent = state.localWorkTrajectory?.events.find((event) => event.status === 'in_progress') ?? null;
+  const toolbarMeta = [
+    'Agent managed',
+    `artifact=${state.trajectoryArtifactPath}`,
+    state.localWorkTrajectory ? `events=${state.localWorkTrajectory.events.length}` : '',
+    activeEvent ? `active=${activeEvent.id}` : '',
+  ].filter(Boolean).join(' · ');
+
+  return `<section class="pg-host-lwt-mount-section" data-pg-lwt-status="${status}">
+  <div class="pg-host-lwt-toolbar">
+    <div class="pg-host-lwt-toolbar-copy">
+      <p class="pg-host-lwt-toolbar-title">Local Work Trajectory</p>
+      <p class="pg-host-lwt-toolbar-meta">${escapeHtml(toolbarMeta)}</p>
+    </div>
+  </div>
+  <div
+    id="pgHostLocalWorkTrajectoryRoot"
+    class="pg-host-lwt-mount"
+    data-pg-trajectory-path="${escapeHtml(state.trajectoryArtifactPath)}"
+    data-pg-trajectory-error="${escapeHtml(error)}"
+  ></div>
+  ${payloadScript}
 </section>`;
 }
 
@@ -2291,6 +2476,16 @@ function readObjectArray(value: unknown): Record<string, unknown>[] {
   return value.filter(isRecord);
 }
 
+function readObjectCollection(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value.filter(isRecord);
+  }
+  if (isRecord(value)) {
+    return Object.values(value).filter(isRecord);
+  }
+  return [];
+}
+
 function readString(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -2301,6 +2496,16 @@ function readNullableString(value: unknown): string | null {
 
 function readNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readStringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
 }
 
 function readStringArray(value: unknown): string[] {

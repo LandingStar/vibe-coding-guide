@@ -1,5 +1,7 @@
 # Execute By Doc Prompt
 
+Structured confirmation note: when implementation needs user choice, review approval, direction confirmation, or next-step tradeoff, state the current AI analysis/recommendation first, then continue with `askQuestions` or an explicit forward-driving question.
+
 先读当前 active planning 或 phase 文档，再开始实现。
 
 实施要求：

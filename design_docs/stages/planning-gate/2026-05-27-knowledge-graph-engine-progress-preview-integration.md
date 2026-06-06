@@ -409,3 +409,150 @@
 4. `vscode-extension/src/test/progressGraphColorGroups.test.ts` 中的普通查询夹具已从 `"G6 work"` 改为 `"renderer work"`，避免 active source 扫描被测试文本误导。
 5. 历史 planning-gate、Phase Map 事件、需求文档中的 G6 表述仍作为归档/替代路线记录保留；这些不构成当前实现链路。
 6. 当前态生成物 `.codex/progress-graph/latest.*` 与 checkpoint/handoff 镜像需要随本轮审计刷新，避免继续把旧 G6 gate 投影为 active 图面状态。
+
+2026-06-03 多图展示方式待重设：
+
+1. 用户追问当前第一张图与第二张图是否重复。复核 `.codex/progress-graph/latest.json` 后确认二者不是数据重复：`checkpoint-current` 来源于 `.codex/checkpoints/latest.md`，当前约 `12 nodes / 9 edges`；`project-checklist-current` 来源于 `design_docs/Project Master Checklist.md`，当前约 `181 nodes / 177 edges`；两者节点标题集合无直接重叠。
+2. 当前问题不是投影数据重复，而是展示语义容易混淆：两张图都围绕“当前项目状态 / 最近工作”展开，且入口、标题和默认阅读路径没有充分解释各自用途，用户在图面上会自然怀疑它们是重复视图。
+3. 本项暂不进入即时 UI 微调。后续应单独重设多图展示策略，包括但不限于：图谱分组、默认入口、首屏主图选择、图标题/说明语义、跨图切换方式，以及是否把 checkpoint / checklist / planning gate / package-release evidence 拆成不同观察层。
+4. 在该策略重设前，避免继续围绕单张图标题或局部顺序做零散调整；当前更应把该反馈作为下一轮 progress graph 展示方式重构的输入。
+
+2026-06-04 局部工作轨迹图 UI 需求记录：
+
+1. 用户进一步澄清：全局项目结构更适合使用当前关系图谱形式；某个当前/局部工作状态通常更接近若干条相互依赖的工作线，不应默认继续使用自由力导向关系图。
+2. 局部图中的多线不自动表示真实并行，也不要求一条线一一对应一个 subagent；线的边界更强调相对独立的上下文工作线。agent 在这里主要是上下文角色或承接者，不应被扩展记录为 agent 集群方案。
+3. 局部工作需要支持运行中动态开线：指导上下文负责初始开线、节点验收、后续节点审查、必要时开新线；具体工作线也可以提出新线需求，但是否开设应经过指导上下文审查。
+4. 该 UI 语义已独立记录到 `design_docs/progress-graph-local-work-trajectory-ui-requirements.md`。后续后端讨论应从工作线、事件节点、跨线关系、指导上下文、动态开线以及全局图到局部图绑定关系切入。
+
+2026-06-04 后端单线轨迹最小实现：
+
+1. 用户修正推进顺序：后端实现应先于 UI 绑定，第一步只需支持单线，让局部工作轨迹先跑起来。
+2. 本轮新增 `tools/progress_graph/trajectory.py`，实现 `LocalWorkTrajectory` / `TrajectoryLane` / `TrajectoryEvent` / `TrajectoryRelation`，并提供 `build_checkpoint_work_trajectory(...)`、`write_checkpoint_work_trajectory(...)`、`load_local_work_trajectory(...)`。
+3. 当前 `.codex/checkpoints/latest.md` 的 `Current Todo` 可被投影为单条 `lane:main` 上的顺序事件，并写出 `.codex/progress-graph/local-work-trajectory.json`。
+4. 当前只落地 backend-first 单线能力，不接 webview/UI，不做多线、动态开线、指导线可视化或真实调度接入。
+5. focused validation：`python -m pytest tests/test_progress_graph_trajectory.py -q` 通过（3 passed）；`python -m pytest tests/test_progress_graph.py tests/test_progress_graph_doc_projection.py -q` 通过（10 passed）。
+
+2026-06-04 React Flow + ELK 局部轨迹 UI 接入：
+
+1. 用户要求先查找现成开源方案，并明确选择 `React Flow + ELK`，撤回此前手写静态轨迹 UI 尝试。
+2. 宿主侧已新增 `@xyflow/react`、`elkjs`、`react`、`react-dom` 及对应 React 类型依赖，并新增 webview entry `localWorkTrajectory`。
+3. `vscode-extension/src/webviews/localWorkTrajectory.tsx` 当前负责读取宿主注入的 `pgHostLocalWorkTrajectoryPayload`，用 ELK 生成单线布局，并用 React Flow 渲染当前阶段局部工作轨迹。
+4. `vscode-extension/src/views/progressGraphArtifacts.ts` 已把 `write_checkpoint_work_trajectory(root)` 接入 refresh artifact 生成链，刷新 progress graph 时会同步写出 `.codex/progress-graph/local-work-trajectory.json`。
+5. `vscode-extension/src/views/progressGraphPreview.ts` 已读取该 trajectory artifact，并注入 `localWorkTrajectoryScriptUri` / `localWorkTrajectoryStyleUri`；`progressGraphPreviewHtml.ts` 只保留 React mount 与 payload script，不再手写轨迹节点 UI。
+6. 全局关系图默认选择已调整为 `project-checklist-current` 优先，避免局部轨迹 UI 后续覆盖全局关系图参考。
+7. focused validation：宿主 `npm run build` 通过；`node --test dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js` 通过（6 passed）；后端 `python -m pytest tests/test_progress_graph_trajectory.py -q` 通过（3 passed）。
+
+2026-06-04 refresh 后自动 shake / fit 顺序修正：
+
+1. 用户反馈当前 refresh 后动作顺序表现为 `reset zoom -> shake`，期望改为 `shake -> reset zoom`，并要求设置合理间隔，因为 shake 需要时间收缩。
+2. `vscode-extension/src/webviews/progressGraphV2Engine.ts` 已调整自动刷新链路：首次 layout tick 不再立即 `resetRendererZoom(...)`，而是先 `scheduleAutoLayoutShake()`。
+3. 自动 shake 恢复原 force 后，仅在 `reason === 'refresh'` 时安排延迟 fit；当前 `layoutShakeTiming.resetAfterMs = 520`，即 `forceHoldMs=300ms` 后再等待约 `520ms` 做 viewport fit。
+4. 手动 `Shake Layout` 不自动 reset viewport，避免覆盖用户手动调整视图。
+5. focused validation：宿主 `npm run build` 通过；`node --test dist/test/progressGraphV2EngineAutoShake.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js` 通过（7 passed）；后端 `python -m pytest tests/test_progress_graph_trajectory.py -q` 通过（3 passed）。
+
+2026-06-04 refresh 中间态 auto-shake 去重：
+
+1. 用户反馈 `Refresh Preview` 后疑似出现两次 `shake -> reset zoom`。复核判断：refresh 生命周期会先进入 `refreshing` 并用 `preserveCurrentPreview` 重渲染 host shell，随后 artifact regenerate 完成后再 `_reload()` 一次；两次 HTML 重挂载都会加载 `progressGraphV2Engine.js`，因此旧预览中间态和最终新预览都可能各自触发一次自动 shake。
+2. `vscode-extension/src/views/progressGraphPreview.ts` 新增 host-side `v2GraphAutoShake` 状态，并在 `freshness === 'refreshing'` 时置为 `false`；最终 `_reload()` 进入 `fresh`/非 refreshing 后仍为 `true`。
+3. `vscode-extension/src/views/progressGraphPreviewHtml.ts` 将该状态注入为 `data-pg-v2-auto-shake="true|false"`，使刷新中间态仍可展示旧图与刷新提示，但不再触发自动摇散。
+4. `vscode-extension/src/webviews/progressGraphV2Engine.ts` 新增 `readAutoShakeEnabled(...)`，并用该 host flag 初始化和门控 `scheduleAutoLayoutShake()`；手动 `Shake Layout` 不受影响。
+5. focused validation：宿主 `npm run build` 通过；`node --test dist/test/progressGraphV2EngineAutoShake.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js` 通过（8 passed）。
+
+2026-06-04 refresh 开始态页面重载移除：
+
+1. 用户进一步反馈：点击 `Refresh Preview` 后，在 `refreshing` 时页面仍会刷新一次，这不应发生；预期是只在 refresh 完成时才刷新页面。
+2. 复核确认触发点是 `ProgressGraphPreviewPanel.refresh(...)` 在设置 `_refreshLifecycle.status = 'refreshing'` 后立即调用 `_renderShellState({ preserveCurrentPreview: true })`。即使禁用了中间态 auto-shake，该调用仍会重写 `webview.html`，导致 canvas 和 webview 脚本被卸载、重建。
+3. `vscode-extension/src/views/progressGraphPreview.ts` 已移除 refresh 开始态的 `_renderShellState(...)`；刷新期间仅更新 host 内部生命周期并显示 VS Code progress notification。成功时继续通过 `_reload()` 加载新 artifact；失败时仍保留旧预览并重渲染错误状态。
+4. `vscode-extension/src/views/progressGraphPreviewHtml.ts` 在当前 DOM 内将 Refresh 按钮本地置灰并改为 `Refreshing...`，提供操作反馈但不触发 host shell 重写。
+5. `vscode-extension/src/test/progressGraphPreviewPanel.test.ts` 新增静态回归，锁定“artifact regeneration running 期间不重渲染 webview，success 才 `_reload()`，failed 才保留旧预览重渲染”。
+6. focused validation：宿主 `npm run build` 通过；`node --test dist/test/progressGraphV2EngineAutoShake.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js` 通过（9 passed）；`git diff --check` 无 whitespace error，仅保留当前工作区既有 LF/CRLF warning。
+
+2026-06-04 Local Work Trajectory 画布可见性修复：
+
+1. 用户反馈局部轨迹区只能看到 `Local Work Trajectory` 标题、trajectory 元信息和 `Mode/Lane/Events/Relations` 统计，看不到 React Flow 轨迹画布。
+2. 复核判断：React app 已挂载且 payload 已读到（例如 100 events / 99 relations），问题不在后端 artifact；根因是 `localWorkTrajectory.tsx` 只引入了 React Flow 自带 CSS，组件自己的 `.pg-lwt-shell` / `.pg-lwt-flow` 等 class 没有样式，导致 React Flow 父容器缺少稳定高度，画布区域塌陷或不可见。
+3. `vscode-extension/src/webviews/localWorkTrajectory.css` 新增局部轨迹图样式，明确 shell、header、metric pills、flow canvas、node body 的尺寸与视觉状态；`localWorkTrajectory.tsx` 显式 import 该 CSS，使 esbuild 输出 `dist/webviews/localWorkTrajectory.css`。
+4. `localWorkTrajectory.tsx` 将 React Flow 包装为 `TrajectoryFlow`，在 ELK 异步布局完成后用 `useReactFlow().fitView(...)` 重新 fit；`minZoom` 放宽到 `0.01`，避免 100 节点长链初始视口过窄时不可见。
+5. focused validation：宿主 `npm run build` 通过；`node --test dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js` 通过（8 passed）；后端 `python -m pytest tests/test_progress_graph_trajectory.py -q` 通过（3 passed）；构建产物 `dist/webviews/localWorkTrajectory.css` 已包含 `.pg-lwt-shell` / `.pg-lwt-flow` 样式。
+2026-06-04 Local Work Trajectory blank canvas fallback fix:
+
+1. User feedback: the Local Work Trajectory card frame is visible, but the graph itself is still blank.
+2. Diagnosis: the payload reaches React because title and metrics render, so the remaining failure surface is in the webview renderer. Two cases are now guarded: ELK async layout can fail silently and leave `layout.nodes=[]`; a 100-node single-line trajectory can also become visually unreadable if the whole chain is fit into one viewport.
+3. `vscode-extension/src/webviews/localWorkTrajectory.tsx` now tracks `pending / elk / wrapped / fallback` layout modes. ELK failures are caught and replaced with a wrapped fallback layout plus a visible diagnostic note inside the canvas.
+4. Long single-line trajectories now use a 6-column snake layout after 24 events so nodes stay readable; shorter trajectories continue to use ELK layered layout.
+5. `vscode-extension/src/webviews/localWorkTrajectory.css` now gives the shell, flow container, React Flow renderer, minimap and layout note stable drawing dimensions and styles.
+6. Added `vscode-extension/src/test/localWorkTrajectory.test.ts` to lock fallback behavior and stable drawing area. Focused validation passed: `npm run build`; `node --test dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (11 passed); `python -m pytest tests/test_progress_graph_trajectory.py -q` (3 passed).
+7. Repackaged and installed the extension: `vscode-extension/doc-based-coding-0.2.0.vsix` and `release/doc-based-coding-0.2.0.vsix` now include this fix; `code --install-extension ... --force` succeeded and `code --list-extensions --show-versions` reports `doc-based-coding.doc-based-coding@0.2.0`.
+
+2026-06-04 Local Work Trajectory lane-first layout revision:
+
+1. User feedback: the temporary snake/wrapped single-line layout is readable, but it conflicts with the future multi-line semantics. A wrapped row looks like another lane, while it is actually the same lane folded back.
+2. Decision: Local Work Trajectory uses a lane-first layout. One lane always remains one horizontal row; multiple rows are reserved for multiple lanes only.
+3. `vscode-extension/src/webviews/localWorkTrajectory.tsx` no longer uses ELK or wrapped fallback for the local trajectory view. It now computes deterministic lane positions directly: lane label on the left, event order along the x axis, lane index along the y axis.
+4. Long single-line readability is handled by horizontal pan/zoom/minimap and later can be improved with windowing or aggregation. It is not handled by folding the line.
+5. Sequence edges are now straight left-to-right edges; non-sequence relations remain `smoothstep`, preserving the distinction between normal progress and cross-lane/cross-event coupling.
+6. `vscode-extension/src/test/localWorkTrajectory.test.ts` was updated to assert lane-first layout and to reject the old wrapping symbols. Focused validation passed: `npm run build`; `node --test dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (11 passed); `python -m pytest tests/test_progress_graph_trajectory.py -q` (3 passed). The local trajectory webview bundle is now about 379 KB because ELK is no longer bundled into this entry.
+
+2026-06-04 Local Work Trajectory single-line lifecycle closure:
+
+1. User request: complete the testable single-line lifecycle for generating the initial lane and first node, generating subsequent nodes, and advancing nodes; do not implement opening new lines. The required test workspace is `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test`.
+2. `tools/progress_graph/trajectory.py` now exposes `start_single_line_trajectory(...)`, `append_single_line_event(...)`, `advance_single_line_event(...)`, `write_local_work_trajectory(...)`, and `write_local_work_trajectory_artifact(...)`.
+3. The lifecycle-owned artifact uses `metadata.projection = "single-lane-lifecycle"` and `metadata.lane_mode = "single"`, so refresh can distinguish explicit lifecycle state from checkpoint todo projection.
+4. `vscode-extension/src/views/progressGraphArtifacts.ts` now calls `write_local_work_trajectory_artifact(root)` during refresh. Existing explicit lifecycle state is preserved; missing or legacy checkpoint-projection artifacts now reset to an empty lifecycle-owned trajectory instead of silently repopulating from checkpoint todos.
+5. `tests/test_progress_graph_trajectory.py` now covers lifecycle create/append/advance, refresh preservation, legacy checkpoint projection reset, durable empty state, unknown event diagnostics, and an opt-in real-workspace smoke write into `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test`.
+6. The dedicated `dbc-test` workspace currently contains a persistent empty local trajectory marker with 0 lanes, 0 events, and 0 relations, so manual tests can start from Start/Append/Advance without old checkpoint-chain content.
+7. Focused validation passed: `python -m pytest tests/test_progress_graph_trajectory.py -q` (8 passed, 1 skipped); host `npm run build`; host `node --test dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (11 passed).
+8. Boundary remains explicit: no dynamic line opening, no guide-context visualization, no real scheduler/agent runtime binding, and no multi-line node acceptance protocol in this slice.
+
+2026-06-04 Local Work Trajectory command/UI binding:
+
+1. Continued along the same single-line slice and exposed the lifecycle through both VS Code commands and the progress graph preview webview.
+2. Added `vscode-extension/src/views/progressGraphTrajectoryActions.ts` as the shared host-side Python action runner for `start`, `append`, and `advance`.
+3. `ProgressGraphPreviewPanel` now has `startLocalWorkTrajectory(...)`, `appendLocalWorkTrajectoryEvent(...)`, and `advanceLocalWorkTrajectoryEvent(...)`; webview messages and command palette entries both route through these methods.
+4. `vscode-extension/package.json` now contributes `docBasedCoding.startLocalWorkTrajectory`, `docBasedCoding.appendLocalWorkTrajectoryEvent`, and `docBasedCoding.advanceLocalWorkTrajectoryEvent`.
+5. `progressGraphPreviewHtml.ts` adds a Local Work Trajectory toolbar with `Start`, `Append`, and `Advance`; the buttons only post messages, while input collection, Python execution, error handling, and preview reload remain host-owned.
+6. `Start` asks for lane label and first event title; `Append` asks for event title and kind; `Advance` completes the active event and activates the next pending event.
+7. `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test` was smoke-updated through the same backend lifecycle path and now has 4 events with statuses `completed -> completed -> in_progress -> pending`.
+8. Focused validation passed: host `npm run build`; host `node --test dist/test/extensionManifest.test.js dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (13 passed); backend `python -m pytest tests/test_progress_graph_trajectory.py -q` (7 passed).
+9. Boundary remains unchanged: no opening new lines, no multi-line acceptance protocol, no guide-context visualization, and no real scheduler/agent runtime binding.
+
+2026-06-04 Local Work Trajectory active event UI mapping:
+
+1. The single-line React Flow view now derives an `activeEventId` from the first event whose status is `in_progress`.
+2. Short trajectories still fit the entire graph. Longer trajectories focus the viewport around the active event instead of always opening at the lane start.
+3. The active event node now has a blue emphasized style and `pg-lwt-node-active` class; the minimap also colors the active event blue.
+4. This remains a visual mapping for the current single-line lifecycle only. It does not add dynamic line opening, guide-context visualization, scheduler binding, or multi-line acceptance semantics.
+5. Focused validation passed: host `npm run build`; host `node --test dist/test/extensionManifest.test.js dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (13 passed); backend `python -m pytest tests/test_progress_graph_trajectory.py -q` (7 passed).
+
+2026-06-04 Local Work Trajectory durable empty-state correction:
+
+1. User feedback showed that deleting `local-work-trajectory.json` was not a durable clear operation: refresh regenerated the old 100-node checkpoint todo trajectory.
+2. `tools/progress_graph/trajectory.py` now exposes `clear_single_line_trajectory(...)`, which writes an empty lifecycle-owned artifact with `projection=single-lane-lifecycle`, `lane_mode=single`, and `lifecycle_state=empty`.
+3. `write_local_work_trajectory_artifact(...)` now resets missing or legacy checkpoint-projection artifacts to this empty lifecycle state instead of checkpoint fallback.
+4. `vscode-extension/src/webviews/localWorkTrajectory.tsx` renders the empty lifecycle as an explicit empty state that explains the agent will create the first lane and active event when it starts a tracked task.
+5. The real-workspace smoke test for `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test` is now opt-in through `DBC_PROGRESS_GRAPH_SMOKE_REAL_WORKSPACE=1`, so normal validation does not dirty manual test state.
+6. `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test\.codex\progress-graph\local-work-trajectory.json` has been rewritten to the durable empty lifecycle state and remains empty after `write_local_work_trajectory_artifact(...)`.
+7. Focused validation passed: backend `python -m pytest tests/test_progress_graph_trajectory.py -q` (8 passed, 1 skipped); host `npm run build`; host `node --test dist/test/extensionManifest.test.js dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (13 passed).
+
+2026-06-04 Local Work Trajectory agent-owned lifecycle correction:
+
+1. User clarified that local trajectory mutations such as `start`, `append`, and future `merge` should be performed by the agent, not by the human user.
+2. `progressGraphPreviewHtml.ts` no longer renders `Start` / `Append` / `Advance` buttons in the Local Work Trajectory section; the section is now labeled `Agent managed`.
+3. `package.json` no longer contributes the three user-facing local trajectory mutation commands, and `ProgressGraphPreviewPanel` no longer accepts those webview messages.
+4. The lower-level trajectory runner remains available as infrastructure, but it is no longer the user workflow surface.
+5. `AiChatToolLoop` / `AiChatTools` now expose an agent tool named `localTrajectory`, supporting the current single-line actions `start`, `append`, and `advance`; prompt guidance instructs the agent to maintain trajectory state for task-like requests.
+6. Current boundary remains single-line only. `merge`, dynamic line opening, multi-line acceptance, guide-context visualization, and real scheduler/runtime binding are still future slices.
+7. Focused validation passed: backend `python -m pytest tests/test_progress_graph_trajectory.py -q` (8 passed, 1 skipped); host `npm run build`; host `node --test dist/test/aiChatToolLoop.test.js dist/test/extensionManifest.test.js dist/test/localWorkTrajectory.test.js dist/test/progressGraphPreviewHtml.test.js dist/test/progressGraphPreviewPanel.test.js dist/test/progressGraphV2EngineAutoShake.test.js` (18 passed).
+
+2026-06-05 Local Work Trajectory multi-line relation completion:
+
+1. User validation accepted the previous lane-open / merge alignment direction, then requested completing multi-line functionality and matching the UI.
+2. This slice completes the narrow multi-line relation layer, not a scheduler. `localTrajectory relate` records explicit metadata between existing trajectory events.
+3. Supported explicit relation kinds are `depends_on`, `waits_for`, `unblocks`, `hands_off`, `syncs_from`, and `approves_new_line`; existing lane-open and merge helpers still own `proposes_new_line` and `merges_into`.
+4. Backend addition: `add_local_work_relation(...)` writes or updates a non-sequence relation. Repeating the same source/target/kind updates the existing relation, avoiding duplicate overlapping UI edges.
+5. MCP `localTrajectory` and VS Code AI Chat `localTrajectory` now expose action `relate` with `sourceEventId`, `targetEventId`, `relationKind`, and optional `summary`.
+6. Agent instructions describe `relate` as visible trajectory metadata only; it must not be interpreted as dependency scheduling, conflict resolution, grouped review, or automatic work execution.
+7. React Flow Local Work Trajectory now treats forward cross-line relation kinds as layout constraints, so target events render after source events. Lane-opening relations align the new lane label near the opening event rather than from the far-left origin.
+8. Relation labels and styles now distinguish `open lane`, `approved`, `depends`, `waits`, `unblocks`, `handoff`, `sync`, and `merge`.
+9. Focused validation passed: `python -m pytest tests/test_progress_graph_trajectory.py tests/test_mcp_tools.py tests/test_instructions_generator.py -q` reported `102 passed, 1 skipped`; host `npm run build` passed; host `node --test dist/test/localWorkTrajectory.test.js dist/test/aiChatToolLoop.test.js dist/test/aiChatViewIntegration.test.js` reported `9 passed`.
+10. Known validation note: this Windows/Python environment still prints a post-run `Windows fatal exception: access violation` stack after pytest reports all selected tests passed with exit code 0. The stack appears in import/pyc/cache machinery and is not tied to the Local Work Trajectory assertions.

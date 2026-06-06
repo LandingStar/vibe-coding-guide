@@ -19,11 +19,11 @@ VS Code extension 是独立版本线；当前 release zip 会携带 VSIX 作为�
 
 - [x] pyproject.toml metadata 已定义（包名 / 版本 / 入口 / 依赖）
 - [x] 双发行包标准已固化
-- [x] 当前 preview 版本号已在 runtime / instance / release 文档中同步到 `0.9.7`
-- [x] VS Code extension 版本已推进到 `0.2.0`
+- [x] 当前 preview 版本号已在 runtime / instance / release 文档中同步到 `0.9.8`
+- [x] VS Code extension 版本已推进到 `0.2.1`
 - [x] graph engine 发布态依赖已固定为 `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz`
 - [x] 构建验证通过（双包均可成功构建 wheel，VSIX 可成功构建）
-- [x] 可分发安装包已打包（`doc-based-coding-v0.9.7.zip`，含双 wheel、VSIX、graph engine 构建输入和安装指南）
+- [x] 可分发安装包已打包（`doc-based-coding-v0.9.8.zip`，含双 wheel、VSIX、graph engine 构建输入和安装指南）
 - [ ] 发布流程 / CI 配置
 
 ## 版本映射
@@ -32,9 +32,9 @@ VS Code extension 是独立版本线；当前 release zip 会携带 VSIX 作为�
 
 | 组件 | 当前版本 | 说明 |
 |------|---------|------|
-| Runtime (`.whl`) | `0.9.7` | 平台 runtime / CLI / MCP server |
-| Instance Pack (`.whl`) | `0.9.7` | 官方 doc-loop 实例资产 |
-| VS Code Extension (`.vsix`) | `0.2.0` | 前端插件，独立版本线 |
+| Runtime (`.whl`) | `0.9.8` | 平台 runtime / CLI / MCP server |
+| Instance Pack (`.whl`) | `0.9.8` | 官方 doc-loop 实例资产 |
+| VS Code Extension (`.vsix`) | `0.2.1` | 前端插件，独立版本线 |
 | Knowledge Graph Engine (`.tgz`) | `0.1.0` | 图谱组件，作为固定构建输入进入 release zip |
 
 兼容性规则：
@@ -60,11 +60,11 @@ release/
 └── doc-based-coding-v*.zip
 ```
 
-当前 `doc-based-coding-v0.9.7.zip` 内包含：
+当前 `doc-based-coding-v0.9.8.zip` 内包含：
 
-- `doc_based_coding_runtime-0.9.7-py3-none-any.whl`
-- `doc_loop_vibe_coding-0.9.7-py3-none-any.whl`
-- `doc-based-coding-0.2.0.vsix`
+- `doc_based_coding_runtime-0.9.8-py3-none-any.whl`
+- `doc_loop_vibe_coding-0.9.8-py3-none-any.whl`
+- `doc-based-coding-0.2.1.vsix`
 - `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz`
 - `INSTALL_GUIDE.md`
 - `RELEASE_NOTE.md`

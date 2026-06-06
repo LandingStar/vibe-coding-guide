@@ -1,25 +1,26 @@
 # Commit Message (English)
 
 ```text
-release: package the v0.9.7 preview release with a pinned graph component boundary
+release: package the v0.9.8 preview release
 
-Package the current Knowledge Graph Engine integration into a new preview release batch: move the runtime and official instance to 0.9.7, bump the VS Code extension to 0.2.0, and replace the development-only external graph path with a release-local tarball.
+Package the current Local Work Trajectory and host coordination work into a new
+preview release batch: move the runtime and official instance to 0.9.8, bump the
+VS Code extension to 0.2.1, keep the graph component dependency pinned, and add
+release-time secret hygiene checks.
 
 ## Changes
 
-- Integrate external `@note-web/knowledge-graph-engine` into the VS Code progress graph preview, replacing the archived G6 route
-- Keep the VSIX runtime self-contained for graph webview renderer / worker code so users do not install the graph engine npm package
-- Switch `vscode-extension/package.json` to `file:vendor/note-web-knowledge-graph-engine-0.1.0.tgz`
-- Include the two wheels, VSIX, graph engine tarball, and install docs in the release zip
-- Extend release checks to reject development-only graph engine file dependencies and to separate runtime batch versions from the independent VSIX version line
+- Add the Local Work Trajectory MCP lifecycle surface and React Flow / ELK UI
+- Support multi-line trajectory mapping for lane opening, merge/fan-in, and auxiliary relations
+- Re-align docs and generated prompts so Codex remains the primary supported host chain
+- Add secret scanning and the Secret Hygiene / Log Redaction standard
+- Keep the VSIX graph runtime self-contained with the pinned graph engine tarball
+- Refresh package versions, release docs, and official instance pack lock
 
 ## Verified
 
-- `python release/verify_version_consistency.py --skip-wheel-files`: passed
-- `python scripts/build.py --no-isolation`: passed
-- `npm run build`: passed
-- `node --test dist/test/progressGraphPreviewHtml.test.js`: passed
-- `node --test dist/test/progressGraphColorGroups.test.js`: passed
-- `node --test dist/test/aiChatToolLoop.test.js`: passed
-- `python scripts/release.py --skip-tests --no-isolation`: generated `release/doc-based-coding-v0.9.7.zip` and `release/doc-based-coding-0.2.0.vsix`
+- `python release/verify_version_consistency.py`: passed
+- `python scripts/scan_secrets.py --scope worktree`: passed
+- `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: 3 passed
+- `python scripts/release.py --no-isolation`: built wheels, ran full pytest (`1432 passed, 3 skipped`), packaged `doc-based-coding-0.2.1.vsix`, and generated `release/doc-based-coding-v0.9.8.zip`
 ```
