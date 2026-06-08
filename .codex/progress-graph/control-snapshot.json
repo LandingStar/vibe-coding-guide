@@ -1,7 +1,7 @@
 {
   "snapshot_version": "v1alpha1",
   "snapshot_kind": "orchestration-bridge-compact",
-  "generated_at": "2026-06-02T19:13:01.967627+00:00",
+  "generated_at": "2026-06-06T18:13:18.875328+00:00",
   "work_items": [
     {
       "work_item_id": "doc-loop-work::2026-05-27-knowledge-graph-engine-progress-preview-integration",

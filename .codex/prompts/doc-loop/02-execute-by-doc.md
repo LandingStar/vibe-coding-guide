@@ -1,5 +1,7 @@
 # Execute By Doc Prompt
 
+Local Work Trajectory note: for task-like implementation, validation, review, or write-back work, proactively maintain Local Work Trajectory as agent-owned state. Use `localTrajectory start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, and `advance` when the active milestone is complete. Use `addLane`, `merge`, and `relate` only for explicit work-context split, fan-in, or relation metadata. If `localTrajectory` is expected but missing, report the MCP/tool exposure problem explicitly and do not ask the user to manually maintain trajectory nodes. Do not record MCP path or host-environment configuration checks into Local Work Trajectory unless the user explicitly asks to track that environment task.
+
 Progression note: when implementation needs user choice, review approval, direction confirmation, or next-step tradeoff, state the current AI analysis/recommendation first, then continue with an explicit forward-driving question.
 
 先读当前 active planning 或 phase 文档，再开始实现。

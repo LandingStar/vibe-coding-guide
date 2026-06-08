@@ -285,10 +285,16 @@ export class AiChatToolExecutor {
             relationKind: this._readOptionalString(args.relationKind) ?? '',
         };
         const script = [
+            'import importlib.metadata',
             'import json',
             'import sys',
             'from pathlib import Path',
-            `sys.path.insert(0, ${JSON.stringify(sourceRoot)})`,
+            ...(sourceRoot ? [`sys.path.append(${JSON.stringify(sourceRoot)})`] : []),
+            'try:',
+            '    runtime_root = importlib.metadata.distribution("doc-based-coding-runtime").locate_file("")',
+            '    sys.path.insert(0, str(runtime_root))',
+            'except importlib.metadata.PackageNotFoundError:',
+            '    pass',
             'from tools.progress_graph import add_local_work_lane, add_local_work_relation, advance_single_line_event, append_single_line_event, block_single_line_event, close_single_line_trajectory, load_local_work_trajectory, merge_local_work_lane, resume_single_line_event, start_single_line_trajectory, update_single_line_event',
             '',
             'root = Path.cwd()',
@@ -557,7 +563,7 @@ export class AiChatToolExecutor {
         return 'python';
     }
 
-    private _resolveProgressGraphSourceRoot(workspaceRoot: string): string {
+    private _resolveProgressGraphSourceRoot(workspaceRoot: string): string | null {
         const config = vscode.workspace.getConfiguration('docBasedCoding');
         const configuredSourceRoot = config.get<string>('sourceRoot');
         const candidates = [
@@ -567,13 +573,15 @@ export class AiChatToolExecutor {
         for (const candidate of candidates) {
             try {
                 const marker = path.join(candidate, 'tools', 'progress_graph', '__init__.py');
+                const runtimeMarker = path.join(candidate, 'src', 'runtime', 'orchestration', '__init__.py');
                 // Synchronous path check keeps the generated Python command small and deterministic.
                 accessSync(marker);
+                accessSync(runtimeMarker);
                 return candidate;
             } catch {
                 // Continue with the next candidate.
             }
         }
-        return path.resolve(workspaceRoot);
+        return null;
     }
 }

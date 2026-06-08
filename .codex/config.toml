@@ -1,0 +1,4 @@
+[mcp_servers.doc_based_coding_governance]
+command = ".venv-mcp\\Scripts\\doc-based-coding-mcp.exe"
+args = []
+cwd = "."

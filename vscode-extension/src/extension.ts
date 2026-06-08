@@ -227,7 +227,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     async function resolveProgressGraphRuntime(workspaceFolder: vscode.WorkspaceFolder): Promise<{
         workspaceRoot: string;
         pythonPath: string;
-        sourceRoot: string;
+        sourceRoot: string | null;
     }> {
         const workspaceRoot = workspaceFolder.uri.fsPath;
         const config = vscode.workspace.getConfiguration('docBasedCoding', workspaceFolder.uri);
@@ -708,7 +708,7 @@ function resolveProgressGraphSourceRoot(
     workspaceRoot: string,
     pythonPath: string,
     configuredSourceRoot: string,
-): string {
+): string | null {
     const candidates: string[] = [];
 
     if (configuredSourceRoot) {
@@ -722,10 +722,13 @@ function resolveProgressGraphSourceRoot(
     }
 
     for (const candidate of candidates) {
-        if (existsSync(path.join(candidate, 'tools', 'progress_graph', '__init__.py'))) {
+        if (
+            existsSync(path.join(candidate, 'tools', 'progress_graph', '__init__.py'))
+            && existsSync(path.join(candidate, 'src', 'runtime', 'orchestration', '__init__.py'))
+        ) {
             return candidate;
         }
     }
 
-    return path.resolve(workspaceRoot);
+    return null;
 }

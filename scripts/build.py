@@ -137,7 +137,13 @@ def _build_wheel(project_dir: Path, output_dir: Path, label: str, *, no_isolatio
     return wheel
 
 
-def _verify_wheel(wheel_path: Path, label: str, min_files: int, required_entries: list[str]) -> bool:
+def _verify_wheel(
+    wheel_path: Path,
+    label: str,
+    min_files: int,
+    required_entries: list[str],
+    required_members: list[str] | None = None,
+) -> bool:
     """Verify wheel content integrity."""
     print(f"\nVerifying {label} wheel content...")
     ok = True
@@ -179,6 +185,13 @@ def _verify_wheel(wheel_path: Path, label: str, min_files: int, required_entries
                 else:
                     print(f"  WARNING: Entry point '{entry}' not found in wheel metadata", file=sys.stderr)
                     ok = False
+
+        for member in required_members or []:
+            if member in names:
+                print(f"  Required member '{member}': found")
+            else:
+                print(f"  WARNING: Required member '{member}' not found in wheel", file=sys.stderr)
+                ok = False
 
     if ok:
         print(f"  Verification: PASSED")
@@ -261,6 +274,13 @@ def main() -> int:
         "runtime",
         MIN_RUNTIME_PY_FILES,
         ["doc-based-coding", "doc-based-coding-mcp"],
+        [
+            "tools/__init__.py",
+            "tools/progress_graph/__init__.py",
+            "tools/progress_graph/doc_projection.py",
+            "tools/progress_graph/trajectory.py",
+            "tools/dependency_graph/query.py",
+        ],
     )
     i_ok = _verify_wheel(
         instance_wheel,

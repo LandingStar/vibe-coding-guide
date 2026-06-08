@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "trajectory_id": "local-work:single-line-current",
+  "title": "Local Work Trajectory - Agent Management",
+  "recorded_at": "2026-06-06T18:27:22.736061+00:00",
+  "source_graph_id": "local-work",
+  "source_node_id": "",
+  "guide_context": "agent-management-system",
+  "metadata": {
+    "projection": "single-lane-lifecycle",
+    "lane_mode": "single",
+    "lifecycle_version": "1",
+    "research_baseline_event_id": "event:000",
+    "research_baseline_doc_count": "11"
+  },
+  "summary": {
+    "trajectory_id": "local-work:single-line-current",
+    "title": "Local Work Trajectory - Agent Management",
+    "lane_count": 1,
+    "event_count": 2,
+    "relation_count": 1,
+    "source_graph_id": "local-work",
+    "source_node_id": ""
+  },
+  "lanes": {
+    "lane:main": {
+      "id": "lane:main",
+      "label": "Agent Management",
+      "status": "active",
+      "summary": "Single-line local work lifecycle.",
+      "metadata": {
+        "line_kind": "single",
+        "context": "agent-management-system"
+      }
+    }
+  },
+  "events": {
+    "event:000": {
+      "id": "event:000",
+      "lane_id": "lane:main",
+      "title": "Completed agent scheduling research baseline",
+      "kind": "review",
+      "status": "completed",
+      "order": 0,
+      "summary": "Historical completed research baseline for upcoming agent management work: scheduler/isolation investigation, SDK adoption feasibility, and reviewed external agent/sandbox/platform references. This node is a backfilled research anchor, not a new implementation step.",
+      "metadata": {
+        "created_at": "2026-06-06T18:27:22.736061+00:00",
+        "completed_at": "2026-06-06T18:27:22.736061+00:00",
+        "source": "local-work-backfill",
+        "historical": "true",
+        "doc_refs": "design_docs/agent-cluster-scheduling-and-isolation-investigation.md;design_docs/agent-sdk-adoption-feasibility.md;review/openai-agents-sdk.md;review/autogen.md;review/crewai.md;review/claude-managed-agents-platform.md;review/dify.md;review/continue.md;review/backstage.md;review/openhands.md;review/open-policy-agent.md"
+      }
+    },
+    "event:001": {
+      "id": "event:001",
+      "lane_id": "lane:main",
+      "title": "Open agent-management work line",
+      "kind": "start",
+      "status": "in_progress",
+      "order": 1,
+      "summary": "Start a fresh Local Work Trajectory line for upcoming agent management system work because earlier related work predated the Local Work Trajectory mechanism.",
+      "metadata": {
+        "created_at": "2026-06-06T18:16:12.310883+00:00",
+        "activated_at": "2026-06-06T18:16:12.310883+00:00",
+        "source": "single-line-lifecycle",
+        "reason": "pre-local-work-trajectory-history-needs-new-line"
+      }
+    }
+  },
+  "relations": [
+    {
+      "source_event_id": "event:000",
+      "target_event_id": "event:001",
+      "kind": "sequence",
+      "summary": "Research baseline precedes the active agent-management work line.",
+      "metadata": {
+        "source": "local-work-backfill"
+      }
+    }
+  ]
+}

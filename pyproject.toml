@@ -19,4 +19,4 @@ doc-based-coding-mcp = "src.mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["src*", "tools*"]

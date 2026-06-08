@@ -15,7 +15,7 @@ type RegeneratedArtifacts = {
 
 type RegenerateProgressGraphArtifactsOptions = {
     projectRoot: string;
-    sourceRoot: string;
+    sourceRoot: string | null;
     pythonPath: string;
     outputChannel: vscode.OutputChannel;
 };
@@ -25,10 +25,16 @@ export async function regenerateProgressGraphArtifacts(
 ): Promise<RegeneratedArtifacts> {
     const { projectRoot, sourceRoot, pythonPath, outputChannel } = options;
     const buildProgressGraphArtifactsScript = [
+        'import importlib.metadata',
         'import json',
         'import sys',
         'from pathlib import Path',
-        `sys.path.insert(0, ${JSON.stringify(sourceRoot)})`,
+        ...(sourceRoot ? [`sys.path.append(${JSON.stringify(sourceRoot)})`] : []),
+        'try:',
+        '    runtime_root = importlib.metadata.distribution("doc-based-coding-runtime").locate_file("")',
+        '    sys.path.insert(0, str(runtime_root))',
+        'except importlib.metadata.PackageNotFoundError:',
+        '    pass',
         'from tools.progress_graph import build_doc_progress_history, write_control_snapshot, write_doc_progress_history, write_history_dot, write_history_html, write_local_work_trajectory_artifact',
         '',
         'root = Path.cwd()',
@@ -48,7 +54,11 @@ export async function regenerateProgressGraphArtifacts(
     ].join('\n');
 
     outputChannel.appendLine(`[ProgressGraphPreview] Regenerating artifacts with Python: ${pythonPath}`);
-    outputChannel.appendLine(`[ProgressGraphPreview] Using source root: ${sourceRoot}`);
+    outputChannel.appendLine(
+        sourceRoot
+            ? `[ProgressGraphPreview] Using platform source root: ${sourceRoot}`
+            : '[ProgressGraphPreview] Using installed doc-based-coding-runtime package root',
+    );
 
     const { stdout, stderr } = await execFileAsync(
         pythonPath,

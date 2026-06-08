@@ -1,5 +1,13 @@
 # Copilot Workspace Instructions
 
+## Local Work Trajectory
+
+- Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
+- When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` only for a distinct work context, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
+- Do not wait for a user instruction such as "start trajectory"; do not ask the user to manually create trajectory nodes.
+- If `localTrajectory` is expected but unavailable, report the MCP/tool exposure problem explicitly. Use the repository-local trajectory API only when the current project rules allow local file mutation.
+- MCP path or host-environment configuration checks are not project work and must not be recorded into Local Work Trajectory unless the user explicitly says to track that environment task.
+
 本项目是一个**协议/治理驱动工作流平台**（doc-based-coding-platform）。
 
 ## 权威文档分层

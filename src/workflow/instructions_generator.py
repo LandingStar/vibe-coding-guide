@@ -126,12 +126,15 @@ class InstructionsGenerator:
         lines = [
             "## Work Agent Local Trajectory",
             "",
-            "- For task-like implementation or validation work, maintain Local Work Trajectory through the `localTrajectory` tool when that tool is available.",
-            "- Call `localTrajectory start` when beginning a tracked task, `append` for planned or observed milestones, and `advance` when the active milestone is complete.",
+            "- For task-like implementation, validation, review, or write-back work, the agent owns Local Work Trajectory maintenance.",
+            "- Do not wait for the user to ask for trajectory updates. Start or continue the trajectory as part of doing the work.",
+            "- Use the MCP `localTrajectory` tool as the preferred mutation surface when it is available.",
+            "- Call `localTrajectory start` when beginning a tracked task and no active trajectory exists; call `append` for planned or observed milestones; call `advance` when the active milestone is complete.",
             "- Use `localTrajectory addLane` only when a clearly separate work context must begin; use `merge` only to add an explicit fan-in marker when that lane rejoins a target lane.",
             "- Use `localTrajectory relate` to record explicit `depends_on`, `waits_for`, `unblocks`, `hands_off`, `syncs_from`, or `approves_new_line` metadata between existing events when the relation matters for reading the work map.",
             "- Do not treat Local Work Trajectory merge or relate as dependency scheduling, conflict resolution, or grouped review semantics.",
             "- After validation or delivery is complete, continue calling `localTrajectory advance` until completed validation/delivery milestones are no longer left as `pending` or `in_progress`.",
+            "- If `localTrajectory` is required but missing from the available tools, report a tool exposure / MCP binding problem explicitly and use the repository's local trajectory API only when the current project rules allow local file mutation.",
             "- Do not ask the user to manually maintain Local Work Trajectory nodes.",
             "",
         ]

@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 const sourcePath = join(__dirname, '..', '..', 'src', 'views', 'progressGraphPreview.ts');
+const artifactsSourcePath = join(__dirname, '..', '..', 'src', 'views', 'progressGraphArtifacts.ts');
+const extensionSourcePath = join(__dirname, '..', '..', 'src', 'extension.ts');
 
 test('progress graph preview opens in the primary editor column by default', () => {
   const source = readFileSync(sourcePath, 'utf-8');
@@ -56,4 +58,17 @@ test('preview panel is display-only for local work trajectory mutation', () => {
   assert.doesNotMatch(source, /case 'startLocalWorkTrajectory'/);
   assert.doesNotMatch(source, /case 'appendLocalWorkTrajectoryEvent'/);
   assert.doesNotMatch(source, /case 'advanceLocalWorkTrajectoryEvent'/);
+});
+
+test('progress graph refresh does not treat a target project tools directory as platform source root', () => {
+  const previewSource = readFileSync(sourcePath, 'utf-8');
+  const artifactsSource = readFileSync(artifactsSourcePath, 'utf-8');
+  const extensionSource = readFileSync(extensionSourcePath, 'utf-8');
+
+  assert.match(artifactsSource, /importlib\.metadata\.distribution\("doc-based-coding-runtime"\)/);
+  assert.match(artifactsSource, /sys\.path\.append\(/);
+  assert.match(artifactsSource, /sys\.path\.insert\(0, str\(runtime_root\)\)/);
+  assert.match(artifactsSource, /Using installed doc-based-coding-runtime package root/);
+  assert.match(extensionSource, /src', 'runtime', 'orchestration', '__init__\.py'/);
+  assert.match(extensionSource, /return null;/);
 });
