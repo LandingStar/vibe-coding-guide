@@ -1233,6 +1233,51 @@
       "created_at": "2026-06-06T23:00:59.785474+00:00",
       "status": "revoked",
       "revoked_at": "2026-06-06T23:00:59.946285+00:00"
+    },
+    {
+      "override_id": "864e6cdf-df1b-4e04-9a24-d9068c5dffb8",
+      "constraint": "C1",
+      "reason": "test appearance",
+      "scope": "turn",
+      "created_at": "2026-06-08T06:20:53.852505+00:00",
+      "status": "revoked",
+      "revoked_at": "2026-06-08T06:20:53.997287+00:00"
+    },
+    {
+      "override_id": "ed1e4c8e-f219-41a9-9cbe-d8ef2882f76c",
+      "constraint": "C1",
+      "reason": "test appearance",
+      "scope": "turn",
+      "created_at": "2026-06-08T06:21:54.529631+00:00",
+      "status": "revoked",
+      "revoked_at": "2026-06-08T06:21:54.668741+00:00"
+    },
+    {
+      "override_id": "279c1fca-0b5f-43db-824c-742cbe1056aa",
+      "constraint": "C1",
+      "reason": "test appearance",
+      "scope": "turn",
+      "created_at": "2026-06-08T06:23:48.261148+00:00",
+      "status": "revoked",
+      "revoked_at": "2026-06-08T06:23:48.394515+00:00"
+    },
+    {
+      "override_id": "444e51ba-8343-4c0d-8fdb-551b6acc1663",
+      "constraint": "C1",
+      "reason": "test appearance",
+      "scope": "turn",
+      "created_at": "2026-06-08T06:41:41.633797+00:00",
+      "status": "revoked",
+      "revoked_at": "2026-06-08T06:41:41.751483+00:00"
+    },
+    {
+      "override_id": "6825e5cf-df67-4348-8c52-87a16bf7b644",
+      "constraint": "C1",
+      "reason": "test appearance",
+      "scope": "turn",
+      "created_at": "2026-06-08T06:42:53.067296+00:00",
+      "status": "revoked",
+      "revoked_at": "2026-06-08T06:42:53.185282+00:00"
     }
   ]
 }

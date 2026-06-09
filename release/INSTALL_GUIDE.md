@@ -119,7 +119,27 @@ doc-loop-bootstrap --target /path/to/your/project --project-name "Your Project N
 
 ### 方式 B：手动配置 MCP Server
 
-在你的 VS Code 项目中创建或编辑 `.vscode/mcp.json`：
+如果目标宿主是 Codex，应优先把 MCP server 注册到目标工作区自己的 `.codex/config.toml`，而不是依赖用户级 `~/.codex/config.toml` 中固定到某个项目的全局配置。用户级配置只适合个人通用默认值；项目采用 doc-based-coding 时，MCP 指向应随项目一起落在工作区配置中。
+
+Windows / Codex 工作区级 `.codex/config.toml` 示例：
+
+```toml
+[mcp_servers.doc_based_coding_governance]
+command = ".venv\\Scripts\\doc-based-coding-mcp.exe"
+args = ["--project", "."]
+cwd = "."
+```
+
+macOS / Linux 可写为：
+
+```toml
+[mcp_servers.doc_based_coding_governance]
+command = ".venv/bin/doc-based-coding-mcp"
+args = ["--project", "."]
+cwd = "."
+```
+
+如果目标宿主是 VS Code / Copilot Chat，则在你的 VS Code 项目中创建或编辑 `.vscode/mcp.json`：
 
 ```json
 {

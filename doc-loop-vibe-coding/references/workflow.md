@@ -114,5 +114,6 @@ The prompt pack under `.codex/prompts/doc-loop/` is for recurring moves:
 - `02-execute-by-doc.md`
 - `03-writeback.md`
 - `04-subagent-contract.md`
+- `05-dependency-baseline.md`
 
 Use them as starting points, not immutable scripts. Keep them aligned with the workflow standard when the process evolves.

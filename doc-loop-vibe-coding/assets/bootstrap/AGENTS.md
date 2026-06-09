@@ -28,6 +28,13 @@
 - 只有在安全停点才刷新 `.codex/handoffs/CURRENT.md`。
 - 安全停点下，允许 model 主动进入 handoff 分支；handoff 分支内只有 `blocked` 是自动停止信号。
 
+Dependency baseline 规则：
+
+- `tools/dependency_graph/baseline_graph.json` 是可选的工作区本地依赖传播快照；初始化工作区时默认不创建它。
+- 若 `analyze_changes` / `impact_analysis` 报告 baseline 缺失，按“影响传播不可用、耦合检查仍可继续”的降级状态处理。
+- 普通实现任务中不要为了消除提示而手写或伪造 baseline。
+- 只有当前切片明确要求创建、刷新或维护 dependency baseline 时，才使用 `.codex/prompts/doc-loop/05-dependency-baseline.md` 的专项提示词；若目标工作区没有可复现生成器，应先写 planning-gate 或需求说明。
+
 子 agent 规则：
 
 - 主 agent 负责权威文档、集成和最终 write-back。

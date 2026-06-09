@@ -182,7 +182,7 @@ doc-based-coding generate-instructions --target copilot --output .\.github\copil
 
 ### 安装态推荐方式
 
-对 Codex，优先采用项目级 `.codex/config.toml` 或 `codex mcp add`。
+对 Codex，优先采用项目级 `.codex/config.toml`；`codex mcp add` 可用于交互注册，但 release zip 的安装指导必须提示用户把最终 MCP 指向固化到目标工作区自己的 `.codex/config.toml`。不要把绑定到某个具体项目的 DBC MCP 只写进用户级 `~/.codex/config.toml`，否则会污染其他工作区。
 对 VS Code / Copilot Chat，则继续使用 workspace 级 `mcp.json`。
 
 关于 Codex 这条入口本身的职责边界，见 `docs/codex-entry-contract.md`。
@@ -193,7 +193,7 @@ doc-based-coding generate-instructions --target copilot --output .\.github\copil
 
 这个入口并不依赖 Copilot 专有协议；凡是支持 stdio MCP server 的客户端，都应能复用同一条 server 启动命令。当前至少应按以下方式理解：
 
-- Codex：优先在项目内配置 `.codex/config.toml`，或通过 `codex mcp add` 注册 stdio server
+- Codex：优先在项目内配置 `.codex/config.toml`；如通过 `codex mcp add` 注册，也应把最终项目绑定固化为工作区级配置
 - VS Code / Copilot Chat：使用 workspace 级 `mcp.json` 指向安装后的 `doc-based-coding-mcp`
 - 其他 MCP host：只要能配置 stdio server，同样应指向安装后的 `doc-based-coding-mcp` 与目标项目根目录
 - 不应把 server 绑定成“只能由 Copilot 使用”的实现

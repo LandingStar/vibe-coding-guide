@@ -20,3 +20,9 @@ doc-based-coding-mcp = "src.mcp.server:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*", "tools*"]
+
+[tool.setuptools.package-data]
+"tools.dependency_graph" = [
+    "baseline_graph.json",
+    "coupling_annotations.json",
+]

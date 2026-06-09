@@ -72,3 +72,18 @@ test('progress graph refresh does not treat a target project tools directory as 
   assert.match(extensionSource, /src', 'runtime', 'orchestration', '__init__\.py'/);
   assert.match(extensionSource, /return null;/);
 });
+
+test('generated VS Code MCP config uses the installed CLI entry point', () => {
+  const extensionSource = readFileSync(extensionSourcePath, 'utf-8');
+  const ensureMcpJsonSource = extensionSource.slice(
+    extensionSource.indexOf('function ensureMcpJson('),
+    extensionSource.indexOf('/**\n * Try to find a Python executable'),
+  );
+
+  assert.match(ensureMcpJsonSource, /resolveMcpEntryPoint\(pythonPath\)/);
+  assert.match(ensureMcpJsonSource, /args:\s*\['--project', projectRoot, \.\.\.serverArgs\]/);
+  assert.match(ensureMcpJsonSource, /cwd:\s*projectRoot/);
+  assert.doesNotMatch(ensureMcpJsonSource, /'-m', 'src\.mcp\.server'/);
+  assert.match(extensionSource, /doc-based-coding-mcp\.exe/);
+  assert.match(extensionSource, /return 'doc-based-coding-mcp';/);
+});

@@ -103,6 +103,17 @@
 7. 运行校验
    - 确认 scaffold、project-local pack 和最小合同资产存在且语义合理
 
+### Dependency Baseline 初始化行为
+
+采用 doc-loop scaffold 不会默认生成
+`tools/dependency_graph/baseline_graph.json`。该文件是目标工作区可选的依赖传播快照，只在项目决定需要结构化影响传播分析时创建。
+
+因此，一个刚完成 bootstrap 的工作区可以没有 baseline。此时 MCP 的 `impact_analysis` / `analyze_changes` 应报告 impact propagation 不可用并继续降级；`coupling_check` 仍可基于 `coupling_annotations.json` 独立工作。
+
+项目如果需要 baseline，应先建立可复现的工作区本地生成器或明确采用某个依赖图导出，并把覆盖范围、节点 id、边类型、刷新触发条件和验证门写入 planning-gate。普通实现任务不得为了消除缺失提示而手写或伪造 baseline。
+
+生成器与 `baseline_graph.json` 的兼容合同见 `dependency-baseline-generator-contract.md`。
+
 ## Doc Loop 官方实例的采用方式
 
 当前官方实例 `doc-driven vibe coding` 采用的项目接入形状是：

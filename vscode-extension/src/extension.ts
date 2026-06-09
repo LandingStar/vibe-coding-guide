@@ -646,11 +646,13 @@ function updateStatusBar(): void {
 function ensureMcpJson(projectRoot: string, pythonPath: string, serverArgs: string[]): void {
     const vscodeDir = path.join(projectRoot, '.vscode');
     const mcpJsonPath = path.join(vscodeDir, 'mcp.json');
+    const command = resolveMcpEntryPoint(pythonPath);
 
     const serverEntry = {
         type: 'stdio' as const,
-        command: pythonPath,
-        args: ['-m', 'src.mcp.server', '--project', projectRoot, ...serverArgs],
+        command,
+        args: ['--project', projectRoot, ...serverArgs],
+        cwd: projectRoot,
     };
 
     try {
@@ -677,6 +679,19 @@ function ensureMcpJson(projectRoot: string, pythonPath: string, serverArgs: stri
     } catch (err) {
         outputChannel.appendLine(`[Extension] Failed to write mcp.json: ${err}`);
     }
+}
+
+function resolveMcpEntryPoint(pythonPath: string): string {
+    const commandName = process.platform === 'win32' ? 'doc-based-coding-mcp.exe' : 'doc-based-coding-mcp';
+
+    if (path.isAbsolute(pythonPath)) {
+        const candidate = path.join(path.dirname(pythonPath), commandName);
+        if (existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return 'doc-based-coding-mcp';
 }
 
 /**

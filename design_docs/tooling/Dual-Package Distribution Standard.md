@@ -215,6 +215,7 @@ MCP 接入在安装态下必须遵守“消费已安装 runtime，而不是消�
 3. MCP 配置引用的是安装后的 runtime 入口，不再直接写 `src.mcp.server` 这种源码仓库模块路径。
 4. MCP server 的工作目录应指向目标项目根目录，使其能基于目标仓库的 `design_docs/`、`.codex/` 与 pack 配置恢复上下文。
 5. 官方实例包通过 pack/adoption 机制被 runtime 发现和消费，而不是在 MCP 配置层被单独当成 server 进程启动。
+6. Codex 安装态接入必须优先写入目标工作区自己的 `.codex/config.toml`。用户级 `~/.codex/config.toml` 只能作为个人通用默认值或临时覆盖，不应成为 release zip 安装指导中的默认项目绑定位置。
 
 ### 开发态与安装态的区分
 

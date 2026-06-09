@@ -60,7 +60,8 @@
     ".codex/prompts/doc-loop/01-planning-gate.md",
     ".codex/prompts/doc-loop/02-execute-by-doc.md",
     ".codex/prompts/doc-loop/03-writeback.md",
-    ".codex/prompts/doc-loop/04-subagent-contract.md"
+    ".codex/prompts/doc-loop/04-subagent-contract.md",
+    ".codex/prompts/doc-loop/05-dependency-baseline.md"
   ],
   "templates": [
     "design_docs/stages/_templates/",

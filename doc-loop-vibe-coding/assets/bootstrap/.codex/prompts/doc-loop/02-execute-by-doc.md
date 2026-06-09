@@ -9,6 +9,8 @@ Local Work Trajectory note: for task-like implementation, validation, review, or
 - 只处理文档声明的当前切片
 - 若发现新问题超出当前边界，写回 open items 或 planning-gate
 - 代码、测试、帮助、文档同步必须围绕同一个切片
+- 若 `analyze_changes` 或 `impact_analysis` 报告缺少 `baseline_graph.json`，将其视为依赖传播分析不可用的降级状态；除非当前切片明确要求创建或维护 dependency baseline，否则不要临时伪造或手写 baseline
+- 若当前切片确实要求创建、刷新或维护 dependency baseline，先使用 `.codex/prompts/doc-loop/05-dependency-baseline.md` 的专项规则
 - 不要把未验证内容写成完成
 
 若实施途中需要用户做选择、审批、方向确认或下一步取舍：

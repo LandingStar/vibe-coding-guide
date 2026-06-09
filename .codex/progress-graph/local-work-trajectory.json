@@ -1,80 +1,123 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Local Work Trajectory - Agent Management",
-  "recorded_at": "2026-06-06T18:27:22.736061+00:00",
+  "title": "Baseline graph prompt and initialization behavior",
+  "recorded_at": "2026-06-08T06:46:47.527043+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "agent-management-system",
+  "guide_context": "design_docs/stages/planning-gate/2026-04-15-mcp-impact-coupling-tools.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
-    "lifecycle_version": "1",
-    "research_baseline_event_id": "event:000",
-    "research_baseline_doc_count": "11"
+    "lifecycle_version": "1"
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Local Work Trajectory - Agent Management",
+    "title": "Baseline graph prompt and initialization behavior",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "Agent Management",
-      "status": "active",
+      "label": "baseline-prompts",
+      "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "agent-management-system"
+        "context": "design_docs/stages/planning-gate/2026-04-15-mcp-impact-coupling-tools.md"
       }
     }
   },
   "events": {
-    "event:000": {
-      "id": "event:000",
-      "lane_id": "lane:main",
-      "title": "Completed agent scheduling research baseline",
-      "kind": "review",
-      "status": "completed",
-      "order": 0,
-      "summary": "Historical completed research baseline for upcoming agent management work: scheduler/isolation investigation, SDK adoption feasibility, and reviewed external agent/sandbox/platform references. This node is a backfilled research anchor, not a new implementation step.",
-      "metadata": {
-        "created_at": "2026-06-06T18:27:22.736061+00:00",
-        "completed_at": "2026-06-06T18:27:22.736061+00:00",
-        "source": "local-work-backfill",
-        "historical": "true",
-        "doc_refs": "design_docs/agent-cluster-scheduling-and-isolation-investigation.md;design_docs/agent-sdk-adoption-feasibility.md;review/openai-agents-sdk.md;review/autogen.md;review/crewai.md;review/claude-managed-agents-platform.md;review/dify.md;review/continue.md;review/backstage.md;review/openhands.md;review/open-policy-agent.md"
-      }
-    },
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open agent-management work line",
-      "kind": "start",
-      "status": "in_progress",
+      "title": "Map current bootstrap prompts and initialization surfaces",
+      "kind": "task",
+      "status": "completed",
       "order": 1,
-      "summary": "Start a fresh Local Work Trajectory line for upcoming agent management system work because earlier related work predated the Local Work Trajectory mechanism.",
+      "summary": "",
       "metadata": {
-        "created_at": "2026-06-06T18:16:12.310883+00:00",
-        "activated_at": "2026-06-06T18:16:12.310883+00:00",
+        "created_at": "2026-06-08T06:13:52.659083+00:00",
+        "activated_at": "2026-06-08T06:13:52.659083+00:00",
         "source": "single-line-lifecycle",
-        "reason": "pre-local-work-trajectory-history-needs-new-line"
+        "completed_at": "2026-06-08T06:15:49.746915+00:00"
+      }
+    },
+    "event:002": {
+      "id": "event:002",
+      "lane_id": "lane:main",
+      "title": "Patch baseline prompt and bootstrap guidance",
+      "kind": "task",
+      "status": "completed",
+      "order": 2,
+      "summary": "Update prompt/bootstrap surfaces so adopted workspaces know how to create, maintain, and initialize dependency baselines without fabricating them during ordinary task work.",
+      "metadata": {
+        "created_at": "2026-06-08T06:16:01.914258+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-08T06:24:24.234178+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Create dependency baseline generator planning gate",
+      "kind": "task",
+      "status": "completed",
+      "order": 3,
+      "summary": "Create a narrow planning-gate for baseline generator contract and adapter boundary, without implementing the generator.",
+      "metadata": {
+        "created_at": "2026-06-08T06:27:14.581807+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-08T06:29:11.392315+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Write dependency baseline generator contract",
+      "kind": "task",
+      "status": "completed",
+      "order": 4,
+      "summary": "Implement first slice of the proposed gate: add contract doc, link adoption/prompt surfaces, and add minimal tests without implementing a generator.",
+      "metadata": {
+        "created_at": "2026-06-08T06:39:26.914909+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-08T06:45:19.084102+00:00",
+        "completed_at": "2026-06-08T06:46:47.527043+00:00"
       }
     }
   },
   "relations": [
     {
-      "source_event_id": "event:000",
-      "target_event_id": "event:001",
+      "source_event_id": "event:001",
+      "target_event_id": "event:002",
       "kind": "sequence",
-      "summary": "Research baseline precedes the active agent-management work line.",
+      "summary": "",
       "metadata": {
-        "source": "local-work-backfill"
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
       }
     }
   ]

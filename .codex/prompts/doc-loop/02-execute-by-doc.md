@@ -13,6 +13,8 @@ Progression note: when implementation needs user choice, review approval, direct
 - 代码、测试、帮助、文档同步必须围绕同一个切片
 - 优先复用已确认可直接依赖的文档控制面，而不是把它们留到事后补记
 - 对 Pipeline / CLI / MCP / Instructions 等 pre-release 运行时入口，只有在 planning doc 明确写入时才作为 dogfood / verification 使用，不要默认把它们当成唯一主路径
+- 若 `analyze_changes` 或 `impact_analysis` 报告缺少 `baseline_graph.json`，将其视为依赖传播分析不可用的降级状态；除非当前切片明确要求创建或维护 dependency baseline，否则不要临时伪造或手写 baseline
+- 若当前切片确实要求创建、刷新或维护 dependency baseline，先使用 `.codex/prompts/doc-loop/05-dependency-baseline.md` 的专项规则
 - 不要把未验证内容写成完成
 
 若实施途中需要用户做选择、审批、方向确认或下一步取舍：

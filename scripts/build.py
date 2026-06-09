@@ -279,6 +279,8 @@ def main() -> int:
             "tools/progress_graph/__init__.py",
             "tools/progress_graph/doc_projection.py",
             "tools/progress_graph/trajectory.py",
+            "tools/dependency_graph/baseline_graph.json",
+            "tools/dependency_graph/coupling_annotations.json",
             "tools/dependency_graph/query.py",
         ],
     )

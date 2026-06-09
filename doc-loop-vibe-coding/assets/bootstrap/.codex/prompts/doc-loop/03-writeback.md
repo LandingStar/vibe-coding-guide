@@ -8,6 +8,7 @@
 - `design_docs/Project Master Checklist.md`
 - `design_docs/Global Phase Map and Current Position.md` 中与当前阶段有关的表述
 - 若流程规则变化，更新 `design_docs/tooling/`
+- 若本轮创建或刷新了 `tools/dependency_graph/baseline_graph.json`，记录生成器/命令、覆盖范围变化和验证结果；若没有 baseline 但影响分析依赖它，也要记录该降级限制
 - 若到达安全停点，刷新 `.codex/handoffs/CURRENT.md`
 
 请显式写明：

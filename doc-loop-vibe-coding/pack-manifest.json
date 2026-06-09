@@ -72,7 +72,8 @@
     "assets/bootstrap/.codex/prompts/doc-loop/01-planning-gate.md",
     "assets/bootstrap/.codex/prompts/doc-loop/02-execute-by-doc.md",
     "assets/bootstrap/.codex/prompts/doc-loop/03-writeback.md",
-    "assets/bootstrap/.codex/prompts/doc-loop/04-subagent-contract.md"
+    "assets/bootstrap/.codex/prompts/doc-loop/04-subagent-contract.md",
+    "assets/bootstrap/.codex/prompts/doc-loop/05-dependency-baseline.md"
   ],
   "templates": [
     "assets/bootstrap/design_docs/",

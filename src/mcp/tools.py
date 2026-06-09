@@ -876,7 +876,12 @@ class GovernanceTools:
         if not graph_path.exists():
             return {
                 "error": "baseline_graph.json not found",
-                "suggestion": "Run build_baseline.py to generate the graph snapshot.",
+                "suggestion": (
+                    "Dependency impact propagation is unavailable until this "
+                    "workspace creates a reproducible dependency baseline. Use "
+                    "the doc-loop dependency-baseline prompt or a project-specific "
+                    "baseline generator; do not fabricate baseline_graph.json."
+                ),
             }
         try:
             from tools.dependency_graph.query import query_impact

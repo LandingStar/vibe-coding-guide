@@ -54,6 +54,24 @@
 - 新问题优先写回 planning-gate，而不是就地扩 scope
 - 文档事实变化时，要同步更新文档，而不是只更新代码
 
+## Dependency Baseline
+
+`tools/dependency_graph/baseline_graph.json` 是可选的工作区本地依赖传播快照，用于 `impact_analysis` / `analyze_changes` 的 impact section。
+
+默认初始化行为：
+
+- bootstrap 不自动创建 `baseline_graph.json`
+- 新工作区缺少 baseline 是合法的降级状态
+- 缺少 baseline 时，影响传播不可用；语义耦合检查仍可基于 `coupling_annotations.json` 独立运行
+
+创建与维护规则：
+
+- 不得手写或伪造 `baseline_graph.json`
+- 只有当前切片明确要求创建、刷新或维护 dependency baseline 时，才进入该专项工作
+- baseline 必须来自可复现的工作区本地生成器或明确采用的依赖图导出
+- 若目标工作区尚无生成器，应先写 planning-gate 或需求说明，明确覆盖范围、节点 id、边类型、输出路径、验证门和刷新触发条件
+- 当模块结构、公共接口、符号归属、依赖抽取规则或生成器本身变化时，才应考虑刷新 baseline
+
 ## 验证与写回
 
 在宣布当前切片完成前，至少应回写：
@@ -85,6 +103,7 @@
 - `.codex/prompts/doc-loop/02-execute-by-doc.md`
 - `.codex/prompts/doc-loop/03-writeback.md`
 - `.codex/prompts/doc-loop/04-subagent-contract.md`
+- `.codex/prompts/doc-loop/05-dependency-baseline.md`
 
 ## Handoff 执行规则
 
