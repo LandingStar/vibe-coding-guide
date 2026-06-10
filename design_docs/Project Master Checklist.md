@@ -13,14 +13,14 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-05-12`
+- Snapshot Date: `2026-06-10`
 - Project Name: `doc-based-coding-platform`
-- Version: `0.9.5` (preview)
+- Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成 + Codex 主链适配与 VS Code extension provider abstraction + 2026-04-23 docs-only 宿主交互/入口面收口 + 2026-04-24 scratch 轻量恢复协议（docs-only 收口完成）`
 - Active Slice: `Knowledge Graph Engine Progress Preview Integration (ACTIVE planning-gate; 用户已明确要求放弃当前 G6 相关实现成果并接入外部 E:\workspace\tool develop\graph engine\knowledge-graph-engine；G6 gate 现只作为归档参考保留效果目标与经验记录)`
-- Latest Completed Slice: `Parallel V2 Graph Renderer And Library Selection`
+- Latest Completed Slice: `Reference Dependency Baseline Adapter Lifecycle And JavaScript Expansion`
 - Safe Stop Status: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
-- Test Baseline: `1366 passed, 2 skipped`
+- Test Baseline: `146 passed` (dependency baseline / MCP related focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -778,6 +778,7 @@
 
 ## 最近一次写回
 
+- `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。
 - `2026-04-22`: 完成 Codex 主链适配与 VS Code extension provider abstraction，生成并激活 safe-stop handoff `2026-04-22_2312_codex-adaptation-mainline-and-extension-abstraction_stage-close`，仓库回到无 active gate 的可恢复状态。

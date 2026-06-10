@@ -113,6 +113,8 @@
 项目如果需要 baseline，应先建立可复现的工作区本地生成器或明确采用某个依赖图导出，并把覆盖范围、节点 id、边类型、刷新触发条件和验证门写入 planning-gate。普通实现任务不得为了消除缺失提示而手写或伪造 baseline。
 
 生成器与 `baseline_graph.json` 的兼容合同见 `dependency-baseline-generator-contract.md`。
+reference adapter 的创建、刷新、验证、修正、回退和 JavaScript 覆盖扩张操作见
+`dependency-baseline-maintenance-guide.md`。
 
 ## Doc Loop 官方实例的采用方式
 

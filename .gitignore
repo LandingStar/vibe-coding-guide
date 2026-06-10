@@ -32,7 +32,9 @@ htmlcov/
 .cursor/
 
 # Non-distributable directories
-tests/
+tests/*
+!tests/test_dependency_graph.py
+!tests/test_doc_loop_prompts.py
 example/
 
 # OS

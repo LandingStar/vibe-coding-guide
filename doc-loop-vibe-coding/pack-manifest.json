@@ -73,7 +73,8 @@
     "assets/bootstrap/.codex/prompts/doc-loop/02-execute-by-doc.md",
     "assets/bootstrap/.codex/prompts/doc-loop/03-writeback.md",
     "assets/bootstrap/.codex/prompts/doc-loop/04-subagent-contract.md",
-    "assets/bootstrap/.codex/prompts/doc-loop/05-dependency-baseline.md"
+    "assets/bootstrap/.codex/prompts/doc-loop/05-dependency-baseline.md",
+    "assets/bootstrap/.codex/prompts/doc-loop/06-dependency-baseline-maintenance.md"
   ],
   "templates": [
     "assets/bootstrap/design_docs/",

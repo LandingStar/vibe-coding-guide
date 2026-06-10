@@ -62,6 +62,7 @@
     "docs/subagent-schemas.md",
     "docs/official-instance-doc-loop.md",
     "docs/dependency-baseline-generator-contract.md",
+    "docs/dependency-baseline-maintenance-guide.md",
     "docs/current-prototype-status.md",
     "docs/pdp-decision-envelope.md",
     "docs/intent-classification.md",
@@ -116,7 +117,8 @@
     ".codex/prompts/doc-loop/02-execute-by-doc.md",
     ".codex/prompts/doc-loop/03-writeback.md",
     ".codex/prompts/doc-loop/04-subagent-contract.md",
-    ".codex/prompts/doc-loop/05-dependency-baseline.md"
+    ".codex/prompts/doc-loop/05-dependency-baseline.md",
+    ".codex/prompts/doc-loop/06-dependency-baseline-maintenance.md"
   ],
   "templates": [
     "design_docs/stages/_templates/",

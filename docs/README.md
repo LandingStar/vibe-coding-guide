@@ -34,6 +34,7 @@
 - `host-interaction-model.md`
 - `project-adoption.md`
 - `dependency-baseline-generator-contract.md`
+- `dependency-baseline-maintenance-guide.md`
 - `installation-guide.md`
 - `current-prototype-status.md`
 - `first-stable-release-boundary.md`
@@ -81,5 +82,6 @@
 20. `subagent-schemas.md`
 21. `project-adoption.md`
 22. `dependency-baseline-generator-contract.md`
-23. `current-prototype-status.md`
-24. `first-stable-release-boundary.md`
+23. `dependency-baseline-maintenance-guide.md`
+24. `current-prototype-status.md`
+25. `first-stable-release-boundary.md`

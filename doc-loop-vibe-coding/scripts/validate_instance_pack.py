@@ -152,6 +152,7 @@ PROJECT_LOCAL_EXPECTED_SUBSETS = {
         ".codex/prompts/doc-loop/03-writeback.md",
         ".codex/prompts/doc-loop/04-subagent-contract.md",
         ".codex/prompts/doc-loop/05-dependency-baseline.md",
+        ".codex/prompts/doc-loop/06-dependency-baseline-maintenance.md",
     ],
     "depends_on": [
         "doc-loop-vibe-coding",

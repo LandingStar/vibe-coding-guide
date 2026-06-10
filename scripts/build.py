@@ -282,6 +282,7 @@ def main() -> int:
             "tools/dependency_graph/baseline_graph.json",
             "tools/dependency_graph/coupling_annotations.json",
             "tools/dependency_graph/query.py",
+            "tools/dependency_graph/reference_adapter.py",
         ],
     )
     i_ok = _verify_wheel(

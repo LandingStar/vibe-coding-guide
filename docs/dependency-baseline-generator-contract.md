@@ -209,7 +209,38 @@ bootstrap 不创建 baseline，也不强制项目启用 dependency impact propag
 
 它不是本合同的通用标准，也不应被 adopted workspace 盲目复制。
 
-后续若要把它整理成正式参考 adapter，应另起切片，至少完成：
+正式参考 adapter 应以 `tools.dependency_graph.reference_adapter` 为入口，而不是让 MCP
+`impact_analysis` / `analyze_changes` 自动触发生成。
+
+当前 reference adapter 的定位：
+
+- Python: 以 Pylance usage fixture 作为关系增强的优先输入；stdlib AST 只负责稳定符号发现与无 Pylance 时的保守 fallback，覆盖 module / class / function / Protocol / import / simple inheritance。
+- JavaScript: 使用保守正则扫描 `.js` / `.mjs` / `.cjs` / `.jsx`，覆盖 module / class / function / import / require / simple extends。
+- Pylance fixture: 可选读取 `vscode_listCodeUsages`-compatible usage fixture，用于补充 `references`、`imports`、`calls` 等关系；没有 fixture 时仍应产出部分 baseline，并在 diagnostics 说明覆盖限制。
+- Lifecycle CLI: `create`、`refresh`、`generate`、`validate`、`repair`、`rollback`。
+
+参考命令：
+
+```powershell
+python -m tools.dependency_graph.reference_adapter create --project-root . --language python --pylance-usage-fixture tools/dependency_graph/pylance-usages.json
+python -m tools.dependency_graph.reference_adapter refresh --project-root . --language python --language javascript --pylance-usage-fixture tools/dependency_graph/pylance-usages.json
+python -m tools.dependency_graph.reference_adapter validate --project-root .
+python -m tools.dependency_graph.reference_adapter repair --project-root .
+python -m tools.dependency_graph.reference_adapter rollback --path tools/dependency_graph/baseline_graph.json
+```
+
+生命周期语义：
+
+- `create`: 首次创建 baseline；默认不覆盖已有文件。
+- `refresh`: 在已有 generator 规则下重新生成 baseline；默认备份旧文件。
+- `generate`: 低层生成命令；可覆盖输出，适合脚本化。
+- `validate`: 验证 JSON shape、runtime round-trip、路径 hygiene 与 endpoint 警告。
+- `repair`: 修正可机械修复的问题，例如路径归一化、重复边、缺 endpoint 边；默认备份旧文件。
+- `rollback`: 从最近或指定备份恢复 baseline。
+
+参考 adapter 仍不是跨语言完整标准，也不保证完整调用图。若 adopted workspace 需要更强语义，应在自己的 planning-gate 中扩展或替换 generator，但输出必须继续满足本合同。
+
+若后续要继续扩张参考 adapter，至少保持：
 
 - 与本合同字段对齐
 - 去除本仓库硬编码路径
