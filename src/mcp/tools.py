@@ -7,6 +7,7 @@ can call for structural constraint enforcement.
 from __future__ import annotations
 
 import logging
+import json
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,9 @@ from ..workflow.pipeline import (
 )
 
 _log = logging.getLogger(__name__)
+
+
+HOST_EVIDENCE_BUNDLE_RESOURCE_URI = "dbc://host-evidence/bundle"
 
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
@@ -1793,6 +1797,16 @@ class GovernanceTools:
         results: list[dict[str, str]] = []
         ctx = self._pipeline.pack_context
 
+        results.append({
+            "uri": HOST_EVIDENCE_BUNDLE_RESOURCE_URI,
+            "name": "host-evidence-bundle",
+            "description": (
+                "Read-only compact host scheduler evidence bundle. "
+                "Does not execute providers or mutate scheduler/local trajectory artifacts."
+            ),
+            "mimeType": "application/json",
+        })
+
         # always_on — already loaded into memory
         for filename in sorted(ctx.always_on_content.keys()):
             uri = f"pack://always-on/{filename}"
@@ -1827,6 +1841,12 @@ class GovernanceTools:
             return err
 
         ctx = self._pipeline.pack_context
+
+        if uri == HOST_EVIDENCE_BUNDLE_RESOURCE_URI:
+            from tools.progress_graph import read_host_evidence_bundle
+
+            bundle = read_host_evidence_bundle(self._project_root)
+            return json.dumps(bundle.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
         # always_on — pack://always-on/{filename}
         if uri.startswith("pack://always-on/"):

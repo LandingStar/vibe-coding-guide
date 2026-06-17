@@ -189,6 +189,7 @@ Use the read-only host evidence consumer when the task asks to inspect or
 surface existing host-run evidence:
 
 ```text
+dbc://host-evidence/bundle
 read_host_scheduler_run_evidence_summary()
 read_host_scheduler_run_evidence_summaries()
 read_host_evidence_bundle()
@@ -207,6 +208,10 @@ Expected consumer behavior:
 5. Return an empty bundle when the evidence directory is missing.
 6. Do not execute providers, initialize scheduler snapshots, refresh scheduler
    projections, mutate Local Work Trajectory, or synthesize evidence.
+
+When MCP resources are available, prefer reading
+`dbc://host-evidence/bundle`. It returns the same compact bundle JSON through
+the standard read-only resource surface.
 
 Readiness-negative live smoke outcomes remain review-doc evidence unless an
 actual evidence JSON artifact exists. Do not create fake evidence JSON merely to

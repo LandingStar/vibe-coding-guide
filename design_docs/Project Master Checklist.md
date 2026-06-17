@@ -16,9 +16,9 @@
 - Snapshot Date: `2026-06-18`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / host evidence consumer close`
-- Active Slice: `Host Evidence Consumer (COMPLETED; read-only summary consumer over host_scheduler_run_evidence JSON; no provider execution or trajectory mutation)`
-- Latest Completed Slice: `Host Evidence Consumer`
+- Current Phase: `Post-v1.0 — Agent orchestration / host evidence MCP resource exposure close`
+- Active Slice: `Host Evidence MCP Resource Exposure (COMPLETED; dbc://host-evidence/bundle exposes read-only HostEvidenceBundle JSON through MCP resources)`
+- Latest Completed Slice: `Host Evidence MCP Resource Exposure`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
 - Test Baseline: `295 passed, 1 skipped` (runtime orchestration / progress trajectory / doc-loop prompt / scheduler MCP / MCP prompt-resource focused suite)
 
@@ -36,11 +36,13 @@
 - `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`
 - `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`
 - `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`
+- `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
 - `review/credentialed-live-qoder-smoke-2026-06-17.md`
 - `review/host-evidence-consumer-2026-06-18.md`
+- `review/host-evidence-mcp-resource-exposure-2026-06-18.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -806,6 +808,7 @@
 - `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` 已正式切为 `COMPLETED`。本轮新增 follow-up analysis `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`，并激活下一条 `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`。该 gate 先检查本机 `qoder-agent-sdk` / `QODER_PERSONAL_ACCESS_TOKEN` readiness，不打印或提交凭据；若 readiness 成立则通过 `run_host_owned_qoder_smoke()` 跑一条 bounded live smoke，否则记录 pre-scheduler readiness-negative evidence。
 - `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` 已推进到 `READY-FOR-CLOSE-REVIEW`。本机 readiness 检查结果为 `sdk_importable=False`、`token_present=False`、`ready=False`、`error_kind=authentication_failed`、`raw_error_type=MissingEnvironmentVariable`；未打印或持久化 token 值，且 `.codex/scheduler/qoder-smoke-state.json`、`.codex/scheduler/evidence/qoder-smoke.json`、`.codex/progress-graph/scheduler-work-trajectory.json` 均不存在，证明失败停在 scheduler 前。review evidence 位于 `review/credentialed-live-qoder-smoke-2026-06-17.md`。
 - `2026-06-18`: `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` 已正式切为 `COMPLETED`，并完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`。本轮新增 `HostSchedulerRunEvidenceSummary`、`read_host_scheduler_run_evidence_summary()`、`read_host_scheduler_run_evidence_summaries()` 与 `tools.progress_graph.read_host_evidence_bundle()`，把 host-run evidence JSON 投影为不含嵌入式 `host_result` 的只读 summary contract，供后续 UI/MCP/release tooling 安全消费；该 consumer 不执行 provider、不刷新 scheduler projection、不突变 Local Work Trajectory，也不会为 readiness-negative review doc 伪造 evidence JSON。review evidence 位于 `review/host-evidence-consumer-2026-06-18.md`，follow-up analysis 位于 `design_docs/host-evidence-consumer-followup-direction-analysis.md`；验证结果：runtime orchestration / progress trajectory / doc-loop prompt-resource focused suite `221 passed, 1 skipped`。
+- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`。本轮通过既有 MCP resource surface 暴露只读 `dbc://host-evidence/bundle`，由 `GovernanceTools.read_resource()` 调用 `tools.progress_graph.read_host_evidence_bundle()` 并返回 compact JSON；resource 缺 evidence 目录时返回空 bundle，读取本身不创建 scheduler projection 或 Local Work Trajectory artifact，也不新增 provider execution tool。review evidence 位于 `review/host-evidence-mcp-resource-exposure-2026-06-18.md`；验证结果：MCP prompt/resource + progress trajectory focused suite `26 passed`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

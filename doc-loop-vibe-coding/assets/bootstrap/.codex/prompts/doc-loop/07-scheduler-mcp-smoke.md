@@ -183,6 +183,40 @@ The evidence JSON is a review artifact. It is not scheduler state and must not
 be used to replay task contracts. Scheduler state remains the snapshot plus
 event log.
 
+### Host Evidence Consumer
+
+Use the read-only host evidence consumer when the task asks to inspect or
+surface existing host-run evidence:
+
+```text
+dbc://host-evidence/bundle
+read_host_scheduler_run_evidence_summary()
+read_host_scheduler_run_evidence_summaries()
+read_host_evidence_bundle()
+host_scheduler_evidence_dir()
+```
+
+Expected consumer behavior:
+
+1. Read existing `host_scheduler_run_evidence` JSON under
+   `.codex/scheduler/evidence/`.
+2. Validate `product_type` and `schema_version`.
+3. Return compact summaries for UI, MCP resources, review docs, or release
+   tooling.
+4. Exclude embedded `host_result` from the summary payload; downstream
+   consumers should not bind to the raw writer artifact.
+5. Return an empty bundle when the evidence directory is missing.
+6. Do not execute providers, initialize scheduler snapshots, refresh scheduler
+   projections, mutate Local Work Trajectory, or synthesize evidence.
+
+When MCP resources are available, prefer reading
+`dbc://host-evidence/bundle`. It returns the same compact bundle JSON through
+the standard read-only resource surface.
+
+Readiness-negative live smoke outcomes remain review-doc evidence unless an
+actual evidence JSON artifact exists. Do not create fake evidence JSON merely to
+make a UI or summary look populated.
+
 ## Controlled Real Qoder Wrapper Spike
 
 Use the real Qoder wrapper only from a host-owned Python surface, never through

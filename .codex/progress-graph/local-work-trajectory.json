@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T16:19:57.016058+00:00",
+  "recorded_at": "2026-06-17T16:27:01.562144+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 88,
-    "relation_count": 87,
+    "event_count": 90,
+    "relation_count": 89,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1291,6 +1291,32 @@
         "created_at": "2026-06-17T16:19:57.016058+00:00",
         "source": "single-line-lifecycle"
       }
+    },
+    "event:089": {
+      "id": "event:089",
+      "lane_id": "lane:main",
+      "title": "实现 HostEvidenceBundle 的只读 MCP resource 暴露",
+      "kind": "task",
+      "status": "pending",
+      "order": 89,
+      "summary": "按 host-evidence-consumer follow-up Candidate A 创建 planning gate，并将 read_host_evidence_bundle() 暴露为只读 MCP resource，保持 fake-only、无 provider 执行、无 trajectory mutation。",
+      "metadata": {
+        "created_at": "2026-06-17T16:22:41.044879+00:00",
+        "source": "single-line-lifecycle"
+      }
+    },
+    "event:090": {
+      "id": "event:090",
+      "lane_id": "lane:main",
+      "title": "关闭 host evidence MCP resource exposure gate",
+      "kind": "close",
+      "status": "pending",
+      "order": 90,
+      "summary": "已通过 dbc://host-evidence/bundle 暴露只读 HostEvidenceBundle MCP resource；缺目录为空 bundle，读取不创建 scheduler projection 或 Local Work Trajectory artifact。",
+      "metadata": {
+        "created_at": "2026-06-17T16:27:01.562144+00:00",
+        "source": "single-line-lifecycle"
+      }
     }
   },
   "relations": [
@@ -2071,6 +2097,24 @@
     {
       "source_event_id": "event:087",
       "target_event_id": "event:088",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:088",
+      "target_event_id": "event:089",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:089",
+      "target_event_id": "event:090",
       "kind": "sequence",
       "summary": "",
       "metadata": {

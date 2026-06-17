@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+from src.mcp.tools import GovernanceTools
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -120,6 +123,35 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "history_summary" in text
         assert "MCP remains" in text
         assert "must not mutate" in text
+        assert "dbc://host-evidence/bundle" in text
+        assert "read_host_evidence_bundle" in text
+
+
+def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
+    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
+    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "latest.md").write_text(
+        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
+        encoding="utf-8",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    resource = next(
+        item for item in tools.list_resources()
+        if item["uri"] == "dbc://host-evidence/bundle"
+    )
+    content = tools.read_resource("dbc://host-evidence/bundle")
+    payload = json.loads(content)
+
+    assert resource["name"] == "host-evidence-bundle"
+    assert resource["mimeType"] == "application/json"
+    assert payload["evidence_count"] == 0
+    assert payload["summaries"] == []
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
 def test_dependency_baseline_maintenance_guide_is_discoverable() -> None:
