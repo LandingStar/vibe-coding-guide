@@ -52,6 +52,7 @@ from tools.progress_graph import (
     TrajectoryEndpoint,
     TrajectoryLane,
     TrajectoryRelation,
+    HostOwnedQoderSmokeRunConfig,
     add_local_work_compound,
     add_local_work_lane,
     add_local_work_lanes,
@@ -71,9 +72,11 @@ from tools.progress_graph import (
     merge_local_work_lane,
     pack_local_work_range,
     pack_local_work_subgraph,
+    QoderSmokeTaskConfig,
     read_trajectory_artifacts_bundle,
     resume_single_line_event,
     run_host_authorized_scheduler_once_and_refresh_projection,
+    run_host_owned_qoder_smoke,
     run_host_runtime_dogfood_harness,
     run_persisted_scheduler_once_and_refresh_projection,
     scheduler_work_trajectory_json_path,
@@ -1121,6 +1124,90 @@ def test_host_runtime_dogfood_harness_real_qoder_wrapper_auth_failure_fails_clos
     restored = read_scheduler_state_snapshot(snapshot_path)
     assert restored.tasks["task-q"].state == "proposed"
     assert restored.tasks["task-q"].run_id == ""
+
+
+def test_host_owned_qoder_smoke_runner_initializes_snapshot_and_writes_evidence(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-smoke.json"
+    client = _RecordingQoderClient(
+        QoderQueryResult(summary="qoder smoke complete", output_text="ok")
+    )
+
+    result = run_host_owned_qoder_smoke(
+        tmp_path,
+        config=HostOwnedQoderSmokeRunConfig(
+            evidence_id="qoder-smoke",
+            timestamp="2026-06-17T23:50:00+08:00",
+            evidence_output_path=evidence_path,
+            reset_snapshot=True,
+            task=QoderSmokeTaskConfig(
+                task_id="task-qoder-smoke",
+                instruction="Return ok for the smoke test.",
+                output_artifact_id="task-qoder-smoke:result",
+            ),
+            host_invocation_id="qoder-smoke-test",
+            requested_by="host:test",
+            reason="repeatable qoder smoke helper test",
+            grant_id="grant-qoder-smoke-test",
+            approved_by="host:test",
+        ),
+        qoder_query_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert result.initialized_snapshot is True
+    assert result.snapshot_path == tmp_path / ".codex/scheduler/qoder-smoke-state.json"
+    assert result.event_log_path == tmp_path / ".codex/scheduler/qoder-smoke-events.jsonl"
+    assert len(client.requests) == 1
+    assert client.requests[0].task.task_id == "task-qoder-smoke"
+    assert client.requests[0].acceptance[-1] == "Do not include secrets or raw credential material in output."
+    assert payload["runtime_providers"] == ["qoder"]
+    assert payload["host_invocation"]["invocation_id"] == "qoder-smoke-test"
+    assert payload["host_invocation"]["reason"] == "repeatable qoder smoke helper test"
+    assert payload["run_count"] == 1
+    assert payload["output_artifact_refs"] == [
+        {
+            "task_id": "task-qoder-smoke",
+            "artifact_id": "task-qoder-smoke:result",
+            "version": "v1",
+        }
+    ]
+    assert payload["metadata"]["runner"] == "host-owned-qoder-smoke"
+    assert evidence_path.exists()
+    assert result.harness.run_projection.projection.events[
+        "scheduler-task:task-qoder-smoke"
+    ].status == "completed"
+
+
+def test_host_owned_qoder_smoke_runner_auth_failure_fails_before_state_pollution(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-smoke-auth-fail.json"
+    projection_path = scheduler_work_trajectory_json_path(tmp_path)
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        run_host_owned_qoder_smoke(
+            tmp_path,
+            config=HostOwnedQoderSmokeRunConfig(
+                evidence_id="qoder-smoke-auth-fail",
+                timestamp="2026-06-17T23:55:00+08:00",
+                evidence_output_path=evidence_path,
+                reset_snapshot=True,
+                task=QoderSmokeTaskConfig(task_id="task-qoder-smoke-auth-fail"),
+            ),
+            sdk_importer=lambda name: _NeverUsedQoderSDK(),
+            environment={},
+        )
+
+    assert raised.value.error_kind == "authentication_failed"
+    assert evidence_path.exists() is False
+    assert projection_path.exists() is False
+    restored = read_scheduler_state_snapshot(
+        tmp_path / ".codex/scheduler/qoder-smoke-state.json"
+    )
+    assert restored.tasks["task-qoder-smoke-auth-fail"].state == "proposed"
+    assert restored.tasks["task-qoder-smoke-auth-fail"].run_id == ""
 
 
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:

@@ -40,6 +40,16 @@ from .scheduler_dogfood import (
     HostRuntimeDogfoodHarnessResult,
     run_host_runtime_dogfood_harness,
 )
+from .qoder_smoke import (
+    HostOwnedQoderSmokeRunConfig,
+    HostOwnedQoderSmokeRunResult,
+    QoderSmokeTaskConfig,
+    build_qoder_smoke_scheduler_state,
+    default_qoder_smoke_event_log_path,
+    default_qoder_smoke_snapshot_path,
+    ensure_qoder_smoke_scheduler_snapshot,
+    run_host_owned_qoder_smoke,
+)
 from .trajectory_artifacts import (
     TrajectoryArtifactsBundle,
     TrajectoryArtifactView,
@@ -93,8 +103,16 @@ __all__ = [
     "scheduler_work_trajectory_json_path",
     "HostSchedulerRunProjectionRefreshResult",
     "HostRuntimeDogfoodHarnessResult",
+    "HostOwnedQoderSmokeRunConfig",
+    "HostOwnedQoderSmokeRunResult",
+    "QoderSmokeTaskConfig",
+    "build_qoder_smoke_scheduler_state",
+    "default_qoder_smoke_event_log_path",
+    "default_qoder_smoke_snapshot_path",
+    "ensure_qoder_smoke_scheduler_snapshot",
     "SchedulerRunProjectionRefreshResult",
     "write_scheduler_work_trajectory_artifact",
+    "run_host_owned_qoder_smoke",
     "TrajectoryArtifactsBundle",
     "TrajectoryArtifactView",
     "read_trajectory_artifacts_bundle",

@@ -1,7 +1,7 @@
 # Planning Gate — Controlled Real Qoder Wrapper Spike
 
 > Date: 2026-06-17
-> Status: READY-FOR-CLOSE-REVIEW
+> Status: COMPLETED
 
 ## Trigger
 
@@ -284,3 +284,32 @@ Focused validation added:
 3. Permission behavior: default deny and explicit surface-without-approval.
 4. Host dogfood fail-closed path: real wrapper auth failure leaves evidence,
    scheduler projection, and scheduler snapshot unwritten / unchanged.
+
+### 2026-06-17 — Close Review
+
+The gate is closed as `COMPLETED`.
+
+Close-review evidence:
+
+- `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
+
+Validation evidence:
+
+```text
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py tests/test_progress_graph_trajectory.py tests/test_doc_loop_prompts.py tests/test_mcp_tools.py
+272 passed, 1 skipped
+
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_prompts_resources.py
+21 passed
+```
+
+Credential hygiene:
+
+1. No raw Qoder token or API key value is stored in source, review evidence,
+   prompts, scheduler state, Local Work Trajectory, or compact evidence JSON.
+2. The only committed token strings are documented environment variable names
+   and synthetic redaction fixtures.
+
+Follow-up direction analysis:
+
+- `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`

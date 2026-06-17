@@ -234,6 +234,40 @@ The wrapper must keep result material compact. Do not copy raw transcripts,
 tokens, or full SDK logs into `QoderQueryResult.metadata`,
 `HostSchedulerRunEvidence`, review docs, or Local Work Trajectory.
 
+### Host-Owned Qoder Smoke Runner Helper
+
+Prefer the host-owned smoke helper for repeatable Qoder wrapper checks:
+
+```text
+run_host_owned_qoder_smoke()
+HostOwnedQoderSmokeRunConfig
+QoderSmokeTaskConfig
+```
+
+The helper lives under `tools/progress_graph/qoder_smoke.py` because it composes
+the host dogfood harness, scheduler projection, and evidence artifacts. It is
+not a scheduler daemon and is not an MCP execution surface.
+
+Expected helper behavior:
+
+1. Create or reuse `.codex/scheduler/qoder-smoke-state.json`.
+2. Create or reuse `.codex/scheduler/qoder-smoke-events.jsonl`.
+3. Build a one-task Qoder smoke scheduler snapshot when requested.
+4. Construct host invocation and qoder permission grant.
+5. Construct `QoderSDKQueryClient` from host config, unless an injected
+   `QoderQueryClient` is supplied for tests.
+6. Delegate execution to `run_host_runtime_dogfood_harness()`.
+7. Write compact `HostSchedulerRunEvidence` and scheduler-derived trajectory
+   projection.
+
+Use injected clients for deterministic tests. Use the real SDK wrapper only
+when the host environment intentionally provides `qoder-agent-sdk` and
+`QODER_PERSONAL_ACCESS_TOKEN`.
+
+If SDK/auth are missing, the helper should fail before evidence/projection
+writes and leave the smoke task in `proposed` state. Treat that as expected
+negative-path evidence, not as scheduler corruption.
+
 ## Write-Back
 
 Record:

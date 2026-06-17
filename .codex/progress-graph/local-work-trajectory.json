@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T15:38:56.481322+00:00",
+  "recorded_at": "2026-06-17T15:55:37.682584+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 82,
-    "relation_count": 81,
+    "event_count": 83,
+    "relation_count": 82,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1207,6 +1207,22 @@
         "updated_at": "2026-06-17T15:38:18.500848+00:00",
         "completed_at": "2026-06-17T15:38:56.481322+00:00"
       }
+    },
+    "event:083": {
+      "id": "event:083",
+      "lane_id": "lane:main",
+      "title": "Close Qoder wrapper gate and open next smoke-runner slice",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 83,
+      "summary": "Focused validation passed (295 passed, 1 skipped). Diff check has no whitespace errors beyond CRLF warnings, and sensitive scan found no real credential values. Preparing close-review writeback for the host-owned Qoder smoke runner helper gate.",
+      "metadata": {
+        "created_at": "2026-06-17T15:40:56.900238+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T15:52:22.661136+00:00",
+        "updated_at": "2026-06-17T15:53:22.898868+00:00",
+        "completed_at": "2026-06-17T15:55:37.682584+00:00"
+      }
     }
   },
   "relations": [
@@ -1933,6 +1949,15 @@
     {
       "source_event_id": "event:081",
       "target_event_id": "event:082",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:082",
+      "target_event_id": "event:083",
       "kind": "sequence",
       "summary": "",
       "metadata": {

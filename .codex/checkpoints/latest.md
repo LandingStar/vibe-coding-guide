@@ -1,8 +1,8 @@
-# Checkpoint — 2026-06-17T22:50:00+08:00
+# Checkpoint — 2026-06-17T23:55:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / controlled real Qoder wrapper spike
+Post-v1.0 — Agent orchestration / host-owned Qoder smoke runner helper
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
+design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -21,15 +21,22 @@ design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.
 - [x] Create a narrow planning gate before starting `Controlled Real Qoder Wrapper Spike`.
 - [x] Implement host-owned real Qoder wrapper behind `QoderQueryClient`, preserving MCP fake-only and credential hygiene.
 - [x] Move `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` to `READY-FOR-CLOSE-REVIEW`.
+- [x] Close `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` after close-review evidence.
+- [x] Create follow-up direction analysis for the next Qoder runtime validation slice.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`.
+- [x] Add initial host-owned Qoder smoke runner helper and focused mock/fail-closed tests.
+- [x] Complete prompt/writeback validation for the host-owned Qoder smoke runner helper.
+- [x] Move `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` to `READY-FOR-CLOSE-REVIEW`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Line: Host-Authorized Scheduler Runner Adapter — source: design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
 - Completed Line: Controlled Host Runtime Dogfood Harness — source: design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
-- Selected Line: Controlled Real Qoder Wrapper Spike — source: design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
-- Active Gate: design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
-- Current Review: review/controlled-real-qoder-wrapper-spike-2026-06-17.md
-- Follow-up Recommendation: review and close the narrow host-owned wrapper spike, then choose the next scheduler adapter / live smoke direction.
+- Completed Line: Controlled Real Qoder Wrapper Spike — source: design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
+- Selected Line: Host-Owned Qoder Smoke Runner Helper — source: design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
+- Active Gate: design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
+- Current Review: review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
+- Follow-up Recommendation: review and close the host-owned Qoder smoke helper, then decide whether to perform credentialed live Qoder smoke or move to host evidence consumption.
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
@@ -37,7 +44,10 @@ design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.
 - .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
 - design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
 - design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
+- design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
+- review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
+- design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - review/controlled-host-runtime-dogfood-harness-2026-06-17.md
 - design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
@@ -47,5 +57,6 @@ design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.
 - design_docs/qoder-runtime-adapter-requirements.md
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - src/runtime/orchestration/qoder_sdk_client.py
+- tools/progress_graph/qoder_smoke.py
 - src/runtime/orchestration/scheduler_host_runner.py
 - tools/progress_graph/scheduler_projection.py
