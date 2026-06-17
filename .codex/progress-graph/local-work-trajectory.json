@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T15:55:37.682584+00:00",
+  "recorded_at": "2026-06-17T16:05:57.371541+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 83,
-    "relation_count": 82,
+    "event_count": 85,
+    "relation_count": 84,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1223,6 +1223,35 @@
         "updated_at": "2026-06-17T15:53:22.898868+00:00",
         "completed_at": "2026-06-17T15:55:37.682584+00:00"
       }
+    },
+    "event:084": {
+      "id": "event:084",
+      "lane_id": "lane:main",
+      "title": "Close host-owned Qoder smoke helper and prepare live smoke gate",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 84,
+      "summary": "Close the host-owned Qoder smoke helper gate, write back status docs, create the next credentialed live Qoder smoke gate, and perform safe readiness checks without exposing credentials.",
+      "metadata": {
+        "created_at": "2026-06-17T15:57:50.857922+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T16:05:08.022647+00:00"
+      }
+    },
+    "event:085": {
+      "id": "event:085",
+      "lane_id": "lane:main",
+      "title": "检查 Qoder live-smoke readiness 切片并整理提交",
+      "kind": "validation",
+      "status": "completed",
+      "order": 85,
+      "summary": "继续 credentialed live Qoder smoke gate：核对文档、运行 hygiene、仅提交 readiness 相关文件，排除本机配置与无关脏文件。",
+      "metadata": {
+        "created_at": "2026-06-17T16:03:50.223635+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T16:05:08.022647+00:00",
+        "completed_at": "2026-06-17T16:05:57.371541+00:00"
+      }
     }
   },
   "relations": [
@@ -1958,6 +1987,24 @@
     {
       "source_event_id": "event:082",
       "target_event_id": "event:083",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:083",
+      "target_event_id": "event:084",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:084",
+      "target_event_id": "event:085",
       "kind": "sequence",
       "summary": "",
       "metadata": {

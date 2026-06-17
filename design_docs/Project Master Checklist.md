@@ -16,9 +16,9 @@
 - Snapshot Date: `2026-06-17`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / host-owned Qoder smoke runner helper`
-- Active Slice: `Host-Owned Qoder Smoke Runner Helper (READY-FOR-CLOSE-REVIEW; repeatable host-owned Qoder smoke helper over QoderSDKQueryClient + run_host_runtime_dogfood_harness; MCP fake-only preserved)`
-- Latest Completed Slice: `Controlled Real Qoder Wrapper Spike`
+- Current Phase: `Post-v1.0 — Agent orchestration / credentialed live Qoder smoke`
+- Active Slice: `Credentialed Live Qoder Smoke (READY-FOR-CLOSE-REVIEW; host readiness-negative evidence recorded because qoder-agent-sdk and QODER_PERSONAL_ACCESS_TOKEN are absent; failure is pre-scheduler and credential-safe)`
+- Latest Completed Slice: `Host-Owned Qoder Smoke Runner Helper`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
 - Test Baseline: `295 passed, 1 skipped` (runtime orchestration / progress trajectory / doc-loop prompt / scheduler MCP / MCP prompt-resource focused suite)
 
@@ -34,10 +34,13 @@
 - `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`
 - `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md`
 - `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`
+- `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
+- `review/credentialed-live-qoder-smoke-2026-06-17.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
+- `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md`
 - `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md`
 - `review/host-authorized-scheduler-runner-adapter-2026-06-17.md`
@@ -797,6 +800,8 @@
 - `2026-06-17`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md`。本 gate 将下一步收窄为 host-owned real Qoder SDK wrapper behind `QoderQueryClient`，并把凭据/授权失败、SDK 缺失、权限回调/拒绝、fail-closed 与 rollback 行为列为硬验收；继续保持 MCP scheduler execution fake-only，不进入 daemon、UI、真实 sandbox 或多 agent 调度扩张。
 - `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` 已推进到 `READY-FOR-CLOSE-REVIEW`。本轮新增 `src/runtime/orchestration/qoder_sdk_client.py` 的 `QoderSDKQueryClientConfig` / `QoderSDKQueryClient`，以动态导入方式包裹可选 `qoder_agent_sdk`，并通过 `validate_host_ready()` 在 host dogfood harness 运行前 fail-closed；缺 SDK、缺 auth、非法 stream、权限回调默认拒绝、surface-without-approval 与 token redaction 均已有 focused tests。`tools/progress_graph/scheduler_dogfood.py` 只在 wrapper 提供 readiness hook 时前置检查，mock-Qoder 旧路径保持兼容，MCP `schedulerRunOnceAndProject` 仍保持 fake-only。review evidence 位于 `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`；验证结果：`272 passed, 1 skipped`。
 - `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` 已正式切为 `COMPLETED`；当前新增 follow-up analysis `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`，并激活下一条 `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`。本轮已落地 `tools/progress_graph/qoder_smoke.py` 的 host-owned smoke helper，可初始化最小 Qoder smoke scheduler snapshot、构造 host invocation / qoder permission grant、复用 `QoderSDKQueryClient` 或 injected `QoderQueryClient`，并委托 `run_host_runtime_dogfood_harness()` 写出同形 evidence / projection。当前 gate 已推进到 `READY-FOR-CLOSE-REVIEW`，review evidence 位于 `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`；验证结果：`295 passed, 1 skipped`。
+- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` 已正式切为 `COMPLETED`。本轮新增 follow-up analysis `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`，并激活下一条 `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`。该 gate 先检查本机 `qoder-agent-sdk` / `QODER_PERSONAL_ACCESS_TOKEN` readiness，不打印或提交凭据；若 readiness 成立则通过 `run_host_owned_qoder_smoke()` 跑一条 bounded live smoke，否则记录 pre-scheduler readiness-negative evidence。
+- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` 已推进到 `READY-FOR-CLOSE-REVIEW`。本机 readiness 检查结果为 `sdk_importable=False`、`token_present=False`、`ready=False`、`error_kind=authentication_failed`、`raw_error_type=MissingEnvironmentVariable`；未打印或持久化 token 值，且 `.codex/scheduler/qoder-smoke-state.json`、`.codex/scheduler/evidence/qoder-smoke.json`、`.codex/progress-graph/scheduler-work-trajectory.json` 均不存在，证明失败停在 scheduler 前。review evidence 位于 `review/credentialed-live-qoder-smoke-2026-06-17.md`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

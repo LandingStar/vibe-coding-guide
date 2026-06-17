@@ -1,7 +1,7 @@
 # Planning Gate — Host-Owned Qoder Smoke Runner Helper
 
 > Date: 2026-06-17
-> Status: READY-FOR-CLOSE-REVIEW
+> Status: COMPLETED
 
 ## Trigger
 
@@ -168,3 +168,19 @@ Scope deliberately remains narrow:
    second scheduler.
 3. Live credentialed Qoder success remains a next-slice candidate, not a
    requirement for this helper slice.
+
+### 2026-06-17 — Close Review
+
+The gate is closed as `COMPLETED`.
+
+The helper boundary is accepted because it:
+
+1. Creates or reuses a minimal Qoder smoke scheduler snapshot.
+2. Keeps Qoder execution host-owned and outside MCP.
+3. Delegates execution to `run_host_runtime_dogfood_harness()`.
+4. Writes the existing compact evidence/projection products.
+5. Preserves deterministic injected-client and fail-closed test coverage.
+
+Follow-up direction:
+
+- `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
