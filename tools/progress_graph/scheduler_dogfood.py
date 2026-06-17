@@ -71,6 +71,8 @@ def run_host_runtime_dogfood_harness(
     Trajectory artifacts.
     """
 
+    _validate_real_runtime_client_ready(runtime_config, qoder_query_client)
+
     request = HostSchedulerRunRequest(
         snapshot_path=snapshot_path,
         event_log_path=event_log_path,
@@ -114,3 +116,14 @@ def run_host_runtime_dogfood_harness(
     )
     written = write_host_scheduler_run_evidence(evidence, target)
     return HostRuntimeDogfoodHarnessResult(run_projection=run_projection, evidence=written)
+
+
+def _validate_real_runtime_client_ready(
+    runtime_config: RuntimeRegistryWiringConfig,
+    qoder_query_client: QoderQueryClient | None,
+) -> None:
+    if "qoder" not in runtime_config.providers or qoder_query_client is None:
+        return
+    validator = getattr(qoder_query_client, "validate_host_ready", None)
+    if callable(validator):
+        validator()

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T14:43:24.356073+00:00",
+  "recorded_at": "2026-06-17T15:38:56.481322+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 78,
-    "relation_count": 77,
+    "event_count": 82,
+    "relation_count": 81,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1144,6 +1144,69 @@
         "activated_at": "2026-06-17T14:35:01.036008+00:00",
         "completed_at": "2026-06-17T14:43:24.356073+00:00"
       }
+    },
+    "event:079": {
+      "id": "event:079",
+      "lane_id": "lane:main",
+      "title": "Create Controlled Real Qoder Wrapper Spike planning gate",
+      "kind": "task",
+      "status": "completed",
+      "order": 79,
+      "summary": "Draft the next narrow planning gate for a host-owned real Qoder SDK wrapper behind QoderQueryClient, with explicit auth/permission failure and rollback criteria before implementation.",
+      "metadata": {
+        "created_at": "2026-06-17T14:47:23.708214+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T14:49:03.420076+00:00",
+        "completed_at": "2026-06-17T14:50:38.821725+00:00"
+      }
+    },
+    "event:080": {
+      "id": "event:080",
+      "lane_id": "lane:main",
+      "title": "Implement minimal Python Qoder SDK wrapper seam",
+      "kind": "task",
+      "status": "completed",
+      "order": 80,
+      "summary": "Continue controlled real Qoder wrapper spike under the active planning gate; next work is wrapper seam inspection, official SDK re-check, implementation, tests, prompt/writeback, and a local commit at a safe checkpoint.",
+      "metadata": {
+        "created_at": "2026-06-17T14:51:09.936939+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-17T14:52:34.592526+00:00",
+        "activated_at": "2026-06-17T15:27:53.241050+00:00",
+        "completed_at": "2026-06-17T15:30:09.813356+00:00"
+      }
+    },
+    "event:081": {
+      "id": "event:081",
+      "lane_id": "lane:main",
+      "title": "Validate and write back Qoder wrapper spike",
+      "kind": "task",
+      "status": "completed",
+      "order": 81,
+      "summary": "Focused validation passed (272 passed, 1 skipped). Next: update status docs/review evidence and commit the narrow Qoder wrapper slice.",
+      "metadata": {
+        "created_at": "2026-06-17T14:52:48.241245+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T15:30:09.813356+00:00",
+        "updated_at": "2026-06-17T15:30:17.735527+00:00",
+        "completed_at": "2026-06-17T15:32:25.268451+00:00"
+      }
+    },
+    "event:082": {
+      "id": "event:082",
+      "lane_id": "lane:main",
+      "title": "Qoder wrapper closeout fix, validation, and commit",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 82,
+      "summary": "Fixed qoder_sdk_client.py import/indentation issue; focused validation passed (272 passed, 1 skipped; MCP prompts/resources 21 passed); hygiene scan found only documented env names and synthetic redaction fixture values. Preparing scoped local commit for the controlled real Qoder wrapper slice.",
+      "metadata": {
+        "created_at": "2026-06-17T15:35:29.913134+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T15:36:07.544767+00:00",
+        "updated_at": "2026-06-17T15:38:18.500848+00:00",
+        "completed_at": "2026-06-17T15:38:56.481322+00:00"
+      }
     }
   },
   "relations": [
@@ -1834,6 +1897,42 @@
     {
       "source_event_id": "event:077",
       "target_event_id": "event:078",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:078",
+      "target_event_id": "event:079",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:079",
+      "target_event_id": "event:080",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:080",
+      "target_event_id": "event:081",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:081",
+      "target_event_id": "event:082",
       "kind": "sequence",
       "summary": "",
       "metadata": {

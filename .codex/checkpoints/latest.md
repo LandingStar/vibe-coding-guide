@@ -1,8 +1,8 @@
-# Checkpoint — 2026-06-17T22:43:00+08:00
+# Checkpoint — 2026-06-17T22:50:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / scheduler host-runtime dogfood harness completed
+Post-v1.0 — Agent orchestration / controlled real Qoder wrapper spike
 ## Active Planning Gate
-(none)
+design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -18,20 +18,26 @@ Post-v1.0 — Agent orchestration / scheduler host-runtime dogfood harness compl
 - [x] Update prompt / maintenance guidance for running, inspecting, and writing back dogfood evidence.
 - [x] Move `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md` to `READY-FOR-CLOSE-REVIEW`.
 - [x] Execute final close writeback for `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`.
-- [ ] Create a narrow planning gate before starting `Controlled Real Qoder Wrapper Spike`.
+- [x] Create a narrow planning gate before starting `Controlled Real Qoder Wrapper Spike`.
+- [x] Implement host-owned real Qoder wrapper behind `QoderQueryClient`, preserving MCP fake-only and credential hygiene.
+- [x] Move `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` to `READY-FOR-CLOSE-REVIEW`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Line: Host-Authorized Scheduler Runner Adapter — source: design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
-- Selected Line: Controlled Host Runtime Dogfood Harness — source: design_docs/host-authorized-scheduler-runner-followup-direction-analysis.md
-- Active Gate: (none)
-- Follow-up Recommendation: Controlled Real Qoder Wrapper Spike — source: design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
+- Completed Line: Controlled Host Runtime Dogfood Harness — source: design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
+- Selected Line: Controlled Real Qoder Wrapper Spike — source: design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
+- Active Gate: design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
+- Current Review: review/controlled-real-qoder-wrapper-spike-2026-06-17.md
+- Follow-up Recommendation: review and close the narrow host-owned wrapper spike, then choose the next scheduler adapter / live smoke direction.
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - .codex/handoffs/CURRENT.md
 - .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
 - design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
+- design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
+- review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/controlled-host-runtime-dogfood-harness-2026-06-17.md
 - design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
@@ -40,5 +46,6 @@ Post-v1.0 — Agent orchestration / scheduler host-runtime dogfood harness compl
 - design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
 - design_docs/qoder-runtime-adapter-requirements.md
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
+- src/runtime/orchestration/qoder_sdk_client.py
 - src/runtime/orchestration/scheduler_host_runner.py
 - tools/progress_graph/scheduler_projection.py

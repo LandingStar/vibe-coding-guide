@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from src.runtime.orchestration import (
@@ -56,6 +58,8 @@ from src.runtime.orchestration import (
     RuntimeRunResult,
     SessionHandle,
     SharedProcessSandboxProvider,
+    QoderSDKQueryClient,
+    QoderSDKQueryClientConfig,
     ScratchManifest,
     ScratchManifestEntry,
     SchedulerTaskBatchSubmission,
@@ -1181,6 +1185,163 @@ def test_qoder_query_result_from_response_rejects_unsupported_permission_kind() 
 
     assert raised.value.error_kind == "invalid_response"
     assert "unsupported value 'telepathy'" in str(raised.value)
+
+
+def test_qoder_sdk_query_client_fails_closed_when_sdk_missing() -> None:
+    def missing_importer(name: str):
+        raise ModuleNotFoundError(name)
+
+    client = QoderSDKQueryClient(
+        sdk_importer=missing_importer,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        client.query(_qoder_sdk_request())
+
+    assert raised.value.error_kind == "sdk_unavailable"
+    assert "qoder-agent-sdk" in raised.value.summary
+    assert "redaction-fixture-value" not in str(raised.value)
+
+
+def test_qoder_sdk_query_client_fails_closed_when_auth_token_missing() -> None:
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: _FakeQoderSDK(messages=()),
+        environment={},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        client.query(_qoder_sdk_request())
+
+    assert raised.value.error_kind == "authentication_failed"
+    assert "QODER_PERSONAL_ACCESS_TOKEN" in raised.value.summary
+
+
+def test_qoder_sdk_query_client_streams_text_into_query_result() -> None:
+    sdk = _FakeQoderSDK(messages=({"content": "implemented\n"}, {"content": "validated"}))
+    client = QoderSDKQueryClient(
+        QoderSDKQueryClientConfig(
+            cwd=".",
+            model="configured-model",
+            max_turns=2,
+            allowed_tools=("read",),
+            permission_mode="ask",
+            metadata={"host_surface": "test"},
+        ),
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    result = client.query(_qoder_sdk_request())
+
+    assert result.summary == "implemented"
+    assert result.output_text == "implemented\nvalidated"
+    assert result.permission_requests == ()
+    assert result.metadata["sdk"] == "qoder-agent-sdk"
+    assert result.metadata["message_count"] == 2
+    assert result.metadata["model"] == "configured-model"
+    assert result.metadata["max_turns"] == 2
+    assert result.metadata["allowed_tool_count"] == 1
+    assert result.metadata["host_surface"] == "test"
+    assert sdk.auth_calls == ["from_env"]
+    assert sdk.option_kwargs["auth"] == "auth:env"
+    assert sdk.option_kwargs["cwd"] == "."
+    assert sdk.option_kwargs["model"] == "configured-model"
+    assert sdk.option_kwargs["max_turns"] == 2
+    assert sdk.option_kwargs["allowed_tools"] == ["read"]
+    assert sdk.query_prompt.startswith("Task ID: task-qoder-sdk")
+    assert "Acceptance criteria:" in sdk.query_prompt
+    assert sdk.query_options is sdk.options_instance
+
+
+def test_qoder_sdk_query_client_accepts_structured_final_response_message() -> None:
+    sdk = _FakeQoderSDK(
+        messages=(
+            {
+                "result": {
+                    "summary": "structured qoder result",
+                    "output_text": "final output",
+                    "metadata": {"provider_run_id": "run-remote"},
+                }
+            },
+        )
+    )
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    result = client.query(_qoder_sdk_request())
+
+    assert result.summary == "structured qoder result"
+    assert result.output_text == "final output"
+    assert result.metadata["provider_run_id"] == "run-remote"
+    assert result.metadata["message_count"] == 1
+
+
+def test_qoder_sdk_query_client_rejects_invalid_stream_shape() -> None:
+    sdk = _FakeQoderSDK(messages=(), stream_override={"not": "an async stream"})
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        client.query(_qoder_sdk_request())
+
+    assert raised.value.error_kind == "invalid_response"
+    assert "async message stream" in raised.value.summary
+
+
+def test_qoder_sdk_query_client_denies_permission_callback_by_default() -> None:
+    sdk = _FakeQoderSDK(messages=({"content": "unreachable"},), trigger_permission=True)
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        client.query(_qoder_sdk_request())
+
+    assert raised.value.error_kind == "permission_denied"
+    assert "write src/app.py" in raised.value.summary
+
+
+def test_qoder_sdk_query_client_can_surface_permission_request_without_approving() -> None:
+    sdk = _FakeQoderSDK(messages=(), trigger_permission=True)
+    client = QoderSDKQueryClient(
+        QoderSDKQueryClientConfig(permission_request_policy="surface"),
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    result = client.query(_qoder_sdk_request())
+
+    assert result.summary == "Qoder SDK requested permission review."
+    assert len(result.permission_requests) == 1
+    request = result.permission_requests[0]
+    assert request.request_kind == "artifact_write"
+    assert request.target == "src/app.py"
+    assert "write src/app.py" in request.summary
+
+
+def test_qoder_sdk_query_client_redacts_token_from_sdk_errors() -> None:
+    token = "redaction-fixture-value"
+    sdk = _FakeQoderSDK(
+        messages=(),
+        query_exception=RuntimeError(f"auth failed for {token}"),
+    )
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: sdk,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": token},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        client.query(_qoder_sdk_request())
+
+    assert raised.value.error_kind == "authentication_failed"
+    assert token not in str(raised.value)
+    assert "[redacted]" in raised.value.summary
 
 
 def test_scheduler_records_qoder_runtime_error_as_runtime_failure(tmp_path) -> None:
@@ -4386,3 +4547,102 @@ class _RecordingQoderClient:
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
         self.requests = self.requests + (request,)
         return self.result
+
+
+def _qoder_sdk_request() -> QoderQueryRequest:
+    agent = AgentSpec(
+        agent_id="agent:qoder-sdk",
+        runtime_provider="qoder",
+        model="agent-model",
+        max_turns=4,
+    )
+    task = TaskSpec(
+        task_id="task-qoder-sdk",
+        title="Use Qoder SDK wrapper",
+        instruction="Return a compact normalized result.",
+        acceptance=("result is normalized", "no secrets are logged"),
+        output_artifact_id="task-qoder-sdk:result",
+    )
+    session = SessionHandle(
+        session_id="qoder-session-sdk",
+        provider="qoder",
+        agent_id=agent.agent_id,
+    )
+    return QoderQueryRequest(
+        agent=agent,
+        task=task,
+        session=session,
+        instruction=task.instruction,
+        acceptance=task.acceptance,
+        output_artifact_id=task.output_artifact_id,
+    )
+
+
+class _FakeQoderSDK:
+    def __init__(
+        self,
+        *,
+        messages,
+        trigger_permission: bool = False,
+        stream_override=None,
+        query_exception: Exception | None = None,
+    ) -> None:
+        self.messages = tuple(messages)
+        self.trigger_permission = trigger_permission
+        self.stream_override = stream_override
+        self.query_exception = query_exception
+        self.auth_calls: list[str] = []
+        self.option_kwargs = {}
+        self.options_instance = object()
+        self.query_prompt = ""
+        self.query_options = None
+
+    def access_token_from_env(self):
+        self.auth_calls.append("from_env")
+        return "auth:env"
+
+    def access_token(self, token):
+        self.auth_calls.append("token")
+        return f"auth:{token}"
+
+    def qodercli_auth(self):
+        self.auth_calls.append("qodercli")
+        return "auth:qodercli"
+
+    def QoderAgentOptions(self, **kwargs):
+        self.option_kwargs = kwargs
+        return self.options_instance
+
+    def query(self, *, prompt, options):
+        if self.query_exception is not None:
+            raise self.query_exception
+        self.query_prompt = prompt
+        self.query_options = options
+        if self.trigger_permission:
+            can_use_tool = self.option_kwargs["can_use_tool"]
+            assert can_use_tool(
+                {
+                    "tool_name": "write",
+                    "target": "src/app.py",
+                    "summary": "Qoder wants to write src/app.py",
+                }
+            ) is False
+        if self.stream_override is not None:
+            return self.stream_override
+        return _FakeAsyncMessageStream(self.messages)
+
+
+class _FakeAsyncMessageStream:
+    def __init__(self, messages) -> None:
+        self._messages = tuple(messages)
+
+    def __aiter__(self):
+        self._iterator = iter(self._messages)
+        return self
+
+    async def __anext__(self):
+        await asyncio.sleep(0)
+        try:
+            return next(self._iterator)
+        except StopIteration as exc:
+            raise StopAsyncIteration from exc

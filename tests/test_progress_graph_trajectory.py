@@ -21,8 +21,10 @@ from src.runtime.orchestration import (
     RuntimeHostInvocation,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
+    QoderSDKQueryClient,
     QoderQueryRequest,
     QoderQueryResult,
+    QoderRuntimeError,
     SchedulerEvent,
     SchedulerMergeGate,
     SchedulerMergeGateEvent,
@@ -38,6 +40,7 @@ from src.runtime.orchestration import (
     TaskDependency,
     TaskRunRecord,
     run_persisted_scheduler_once,
+    read_scheduler_state_snapshot,
     scheduler_task_batch_submission_to_artifact,
     submit_scheduler_task_batch_with_persistence,
     write_scheduler_state_snapshot,
@@ -1055,6 +1058,69 @@ def test_host_runtime_dogfood_harness_mock_qoder_requires_host_grant(tmp_path: P
             evidence_id="dogfood-qoder-missing-grant",
             qoder_query_client=_RecordingQoderClient(QoderQueryResult(summary="unused")),
         )
+
+
+def test_host_runtime_dogfood_harness_real_qoder_wrapper_auth_failure_fails_closed(
+    tmp_path: Path,
+) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-auth-fail.json"
+    projection_path = scheduler_work_trajectory_json_path(tmp_path)
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-q": _scheduler_projection_task(
+                    "task-q",
+                    lane_id="lane:qoder",
+                    agent=AgentSpec(agent_id="agent:qoder", runtime_provider="qoder"),
+                    output_artifact_id="task-q:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    client = QoderSDKQueryClient(
+        sdk_importer=lambda name: _NeverUsedQoderSDK(),
+        environment={},
+    )
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        run_host_runtime_dogfood_harness(
+            tmp_path,
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("qoder",),
+                timestamp="2026-06-17T21:00:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="dogfood-qoder-auth-fail",
+                    requested_providers=("qoder",),
+                    requested_by="host:test",
+                    reason="real qoder wrapper negative-path evidence",
+                ),
+                qoder_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-qoder-auth-fail",
+                    provider="qoder",
+                    approved_by="host:test",
+                    approved_at="2026-06-17T20:59:00+08:00",
+                    allow_sdk_client=True,
+                ),
+            ),
+            evidence_id="dogfood-qoder-auth-fail",
+            evidence_output_path=evidence_path,
+            timestamp="2026-06-17T21:00:00+08:00",
+            qoder_query_client=client,
+        )
+
+    assert raised.value.error_kind == "authentication_failed"
+    assert "QODER_PERSONAL_ACCESS_TOKEN" in raised.value.summary
+    assert evidence_path.exists() is False
+    assert projection_path.exists() is False
+    restored = read_scheduler_state_snapshot(snapshot_path)
+    assert restored.tasks["task-q"].state == "proposed"
+    assert restored.tasks["task-q"].run_id == ""
 
 
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:
@@ -2494,6 +2560,11 @@ class _RecordingQoderClient:
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
         self.requests = self.requests + (request,)
         return self.result
+
+
+class _NeverUsedQoderSDK:
+    def access_token_from_env(self):  # pragma: no cover - auth gate fails first
+        raise AssertionError("auth helper should not be reached without token")
 
 
 @pytest.mark.skipif(

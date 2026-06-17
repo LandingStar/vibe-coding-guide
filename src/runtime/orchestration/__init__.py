@@ -108,6 +108,13 @@ from .runtime_adapter import (
     qoder_runtime_capabilities,
     qoder_query_result_from_response,
 )
+from .qoder_sdk_client import (
+    DEFAULT_QODER_TOKEN_ENV,
+    QoderPermissionRequestPolicy,
+    QoderSDKQueryClient,
+    QoderSDKQueryClientConfig,
+    QoderSdkAuthMode,
+)
 from .runtime_wiring import (
     RuntimeHostInvocation,
     RuntimeHostSurfaceKind,
@@ -274,12 +281,17 @@ __all__ = [
     "FakeAgentRuntimeAdapter",
     "PermissionRequest",
     "PermissionRequestKind",
+    "DEFAULT_QODER_TOKEN_ENV",
     "QoderAgentRuntimeAdapter",
+    "QoderPermissionRequestPolicy",
     "QoderQueryClient",
     "QoderQueryRequest",
     "QoderQueryResult",
     "QoderRuntimeError",
     "QoderRuntimeErrorKind",
+    "QoderSDKQueryClient",
+    "QoderSDKQueryClientConfig",
+    "QoderSdkAuthMode",
     "RuntimeCapabilities",
     "RuntimeHostInvocation",
     "RuntimeHostSurfaceKind",

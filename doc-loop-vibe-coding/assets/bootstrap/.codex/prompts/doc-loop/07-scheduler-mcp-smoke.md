@@ -183,6 +183,57 @@ The evidence JSON is a review artifact. It is not scheduler state and must not
 be used to replay task contracts. Scheduler state remains the snapshot plus
 event log.
 
+## Controlled Real Qoder Wrapper Spike
+
+Use the real Qoder wrapper only from a host-owned Python surface, never through
+`schedulerRunOnceAndProject`.
+
+The current wrapper seam is:
+
+```text
+QoderSDKQueryClientConfig
+QoderSDKQueryClient
+QoderQueryClient
+QoderAgentRuntimeAdapter
+run_host_runtime_dogfood_harness()
+```
+
+Expected host construction:
+
+1. Install the optional `qoder-agent-sdk` package in the host runtime
+   environment. It is not a hard dependency of the doc-based-coding runtime.
+2. Provide `QODER_PERSONAL_ACCESS_TOKEN` or an explicitly supported SDK auth
+   mode in the host environment. Do not write token values into files,
+   scheduler state, evidence JSON, decision logs, review docs, or Local Work
+   Trajectory.
+3. Construct `QoderSDKQueryClient(QoderSDKQueryClientConfig(...))` in the
+   host-authorized adapter layer.
+4. Build `RuntimeRegistryWiringConfig(providers=("qoder",), ...)` with
+   `RuntimeHostInvocation(surface="host-authorized-adapter", ...)` and
+   `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`.
+5. Pass the wrapper as `qoder_query_client` to
+   `run_host_runtime_dogfood_harness()`.
+
+Expected negative-path behavior:
+
+- missing `qoder-agent-sdk` -> `QoderRuntimeError(error_kind="sdk_unavailable")`
+- missing auth token -> `QoderRuntimeError(error_kind="authentication_failed")`
+- malformed SDK stream -> `QoderRuntimeError(error_kind="invalid_response")`
+- SDK permission callback request -> deny by default with
+  `QoderRuntimeError(error_kind="permission_denied")`
+- `permission_request_policy="surface"` may surface a compact
+  `PermissionRequest`, but the wrapper still returns `False` to the SDK
+  permission callback and does not approve the request internally
+
+Before running the scheduler, `run_host_runtime_dogfood_harness()` calls the
+wrapper's `validate_host_ready()` when available. This is the fail-closed guard:
+missing SDK/auth fails before evidence JSON, scheduler projection, or scheduler
+state are written.
+
+The wrapper must keep result material compact. Do not copy raw transcripts,
+tokens, or full SDK logs into `QoderQueryResult.metadata`,
+`HostSchedulerRunEvidence`, review docs, or Local Work Trajectory.
+
 ## Write-Back
 
 Record:
