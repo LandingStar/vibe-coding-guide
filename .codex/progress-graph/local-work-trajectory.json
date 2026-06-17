@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Baseline graph prompt and initialization behavior",
-  "recorded_at": "2026-06-08T06:46:47.527043+00:00",
+  "title": "Agent orchestration layer planning",
+  "recorded_at": "2026-06-17T14:43:24.356073+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/stages/planning-gate/2026-04-15-mcp-impact-coupling-tools.md",
+  "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Baseline graph prompt and initialization behavior",
+    "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 78,
+    "relation_count": 77,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "baseline-prompts",
+      "label": "orchestration",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/stages/planning-gate/2026-04-15-mcp-impact-coupling-tools.md"
+        "context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md"
       }
     }
   },
@@ -36,59 +36,1113 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Map current bootstrap prompts and initialization surfaces",
+      "title": "固化三层结构与运行时调研结论",
       "kind": "task",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-08T06:13:52.659083+00:00",
-        "activated_at": "2026-06-08T06:13:52.659083+00:00",
+        "created_at": "2026-06-16T07:36:16.102883+00:00",
+        "activated_at": "2026-06-16T07:36:16.102883+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-08T06:15:49.746915+00:00"
+        "completed_at": "2026-06-16T07:39:54.976961+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Patch baseline prompt and bootstrap guidance",
+      "title": "固化 Agent Home 与临时私有空间边界",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Update prompt/bootstrap surfaces so adopted workspaces know how to create, maintain, and initialize dependency baselines without fabricating them during ordinary task work.",
+      "summary": "新增 agent 私有持久空间与临时 scratch space 的设计文档，并同步下一阶段编排层规划中的必要引用。",
       "metadata": {
-        "created_at": "2026-06-08T06:16:01.914258+00:00",
+        "created_at": "2026-06-16T09:02:13.364226+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-08T06:24:24.234178+00:00"
+        "activated_at": "2026-06-16T09:03:59.413304+00:00",
+        "completed_at": "2026-06-16T09:09:22.706657+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Create dependency baseline generator planning gate",
+      "title": "固化 ExchangeArtifact 与 log part",
       "kind": "task",
       "status": "completed",
       "order": 3,
-      "summary": "Create a narrow planning-gate for baseline generator contract and adapter boundary, without implementing the generator.",
+      "summary": "将交流产品协议落为设计记录，加入用于历史交流管理的 log part。",
       "metadata": {
-        "created_at": "2026-06-08T06:27:14.581807+00:00",
+        "created_at": "2026-06-16T09:07:48.187113+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-08T06:29:11.392315+00:00"
+        "activated_at": "2026-06-16T09:09:22.706657+00:00",
+        "completed_at": "2026-06-16T09:23:17.975694+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Write dependency baseline generator contract",
+      "title": "补 ExchangeArtifact 版本存储与协调事件日志设施",
       "kind": "task",
       "status": "completed",
       "order": 4,
-      "summary": "Implement first slice of the proposed gate: add contract doc, link adoption/prompt surfaces, and add minimal tests without implementing a generator.",
+      "summary": "为交流产品增加 ArtifactVersionStore / CoordinationEventLog 最小代码配套与测试。",
       "metadata": {
-        "created_at": "2026-06-08T06:39:26.914909+00:00",
+        "created_at": "2026-06-16T09:24:34.780406+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-08T06:45:19.084102+00:00",
-        "completed_at": "2026-06-08T06:46:47.527043+00:00"
+        "activated_at": "2026-06-16T09:27:29.585914+00:00",
+        "completed_at": "2026-06-16T09:31:31.945912+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "实现 AgentRuntimeAdapter 合同与 fake runtime",
+      "kind": "task",
+      "status": "completed",
+      "order": 5,
+      "summary": "落 O1/O2 第一刀：定义 runtime adapter 合同，提供 fake runtime 通过 ExchangeArtifact store/event log 进行验证。",
+      "metadata": {
+        "created_at": "2026-06-16T09:28:40.664960+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-16T09:31:31.945912+00:00",
+        "completed_at": "2026-06-16T09:35:14.873261+00:00"
+      }
+    },
+    "event:006": {
+      "id": "event:006",
+      "lane_id": "lane:main",
+      "title": "补 SchedulerState 快照持久化与恢复",
+      "kind": "task",
+      "status": "completed",
+      "order": 6,
+      "summary": "为 scheduler-owned task graph 增加 JSON snapshot 读写恢复，并验证恢复后继续 readiness/run。",
+      "metadata": {
+        "created_at": "2026-06-16T09:37:42.051072+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-16T09:42:00.830446+00:00",
+        "completed_at": "2026-06-16T09:51:36.979497+00:00"
+      }
+    },
+    "event:007": {
+      "id": "event:007",
+      "lane_id": "lane:main",
+      "title": "为交流产物补充历史管理 log 项",
+      "kind": "task",
+      "status": "completed",
+      "order": 7,
+      "summary": "在 ExchangeArtifact 交流产品中增加便于历史交流管理的日志项，重点包括时间戳等追溯字段，并补齐验证与文档。",
+      "metadata": {
+        "created_at": "2026-06-16T09:48:36.865078+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-16T09:51:36.979497+00:00",
+        "completed_at": "2026-06-16T09:51:42.383678+00:00"
+      }
+    },
+    "event:008": {
+      "id": "event:008",
+      "lane_id": "lane:main",
+      "title": "实现 SchedulerState 到 Local Work Trajectory 的纯投影",
+      "kind": "task",
+      "status": "completed",
+      "order": 8,
+      "summary": "按 O5 方向增加 scheduler-owned state 到 Local Work Trajectory 的只读投影设施，保持 Local Work Trajectory 只是可视化视图而非调度权威。",
+      "metadata": {
+        "created_at": "2026-06-16T09:56:29.850552+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T12:45:54.485656+00:00"
+      }
+    },
+    "event:009": {
+      "id": "event:009",
+      "lane_id": "lane:main",
+      "title": "补 SchedulerEvent 历史日志设施",
+      "kind": "task",
+      "status": "completed",
+      "order": 9,
+      "summary": "为 scheduler-owned task graph 增加最小 append-only event history，记录 readiness/admission/run 等调度状态变化，并与 artifact/run 线索关联。",
+      "metadata": {
+        "created_at": "2026-06-16T13:00:20.603636+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:07:45.552487+00:00"
+      }
+    },
+    "event:010": {
+      "id": "event:010",
+      "lane_id": "lane:main",
+      "title": "实现 SchedulerEvent replay 恢复设施",
+      "kind": "task",
+      "status": "completed",
+      "order": 10,
+      "summary": "基于 baseline SchedulerState 应用 scheduler JSONL 事件历史，恢复任务状态、run record 与 output artifact 线索，作为后续 durable scheduler recovery 的第一刀。",
+      "metadata": {
+        "created_at": "2026-06-16T13:08:57.590724+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:14:30.981882+00:00"
+      }
+    },
+    "event:011": {
+      "id": "event:011",
+      "lane_id": "lane:main",
+      "title": "实现 dependency wake-up loop",
+      "kind": "task",
+      "status": "completed",
+      "order": 11,
+      "summary": "让 scheduler 在任务完成后自动重新评估依赖该任务的 waiting/proposed/blocked 下游任务，并记录 readiness 事件。",
+      "metadata": {
+        "created_at": "2026-06-16T13:15:58.699223+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:24:42.589334+00:00"
+      }
+    },
+    "event:012": {
+      "id": "event:012",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler drain_ready_tasks 串行推进",
+      "kind": "task",
+      "status": "completed",
+      "order": 12,
+      "summary": "在 scheduler skeleton 上新增受控 ready 队列 drain 设施：按确定性顺序串行运行 ready/fake-runtime 任务链，保留 max_runs 和 stop_reason，补测试与文档。",
+      "metadata": {
+        "created_at": "2026-06-16T13:26:34.602641+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:30:06.478588+00:00"
+      }
+    },
+    "event:013": {
+      "id": "event:013",
+      "lane_id": "lane:main",
+      "title": "补 scheduler drain 失败停止语义",
+      "kind": "task",
+      "status": "completed",
+      "order": 13,
+      "summary": "为 bounded drain 增加 runtime 失败时的 blocked 状态落点、stop_reason 和事件可追溯测试，保持第一版失败即停止。",
+      "metadata": {
+        "created_at": "2026-06-16T13:31:51.653763+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:35:08.754487+00:00"
+      }
+    },
+    "event:014": {
+      "id": "event:014",
+      "lane_id": "lane:main",
+      "title": "新增 SchedulerRunPolicy 与失败续跑策略",
+      "kind": "task",
+      "status": "completed",
+      "order": 14,
+      "summary": "将 bounded drain 的 max_runs / continue_on_failure 抽象为 SchedulerRunPolicy，并支持失败任务 blocked 后继续独立 ready 分支。",
+      "metadata": {
+        "created_at": "2026-06-16T13:36:11.245867+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:43:09.281522+00:00"
+      }
+    },
+    "event:015": {
+      "id": "event:015",
+      "lane_id": "lane:main",
+      "title": "新增 AgentRuntimeAdapterRegistry",
+      "kind": "task",
+      "status": "completed",
+      "order": 15,
+      "summary": "在不修改 scheduler snapshot/schema 的前提下，为 runtime adapter 层增加 provider-based registry，用于注册和选择 fake / future qoder adapters。",
+      "metadata": {
+        "created_at": "2026-06-16T13:45:26.697488+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:50:28.866203+00:00"
+      }
+    },
+    "event:016": {
+      "id": "event:016",
+      "lane_id": "lane:main",
+      "title": "新增 scheduler registry runtime 选择 helper",
+      "kind": "task",
+      "status": "completed",
+      "order": 16,
+      "summary": "增加 run_scheduled_task_with_registry()，让 scheduler 可按 task.agent.runtime_provider 从 AgentRuntimeAdapterRegistry 选择 adapter 后复用 run_ready_task。",
+      "metadata": {
+        "created_at": "2026-06-16T13:51:32.307913+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T13:56:23.109398+00:00"
+      }
+    },
+    "event:017": {
+      "id": "event:017",
+      "lane_id": "lane:main",
+      "title": "实现 Qoder adapter mockable seam",
+      "kind": "task",
+      "status": "completed",
+      "order": 17,
+      "summary": "新增 QoderQueryClient protocol 与 QoderAgentRuntimeAdapter skeleton，不调用真实 SDK，用 mocked client 验证 registry/scheduler 路径。",
+      "metadata": {
+        "created_at": "2026-06-16T13:57:43.936828+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:04:46.637601+00:00"
+      }
+    },
+    "event:018": {
+      "id": "event:018",
+      "lane_id": "lane:main",
+      "title": "收束 QoderQueryRequest 输入合同",
+      "kind": "task",
+      "status": "completed",
+      "order": 18,
+      "summary": "新增 QoderQueryRequest 数据对象，将 QoderQueryClient 输入从 agent/task/session 散参收束为稳定 request shape，并同步 mocked tests 与文档。",
+      "metadata": {
+        "created_at": "2026-06-16T14:07:46.282734+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:15:07.174172+00:00"
+      }
+    },
+    "event:019": {
+      "id": "event:019",
+      "lane_id": "lane:main",
+      "title": "编写 Qoder runtime adapter requirements",
+      "kind": "task",
+      "status": "completed",
+      "order": 19,
+      "summary": "新增真实 Qoder SDK wrapper 接入前的 requirements 文档，固定请求字段、事件流、权限请求、artifact delta、transcript refs 和非目标边界。",
+      "metadata": {
+        "created_at": "2026-06-16T14:19:06.999796+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:21:53.138093+00:00"
+      }
+    },
+    "event:020": {
+      "id": "event:020",
+      "lane_id": "lane:main",
+      "title": "为 runtime result 增加 permission request surface",
+      "kind": "task",
+      "status": "completed",
+      "order": 20,
+      "summary": "扩展 RuntimeRunResult / QoderQueryResult，允许 runtime 将 PermissionRequest 一等返回给编排层；用 Qoder mock 验证请求被 surface 而非内部批准。",
+      "metadata": {
+        "created_at": "2026-06-16T14:22:56.692093+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:26:37.966701+00:00"
+      }
+    },
+    "event:021": {
+      "id": "event:021",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler-side permission gate",
+      "kind": "task",
+      "status": "completed",
+      "order": 21,
+      "summary": "当 RuntimeRunResult 携带 permission_requests 时，将任务落到 review_required，记录可审计事件，不视为 complete，不唤醒依赖下游。",
+      "metadata": {
+        "created_at": "2026-06-16T14:27:52.236505+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:33:18.942073+00:00"
+      }
+    },
+    "event:022": {
+      "id": "event:022",
+      "lane_id": "lane:main",
+      "title": "实现 permission review 决议闭环",
+      "kind": "task",
+      "status": "completed",
+      "order": 22,
+      "summary": "继续收束 permission review 决议闭环，同时核对 ExchangeArtifact 的 log part 已经落地，避免重复实现历史交流管理字段。",
+      "metadata": {
+        "created_at": "2026-06-16T14:34:28.782942+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-16T14:37:29.630038+00:00",
+        "completed_at": "2026-06-16T14:43:07.997568+00:00"
+      }
+    },
+    "event:023": {
+      "id": "event:023",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler recovery API",
+      "kind": "task",
+      "status": "completed",
+      "order": 23,
+      "summary": "新增基于 scheduler snapshot + JSONL event log 的窄恢复入口，保持 event log 不创建任务合同，只应用到 baseline snapshot。",
+      "metadata": {
+        "created_at": "2026-06-16T14:44:18.609987+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-16T14:47:51.573359+00:00",
+        "completed_at": "2026-06-16T14:48:13.435781+00:00"
+      }
+    },
+    "event:024": {
+      "id": "event:024",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler snapshot compaction API",
+      "kind": "task",
+      "status": "completed",
+      "order": 24,
+      "summary": "新增非破坏性 compaction 入口：从 snapshot + event log 恢复状态后写出 compacted snapshot，不截断原事件日志。",
+      "metadata": {
+        "created_at": "2026-06-16T14:49:15.628157+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:51:28.164026+00:00"
+      }
+    },
+    "event:025": {
+      "id": "event:025",
+      "lane_id": "lane:main",
+      "title": "实现 SandboxProvider contract skeleton",
+      "kind": "task",
+      "status": "completed",
+      "order": 25,
+      "summary": "按 O6 增加 sandbox provider 合同、shared-process metadata provider 与 capability shape；不实现 Docker/remote VM 真执行。",
+      "metadata": {
+        "created_at": "2026-06-16T14:52:32.724312+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T14:56:57.690569+00:00"
+      }
+    },
+    "event:026": {
+      "id": "event:026",
+      "lane_id": "lane:main",
+      "title": "实现 Agent Home / Scratch governance 产品对象",
+      "kind": "task",
+      "status": "completed",
+      "order": 26,
+      "summary": "按 O7 定义 AgentHomeRegistration、AgentScratchSpace、ScratchManifest、CleanupReceipt 等代码对象，并提供 exchange artifact 映射；不做真实文件系统操作。",
+      "metadata": {
+        "created_at": "2026-06-16T14:58:06.672937+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T15:02:16.135741+00:00"
+      }
+    },
+    "event:027": {
+      "id": "event:027",
+      "lane_id": "lane:main",
+      "title": "实现 orchestration preflight bundle",
+      "kind": "task",
+      "status": "completed",
+      "order": 27,
+      "summary": "组装 ScheduledTask -> SandboxAllocation + AgentScratchSpace + TaskSpec 的执行前准备包，不运行 runtime、不创建真实目录。",
+      "metadata": {
+        "created_at": "2026-06-16T15:03:16.159996+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T15:07:01.811688+00:00"
+      }
+    },
+    "event:028": {
+      "id": "event:028",
+      "lane_id": "lane:main",
+      "title": "实现 run_preflighted_task 受控执行入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 28,
+      "summary": "将 OrchestrationPreflightBundle 接到 AgentRuntimeAdapterRegistry 与 scheduler run_ready_task，保持 scheduler state mutation 由 scheduler helper 负责。",
+      "metadata": {
+        "created_at": "2026-06-16T15:08:16.599434+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T15:11:10.907785+00:00"
+      }
+    },
+    "event:029": {
+      "id": "event:029",
+      "lane_id": "lane:main",
+      "title": "实现 bounded drain with preflight",
+      "kind": "task",
+      "status": "completed",
+      "order": 29,
+      "summary": "继续收束 bounded drain with preflight，同时核对 ExchangeArtifact log part 已落地到合同、代码与测试，避免留下半成品实现。",
+      "metadata": {
+        "created_at": "2026-06-16T15:12:34.149689+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-16T15:15:59.371120+00:00",
+        "completed_at": "2026-06-16T15:20:53.422343+00:00"
+      }
+    },
+    "event:030": {
+      "id": "event:030",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler task submission adapter",
+      "kind": "task",
+      "status": "completed",
+      "order": 30,
+      "summary": "补齐 ExchangeArtifact -> ScheduledTask / TaskDependency 的窄入口：让交流产品可以形成 scheduler-owned task graph，但不启动 daemon 或真实 runtime。",
+      "metadata": {
+        "created_at": "2026-06-16T16:21:41.562307+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:27:09.352608+00:00"
+      }
+    },
+    "event:031": {
+      "id": "event:031",
+      "lane_id": "lane:main",
+      "title": "实现 scheduler task batch submission adapter",
+      "kind": "task",
+      "status": "completed",
+      "order": 31,
+      "summary": "扩展 scheduler submission 入口，使单个 ExchangeArtifact 可携带多任务和依赖图并一次性提交到 SchedulerState；保持只做 intake，不启动 daemon。",
+      "metadata": {
+        "created_at": "2026-06-16T16:28:22.568221+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:31:37.728182+00:00"
+      }
+    },
+    "event:032": {
+      "id": "event:032",
+      "lane_id": "lane:main",
+      "title": "实现 batch submission persistence smoke",
+      "kind": "task",
+      "status": "completed",
+      "order": 32,
+      "summary": "为 SchedulerTaskBatchSubmission 增加持久化提交 smoke：提交后写 scheduler snapshot 与 submission audit event，验证 recovery 后可继续 drain。",
+      "metadata": {
+        "created_at": "2026-06-16T16:33:43.269364+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:36:48.384559+00:00"
+      }
+    },
+    "event:033": {
+      "id": "event:033",
+      "lane_id": "lane:main",
+      "title": "实现 persisted scheduler one-shot runner",
+      "kind": "task",
+      "status": "completed",
+      "order": 33,
+      "summary": "新增 run_persisted_scheduler_once()：从 snapshot/event log 恢复 SchedulerState，经 preflight drain 执行 bounded run，并将结果写回 snapshot。",
+      "metadata": {
+        "created_at": "2026-06-16T16:38:20.275111+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:41:12.206860+00:00"
+      }
+    },
+    "event:034": {
+      "id": "event:034",
+      "lane_id": "lane:main",
+      "title": "补 scheduler runner trajectory projection visibility",
+      "kind": "task",
+      "status": "completed",
+      "order": 34,
+      "summary": "开始收口 persisted scheduler one-shot runner 的 trajectory projection visibility：目标是用真实 submission/persistence/runner/projection 链路证明状态、依赖、run record 与 output artifact 线索可见，保持只读投影。",
+      "metadata": {
+        "created_at": "2026-06-16T16:42:31.811635+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-16T16:48:24.638796+00:00",
+        "completed_at": "2026-06-16T16:51:13.691086+00:00"
+      }
+    },
+    "event:035": {
+      "id": "event:035",
+      "lane_id": "lane:main",
+      "title": "补 scheduler event-log trajectory projection clues",
+      "kind": "task",
+      "status": "completed",
+      "order": 35,
+      "summary": "在保持 SchedulerState 为权威的前提下，为 scheduler-derived Local Work Trajectory 投影补充可选 event-log 历史线索，使 trajectory event 能展示相关 scheduler event ids/kinds/timestamps/sequence，服务历史追踪而不从日志创造任务合同。",
+      "metadata": {
+        "created_at": "2026-06-16T16:51:38.917743+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:53:33.766842+00:00"
+      }
+    },
+    "event:036": {
+      "id": "event:036",
+      "lane_id": "lane:main",
+      "title": "补 scheduler fan-in merge projection",
+      "kind": "task",
+      "status": "completed",
+      "order": 36,
+      "summary": "为 scheduler-derived Local Work Trajectory 增加 fan-in/merge 可见性：多上游依赖汇入同一目标时投影为显式 merge 事件/关系线索，保持 SchedulerState 为权威且 projection-only。",
+      "metadata": {
+        "created_at": "2026-06-16T16:54:29.479335+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:57:16.801954+00:00"
+      }
+    },
+    "event:037": {
+      "id": "event:037",
+      "lane_id": "lane:main",
+      "title": "定义 scheduler-native fan-in merge gate 边界",
+      "kind": "decision",
+      "status": "completed",
+      "order": 37,
+      "summary": "编写窄设计记录，判断 scheduler 是否需要原生 merge gate / lifecycle state，区分 projection-only fan-in summary 与 scheduler-owned merge gate；暂不进入 daemon、真实 Qoder 或 UI。",
+      "metadata": {
+        "created_at": "2026-06-16T16:58:10.212383+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T16:59:45.359679+00:00"
+      }
+    },
+    "event:038": {
+      "id": "event:038",
+      "lane_id": "lane:main",
+      "title": "实现 SchedulerMergeGate snapshot 与 projection skeleton",
+      "kind": "task",
+      "status": "completed",
+      "order": 38,
+      "summary": "按设计记录推进第一刀代码：新增 SchedulerMergeGate 数据对象、SchedulerState snapshot round-trip、scheduler-derived trajectory 只读 projection；不实现 merge gate runtime execution、review UI、daemon 或真实 Qoder。",
+      "metadata": {
+        "created_at": "2026-06-16T17:00:03.313696+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:05:24.672818+00:00"
+      }
+    },
+    "event:039": {
+      "id": "event:039",
+      "lane_id": "lane:main",
+      "title": "实现 merge gate target admission gating",
+      "kind": "task",
+      "status": "completed",
+      "order": 39,
+      "summary": "最小接入 SchedulerMergeGate admission 语义：目标 task 在关联 merge gate 未 complete 前等待该 gate；不做 gate runtime execution、review resolution、daemon 或 UI。",
+      "metadata": {
+        "created_at": "2026-06-16T17:06:32.790474+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:09:12.685859+00:00"
+      }
+    },
+    "event:040": {
+      "id": "event:040",
+      "lane_id": "lane:main",
+      "title": "实现 merge gate explicit resolution loop",
+      "kind": "task",
+      "status": "completed",
+      "order": 40,
+      "summary": "新增 resolve_scheduler_merge_gate()：外部 review/guide 可批准或拒绝 scheduler-owned merge gate；批准后 gate complete 并重新评估目标 task，拒绝后 gate blocked。暂不增加 merge-gate-specific event schema。",
+      "metadata": {
+        "created_at": "2026-06-16T17:10:18.842790+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:13:20.896536+00:00"
+      }
+    },
+    "event:041": {
+      "id": "event:041",
+      "lane_id": "lane:main",
+      "title": "实现 merge gate event schema 与 JSONL 持久化",
+      "kind": "task",
+      "status": "completed",
+      "order": 41,
+      "summary": "新增 SchedulerMergeGateEvent / JsonlSchedulerMergeGateEventLog，并让 resolve_scheduler_merge_gate() 可选记录 completed/blocked 事件；事件只做历史持久化，不参与 replay 或 contract 创建。",
+      "metadata": {
+        "created_at": "2026-06-16T17:14:22.853731+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:17:36.146429+00:00"
+      }
+    },
+    "event:042": {
+      "id": "event:042",
+      "lane_id": "lane:main",
+      "title": "投影 merge gate event history metadata",
+      "kind": "task",
+      "status": "completed",
+      "order": 42,
+      "summary": "补充用户确认的 log metadata 需求：merge gate event history 投影需要携带 event id、kind、timestamp、sequence 与 decision artifact 线索，便于历史交流管理；保持 projection-only，不进入 replay 或 scheduler 权威状态。",
+      "metadata": {
+        "created_at": "2026-06-16T17:18:30.341706+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-16T17:20:50.124707+00:00",
+        "completed_at": "2026-06-16T17:24:19.859359+00:00"
+      }
+    },
+    "event:043": {
+      "id": "event:043",
+      "lane_id": "lane:main",
+      "title": "接入 scheduler JSONL history projection 入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 43,
+      "summary": "为 scheduler-derived Local Work Trajectory projection 增加读取 task scheduler JSONL 与 merge-gate JSONL history 的便利入口，并保持 projection-only 权威边界。",
+      "metadata": {
+        "created_at": "2026-06-16T17:27:08.690093+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:30:50.116322+00:00"
+      }
+    },
+    "event:044": {
+      "id": "event:044",
+      "lane_id": "lane:main",
+      "title": "写出 scheduler projection artifact",
+      "kind": "task",
+      "status": "completed",
+      "order": 44,
+      "summary": "为 scheduler-derived Local Work Trajectory 增加独立 artifact 路径与写出 helper，避免覆盖 agent-owned local-work-trajectory.json。",
+      "metadata": {
+        "created_at": "2026-06-16T17:32:36.479389+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:35:22.404422+00:00"
+      }
+    },
+    "event:045": {
+      "id": "event:045",
+      "lane_id": "lane:main",
+      "title": "暴露 scheduler projection MCP 工具",
+      "kind": "task",
+      "status": "completed",
+      "order": 45,
+      "summary": "新增 MCP 调用侧薄入口，用 scheduler snapshot 和可选 JSONL history 生成独立 scheduler-work-trajectory.json artifact。",
+      "metadata": {
+        "created_at": "2026-06-16T17:37:30.372005+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T17:42:47.824574+00:00"
+      }
+    },
+    "event:046": {
+      "id": "event:046",
+      "lane_id": "lane:main",
+      "title": "定义双 trajectory artifact 消费契约",
+      "kind": "task",
+      "status": "completed",
+      "order": 46,
+      "summary": "为 Progress Graph Preview 定义 agent-owned local trajectory 与 scheduler-derived trajectory 的双 artifact bundle 读取契约，并补非 UI 读取器。",
+      "metadata": {
+        "created_at": "2026-06-16T20:12:55.840582+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:16:43.618156+00:00"
+      }
+    },
+    "event:047": {
+      "id": "event:047",
+      "lane_id": "lane:main",
+      "title": "接入 scheduler trajectory preview state",
+      "kind": "task",
+      "status": "completed",
+      "order": 47,
+      "summary": "继续接入 scheduler trajectory preview state，并补做 UI/测试验收；log payload 已作为已落地契约纳入本轮回写说明。",
+      "metadata": {
+        "created_at": "2026-06-16T20:18:39.023777+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-16T20:28:16.256215+00:00",
+        "activated_at": "2026-06-16T20:28:16.256215+00:00",
+        "completed_at": "2026-06-16T20:37:02.484960+00:00"
+      }
+    },
+    "event:048": {
+      "id": "event:048",
+      "lane_id": "lane:main",
+      "title": "同步 scheduler trajectory preview 与 log 契约验收记录",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 48,
+      "summary": "将 scheduler-derived trajectory UI 消费状态写回编排层规划文档，并确认 ExchangeLog / CoordinationEventLog 已覆盖时间戳、actor、action、关联 artifact/event/run 等历史交流管理字段。",
+      "metadata": {
+        "created_at": "2026-06-16T20:37:09.560901+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:37:18.160465+00:00"
+      }
+    },
+    "event:049": {
+      "id": "event:049",
+      "lane_id": "lane:main",
+      "title": "定义 scheduler compact history timeline",
+      "kind": "task",
+      "status": "completed",
+      "order": 49,
+      "summary": "为 scheduler JSONL history 增加 projection-only compact timeline 产品契约、最小投影代码与测试，作为后续 UI 历史解释层的稳定输入。",
+      "metadata": {
+        "created_at": "2026-06-16T20:38:44.450025+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:43:38.040730+00:00"
+      }
+    },
+    "event:050": {
+      "id": "event:050",
+      "lane_id": "lane:main",
+      "title": "展示 scheduler compact history timeline",
+      "kind": "task",
+      "status": "completed",
+      "order": 50,
+      "summary": "在 VS Code Progress Graph Preview 的 Scheduler Trajectory Projection 区块加入只读折叠时间线，消费 scheduler_history_timeline metadata。",
+      "metadata": {
+        "created_at": "2026-06-16T20:44:39.914788+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:48:10.324960+00:00"
+      }
+    },
+    "event:051": {
+      "id": "event:051",
+      "lane_id": "lane:main",
+      "title": "闭环 persisted scheduler run 与 projection refresh",
+      "kind": "task",
+      "status": "completed",
+      "order": 51,
+      "summary": "新增本地 Python helper：读取 snapshot/event log，运行一次 persisted scheduler drain，并刷新 scheduler-work-trajectory projection artifact；暂不新增 MCP 入口。",
+      "metadata": {
+        "created_at": "2026-06-16T20:49:22.790917+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:54:04.621885+00:00"
+      }
+    },
+    "event:052": {
+      "id": "event:052",
+      "lane_id": "lane:main",
+      "title": "暴露 scheduler run once + projection MCP 薄入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 52,
+      "summary": "新增 schedulerRunOnceAndProject MCP 工具，显式传入 snapshotPath/eventLogPath，调用本地 Python helper 完成 persisted run once 与 scheduler projection refresh。",
+      "metadata": {
+        "created_at": "2026-06-16T20:55:08.320016+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T20:59:58.381521+00:00"
+      }
+    },
+    "event:053": {
+      "id": "event:053",
+      "lane_id": "lane:main",
+      "title": "验收 ExchangeLog 历史交流管理项",
+      "kind": "validation",
+      "status": "completed",
+      "order": 53,
+      "summary": "核对用户要求的 log 项是否已落地：ExchangeArtifact log part、timestamp 等身份字段、CoordinationEvent 投影、scheduler history timeline 与 MCP/文档回写。",
+      "metadata": {
+        "created_at": "2026-06-16T21:03:26.596328+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T21:04:08.066129+00:00"
+      }
+    },
+    "event:054": {
+      "id": "event:054",
+      "lane_id": "lane:main",
+      "title": "显式限制 schedulerRunOnceAndProject runtimeProvider",
+      "kind": "task",
+      "status": "completed",
+      "order": 54,
+      "summary": "为 schedulerRunOnceAndProject 增加 runtimeProvider 参数；当前仅 fake 可执行，qoder/未知 provider 返回清晰错误，并同步 schema、测试与文档。",
+      "metadata": {
+        "created_at": "2026-06-16T21:04:55.990547+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T21:08:57.748109+00:00"
+      }
+    },
+    "event:055": {
+      "id": "event:055",
+      "lane_id": "lane:main",
+      "title": "暴露 scheduler task submission MCP 薄入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 55,
+      "summary": "Resume schedulerSubmitTasks MCP slice after confirming the ExchangeArtifact log item is already implemented and validated.",
+      "metadata": {
+        "created_at": "2026-06-16T21:09:55.198267+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-16T21:14:34.029496+00:00",
+        "activated_at": "2026-06-16T21:14:34.029496+00:00",
+        "completed_at": "2026-06-16T21:27:32.468708+00:00"
+      }
+    },
+    "event:056": {
+      "id": "event:056",
+      "lane_id": "lane:main",
+      "title": "补 ExchangeArtifact log 项实现与验证",
+      "kind": "task",
+      "status": "completed",
+      "order": 56,
+      "summary": "Add or verify a structured log payload item for ExchangeArtifact so timestamp/actor/action-based history entries can support historical communication management.",
+      "metadata": {
+        "created_at": "2026-06-16T21:12:04.221247+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-16T21:13:42.830834+00:00"
+      }
+    },
+    "event:057": {
+      "id": "event:057",
+      "lane_id": "lane:main",
+      "title": "补 scheduler MCP 端到端冒烟样例",
+      "kind": "task",
+      "status": "completed",
+      "order": 57,
+      "summary": "Add a reusable submit -> projection -> run-once scheduler MCP smoke path as a regression fixture/prompt surface, keeping scheduler authority separate from Local Work Trajectory.",
+      "metadata": {
+        "created_at": "2026-06-16T21:28:43.432323+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:01:27.436699+00:00"
+      }
+    },
+    "event:058": {
+      "id": "event:058",
+      "lane_id": "lane:main",
+      "title": "同步新增 scheduler prompt 的 pack lock",
+      "kind": "validation",
+      "status": "completed",
+      "order": 58,
+      "summary": "继续收尾 scheduler prompt 注册后的 pack lock 同步：已确认 event ID 为 event:058，接下来通过标准 pack_verify/pack_lock 路径处理 pack 内容哈希。",
+      "metadata": {
+        "created_at": "2026-06-17T07:02:15.482801+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-17T07:05:14.249090+00:00",
+        "completed_at": "2026-06-17T07:06:56.951990+00:00"
+      }
+    },
+    "event:059": {
+      "id": "event:059",
+      "lane_id": "lane:main",
+      "title": "补 runtime registry 配置注入边界",
+      "kind": "task",
+      "status": "completed",
+      "order": 59,
+      "summary": "在 scheduler fake smoke 与未来 qoder 接入之间增加 host-facing runtime adapter registry 配置/构建边界；保持真实 qoder 执行仍需显式权限与后续切片。",
+      "metadata": {
+        "created_at": "2026-06-17T07:07:45.148197+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:12:58.442670+00:00"
+      }
+    },
+    "event:060": {
+      "id": "event:060",
+      "lane_id": "lane:main",
+      "title": "定义 qoder host permission 与 adapter injection 合同",
+      "kind": "task",
+      "status": "completed",
+      "order": 60,
+      "summary": "在 runtime wiring 基础上，补真实 qoder 接入前的 host 授权/adapter 注入合同与最小校验代码；不导入、不执行真实 Qoder SDK。",
+      "metadata": {
+        "created_at": "2026-06-17T07:13:59.460852+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:16:56.430627+00:00"
+      }
+    },
+    "event:061": {
+      "id": "event:061",
+      "lane_id": "lane:main",
+      "title": "补 qoder runtime 错误分类归一化骨架",
+      "kind": "task",
+      "status": "completed",
+      "order": 61,
+      "summary": "为未来真实 Qoder SDK wrapper 定义稳定错误类别与 adapter-side normalization；覆盖 SDK unavailable、auth failure、timeout、permission denied、invalid response 等，不导入真实 SDK。",
+      "metadata": {
+        "created_at": "2026-06-17T07:17:46.064377+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:20:38.507418+00:00"
+      }
+    },
+    "event:062": {
+      "id": "event:062",
+      "lane_id": "lane:main",
+      "title": "补 QoderQueryResult response-like 转换 helper",
+      "kind": "task",
+      "status": "completed",
+      "order": 62,
+      "summary": "为未来真实 Qoder SDK wrapper 增加 dict-like response 校验/转换函数，归一化 artifact_delta、permission_requests、metadata，并用 QoderRuntimeError invalid_response 表达形状错误。",
+      "metadata": {
+        "created_at": "2026-06-17T07:21:27.036642+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:23:51.128339+00:00"
+      }
+    },
+    "event:063": {
+      "id": "event:063",
+      "lane_id": "lane:main",
+      "title": "补 runtime host invocation contract",
+      "kind": "task",
+      "status": "completed",
+      "order": 63,
+      "summary": "定义 host surface 如何注入 runtime registry：MCP schedulerRunOnceAndProject 保持 fake-only，真实 qoder 只能通过 host-authorized adapter 携带 grant/client 进入 scheduler run。",
+      "metadata": {
+        "created_at": "2026-06-17T07:24:48.874853+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:28:14.480541+00:00"
+      }
+    },
+    "event:064": {
+      "id": "event:064",
+      "lane_id": "lane:main",
+      "title": "实现 host-only persisted scheduler run seam",
+      "kind": "task",
+      "status": "completed",
+      "order": 64,
+      "summary": "新增接受 RuntimeRegistryWiringResult 的 persisted scheduler run helper：允许 host-authorized adapter 注入 qoder registry 后运行 scheduler；保持 MCP fake-only，不新增 MCP 真 provider 入口。",
+      "metadata": {
+        "created_at": "2026-06-17T07:29:25.032717+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:32:20.775032+00:00"
+      }
+    },
+    "event:065": {
+      "id": "event:065",
+      "lane_id": "lane:main",
+      "title": "盘点 scheduler active gate completion evidence",
+      "kind": "validation",
+      "status": "completed",
+      "order": 65,
+      "summary": "继续核对 scheduler / ExchangeArtifact 的 log payload part：确认时间戳、actor、action、channel、summary、related artifact IDs 已进入 contract、测试与 planning-gate 记录。",
+      "metadata": {
+        "created_at": "2026-06-17T07:33:09.321519+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-17T07:35:15.541179+00:00",
+        "completed_at": "2026-06-17T07:37:48.734080+00:00"
+      }
+    },
+    "event:066": {
+      "id": "event:066",
+      "lane_id": "lane:main",
+      "title": "整理 scheduler gate completion evidence",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 66,
+      "summary": "为 active scheduler/adapter planning-gate 汇总 acceptance criteria 对应的源码、测试、文档证据，并判断是否进入可关闭审核状态。",
+      "metadata": {
+        "created_at": "2026-06-17T07:38:28.770348+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:55:43.084452+00:00"
+      }
+    },
+    "event:067": {
+      "id": "event:067",
+      "lane_id": "lane:main",
+      "title": "起草 Host-Authorized Scheduler Runner Adapter planning gate",
+      "kind": "task",
+      "status": "completed",
+      "order": 67,
+      "summary": "基于 scheduler follow-up direction analysis，新增下一条窄 planning-gate 草案，固定 host-authorized one-shot runner adapter 的 scope、non-goals 和 acceptance criteria。",
+      "metadata": {
+        "created_at": "2026-06-17T07:56:30.369614+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T07:58:16.039648+00:00"
+      }
+    },
+    "event:068": {
+      "id": "event:068",
+      "lane_id": "lane:main",
+      "title": "实现 Host Scheduler Runner Adapter Slice 1-2",
+      "kind": "task",
+      "status": "completed",
+      "order": 68,
+      "summary": "用户确认交流产品方向，并要求补充 log 项；先核对现有 ExchangeArtifact log 实现与当前 scheduler host runner 切片的契合点，再补齐缺口。",
+      "metadata": {
+        "created_at": "2026-06-17T07:58:47.555463+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-06-17T08:03:04.932021+00:00",
+        "completed_at": "2026-06-17T13:17:27.102233+00:00"
+      }
+    },
+    "event:069": {
+      "id": "event:069",
+      "lane_id": "lane:main",
+      "title": "补齐 exchange log 项与 host runner 切片契约",
+      "kind": "task",
+      "status": "completed",
+      "order": 69,
+      "summary": "在现有 Host-Authorized Scheduler Runner Adapter 切片内检查并补齐交流产品的 log 项，确保时间戳等历史管理信息有明确契约与测试覆盖。",
+      "metadata": {
+        "created_at": "2026-06-17T08:03:42.428347+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T11:06:30.475730+00:00"
+      }
+    },
+    "event:070": {
+      "id": "event:070",
+      "lane_id": "lane:main",
+      "title": "实现 Host Scheduler Runner Adapter Slice 1-3",
+      "kind": "task",
+      "status": "completed",
+      "order": 70,
+      "summary": "继续当前编排层切片：实现 host-authorized scheduler run request/result、runtime 层薄 adapter、projection 包装层，并补 fake/mock-Qoder focused tests。",
+      "metadata": {
+        "created_at": "2026-06-17T11:07:37.133235+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T12:28:37.819446+00:00"
+      }
+    },
+    "event:071": {
+      "id": "event:071",
+      "lane_id": "lane:main",
+      "title": "整理 Host Scheduler Runner close-review evidence",
+      "kind": "review",
+      "status": "completed",
+      "order": 71,
+      "summary": "为 Host-Authorized Scheduler Runner Adapter gate 整理验收矩阵、实现证据、测试证据与非目标边界，并准备将 gate 推进到 READY-FOR-CLOSE-REVIEW。",
+      "metadata": {
+        "created_at": "2026-06-17T12:29:58.083398+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T12:32:31.765786+00:00"
+      }
+    },
+    "event:072": {
+      "id": "event:072",
+      "lane_id": "lane:main",
+      "title": "整理 Host Scheduler Runner 后续方向分析",
+      "kind": "decision",
+      "status": "completed",
+      "order": 72,
+      "summary": "在 Host-Authorized Scheduler Runner Adapter close-review 后，收束下一段编排层候选，避免直接扩到真实 SDK、daemon 或沙箱大实现。",
+      "metadata": {
+        "created_at": "2026-06-17T12:33:23.458629+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T12:35:08.244408+00:00"
+      }
+    },
+    "event:073": {
+      "id": "event:073",
+      "lane_id": "lane:main",
+      "title": "起草 Controlled Host Runtime Dogfood Harness planning-gate",
+      "kind": "task",
+      "status": "completed",
+      "order": 73,
+      "summary": "依据 host-authorized scheduler runner follow-up direction analysis，创建下一条窄 planning-gate 草案，先固定 evidence JSON、fake/mock-Qoder dogfood、prompt guidance 与 MCP fake-only 边界。",
+      "metadata": {
+        "created_at": "2026-06-17T12:36:03.120420+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T12:37:35.691762+00:00"
+      }
+    },
+    "event:074": {
+      "id": "event:074",
+      "lane_id": "lane:main",
+      "title": "执行 host-runner gate-close writeback bundle",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 74,
+      "summary": "关闭 Host-Authorized Scheduler Runner Adapter gate，激活 Controlled Host Runtime Dogfood Harness gate，并同步必要状态入口。",
+      "metadata": {
+        "created_at": "2026-06-17T12:38:32.535659+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T13:17:00.086745+00:00"
+      }
+    },
+    "event:075": {
+      "id": "event:075",
+      "lane_id": "lane:main",
+      "title": "Add communication log item to agent product contract",
+      "kind": "task",
+      "status": "completed",
+      "order": 75,
+      "summary": "Add a log item/field for timestamped historical conversation management in the current agent communication product definition.",
+      "metadata": {
+        "created_at": "2026-06-17T12:39:53.881461+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T12:42:05.103769+00:00"
+      }
+    },
+    "event:076": {
+      "id": "event:076",
+      "lane_id": "lane:main",
+      "title": "Implement Controlled Host Runtime Dogfood Harness",
+      "kind": "task",
+      "status": "completed",
+      "order": 76,
+      "summary": "Implement evidence JSON contract plus fake and mock-Qoder host-authorized dogfood harness for the active scheduler orchestration gate, with prompt guidance and focused tests.",
+      "metadata": {
+        "created_at": "2026-06-17T14:19:40.379421+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T14:27:09.022741+00:00"
+      }
+    },
+    "event:077": {
+      "id": "event:077",
+      "lane_id": "lane:main",
+      "title": "Prepare Controlled Host Runtime Dogfood Harness close-review evidence",
+      "kind": "review",
+      "status": "completed",
+      "order": 77,
+      "summary": "Moved the dogfood harness gate to READY-FOR-CLOSE-REVIEW, wrote close-review evidence, follow-up direction analysis, and synced checkpoint/checklist/phase-map status.",
+      "metadata": {
+        "created_at": "2026-06-17T14:30:04.064947+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T14:30:14.844253+00:00"
+      }
+    },
+    "event:078": {
+      "id": "event:078",
+      "lane_id": "lane:main",
+      "title": "Close controlled host runtime dogfood harness and prepare local commit",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 78,
+      "summary": "Close the READY-FOR-CLOSE-REVIEW dogfood harness gate, synchronize status docs, validate focused suite as needed, and create a narrow local git commit at a safe point.",
+      "metadata": {
+        "created_at": "2026-06-17T14:32:56.669091+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T14:35:01.036008+00:00",
+        "completed_at": "2026-06-17T14:43:24.356073+00:00"
       }
     }
   },
@@ -114,6 +1168,672 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:005",
+      "target_event_id": "event:006",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:006",
+      "target_event_id": "event:007",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:007",
+      "target_event_id": "event:008",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:008",
+      "target_event_id": "event:009",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:009",
+      "target_event_id": "event:010",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:010",
+      "target_event_id": "event:011",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:011",
+      "target_event_id": "event:012",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:012",
+      "target_event_id": "event:013",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:013",
+      "target_event_id": "event:014",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:014",
+      "target_event_id": "event:015",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:015",
+      "target_event_id": "event:016",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:016",
+      "target_event_id": "event:017",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:017",
+      "target_event_id": "event:018",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:018",
+      "target_event_id": "event:019",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:019",
+      "target_event_id": "event:020",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:020",
+      "target_event_id": "event:021",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:021",
+      "target_event_id": "event:022",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:022",
+      "target_event_id": "event:023",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:023",
+      "target_event_id": "event:024",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:024",
+      "target_event_id": "event:025",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:025",
+      "target_event_id": "event:026",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:026",
+      "target_event_id": "event:027",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:027",
+      "target_event_id": "event:028",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:028",
+      "target_event_id": "event:029",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:029",
+      "target_event_id": "event:030",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:030",
+      "target_event_id": "event:031",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:031",
+      "target_event_id": "event:032",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:032",
+      "target_event_id": "event:033",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:033",
+      "target_event_id": "event:034",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:034",
+      "target_event_id": "event:035",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:035",
+      "target_event_id": "event:036",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:036",
+      "target_event_id": "event:037",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:037",
+      "target_event_id": "event:038",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:038",
+      "target_event_id": "event:039",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:039",
+      "target_event_id": "event:040",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:040",
+      "target_event_id": "event:041",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:041",
+      "target_event_id": "event:042",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:042",
+      "target_event_id": "event:043",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:043",
+      "target_event_id": "event:044",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:044",
+      "target_event_id": "event:045",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:045",
+      "target_event_id": "event:046",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:046",
+      "target_event_id": "event:047",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:047",
+      "target_event_id": "event:048",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:048",
+      "target_event_id": "event:049",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:049",
+      "target_event_id": "event:050",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:050",
+      "target_event_id": "event:051",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:051",
+      "target_event_id": "event:052",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:052",
+      "target_event_id": "event:053",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:053",
+      "target_event_id": "event:054",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:054",
+      "target_event_id": "event:055",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:055",
+      "target_event_id": "event:056",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:056",
+      "target_event_id": "event:057",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:057",
+      "target_event_id": "event:058",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:058",
+      "target_event_id": "event:059",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:059",
+      "target_event_id": "event:060",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:060",
+      "target_event_id": "event:061",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:061",
+      "target_event_id": "event:062",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:062",
+      "target_event_id": "event:063",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:063",
+      "target_event_id": "event:064",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:064",
+      "target_event_id": "event:065",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:065",
+      "target_event_id": "event:066",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:066",
+      "target_event_id": "event:067",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:067",
+      "target_event_id": "event:068",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:068",
+      "target_event_id": "event:069",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:069",
+      "target_event_id": "event:070",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:070",
+      "target_event_id": "event:071",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:071",
+      "target_event_id": "event:072",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:072",
+      "target_event_id": "event:073",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:073",
+      "target_event_id": "event:074",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:074",
+      "target_event_id": "event:075",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:075",
+      "target_event_id": "event:076",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:076",
+      "target_event_id": "event:077",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:077",
+      "target_event_id": "event:078",
       "kind": "sequence",
       "summary": "",
       "metadata": {

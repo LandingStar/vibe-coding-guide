@@ -538,13 +538,29 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "a tracked task, append for planned or observed milestones, and advance "
                     "when the active milestone is complete. Use update to refine the current "
                     "milestone, block/wait for impediments, resume to continue, and close "
-                    "when the single-line task is done. Use addLane only for the first "
-                    "multi-line expansion step: create another lane with its first event. "
+                    "when the single-line task is done. Use addLane to create one extra "
+                    "lane with its first event. Use addLanes when one decision expands "
+                    "several distinct lanes at once; this preserves a shared opening "
+                    "source so the UI can render a merged fanout instead of overlapping "
+                    "start-line edges. "
+                    "Use addCompound to create a planned compound/phase event with its own "
+                    "child trajectory; this does not pack or move existing events. "
+                    "Use packRange to replace a continuous same-lane event interval with "
+                    "a compound event and preserve the interval in its child trajectory. "
+                    "Use packSubgraph to pack multiple lane-local continuous ranges into "
+                    "one compound child trajectory with anchor/proxy parent projection. "
+                    "Use appendChild, advanceChild, and closeChild to mutate the child "
+                    "trajectory of an existing compound parent. "
                     "Use merge to add an explicit target-lane merge event and a merges_into "
                     "relation from a source lane event. "
                     "Use relate to record an explicit dependency, wait, unblock, handoff, "
                     "sync, or approval relation between existing events; relate is metadata "
                     "only and does not schedule work or resolve conflicts. "
+                    "When starting a trajectory, pass sourceGraphId and sourceNodeId if the "
+                    "owning global progress-map node is known, so the trajectory is visible "
+                    "from birth. Use setAnchor later to move the current trajectory under a "
+                    "specific global progress-map node; pass both sourceGraphId and "
+                    "sourceNodeId, or pass neither to clear the anchor. "
                     "After validation or delivery completes, keep advancing until completed "
                     "milestones are not left pending or in_progress. This writes only the "
                     "local trajectory metadata artifact, not source files."
@@ -564,8 +580,16 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                 "resume",
                                 "close",
                                 "addLane",
+                                "addLanes",
+                                "addCompound",
+                                "packRange",
+                                "packSubgraph",
+                                "appendChild",
+                                "advanceChild",
+                                "closeChild",
                                 "merge",
                                 "relate",
+                                "setAnchor",
                             ],
                             "description": "Lifecycle action to perform.",
                         },
@@ -592,6 +616,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                 "validation",
                                 "writeback",
                                 "handoff",
+                                "compound",
                                 "merge",
                                 "close",
                             ],
@@ -617,9 +642,27 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                             "type": "string",
                             "description": "Optional lane id for addLane or append.",
                         },
+                        "lanes": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "laneLabel": {"type": "string"},
+                                    "lane_label": {"type": "string"},
+                                    "firstEventTitle": {"type": "string"},
+                                    "first_event_title": {"type": "string"},
+                                    "eventKind": {"type": "string"},
+                                    "event_kind": {"type": "string"},
+                                    "summary": {"type": "string"},
+                                    "laneId": {"type": "string"},
+                                    "lane_id": {"type": "string"},
+                                },
+                            },
+                            "description": "Lane specs for addLanes. Use when one source event opens multiple work contexts at once.",
+                        },
                         "sourceEventId": {
                             "type": "string",
-                            "description": "Optional event id that caused addLane, source event for merge, or source event for relate.",
+                            "description": "Optional event id that caused addLane, source event for merge/relate, or range start alias for packRange.",
                         },
                         "sourceLaneId": {
                             "type": "string",
@@ -631,7 +674,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "targetEventId": {
                             "type": "string",
-                            "description": "Optional target lane event id for merge or target event for relate.",
+                            "description": "Optional target lane event id for merge, target event for relate, or range end alias for packRange.",
                         },
                         "relationKind": {
                             "type": "string",
@@ -647,8 +690,280 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                             ],
                             "description": "Relation kind for relate.",
                         },
+                        "firstChildEventTitle": {
+                            "type": "string",
+                            "description": "Optional first active child event title for addCompound.",
+                        },
+                        "childLaneLabel": {
+                            "type": "string",
+                            "description": "Optional child trajectory lane label for addCompound or packRange.",
+                        },
+                        "parentEventId": {
+                            "type": "string",
+                            "description": "Compound parent event id for appendChild, advanceChild, or closeChild.",
+                        },
+                        "childTrajectoryId": {
+                            "type": "string",
+                            "description": "Child trajectory id for appendChild, advanceChild, or closeChild.",
+                        },
+                        "rangeStartEventId": {
+                            "type": "string",
+                            "description": "First event id in the same-lane continuous interval for packRange.",
+                        },
+                        "rangeEndEventId": {
+                            "type": "string",
+                            "description": "Last event id in the same-lane continuous interval for packRange.",
+                        },
+                        "packRanges": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "lane_id": {"type": "string"},
+                                    "laneId": {"type": "string"},
+                                    "range_start_event_id": {"type": "string"},
+                                    "rangeStartEventId": {"type": "string"},
+                                    "range_end_event_id": {"type": "string"},
+                                    "rangeEndEventId": {"type": "string"},
+                                },
+                            },
+                            "description": "Lane-local continuous ranges for packSubgraph.",
+                        },
+                        "anchorLaneId": {
+                            "type": "string",
+                            "description": "Selected anchor lane id for packSubgraph. Defaults to laneId or the first selected range lane.",
+                        },
+                        "sourceEndpointTrajectoryId": {
+                            "type": "string",
+                            "description": "Precise source endpoint trajectory id for cross-compound relate.",
+                        },
+                        "sourceEndpointEventId": {
+                            "type": "string",
+                            "description": "Precise source endpoint event id for cross-compound relate.",
+                        },
+                        "sourceEndpointParentEventId": {
+                            "type": "string",
+                            "description": "Immediate source compound parent event id for cross-compound relate.",
+                        },
+                        "sourceEndpointCompoundPath": {
+                            "type": "string",
+                            "description": "Slash-separated source compound path for cross-compound relate.",
+                        },
+                        "targetEndpointTrajectoryId": {
+                            "type": "string",
+                            "description": "Precise target endpoint trajectory id for cross-compound relate.",
+                        },
+                        "targetEndpointEventId": {
+                            "type": "string",
+                            "description": "Precise target endpoint event id for cross-compound relate.",
+                        },
+                        "targetEndpointParentEventId": {
+                            "type": "string",
+                            "description": "Immediate target compound parent event id for cross-compound relate.",
+                        },
+                        "targetEndpointCompoundPath": {
+                            "type": "string",
+                            "description": "Slash-separated target compound path for cross-compound relate.",
+                        },
+                        "sourceGraphId": {
+                            "type": "string",
+                            "description": "Global progress graph id for start or setAnchor. Provide with sourceNodeId, or omit both to start unanchored / clear the anchor.",
+                        },
+                        "sourceNodeId": {
+                            "type": "string",
+                            "description": "Global progress graph node id for start or setAnchor. Provide with sourceGraphId, or omit both to start unanchored / clear the anchor.",
+                        },
                     },
                     "required": ["action"],
+                },
+            ),
+            Tool(
+                name="schedulerProjection",
+                description=(
+                    "Write a scheduler-derived Local Work Trajectory projection artifact. "
+                    "Reads a scheduler snapshot plus optional scheduler/merge-gate JSONL "
+                    "history logs, then writes .codex/progress-graph/scheduler-work-trajectory.json "
+                    "by default. This is a read-only projection path and does not mutate "
+                    "the agent-owned local-work-trajectory.json lifecycle artifact."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "schedulerEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler task event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "mergeGateEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler merge-gate event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "outputPath": {
+                            "type": "string",
+                            "description": "Optional output JSON path. Defaults to .codex/progress-graph/scheduler-work-trajectory.json.",
+                        },
+                        "trajectoryId": {
+                            "type": "string",
+                            "description": "Optional projected trajectory id.",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Optional projected trajectory title.",
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Optional guide context stored on the projected trajectory.",
+                        },
+                        "sourceGraphId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph id for the projection.",
+                        },
+                        "sourceNodeId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph node id for the projection.",
+                        },
+                    },
+                    "required": ["snapshotPath"],
+                },
+            ),
+            Tool(
+                name="schedulerSubmitTasks",
+                description=(
+                    "Submit structured scheduler task contracts into the scheduler-owned "
+                    "snapshot and scheduler event log. This wraps the existing "
+                    "scheduler_task_batch_submission ExchangeArtifact intake, appends "
+                    "task_submitted events, and writes the scheduler snapshot. It does "
+                    "not run tasks, refresh projection artifacts, or mutate the "
+                    "agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. If missing, submission starts from an empty SchedulerState. Relative paths resolve under the MCP project root.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler task event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "batch": {
+                            "type": "object",
+                            "description": (
+                                "Optional scheduler_task_batch_submission payload using "
+                                "scheduler_submission keys. CamelCase aliases are accepted."
+                            ),
+                        },
+                        "batchId": {
+                            "type": "string",
+                            "description": "Batch id used when batch.batch_id is omitted.",
+                        },
+                        "tasks": {
+                            "type": "array",
+                            "description": (
+                                "Task submission payloads. Each task uses the existing "
+                                "scheduler_submission contract; camelCase aliases such as "
+                                "taskId, contextScope, runtimeProvider, and outputArtifactId "
+                                "are accepted."
+                            ),
+                            "items": {"type": "object"},
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Optional batch title.",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Optional batch summary.",
+                        },
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Optional source ExchangeArtifact id for this submission.",
+                        },
+                        "artifactVersion": {
+                            "type": "string",
+                            "description": "Optional source ExchangeArtifact version. Defaults to v1.",
+                        },
+                        "producer": {
+                            "type": "string",
+                            "description": "Producer stored on the source ExchangeArtifact. Defaults to schedulerSubmitTasks.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for the source log part and task_submitted events.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Whether submitted tasks may replace existing tasks with the same task_id. Default false.",
+                        },
+                    },
+                    "required": ["snapshotPath", "eventLogPath"],
+                },
+            ),
+            Tool(
+                name="schedulerRunOnceAndProject",
+                description=(
+                    "Run one bounded persisted scheduler pass with the built-in fake runtime "
+                    "adapter, write the updated scheduler snapshot, and refresh the "
+                    "scheduler-derived Local Work Trajectory projection. runtimeProvider "
+                    "is accepted for forward compatibility but currently only 'fake' is "
+                    "allowed; qoder and other real providers return a clear error until "
+                    "host permission and adapter registry wiring are explicit. Requires "
+                    "snapshotPath and eventLogPath; this does not mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler task event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "mergeGateEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler merge-gate event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "outputPath": {
+                            "type": "string",
+                            "description": "Optional scheduler projection output JSON path. Defaults to .codex/progress-graph/scheduler-work-trajectory.json.",
+                        },
+                        "maxRuns": {
+                            "type": "number",
+                            "description": "Optional bounded maximum number of ready tasks to run.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp used for scheduler lifecycle events and fake runtime events.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": (
+                                "Optional runtime provider selector. Defaults to 'fake'. "
+                                "Current MCP smoke path only accepts 'fake'; values such as "
+                                "'qoder' are rejected with a provider guard error."
+                            ),
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Optional guide context stored on the projected trajectory.",
+                        },
+                        "sourceGraphId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph id for the projection.",
+                        },
+                        "sourceNodeId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph node id for the projection.",
+                        },
+                    },
+                    "required": ["snapshotPath", "eventLogPath"],
                 },
             ),
         ]
@@ -761,11 +1076,70 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 current_event_id=arguments.get("currentEventId", ""),
                 reason=arguments.get("reason", ""),
                 lane_id=arguments.get("laneId", ""),
+                lanes=arguments.get("lanes"),
                 source_event_id=arguments.get("sourceEventId", ""),
                 source_lane_id=arguments.get("sourceLaneId", ""),
                 target_lane_id=arguments.get("targetLaneId", ""),
                 target_event_id=arguments.get("targetEventId", ""),
                 relation_kind=arguments.get("relationKind", ""),
+                first_child_event_title=arguments.get("firstChildEventTitle", ""),
+                child_lane_label=arguments.get("childLaneLabel", ""),
+                range_start_event_id=arguments.get("rangeStartEventId", ""),
+                range_end_event_id=arguments.get("rangeEndEventId", ""),
+                pack_ranges=arguments.get("packRanges"),
+                anchor_lane_id=arguments.get("anchorLaneId", ""),
+                parent_event_id=arguments.get("parentEventId", ""),
+                child_trajectory_id=arguments.get("childTrajectoryId", ""),
+                source_endpoint_trajectory_id=arguments.get("sourceEndpointTrajectoryId", ""),
+                source_endpoint_event_id=arguments.get("sourceEndpointEventId", ""),
+                source_endpoint_parent_event_id=arguments.get("sourceEndpointParentEventId", ""),
+                source_endpoint_compound_path=arguments.get("sourceEndpointCompoundPath", ""),
+                target_endpoint_trajectory_id=arguments.get("targetEndpointTrajectoryId", ""),
+                target_endpoint_event_id=arguments.get("targetEndpointEventId", ""),
+                target_endpoint_parent_event_id=arguments.get("targetEndpointParentEventId", ""),
+                target_endpoint_compound_path=arguments.get("targetEndpointCompoundPath", ""),
+                source_graph_id=arguments.get("sourceGraphId", ""),
+                source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerProjection":
+            result = tools.scheduler_projection(
+                snapshot_path=arguments.get("snapshotPath", ""),
+                scheduler_event_log_path=arguments.get("schedulerEventLogPath", ""),
+                merge_gate_event_log_path=arguments.get("mergeGateEventLogPath", ""),
+                output_path=arguments.get("outputPath", ""),
+                trajectory_id=arguments.get("trajectoryId", ""),
+                title=arguments.get("title", ""),
+                guide_context=arguments.get("guideContext", ""),
+                source_graph_id=arguments.get("sourceGraphId", ""),
+                source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerSubmitTasks":
+            result = tools.scheduler_submit_tasks(
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                batch=arguments.get("batch"),
+                batch_id=arguments.get("batchId", ""),
+                tasks=arguments.get("tasks"),
+                title=arguments.get("title", ""),
+                summary=arguments.get("summary", ""),
+                artifact_id=arguments.get("artifactId", ""),
+                artifact_version=arguments.get("artifactVersion", "v1"),
+                producer=arguments.get("producer", "schedulerSubmitTasks"),
+                timestamp=arguments.get("timestamp", ""),
+                replace_existing=arguments.get("replaceExisting", False),
+            )
+        elif name == "schedulerRunOnceAndProject":
+            result = tools.scheduler_run_once_and_project(
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                merge_gate_event_log_path=arguments.get("mergeGateEventLogPath", ""),
+                output_path=arguments.get("outputPath", ""),
+                max_runs=arguments.get("maxRuns"),
+                timestamp=arguments.get("timestamp", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                guide_context=arguments.get("guideContext", ""),
+                source_graph_id=arguments.get("sourceGraphId", ""),
+                source_node_id=arguments.get("sourceNodeId", ""),
             )
         else:
             result = {"error": f"Unknown tool: {name}"}

@@ -33,6 +33,78 @@ from ..workflow.pipeline import (
 _log = logging.getLogger(__name__)
 
 
+_SCHEDULER_SUBMISSION_KEY_ALIASES = {
+    "artifactId": "artifact_id",
+    "artifactVersion": "artifact_version",
+    "batchId": "batch_id",
+    "productType": "product_type",
+    "taskId": "task_id",
+    "contextScope": "context_scope",
+    "editLease": "edit_lease",
+    "sandboxProfile": "sandbox_profile",
+    "inputArtifactRefs": "input_artifact_refs",
+    "outputArtifactId": "output_artifact_id",
+    "agentId": "agent_id",
+    "runtimeProvider": "runtime_provider",
+    "displayName": "display_name",
+    "maxTurns": "max_turns",
+    "contextId": "context_id",
+    "laneId": "lane_id",
+    "requiredRefs": "required_refs",
+    "visibleArtifacts": "visible_artifacts",
+    "sessionPolicy": "session_policy",
+    "redactionPolicy": "redaction_policy",
+    "leaseId": "lease_id",
+    "allowedArtifacts": "allowed_artifacts",
+    "deniedArtifacts": "denied_artifacts",
+    "leaseMode": "lease_mode",
+    "conflictPolicy": "conflict_policy",
+    "expiresAt": "expires_at",
+    "profileId": "profile_id",
+    "profileKind": "profile_kind",
+    "networkPolicy": "network_policy",
+    "secretPolicy": "secret_policy",
+    "mountPolicy": "mount_policy",
+    "refKind": "ref_kind",
+    "refId": "ref_id",
+    "dependencyId": "dependency_id",
+    "sourceTaskId": "source_task_id",
+    "targetTaskId": "target_task_id",
+    "dependencyKind": "dependency_kind",
+    "requiredState": "required_state",
+}
+
+
+def _normalize_scheduler_submission_keys(value: Any) -> Any:
+    """Normalize MCP camelCase scheduler submission payload keys."""
+
+    if isinstance(value, dict):
+        return {
+            _SCHEDULER_SUBMISSION_KEY_ALIASES.get(str(key), str(key)): _normalize_scheduler_submission_keys(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_normalize_scheduler_submission_keys(item) for item in value]
+    return value
+
+
+def _exchange_log_to_dict(log: Any) -> dict[str, Any]:
+    if log is None:
+        return {}
+    return {
+        "timestamp": log.timestamp,
+        "actor": log.actor,
+        "action": log.action,
+        "channel": log.channel,
+        "summary": log.summary,
+        "related_artifact_ids": list(log.related_artifact_ids),
+        "related_event_ids": list(log.related_event_ids),
+        "related_run_ids": list(log.related_run_ids),
+        "sequence": log.sequence,
+        "clock": log.clock,
+    }
+
+
 class GovernanceTools:
     """Workspace-aware wrapper around Pipeline for MCP tool invocations.
 
@@ -202,11 +274,30 @@ class GovernanceTools:
         current_event_id: str = "",
         reason: str = "",
         lane_id: str = "",
+        lanes: list[dict[str, str]] | str | None = None,
         source_event_id: str = "",
         target_lane_id: str = "",
         target_event_id: str = "",
         source_lane_id: str = "",
         relation_kind: str = "",
+        first_child_event_title: str = "",
+        child_lane_label: str = "",
+        range_start_event_id: str = "",
+        range_end_event_id: str = "",
+        pack_ranges: list[dict[str, str]] | str | None = None,
+        anchor_lane_id: str = "",
+        parent_event_id: str = "",
+        child_trajectory_id: str = "",
+        source_endpoint_trajectory_id: str = "",
+        source_endpoint_event_id: str = "",
+        source_endpoint_parent_event_id: str = "",
+        source_endpoint_compound_path: str = "",
+        target_endpoint_trajectory_id: str = "",
+        target_endpoint_event_id: str = "",
+        target_endpoint_parent_event_id: str = "",
+        target_endpoint_compound_path: str = "",
+        source_graph_id: str = "",
+        source_node_id: str = "",
     ) -> dict[str, Any]:
         """Mutate the agent-owned Local Work Trajectory artifact.
 
@@ -225,33 +316,43 @@ class GovernanceTools:
             "validation",
             "writeback",
             "handoff",
+            "compound",
             "merge",
             "close",
         }
 
         from tools.progress_graph import (
+            add_local_work_compound,
             add_local_work_lane,
+            add_local_work_lanes,
             add_local_work_relation,
+            advance_local_work_child_event,
             advance_single_line_event,
+            append_local_work_child_event,
             append_single_line_event,
             block_single_line_event,
+            close_local_work_child_trajectory,
             close_single_line_trajectory,
             load_local_work_trajectory,
             merge_local_work_lane,
+            pack_local_work_range,
+            pack_local_work_subgraph,
             resume_single_line_event,
+            set_local_work_trajectory_anchor,
             start_single_line_trajectory,
             trajectory_json_path,
             update_single_line_event,
         )
 
         normalized_action = action.strip()
-        allowed_actions = {"start", "append", "advance", "update", "block", "wait", "resume", "close", "addLane", "merge", "relate"}
+        allowed_actions = {"start", "append", "advance", "update", "block", "wait", "resume", "close", "addLane", "addLanes", "addCompound", "packRange", "packSubgraph", "appendChild", "advanceChild", "closeChild", "merge", "relate", "setAnchor"}
         if normalized_action not in allowed_actions:
             return {
                 "ok": False,
                 "error": (
                     "localTrajectory action must be start, append, advance, "
-                    "update, block, wait, resume, close, addLane, merge, or relate."
+                    "update, block, wait, resume, close, addLane, addLanes, addCompound, "
+                    "packRange, packSubgraph, appendChild, advanceChild, closeChild, merge, relate, or setAnchor."
                 ),
                 "action": action,
             }
@@ -318,6 +419,8 @@ class GovernanceTools:
                     first_event_title=first_event_title or title,
                     first_event_kind=normalized_event_kind or "start",
                     guide_context=guide_context or "codex-mcp-agent",
+                    source_graph_id=source_graph_id,
+                    source_node_id=source_node_id,
                 )
             elif normalized_action == "append":
                 if not title:
@@ -381,6 +484,116 @@ class GovernanceTools:
                         source_event_id=source_event_id or current_event_id or None,
                         lane_id=lane_id,
                     )
+                elif normalized_action == "addLanes":
+                    if not lanes:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory addLanes requires lanes.",
+                            "action": normalized_action,
+                        }
+                    path = add_local_work_lanes(
+                        self._project_root,
+                        lanes=lanes,
+                        source_event_id=source_event_id or current_event_id or None,
+                    )
+                elif normalized_action == "addCompound":
+                    if not title:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory addCompound requires title.",
+                            "action": normalized_action,
+                        }
+                    path = add_local_work_compound(
+                        self._project_root,
+                        title=title,
+                        summary=summary,
+                        lane_id=lane_id,
+                        first_child_event_title=first_child_event_title or first_event_title,
+                        first_child_event_kind=normalized_event_kind or "task",
+                        first_child_event_summary=summary if (first_child_event_title or first_event_title) else "",
+                        child_lane_label=child_lane_label or lane_label or title,
+                    )
+                elif normalized_action == "packRange":
+                    pack_start_event_id = range_start_event_id or source_event_id
+                    pack_end_event_id = range_end_event_id or target_event_id
+                    if not title:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory packRange requires title.",
+                            "action": normalized_action,
+                        }
+                    if not pack_start_event_id:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory packRange requires rangeStartEventId or sourceEventId.",
+                            "action": normalized_action,
+                        }
+                    if not pack_end_event_id:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory packRange requires rangeEndEventId or targetEventId.",
+                            "action": normalized_action,
+                        }
+                    path = pack_local_work_range(
+                        self._project_root,
+                        title=title,
+                        range_start_event_id=pack_start_event_id,
+                        range_end_event_id=pack_end_event_id,
+                        summary=summary,
+                        child_lane_label=child_lane_label or lane_label or title,
+                    )
+                elif normalized_action == "packSubgraph":
+                    if not title:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory packSubgraph requires title.",
+                            "action": normalized_action,
+                        }
+                    if not pack_ranges:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory packSubgraph requires packRanges.",
+                            "action": normalized_action,
+                        }
+                    path = pack_local_work_subgraph(
+                        self._project_root,
+                        title=title,
+                        ranges=pack_ranges,
+                        anchor_lane_id=anchor_lane_id or lane_id,
+                        summary=summary,
+                    )
+                elif normalized_action == "appendChild":
+                    if not title:
+                        return {
+                            "ok": False,
+                            "error": "localTrajectory appendChild requires title.",
+                            "action": normalized_action,
+                        }
+                    path = append_local_work_child_event(
+                        self._project_root,
+                        title=title,
+                        child_trajectory_id=child_trajectory_id,
+                        parent_event_id=parent_event_id or target_event_id or current_event_id,
+                        kind=normalized_event_kind or "task",
+                        summary=summary,
+                        lane_id=lane_id,
+                        child_lane_label=child_lane_label or lane_label or title,
+                    )
+                elif normalized_action == "advanceChild":
+                    path = advance_local_work_child_event(
+                        self._project_root,
+                        child_trajectory_id=child_trajectory_id,
+                        parent_event_id=parent_event_id or target_event_id,
+                        current_event_id=current_event_id or None,
+                    )
+                elif normalized_action == "closeChild":
+                    path = close_local_work_child_trajectory(
+                        self._project_root,
+                        child_trajectory_id=child_trajectory_id,
+                        parent_event_id=parent_event_id or target_event_id,
+                        current_event_id=current_event_id or None,
+                        summary=summary,
+                    )
                 elif normalized_action == "merge":
                     merge_source_lane_id = source_lane_id or lane_id
                     if not merge_source_lane_id:
@@ -399,12 +612,38 @@ class GovernanceTools:
                         target_event_id=target_event_id or None,
                     )
                 elif normalized_action == "relate":
+                    source_endpoint = None
+                    target_endpoint = None
+                    if source_endpoint_trajectory_id or source_endpoint_event_id:
+                        source_endpoint = {
+                            "trajectory_id": source_endpoint_trajectory_id,
+                            "event_id": source_endpoint_event_id,
+                            "parent_event_id": source_endpoint_parent_event_id,
+                            "compound_path": source_endpoint_compound_path,
+                        }
+                    if target_endpoint_trajectory_id or target_endpoint_event_id:
+                        target_endpoint = {
+                            "trajectory_id": target_endpoint_trajectory_id,
+                            "event_id": target_endpoint_event_id,
+                            "parent_event_id": target_endpoint_parent_event_id,
+                            "compound_path": target_endpoint_compound_path,
+                        }
                     path = add_local_work_relation(
                         self._project_root,
                         source_event_id=source_event_id,
                         target_event_id=target_event_id,
                         relation_kind=normalized_relation_kind,
                         summary=summary,
+                        source_endpoint=source_endpoint,
+                        target_endpoint=target_endpoint,
+                    )
+                elif normalized_action == "setAnchor":
+                    path = set_local_work_trajectory_anchor(
+                        self._project_root,
+                        source_graph_id=source_graph_id,
+                        source_node_id=source_node_id,
+                        summary=summary,
+                        reason=reason,
                     )
                 else:
                     path = close_single_line_trajectory(
@@ -439,10 +678,368 @@ class GovernanceTools:
             "trajectory_id": trajectory.trajectory_id,
             "event_count": len(trajectory.events),
             "relation_count": len(trajectory.relations),
+            "child_trajectory_count": len(trajectory.child_trajectories),
             "active_event_id": active_event_id,
             "active_event_ids": active_event_ids,
             "lane_count": len(trajectory.lanes),
             "metadata": dict(trajectory.metadata),
+        }
+
+    def scheduler_submit_tasks(
+        self,
+        *,
+        snapshot_path: str,
+        event_log_path: str,
+        batch: dict[str, Any] | None = None,
+        batch_id: str = "",
+        tasks: list[dict[str, Any]] | None = None,
+        title: str = "",
+        summary: str = "",
+        artifact_id: str = "",
+        artifact_version: str = "v1",
+        producer: str = "schedulerSubmitTasks",
+        timestamp: str = "",
+        replace_existing: bool = False,
+    ) -> dict[str, Any]:
+        """Submit scheduler task contracts into snapshot/event-log persistence."""
+
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "schedulerSubmitTasks requires snapshotPath.",
+            }
+        if not event_log_path:
+            return {
+                "ok": False,
+                "error": "schedulerSubmitTasks requires eventLogPath.",
+            }
+
+        from ..runtime.orchestration import (
+            ExchangeArtifact,
+            ExchangePayloadPart,
+            SchedulerState,
+            read_scheduler_state_snapshot,
+            submit_scheduler_task_batch_with_persistence,
+        )
+        from ..runtime.orchestration.scheduler_submission import (
+            TASK_BATCH_SUBMISSION_PRODUCT_TYPE,
+            scheduler_task_batch_submission_from_artifact,
+            scheduler_task_batch_submission_to_artifact,
+        )
+
+        def resolve_path(value: str) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        snapshot = resolve_path(snapshot_path)
+        event_log = resolve_path(event_log_path)
+        normalized_batch = _normalize_scheduler_submission_keys(batch or {})
+        if normalized_batch and not isinstance(normalized_batch, dict):
+            return {
+                "ok": False,
+                "error": "schedulerSubmitTasks field batch must be an object when provided.",
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+            }
+        normalized_tasks = _normalize_scheduler_submission_keys(tasks) if tasks is not None else None
+        if normalized_tasks is not None and not isinstance(normalized_tasks, list):
+            return {
+                "ok": False,
+                "error": "schedulerSubmitTasks field tasks must be a list when provided.",
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+            }
+
+        payload: dict[str, Any] = dict(normalized_batch)
+        payload.setdefault("product_type", TASK_BATCH_SUBMISSION_PRODUCT_TYPE)
+        if normalized_tasks is not None:
+            payload["tasks"] = normalized_tasks
+        if batch_id:
+            payload["batch_id"] = batch_id
+        if title:
+            payload["title"] = title
+        if summary:
+            payload["summary"] = summary
+
+        source_batch_id = str(payload.get("batch_id", "") or "")
+        if not source_batch_id:
+            return {
+                "ok": False,
+                "error": "schedulerSubmitTasks requires batch.batch_id or batchId.",
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+            }
+
+        source_artifact_id = artifact_id or f"scheduler-task-batch-submission:{source_batch_id}"
+        source_artifact_version = artifact_version or str(payload.get("artifact_version", "") or "v1")
+        seed_artifact = ExchangeArtifact(
+            artifact_id=source_artifact_id,
+            kind="request",
+            intent="propose",
+            producer=producer,
+            created_at=timestamp,
+            version=source_artifact_version,
+            parts=(
+                ExchangePayloadPart(part_type="structured", data=payload),
+            ),
+        )
+
+        try:
+            snapshot_existed = snapshot.exists()
+            state = read_scheduler_state_snapshot(snapshot) if snapshot_existed else SchedulerState()
+            parsed_batch = scheduler_task_batch_submission_from_artifact(seed_artifact)
+            artifact = scheduler_task_batch_submission_to_artifact(
+                parsed_batch,
+                artifact_id=source_artifact_id,
+                producer=producer,
+                created_at=timestamp,
+                version=source_artifact_version,
+            )
+            persisted = submit_scheduler_task_batch_with_persistence(
+                state,
+                artifact,
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                replace_existing=replace_existing,
+                timestamp=artifact.created_at,
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+                "source_artifact_id": source_artifact_id,
+                "source_artifact_version": source_artifact_version,
+            }
+
+        submitted_tasks = persisted.submission.tasks
+        dependencies = persisted.submission.dependencies_added
+        state_after = persisted.submission.state
+        return {
+            "ok": True,
+            "snapshot_path": str(persisted.snapshot_path),
+            "event_log_path": str(persisted.event_log_path),
+            "snapshot_existed": snapshot_existed,
+            "source_artifact_id": persisted.submission.source_artifact_id,
+            "source_artifact_version": persisted.submission.source_artifact_version,
+            "submitted_task_ids": [task.task_id for task in submitted_tasks],
+            "submission_event_ids": list(persisted.submission_event_ids),
+            "dependencies_added": [dependency.dependency_id for dependency in dependencies],
+            "task_count": len(submitted_tasks),
+            "dependency_count": len(dependencies),
+            "state_task_count": len(state_after.tasks),
+            "state_dependency_count": len(state_after.dependencies),
+            "ran_tasks": False,
+            "refreshed_projection": False,
+            "local_trajectory_mutated": False,
+            "source_log": _exchange_log_to_dict(artifact.parts[1].log) if len(artifact.parts) > 1 else {},
+        }
+
+    def scheduler_projection(
+        self,
+        *,
+        snapshot_path: str,
+        scheduler_event_log_path: str = "",
+        merge_gate_event_log_path: str = "",
+        output_path: str = "",
+        trajectory_id: str = "",
+        title: str = "",
+        guide_context: str = "",
+        source_graph_id: str = "",
+        source_node_id: str = "",
+    ) -> dict[str, Any]:
+        """Write a scheduler-derived trajectory projection artifact."""
+
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "schedulerProjection requires snapshotPath.",
+            }
+
+        from ..runtime.orchestration import read_scheduler_state_snapshot
+        from tools.progress_graph import (
+            LocalWorkTrajectory,
+            scheduler_work_trajectory_json_path,
+            write_scheduler_work_trajectory_artifact,
+        )
+
+        def resolve_path(value: str) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        snapshot = resolve_path(snapshot_path)
+        scheduler_log = resolve_path(scheduler_event_log_path) if scheduler_event_log_path else None
+        merge_gate_log = resolve_path(merge_gate_event_log_path) if merge_gate_event_log_path else None
+        target = resolve_path(output_path) if output_path else None
+
+        try:
+            state = read_scheduler_state_snapshot(snapshot)
+            written = write_scheduler_work_trajectory_artifact(
+                self._project_root,
+                state,
+                scheduler_event_log_path=scheduler_log,
+                merge_gate_event_log_path=merge_gate_log,
+                output_path=target,
+                trajectory_id=trajectory_id or "local-work:scheduler-projection",
+                title=title or "Scheduler Local Work Trajectory",
+                guide_context=guide_context,
+                source_graph_id=source_graph_id,
+                source_node_id=source_node_id,
+            )
+            trajectory = LocalWorkTrajectory.from_json(written.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "snapshot_path": str(snapshot),
+                "scheduler_projection_path": str(
+                    target if target is not None else scheduler_work_trajectory_json_path(self._project_root)
+                ),
+            }
+
+        return {
+            "ok": True,
+            "snapshot_path": str(snapshot),
+            "scheduler_event_log_path": "" if scheduler_log is None else str(scheduler_log),
+            "merge_gate_event_log_path": "" if merge_gate_log is None else str(merge_gate_log),
+            "scheduler_projection_path": str(written),
+            "trajectory_id": trajectory.trajectory_id,
+            "title": trajectory.title,
+            "event_count": len(trajectory.events),
+            "lane_count": len(trajectory.lanes),
+            "relation_count": len(trajectory.relations),
+            "metadata": dict(trajectory.metadata),
+        }
+
+    def scheduler_run_once_and_project(
+        self,
+        *,
+        snapshot_path: str,
+        event_log_path: str,
+        merge_gate_event_log_path: str = "",
+        output_path: str = "",
+        max_runs: int | None = None,
+        timestamp: str = "",
+        runtime_provider: str = "fake",
+        guide_context: str = "",
+        source_graph_id: str = "",
+        source_node_id: str = "",
+    ) -> dict[str, Any]:
+        """Run one persisted scheduler drain and refresh scheduler projection."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerRunOnceAndProject currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "explicit host permission and adapter registry configuration."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+            }
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "schedulerRunOnceAndProject requires snapshotPath.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+        if not event_log_path:
+            return {
+                "ok": False,
+                "error": "schedulerRunOnceAndProject requires eventLogPath.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from ..runtime.orchestration import (
+            InMemoryArtifactVersionStore,
+            RuntimeHostInvocation,
+            RuntimeRegistryWiringConfig,
+            SandboxProviderRegistry,
+            SharedProcessSandboxProvider,
+            build_runtime_registry_from_config,
+        )
+        from tools.progress_graph import (
+            scheduler_work_trajectory_json_path,
+            run_persisted_scheduler_once_and_refresh_projection,
+        )
+
+        def resolve_path(value: str) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        snapshot = resolve_path(snapshot_path)
+        event_log = resolve_path(event_log_path)
+        merge_gate_log = resolve_path(merge_gate_event_log_path) if merge_gate_event_log_path else None
+        target = resolve_path(output_path) if output_path else None
+        sandbox_registry = SandboxProviderRegistry()
+        sandbox_registry.register(SharedProcessSandboxProvider())
+        runtime_wiring = build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp=timestamp,
+                host_invocation=RuntimeHostInvocation(
+                    surface="mcp-scheduler-run-once",
+                    invocation_id=f"schedulerRunOnceAndProject:{snapshot}",
+                    requested_providers=("fake",),
+                    requested_by="mcp",
+                    reason="scheduler fake-runtime smoke path",
+                ),
+            ),
+            artifact_store=InMemoryArtifactVersionStore(),
+        )
+
+        try:
+            result = run_persisted_scheduler_once_and_refresh_projection(
+                self._project_root,
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                sandbox_registry=sandbox_registry,
+                runtime_registry=runtime_wiring.registry,
+                merge_gate_event_log_path=merge_gate_log,
+                projection_output_path=target,
+                max_runs=max_runs,
+                timestamp=timestamp,
+                guide_context=guide_context,
+                source_graph_id=source_graph_id,
+                source_node_id=source_node_id,
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+                "runtime_provider": normalized_runtime_provider,
+                "scheduler_projection_path": str(
+                    target if target is not None else scheduler_work_trajectory_json_path(self._project_root)
+                ),
+            }
+
+        return {
+            "ok": True,
+            "snapshot_path": str(result.run.snapshot_path),
+            "event_log_path": str(result.run.event_log_path),
+            "runtime_provider": normalized_runtime_provider,
+            "runtime_registry_providers": list(runtime_wiring.registered_providers),
+            "scheduler_projection_path": str(result.projection_path),
+            "state_written": result.run.state_written,
+            "stop_reason": result.run.drain.stop_reason,
+            "run_count": len(result.run.drain.preflight_results),
+            "trajectory_id": result.projection.trajectory_id,
+            "title": result.projection.title,
+            "event_count": len(result.projection.events),
+            "lane_count": len(result.projection.lanes),
+            "relation_count": len(result.projection.relations),
+            "metadata": dict(result.projection.metadata),
         }
 
     def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:

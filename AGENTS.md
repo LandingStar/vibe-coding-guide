@@ -3,7 +3,12 @@
 ## Local Work Trajectory
 
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
-- When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` only for a distinct work context, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
+- Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.
+- When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` as soon as a distinct work context begins, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
+- When calling `localTrajectory start`, include `sourceGraphId` and `sourceNodeId` if a visible owning progress-map node is known so the trajectory is attached from birth. Use `localTrajectory setAnchor` when the current trajectory should move later; pass both `sourceGraphId` and `sourceNodeId`, or pass neither to clear the anchor. Prefer visible current-phase, active-slice, or planning-gate nodes over leaving task work unanchored.
+- Use `localTrajectory addCompound` when a planned phase should appear as one large event with its own child trajectory; it does not pack or move existing events.
+- Use `localTrajectory packRange` only to pack an existing continuous same-lane event interval into one compound event while preserving the interval in the child trajectory.
+- Use `localTrajectory appendChild`, `advanceChild`, and `closeChild` to continue or finish the child trajectory of an existing compound parent.
 - Do not wait for a user instruction such as "start trajectory"; do not ask the user to manually create trajectory nodes.
 - If `localTrajectory` is expected but unavailable, report the MCP/tool exposure problem explicitly. Use the repository-local trajectory API only when the current project rules allow local file mutation.
 - MCP path or host-environment configuration checks are not project work and must not be recorded into Local Work Trajectory unless the user explicitly says to track that environment task.
@@ -40,6 +45,7 @@
 - 只有在安全停点才刷新 `.codex/handoffs/CURRENT.md`。
 - 安全停点下，允许 model 主动进入 handoff 分支；handoff 分支内只有 `blocked` 是自动停止信号。
 - 命中重要设计节点时，先整理设计结论交用户审核，再继续下一大步。
+- 当涉及UI等图像的工作时，在验收前务必使用截图性质工具进行验证。
 
 子 agent 规则：
 

@@ -450,6 +450,10 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 2026-06-10 新增：side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md` 已完成并切为 `COMPLETED`。当前 `tools/dependency_graph/reference_adapter.py` 提供 create / refresh / generate / validate / repair / rollback 生命周期命令；Python 路径采用 AST 符号骨架 + Pylance usage fixture 优先关系增强，JavaScript 路径提供 module / class / function / import / require / simple extends 的 conservative support；`docs/dependency-baseline-maintenance-guide.md` 与 `.codex/prompts/doc-loop/06-dependency-baseline-maintenance.md` 已覆盖创建、维护、修正、回退、扩张和 write-back 指导。验证结果：相关 focused suite `146 passed`，runtime wheel verification 已确认包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。该支线不改变当前 Knowledge Graph Engine 主 active gate。
 
+2026-06-17 新增：agent orchestration / scheduler 主线已完成 `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md` 并切为 `COMPLETED`。当前 `src/runtime/orchestration/scheduler_host_runner.py` 提供 `HostSchedulerRunRequest`、`HostSchedulerRunResult` 与 `run_host_authorized_scheduler_once()`；`tools/progress_graph/scheduler_projection.py` 提供 `run_host_authorized_scheduler_once_and_refresh_projection()`，可在不突变 agent-owned Local Work Trajectory 的前提下刷新 scheduler-derived trajectory projection。focused validation 结果为 `280 passed, 1 skipped`。新的 ACTIVE gate 已切换为 `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`，下一步收窄为 evidence JSON contract、fake runtime dogfood harness、mock-Qoder host-authorized harness 与维护提示词。
+
+2026-06-17 再继续新增：`design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md` 已正式切为 `COMPLETED`。本轮新增 `HostSchedulerRunEvidence` / `write_host_scheduler_run_evidence()` 与 `run_host_runtime_dogfood_harness()`，使 fake runtime 与 mock-Qoder host-authorized scheduler pass 均可产出同形 evidence JSON、刷新 scheduler-derived trajectory projection，并保持 MCP fake-only、scheduler state authority、scheduler projection read-only 与 agent-owned Local Work Trajectory 的边界。close-review evidence 位于 `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`；后续方向分析位于 `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md`，当前推荐下一候选为 `Controlled Real Qoder Wrapper Spike`。focused validation 结果为 `284 passed, 1 skipped`。
+
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 
 低优先级 backlog（BL-2/3 adapter-registry/转接层）已结构化记录在 `design_docs/direction-candidates-after-phase-35.md`。
@@ -458,10 +462,10 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
-- source_path: `.codex/handoffs/history/2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close.md`
-- scope_key: `plugin-side-codex-host-support-gap`
-- created_at: `2026-05-12T09:00:58+08:00`
+- handoff_id: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
+- source_path: `.codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md`
+- scope_key: `knowledge-graph-engine-progress-preview-integration`
+- created_at: `2026-06-02T10:16:21+08:00`
 
 施工中提取的子 agent 机制需求（全部完成）：
 

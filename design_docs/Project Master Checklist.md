@@ -13,24 +13,33 @@
 
 ## 当前快照
 
-- Snapshot Date: `2026-06-10`
+- Snapshot Date: `2026-06-17`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — 全部依赖违规消除 + HTTPWorker schema alignment + Multica 借鉴全部完成 + Codex 主链适配与 VS Code extension provider abstraction + 2026-04-23 docs-only 宿主交互/入口面收口 + 2026-04-24 scratch 轻量恢复协议（docs-only 收口完成）`
-- Active Slice: `Knowledge Graph Engine Progress Preview Integration (ACTIVE planning-gate; 用户已明确要求放弃当前 G6 相关实现成果并接入外部 E:\workspace\tool develop\graph engine\knowledge-graph-engine；G6 gate 现只作为归档参考保留效果目标与经验记录)`
-- Latest Completed Slice: `Reference Dependency Baseline Adapter Lifecycle And JavaScript Expansion`
-- Safe Stop Status: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
-- Test Baseline: `146 passed` (dependency baseline / MCP related focused suite)
+- Current Phase: `Post-v1.0 — Agent orchestration / scheduler host-runtime dogfood harness completed`
+- Active Slice: `None — next recommended gate is Controlled Real Qoder Wrapper Spike, pending a narrow planning-gate`
+- Latest Completed Slice: `Controlled Host Runtime Dogfood Harness`
+- Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
+- Test Baseline: `284 passed, 1 skipped` (runtime orchestration / scheduler MCP / progress trajectory / doc-loop prompt-resource focused suite)
 
 ## 当前 Handoff Footprint
 
-- handoff_id: `2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close`
-- source_path: `.codex/handoffs/history/2026-05-12_0900_plugin-side-codex-host-support-gap_phase-close.md`
-- scope_key: `plugin-side-codex-host-support-gap`
-- created_at: `2026-05-12T09:00:58+08:00`
+- handoff_id: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
+- source_path: `.codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md`
+- scope_key: `knowledge-graph-engine-progress-preview-integration`
+- created_at: `2026-06-02T10:16:21+08:00`
 
 ## 当前文档入口
 
+- `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`
+- `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
+- `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md`
+- `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md`
+- `review/host-authorized-scheduler-runner-adapter-2026-06-17.md`
+- `design_docs/host-authorized-scheduler-runner-followup-direction-analysis.md`
+- `design_docs/agent-runtime-layering-and-orchestration-slice-plan.md`
+- `design_docs/qoder-runtime-adapter-requirements.md`
+- `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md`
 - `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`
 - `docs/starter-surface.md`
 - `docs/codex-entry-contract.md`
@@ -778,6 +787,8 @@
 
 ## 最近一次写回
 
+- `2026-06-17`: 完成 `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md` close writeback，状态切为 `COMPLETED`；激活下一条 `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`。本轮 host runner 已落地 `HostSchedulerRunRequest` / `HostSchedulerRunResult` / `run_host_authorized_scheduler_once()` 与 `run_host_authorized_scheduler_once_and_refresh_projection()`，验证 fake runtime 与 mock-Qoder host-authorized seam 均可通过同一结果合同暴露 provider、host surface、run count、stop reason、output refs、history summary 与 authority split，且 MCP `schedulerRunOnceAndProject` 保持 fake-only。验证结果：host-authorized scheduler runner / scheduler MCP / progress projection focused suite `280 passed, 1 skipped`。
+- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md` 已正式切为 `COMPLETED`。本轮新增 `src/runtime/orchestration/scheduler_dogfood.py` 的 host-run evidence JSON contract / writer 与 `tools/progress_graph/scheduler_dogfood.py` 的 `run_host_runtime_dogfood_harness()`，可用 fake runtime 和 mock-Qoder host-authorized seam 写出同形 evidence JSON 并刷新 scheduler-derived trajectory projection。prompt guidance 已同步到 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 与 bootstrap copy。验证结果：runtime orchestration / scheduler MCP / progress trajectory / doc-loop prompt-resource focused suite `284 passed, 1 skipped`；后续推荐入口为 `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md` 中的 `Controlled Real Qoder Wrapper Spike`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

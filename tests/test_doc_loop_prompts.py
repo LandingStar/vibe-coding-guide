@@ -28,6 +28,11 @@ DEPENDENCY_BASELINE_MAINTENANCE_PROMPTS = [
     "doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/06-dependency-baseline-maintenance.md",
 ]
 
+SCHEDULER_MCP_SMOKE_PROMPTS = [
+    ".codex/prompts/doc-loop/07-scheduler-mcp-smoke.md",
+    "doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md",
+]
+
 
 def _read(rel_path: str) -> str:
     return (ROOT / rel_path).read_text(encoding="utf-8")
@@ -90,6 +95,31 @@ def test_dependency_baseline_maintenance_prompt_covers_lifecycle() -> None:
         assert "JavaScript" in text
         assert "vscode_listCodeUsages" in text
         assert "pylance-usages.json" in text
+
+
+def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> None:
+    for rel_path in SCHEDULER_MCP_SMOKE_PROMPTS:
+        text = _read(rel_path)
+        assert "schedulerSubmitTasks" in text
+        assert "schedulerProjection" in text
+        assert "schedulerRunOnceAndProject" in text
+        assert "localTrajectory" in text
+        assert ".codex/progress-graph/local-work-trajectory.json" in text
+        assert ".codex/progress-graph/scheduler-work-trajectory.json" in text
+        assert "snapshotPath" in text
+        assert "eventLogPath" in text
+        assert "source_log.timestamp" in text
+        assert "runtimeProvider=\"fake\"" in text
+        assert "qoder" in text
+        assert "HostSchedulerRunRequest" in text
+        assert "run_host_authorized_scheduler_once_and_refresh_projection" in text
+        assert "run_host_runtime_dogfood_harness" in text
+        assert "host_scheduler_run_evidence" in text
+        assert ".codex/scheduler/evidence/<evidence-id>.json" in text
+        assert "host-authorized-adapter" in text
+        assert "history_summary" in text
+        assert "MCP remains" in text
+        assert "must not mutate" in text
 
 
 def test_dependency_baseline_maintenance_guide_is_discoverable() -> None:
