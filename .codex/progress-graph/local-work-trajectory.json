@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T16:27:01.562144+00:00",
+  "recorded_at": "2026-06-17T17:12:10.531215+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 90,
-    "relation_count": 89,
+    "event_count": 94,
+    "relation_count": 93,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "orchestration",
-      "status": "pending",
+      "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -1258,12 +1258,13 @@
       "lane_id": "lane:main",
       "title": "关闭 Qoder live-smoke gate 并启动 evidence consumer 切片",
       "kind": "task",
-      "status": "pending",
+      "status": "completed",
       "order": 86,
       "summary": "将 readiness-negative credentialed live smoke gate 正式关闭，随后创建并实现只读 host evidence consumer 的最小设施层，保持 VS Code UI 旧改动不进入本切片。",
       "metadata": {
         "created_at": "2026-06-17T16:08:51.096763+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T17:07:26.139837+00:00"
       }
     },
     "event:087": {
@@ -1271,12 +1272,14 @@
       "lane_id": "lane:main",
       "title": "完成 host evidence consumer 只读设施切片",
       "kind": "writeback",
-      "status": "pending",
+      "status": "completed",
       "order": 87,
       "summary": "关闭 readiness-negative live smoke gate，新增 HostSchedulerRunEvidenceSummary 和 read_host_evidence_bundle，只读消费 host evidence JSON；状态板、checkpoint、prompt 和 review evidence 已写回。",
       "metadata": {
         "created_at": "2026-06-17T16:17:20.332712+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:07:26.139837+00:00",
+        "completed_at": "2026-06-17T17:07:36.025976+00:00"
       }
     },
     "event:088": {
@@ -1284,12 +1287,14 @@
       "lane_id": "lane:main",
       "title": "关闭 host evidence consumer gate",
       "kind": "close",
-      "status": "pending",
+      "status": "completed",
       "order": 88,
       "summary": "Host Evidence Consumer gate 已正式切为 COMPLETED；follow-up direction analysis 推荐下一步做只读 MCP Resource Exposure For Host Evidence。",
       "metadata": {
         "created_at": "2026-06-17T16:19:57.016058+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:07:36.025976+00:00",
+        "completed_at": "2026-06-17T17:07:44.498423+00:00"
       }
     },
     "event:089": {
@@ -1297,12 +1302,14 @@
       "lane_id": "lane:main",
       "title": "实现 HostEvidenceBundle 的只读 MCP resource 暴露",
       "kind": "task",
-      "status": "pending",
+      "status": "completed",
       "order": 89,
       "summary": "按 host-evidence-consumer follow-up Candidate A 创建 planning gate，并将 read_host_evidence_bundle() 暴露为只读 MCP resource，保持 fake-only、无 provider 执行、无 trajectory mutation。",
       "metadata": {
         "created_at": "2026-06-17T16:22:41.044879+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:07:44.498423+00:00",
+        "completed_at": "2026-06-17T17:07:50.331282+00:00"
       }
     },
     "event:090": {
@@ -1310,12 +1317,73 @@
       "lane_id": "lane:main",
       "title": "关闭 host evidence MCP resource exposure gate",
       "kind": "close",
-      "status": "pending",
+      "status": "completed",
       "order": 90,
       "summary": "已通过 dbc://host-evidence/bundle 暴露只读 HostEvidenceBundle MCP resource；缺目录为空 bundle，读取不创建 scheduler projection 或 Local Work Trajectory artifact。",
       "metadata": {
         "created_at": "2026-06-17T16:27:01.562144+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:07:50.331282+00:00",
+        "completed_at": "2026-06-17T17:07:57.345511+00:00"
+      }
+    },
+    "event:091": {
+      "id": "event:091",
+      "lane_id": "lane:main",
+      "title": "选择下一步为 CLI resource inspection",
+      "kind": "decision",
+      "status": "completed",
+      "order": 91,
+      "summary": "在 UI 分支脏且 live Qoder 依赖外部凭据的当前状态下，优先做 CLI resources list/read 入口，以产品化刚完成的 dbc://host-evidence/bundle MCP resource。",
+      "metadata": {
+        "created_at": "2026-06-17T16:33:08.564125+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-17T17:04:47.036417+00:00"
+      }
+    },
+    "event:092": {
+      "id": "event:092",
+      "lane_id": "lane:main",
+      "title": "实现 CLI resource inspection 入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 92,
+      "summary": "为 host evidence MCP resource 增加 doc-based-coding resources list/read 的 CLI 检查面，复用 GovernanceTools resource 方法。",
+      "metadata": {
+        "created_at": "2026-06-17T17:04:52.431327+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:07:57.345511+00:00",
+        "completed_at": "2026-06-17T17:08:13.873709+00:00"
+      }
+    },
+    "event:093": {
+      "id": "event:093",
+      "lane_id": "lane:main",
+      "title": "验证 CLI resource inspection 行为",
+      "kind": "validation",
+      "status": "completed",
+      "order": 93,
+      "summary": "运行 doc-loop prompt/resource 聚焦测试与 CLI list/read/missing 手测，确认 host evidence bundle 可无 MCP host 检查。",
+      "metadata": {
+        "created_at": "2026-06-17T17:08:20.019365+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:08:26.062089+00:00",
+        "completed_at": "2026-06-17T17:12:04.125744+00:00"
+      }
+    },
+    "event:094": {
+      "id": "event:094",
+      "lane_id": "lane:main",
+      "title": "关闭 CLI resource inspection gate",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 94,
+      "summary": "将 CLI resource inspection gate 切为 COMPLETED，补 review evidence、follow-up direction analysis、Checklist、Phase Map 与 checkpoint。",
+      "metadata": {
+        "created_at": "2026-06-17T17:11:29.472733+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T17:12:04.125744+00:00",
+        "completed_at": "2026-06-17T17:12:10.531215+00:00"
       }
     }
   },
@@ -2115,6 +2183,42 @@
     {
       "source_event_id": "event:089",
       "target_event_id": "event:090",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:090",
+      "target_event_id": "event:091",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:091",
+      "target_event_id": "event:092",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:092",
+      "target_event_id": "event:093",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:093",
+      "target_event_id": "event:094",
       "kind": "sequence",
       "summary": "",
       "metadata": {

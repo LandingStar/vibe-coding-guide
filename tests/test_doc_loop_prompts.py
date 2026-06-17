@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from src.mcp.tools import GovernanceTools
@@ -125,6 +127,8 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "must not mutate" in text
         assert "dbc://host-evidence/bundle" in text
         assert "read_host_evidence_bundle" in text
+        assert "doc-based-coding resources list" in text
+        assert "doc-based-coding resources read dbc://host-evidence/bundle" in text
 
 
 def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
@@ -152,6 +156,48 @@ def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_pa
     assert payload["summaries"] == []
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_cli_resources_list_and_read_host_evidence_bundle() -> None:
+    listed = subprocess.run(
+        [sys.executable, "-m", "src", "resources", "list"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "resources", "read", "dbc://host-evidence/bundle"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert listed.returncode == 0
+    resources = json.loads(listed.stdout)
+    assert any(item["uri"] == "dbc://host-evidence/bundle" for item in resources)
+    assert read.returncode == 0
+    bundle = json.loads(read.stdout)
+    assert bundle["evidence_dir"].endswith(".codex\\scheduler\\evidence") or bundle[
+        "evidence_dir"
+    ].endswith(".codex/scheduler/evidence")
+    assert "evidence_count" in bundle
+    assert "summaries" in bundle
+
+
+def test_cli_resources_read_missing_resource_returns_clear_error() -> None:
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "resources", "read", "dbc://missing"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert read.returncode == 1
+    assert read.stdout == ""
+    assert "Resource not found: dbc://missing" in read.stderr
 
 
 def test_dependency_baseline_maintenance_guide_is_discoverable() -> None:

@@ -5,6 +5,7 @@ Installed entry point:
     doc-based-coding info                      — Show loaded pack info
     doc-based-coding validate                  — Check project constraints
     doc-based-coding check [input text]        — Run constraint/state check only
+    doc-based-coding resources <subcommand>    — Inspect MCP resources
     doc-based-coding generate-instructions     — Generate agent instructions segment
 
 Module entry point:
@@ -190,6 +191,55 @@ def cmd_generate_instructions(args: list[str]) -> int:
     return 0
 
 
+def cmd_resources(args: list[str]) -> int:
+    """Inspect read-only MCP resources without starting an MCP host."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding resources <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  list                    List read-only resources\n"
+            "  read <uri>              Read a resource by URI\n",
+        )
+        return 0
+
+    sub = args[0]
+    root = _find_project_root()
+
+    try:
+        from .mcp.tools import GovernanceTools
+
+        tools = GovernanceTools(root, dry_run=True)
+    except Exception as e:
+        return _handle_error("Error initializing resource inspector", e, category="init_failed")
+
+    if sub == "list":
+        resources = tools.list_resources()
+        if isinstance(resources, dict) and resources.get("category"):
+            _print_json(resources)
+            return 1
+        print(json.dumps(resources, indent=2, ensure_ascii=False, default=str))
+        return 0
+
+    if sub == "read":
+        if len(args) < 2:
+            print("Usage: doc-based-coding resources read <uri>", file=sys.stderr)
+            return 1
+        uri = args[1]
+        content = tools.read_resource(uri)
+        if content is None:
+            print(f"Resource not found: {uri}", file=sys.stderr)
+            return 1
+        if isinstance(content, dict):
+            _print_json(content)
+        else:
+            print(content)
+        return 0
+
+    print(f"Unknown resources subcommand: {sub}", file=sys.stderr)
+    print("Usage: doc-based-coding resources <list|read> [args]", file=sys.stderr)
+    return 1
+
+
 def cmd_pack(args: list[str]) -> int:
     """Pack management subcommands: list, install, remove, info."""
     from .pack.pack_manager import install_pack, remove_pack, list_packs, get_pack_info
@@ -278,6 +328,7 @@ _COMMANDS = {
     "info": cmd_info,
     "validate": cmd_validate,
     "check": cmd_check,
+    "resources": cmd_resources,
     "generate-instructions": cmd_generate_instructions,
     "pack": cmd_pack,
 }
@@ -301,6 +352,7 @@ def main() -> int:
             "  info                    Show loaded pack info\n"
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
+            "  resources <sub>         Inspect MCP resources (list/read)\n"
             "  generate-instructions   Generate agent instructions segment\n"
             "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"

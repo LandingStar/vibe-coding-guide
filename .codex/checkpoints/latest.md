@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-18T00:55:00+08:00
+# Checkpoint — 2026-06-18T01:22:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / host evidence MCP resource exposure close
+Post-v1.0 — Agent orchestration / host evidence CLI resource inspection close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -46,6 +46,13 @@ Post-v1.0 — Agent orchestration / host evidence MCP resource exposure close
 - [x] Prove missing evidence directories return an empty read-only bundle.
 - [x] Prove resource reads do not create scheduler projection or Local Work Trajectory artifacts.
 - [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`.
+- [x] Create follow-up direction analysis for CLI resource inspection.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`.
+- [x] Add `doc-based-coding resources list`.
+- [x] Add `doc-based-coding resources read <uri>`.
+- [x] Prove `dbc://host-evidence/bundle` can be inspected without MCP host setup.
+- [x] Prove missing resources return clear non-zero CLI errors.
+- [x] Close `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -56,7 +63,8 @@ Post-v1.0 — Agent orchestration / host evidence MCP resource exposure close
 - Completed Line: Credentialed Live Qoder Smoke — source: design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - Completed Line: Host Evidence Consumer — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
 - Completed Line: Host Evidence MCP Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
-- Recommended Next Line: choose between host-visible UI binding over the resource or credentialed live Qoder rerun after SDK/auth provisioning — source: review/host-evidence-mcp-resource-exposure-2026-06-18.md
+- Completed Line: CLI Resource Inspection For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
+- Recommended Next Line: Resource Error Isolation For Host Evidence — source: design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
@@ -68,14 +76,18 @@ Post-v1.0 — Agent orchestration / host evidence MCP resource exposure close
 - design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
+- design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
 - review/credentialed-live-qoder-smoke-2026-06-17.md
 - review/host-evidence-consumer-2026-06-18.md
 - review/host-evidence-mcp-resource-exposure-2026-06-18.md
+- review/cli-resource-inspection-for-host-evidence-2026-06-18.md
 - design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
 - design_docs/host-evidence-consumer-followup-direction-analysis.md
+- design_docs/host-evidence-mcp-resource-exposure-followup-direction-analysis.md
+- design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md
 - review/controlled-host-runtime-dogfood-harness-2026-06-17.md
 - design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md

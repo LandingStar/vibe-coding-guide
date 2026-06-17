@@ -213,6 +213,13 @@ When MCP resources are available, prefer reading
 `dbc://host-evidence/bundle`. It returns the same compact bundle JSON through
 the standard read-only resource surface.
 
+When an MCP resource reader is not available, use the CLI fallback:
+
+```text
+doc-based-coding resources list
+doc-based-coding resources read dbc://host-evidence/bundle
+```
+
 Readiness-negative live smoke outcomes remain review-doc evidence unless an
 actual evidence JSON artifact exists. Do not create fake evidence JSON merely to
 make a UI or summary look populated.
