@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T16:05:57.371541+00:00",
+  "recorded_at": "2026-06-17T16:19:57.016058+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 85,
-    "relation_count": 84,
+    "event_count": 88,
+    "relation_count": 87,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "orchestration",
-      "status": "done",
+      "status": "pending",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -1252,6 +1252,45 @@
         "activated_at": "2026-06-17T16:05:08.022647+00:00",
         "completed_at": "2026-06-17T16:05:57.371541+00:00"
       }
+    },
+    "event:086": {
+      "id": "event:086",
+      "lane_id": "lane:main",
+      "title": "关闭 Qoder live-smoke gate 并启动 evidence consumer 切片",
+      "kind": "task",
+      "status": "pending",
+      "order": 86,
+      "summary": "将 readiness-negative credentialed live smoke gate 正式关闭，随后创建并实现只读 host evidence consumer 的最小设施层，保持 VS Code UI 旧改动不进入本切片。",
+      "metadata": {
+        "created_at": "2026-06-17T16:08:51.096763+00:00",
+        "source": "single-line-lifecycle"
+      }
+    },
+    "event:087": {
+      "id": "event:087",
+      "lane_id": "lane:main",
+      "title": "完成 host evidence consumer 只读设施切片",
+      "kind": "writeback",
+      "status": "pending",
+      "order": 87,
+      "summary": "关闭 readiness-negative live smoke gate，新增 HostSchedulerRunEvidenceSummary 和 read_host_evidence_bundle，只读消费 host evidence JSON；状态板、checkpoint、prompt 和 review evidence 已写回。",
+      "metadata": {
+        "created_at": "2026-06-17T16:17:20.332712+00:00",
+        "source": "single-line-lifecycle"
+      }
+    },
+    "event:088": {
+      "id": "event:088",
+      "lane_id": "lane:main",
+      "title": "关闭 host evidence consumer gate",
+      "kind": "close",
+      "status": "pending",
+      "order": 88,
+      "summary": "Host Evidence Consumer gate 已正式切为 COMPLETED；follow-up direction analysis 推荐下一步做只读 MCP Resource Exposure For Host Evidence。",
+      "metadata": {
+        "created_at": "2026-06-17T16:19:57.016058+00:00",
+        "source": "single-line-lifecycle"
+      }
     }
   },
   "relations": [
@@ -2005,6 +2044,33 @@
     {
       "source_event_id": "event:084",
       "target_event_id": "event:085",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:085",
+      "target_event_id": "event:086",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:086",
+      "target_event_id": "event:087",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:087",
+      "target_event_id": "event:088",
       "kind": "sequence",
       "summary": "",
       "metadata": {

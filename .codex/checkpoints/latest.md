@@ -1,8 +1,8 @@
-# Checkpoint — 2026-06-18T00:05:00+08:00
+# Checkpoint — 2026-06-18T00:38:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / credentialed live Qoder smoke
+Post-v1.0 — Agent orchestration / host evidence consumer close
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -33,6 +33,14 @@ design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - [x] Check local host readiness for qoder SDK/auth without exposing secrets.
 - [x] Record readiness-negative evidence.
 - [x] Move `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` to `READY-FOR-CLOSE-REVIEW`.
+- [x] Close `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` as readiness-negative evidence.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`.
+- [x] Add read-only `HostSchedulerRunEvidenceSummary` reader.
+- [x] Add `tools.progress_graph.read_host_evidence_bundle()` for host/progress consumers.
+- [x] Update scheduler dogfood prompt guidance for evidence summary consumption.
+- [x] Move `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md` to `READY-FOR-CLOSE-REVIEW`.
+- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md` after close-review evidence.
+- [x] Create follow-up direction analysis for host evidence exposure.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -40,10 +48,9 @@ design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - Completed Line: Controlled Host Runtime Dogfood Harness — source: design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
 - Completed Line: Controlled Real Qoder Wrapper Spike — source: design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
 - Completed Line: Host-Owned Qoder Smoke Runner Helper — source: design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
-- Selected Line: Credentialed Live Qoder Smoke — source: design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
-- Active Gate: design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
-- Current Review: review/credentialed-live-qoder-smoke-2026-06-17.md
-- Follow-up Recommendation: review and close the readiness-negative live smoke gate, then decide whether to provision SDK/auth for a real live smoke rerun or move to read-only host evidence consumption.
+- Completed Line: Credentialed Live Qoder Smoke — source: design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
+- Completed Line: Host Evidence Consumer — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
+- Recommended Next Line: MCP Resource Exposure For Host Evidence — source: design_docs/host-evidence-consumer-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
@@ -53,11 +60,14 @@ design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
 - design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
 - design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
+- design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
 - review/credentialed-live-qoder-smoke-2026-06-17.md
+- review/host-evidence-consumer-2026-06-18.md
 - design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
+- design_docs/host-evidence-consumer-followup-direction-analysis.md
 - review/controlled-host-runtime-dogfood-harness-2026-06-17.md
 - design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
@@ -67,6 +77,8 @@ design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
 - design_docs/qoder-runtime-adapter-requirements.md
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - src/runtime/orchestration/qoder_sdk_client.py
+- src/runtime/orchestration/scheduler_dogfood.py
+- tools/progress_graph/host_evidence.py
 - tools/progress_graph/qoder_smoke.py
 - src/runtime/orchestration/scheduler_host_runner.py
 - tools/progress_graph/scheduler_projection.py

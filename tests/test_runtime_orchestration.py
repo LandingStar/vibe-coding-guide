@@ -28,6 +28,7 @@ from src.runtime.orchestration import (
     AgentRuntimeAdapterRegistry,
     FakeAgentRuntimeAdapter,
     HostSchedulerRunEvidence,
+    HostSchedulerRunEvidenceSummary,
     HostSchedulerRunResult,
     InMemoryArtifactVersionStore,
     JsonlCoordinationEventLog,
@@ -105,6 +106,8 @@ from src.runtime.orchestration import (
     write_compacted_scheduler_snapshot,
     write_host_scheduler_run_evidence,
     read_scheduler_state_snapshot,
+    read_host_scheduler_run_evidence_summaries,
+    read_host_scheduler_run_evidence_summary,
     write_scheduler_state_snapshot,
 )
 
@@ -3053,6 +3056,87 @@ def test_host_scheduler_run_evidence_writes_contract_shape(tmp_path) -> None:
 
     loaded = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert loaded["host_result"]["authority_split"]["scheduler_projection_role"] == "read-only-view"
+
+
+def test_host_scheduler_run_evidence_summary_reads_ui_safe_contract(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / "evidence" / "host-run.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task(
+                    "task-a",
+                    output_artifact_id="task-a:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    host_result = run_host_authorized_scheduler_once(
+        HostSchedulerRunRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-17T20:05:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-fake-summary",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                    reason="read evidence summary",
+                ),
+            ),
+            timestamp="2026-06-17T20:05:00+08:00",
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    write_host_scheduler_run_evidence(
+        build_host_scheduler_run_evidence(
+            host_result,
+            evidence_id="evidence-summary",
+            timestamp="2026-06-17T20:05:00+08:00",
+        ),
+        evidence_path,
+    )
+
+    summary = read_host_scheduler_run_evidence_summary(evidence_path)
+    payload = summary.to_json_dict()
+
+    assert isinstance(summary, HostSchedulerRunEvidenceSummary)
+    assert payload["evidence_id"] == "evidence-summary"
+    assert payload["runtime_providers"] == ["fake"]
+    assert payload["host_invocation"] == {
+        "surface": "host-authorized-adapter",
+        "invocation_id": "host-fake-summary",
+        "requested_by": "host:test",
+        "reason": "read evidence summary",
+    }
+    assert payload["run_count"] == 1
+    assert payload["output_artifact_refs"] == [
+        {
+            "task_id": "task-a",
+            "artifact_id": "task-a:result",
+            "version": "v1",
+        }
+    ]
+    assert "host_result" not in payload
+
+
+def test_host_scheduler_run_evidence_summary_rejects_wrong_product_type(tmp_path) -> None:
+    evidence_path = tmp_path / "evidence.json"
+    evidence_path.write_text(
+        '{"product_type": "wrong", "schema_version": "1"}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="product_type"):
+        read_host_scheduler_run_evidence_summary(evidence_path)
+
+
+def test_host_scheduler_run_evidence_summaries_missing_directory_is_empty(tmp_path) -> None:
+    assert read_host_scheduler_run_evidence_summaries(tmp_path / "missing") == ()
 
 
 def test_host_scheduler_runner_mock_qoder_requires_host_authorization(tmp_path) -> None:

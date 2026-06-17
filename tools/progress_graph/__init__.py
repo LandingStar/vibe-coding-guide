@@ -11,6 +11,7 @@ from .doc_projection import (
 from .export import export_graph_surface, export_history_surface, load_export_surface
 from .graphviz import build_export_surface_dot, build_history_dot, dot_preview_path, write_history_dot
 from .html_preview import build_export_surface_html, build_history_html, html_preview_path, write_history_html
+from .host_evidence import HostEvidenceBundle, host_scheduler_evidence_dir, read_host_evidence_bundle
 from .model import (
     CrossGraphEdge,
     ProgressCluster,
@@ -101,6 +102,7 @@ __all__ = [
     "run_host_runtime_dogfood_harness",
     "run_persisted_scheduler_once_and_refresh_projection",
     "scheduler_work_trajectory_json_path",
+    "HostEvidenceBundle",
     "HostSchedulerRunProjectionRefreshResult",
     "HostRuntimeDogfoodHarnessResult",
     "HostOwnedQoderSmokeRunConfig",
@@ -123,6 +125,7 @@ __all__ = [
     "export_history_surface",
     "html_preview_path",
     "history_json_path",
+    "host_scheduler_evidence_dir",
     "load_export_surface",
     "load_doc_progress_history",
     "load_local_work_trajectory",
@@ -138,6 +141,7 @@ __all__ = [
     "query_independent_graph_sets",
     "query_ready_nodes",
     "query_topological_layers",
+    "read_host_evidence_bundle",
     "TrajectoryEvent",
     "TrajectoryEndpoint",
     "TrajectoryLane",

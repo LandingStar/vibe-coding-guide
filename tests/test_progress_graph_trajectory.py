@@ -73,6 +73,8 @@ from tools.progress_graph import (
     pack_local_work_range,
     pack_local_work_subgraph,
     QoderSmokeTaskConfig,
+    host_scheduler_evidence_dir,
+    read_host_evidence_bundle,
     read_trajectory_artifacts_bundle,
     resume_single_line_event,
     run_host_authorized_scheduler_once_and_refresh_projection,
@@ -959,6 +961,70 @@ def test_host_runtime_dogfood_harness_fake_writes_evidence_and_projection(tmp_pa
 
     local_trajectory = load_local_work_trajectory(tmp_path)
     assert [event.title for event in local_trajectory.events.values()] == ["agent-owned anchor"]
+
+
+def test_host_evidence_bundle_reads_compact_summaries(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/fake-run.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduler_projection_task(
+                    "task-a",
+                    lane_id="lane:dogfood",
+                    output_artifact_id="task-a:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    run_host_runtime_dogfood_harness(
+        tmp_path,
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        runtime_config=RuntimeRegistryWiringConfig(
+            providers=("fake",),
+            timestamp="2026-06-18T00:20:00+08:00",
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id="dogfood-fake-summary",
+                requested_providers=("fake",),
+                requested_by="host:test",
+                reason="fake dogfood evidence summary",
+            ),
+        ),
+        evidence_id="dogfood-fake-summary",
+        evidence_output_path=evidence_path,
+        timestamp="2026-06-18T00:20:00+08:00",
+        artifact_store=InMemoryArtifactVersionStore(),
+        guide_context="dogfood-harness-summary-test",
+    )
+
+    bundle = read_host_evidence_bundle(tmp_path)
+    payload = bundle.to_json_dict()
+
+    assert bundle.evidence_dir == host_scheduler_evidence_dir(tmp_path)
+    assert payload["evidence_count"] == 1
+    assert payload["summaries"][0]["evidence_id"] == "dogfood-fake-summary"
+    assert payload["summaries"][0]["runtime_providers"] == ["fake"]
+    assert payload["summaries"][0]["host_invocation"]["reason"] == "fake dogfood evidence summary"
+    assert payload["summaries"][0]["output_artifact_refs"] == [
+        {
+            "task_id": "task-a",
+            "artifact_id": "task-a:result",
+            "version": "v1",
+        }
+    ]
+    assert "host_result" not in payload["summaries"][0]
+
+
+def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None:
+    bundle = read_host_evidence_bundle(tmp_path)
+
+    assert bundle.evidence_dir == host_scheduler_evidence_dir(tmp_path)
+    assert bundle.summaries == ()
+    assert bundle.to_json_dict()["evidence_count"] == 0
 
 
 def test_host_runtime_dogfood_harness_mock_qoder_writes_same_evidence_shape(tmp_path: Path) -> None:

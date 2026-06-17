@@ -1,7 +1,7 @@
 # Planning Gate — Credentialed Live Qoder Smoke
 
 > Date: 2026-06-17
-> Status: READY-FOR-CLOSE-REVIEW
+> Status: COMPLETED
 
 ## Trigger
 
@@ -145,3 +145,22 @@ scheduler execution and without credential exposure.
 Close-review evidence:
 
 - `review/credentialed-live-qoder-smoke-2026-06-17.md`
+
+### 2026-06-18 — Close Review
+
+The gate is closed as `COMPLETED` with readiness-negative evidence.
+
+The close is accepted because:
+
+1. Host readiness was checked without printing or persisting credential values.
+2. The local host lacks both `qoder_agent_sdk` and
+   `QODER_PERSONAL_ACCESS_TOKEN`.
+3. `QoderSDKQueryClient.validate_host_ready()` failed closed before scheduler
+   execution.
+4. No Qoder smoke scheduler snapshot, evidence JSON, or scheduler-derived
+   trajectory projection was written.
+5. The outcome is explicitly not a credentialed live success.
+
+Follow-up direction:
+
+- `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`
