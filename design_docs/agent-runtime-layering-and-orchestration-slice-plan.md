@@ -294,6 +294,15 @@ audit events, writes the resulting `SchedulerState` snapshot, and leaves
 recovery to `recover_scheduler_state()`. The snapshot remains the task-contract
 authority; submission events are breadcrumbs for audit/projection, not a source
 from which replay invents task contracts.
+`submit_scheduler_task_with_persistence()` and
+`admit_exchange_artifact_version_to_scheduler()` now add the exact-version
+store admission path. The helper reads a stored `ExchangeArtifact` version from
+`JsonArtifactVersionStore`, requires exactly one scheduler submission payload,
+and writes scheduler snapshot/event-log state through the existing submission
+adapters. The exchange store remains the exact coordination-product source, not
+the scheduler authority; this path does not run providers, refresh scheduler
+projection, expose a stored-artifact MCP write tool, or mutate Local Work
+Trajectory.
 `src/runtime/orchestration/scheduler_runner.py` adds
 `run_persisted_scheduler_once()`, the first command-style persisted run entry:
 recover from scheduler snapshot + event log, run a bounded preflight drain
@@ -560,6 +569,11 @@ The store now also has a read-only inspection/admission-prep surface through
 default inspected path is `.codex/orchestration/exchange-artifacts.json`. This
 is a coordination product store convention, not a persistent agent-home
 implementation and not scheduler state authority.
+Stored scheduler submission artifacts can be admitted by exact version through
+`admit_exchange_artifact_version_to_scheduler()`, which writes scheduler
+snapshot/event-log state while preserving the exchange store as source material
+only. It does not create agent-home directories, run providers, refresh
+projection, or mutate Local Work Trajectory.
 
 Non-goals:
 
@@ -591,8 +605,11 @@ types, and a read-only `ExchangeArtifactInspectionBundle` over the local durable
 store. `dbc://exchange-artifacts/bundle` exposes this inspection bundle through
 the existing resource surface so operators and agents can see exact stored
 versions and scheduler submission candidates before a later admission action.
-The JSON store is durable and local, but it remains a coordination artifact
-store rather than scheduler state authority.
+`admit_exchange_artifact_version_to_scheduler()` is the first runtime helper for
+that later admission action: it consumes one exact stored scheduler submission
+artifact and persists the resulting scheduler task contracts. The JSON store is
+durable and local, but it remains a coordination artifact store rather than
+scheduler state authority.
 
 Non-goals:
 

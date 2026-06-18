@@ -70,6 +70,7 @@ from src.runtime.orchestration import (
     ScratchManifestEntry,
     SchedulerTaskBatchSubmission,
     SchedulerTaskSubmission,
+    admit_exchange_artifact_version_to_scheduler,
     agent_home_registration_to_artifact,
     cleanup_receipt_to_artifact,
     build_orchestration_preflight_bundle,
@@ -2919,6 +2920,252 @@ def test_submit_scheduler_task_batch_with_persistence_recovers_and_drains(tmp_pa
     assert drain.stop_reason == "no_ready_tasks"
     assert tuple(run.run_handle.task_id for run in drain.run_results) == ("task-a", "task-b")
     assert drain.state.tasks["task-b"].state == "complete"
+
+
+def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    projection_path = tmp_path / "scheduler-work-trajectory.json"
+    local_trajectory_path = tmp_path / "local-work-trajectory.json"
+    store = JsonArtifactVersionStore(store_path)
+    artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-single",
+            title="Single stored task",
+            instruction="Admit this exact stored task.",
+            agent=AgentSpec(agent_id="agent:single", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:single", lane_id="lane:single"),
+            output_artifact_id="task-single:result",
+        ),
+        artifact_id="submission:single",
+        created_at="2026-06-19T01:40:00+08:00",
+        version="v1",
+    )
+    store.put(artifact)
+
+    result = admit_exchange_artifact_version_to_scheduler(
+        artifact_store_path=store_path,
+        artifact_id="submission:single",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+    )
+    restored = read_scheduler_state_snapshot(snapshot_path)
+    events = JsonlSchedulerEventLog(event_log_path).read_all()
+    payload = result.to_json_dict()
+
+    assert result.product_type == "scheduler_task_submission"
+    assert result.source_artifact_id == "submission:single"
+    assert result.source_artifact_version == "v1"
+    assert result.submission_event_ids == ("scheduler-event-1",)
+    assert tuple(task.task_id for task in result.submitted_tasks) == ("task-single",)
+    assert restored.tasks["task-single"].title == "Single stored task"
+    assert [event.event_kind for event in events] == ["task_submitted"]
+    assert events[0].timestamp == "2026-06-19T01:40:00+08:00"
+    assert events[0].reason == "scheduler task submitted"
+    assert events[0].related_artifact_ids == ("submission:single",)
+    assert payload["state_written"] is True
+    assert payload["ran_tasks"] is False
+    assert payload["refreshed_projection"] is False
+    assert payload["authority_split"]["scheduler_state_authority"] == "scheduler_snapshot"
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not projection_path.exists()
+    assert not local_trajectory_path.exists()
+
+
+def test_admit_exchange_artifact_version_submits_exact_batch(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    base = _scheduled_task("task-base", state="complete")
+    write_scheduler_state_snapshot(SchedulerState(tasks={"task-base": base}), snapshot_path)
+    store = JsonArtifactVersionStore(store_path)
+    batch_artifact = scheduler_task_batch_submission_to_artifact(
+        SchedulerTaskBatchSubmission(
+            batch_id="batch-exact",
+            tasks=(
+                SchedulerTaskSubmission(
+                    task_id="task-a",
+                    title="Task A",
+                    instruction="Complete A.",
+                    agent=AgentSpec(agent_id="agent:a", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="context:a", lane_id="lane:a"),
+                    output_artifact_id="task-a:result",
+                    dependencies=(
+                        TaskDependency(
+                            dependency_id="dep-base-a",
+                            source_task_id="task-base",
+                            target_task_id="task-a",
+                            required_state="complete",
+                        ),
+                    ),
+                ),
+                SchedulerTaskSubmission(
+                    task_id="task-b",
+                    title="Task B",
+                    instruction="Complete B after A.",
+                    agent=AgentSpec(agent_id="agent:b", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="context:b", lane_id="lane:b"),
+                    output_artifact_id="task-b:result",
+                    dependencies=(
+                        TaskDependency(
+                            dependency_id="dep-a-b",
+                            source_task_id="task-a",
+                            target_task_id="task-b",
+                            required_state="complete",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        artifact_id="submission:batch-exact",
+        created_at="2026-06-19T01:41:00+08:00",
+        version="v2",
+    )
+    store.put(batch_artifact)
+
+    result = admit_exchange_artifact_version_to_scheduler(
+        artifact_store_path=store_path,
+        artifact_id="submission:batch-exact",
+        version="v2",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-19T01:42:00+08:00",
+    )
+    restored = read_scheduler_state_snapshot(snapshot_path)
+    events = JsonlSchedulerEventLog(event_log_path).read_all()
+
+    assert result.product_type == "scheduler_task_batch_submission"
+    assert result.snapshot_existed is True
+    assert result.submission_event_ids == ("scheduler-event-1", "scheduler-event-2")
+    assert tuple(task.task_id for task in result.submitted_tasks) == ("task-a", "task-b")
+    assert tuple(sorted(restored.tasks)) == ("task-a", "task-b", "task-base")
+    assert tuple(dependency.dependency_id for dependency in result.dependencies_added) == (
+        "dep-base-a",
+        "dep-a-b",
+    )
+    assert [event.timestamp for event in events] == [
+        "2026-06-19T01:42:00+08:00",
+        "2026-06-19T01:42:00+08:00",
+    ]
+    assert events[0].related_dependency_ids == ("dep-base-a",)
+    assert events[1].related_dependency_ids == ("dep-a-b",)
+
+
+def test_admit_exchange_artifact_version_reports_missing_exact_version(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(_accepted_contract_artifact(version="v1"))
+
+    with pytest.raises(ValueError, match="exchange artifact version not found"):
+        admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id="server-api",
+            version="v2",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+        )
+
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_version_rejects_non_submission_without_mutation(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(_accepted_contract_artifact(version="v1"))
+
+    with pytest.raises(ValueError, match="is not a scheduler submission artifact"):
+        admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id="server-api",
+            version="v1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+        )
+
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_version_rejects_ambiguous_submission_payloads(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    first = SchedulerTaskSubmission(
+        task_id="task-a",
+        title="Task A",
+        instruction="Complete A.",
+        agent=AgentSpec(agent_id="agent:a", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:a"),
+    )
+    second = SchedulerTaskSubmission(
+        task_id="task-b",
+        title="Task B",
+        instruction="Complete B.",
+        agent=AgentSpec(agent_id="agent:b", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:b"),
+    )
+    ambiguous = ExchangeArtifact(
+        artifact_id="submission:ambiguous",
+        kind="request",
+        intent="propose",
+        producer="agent:guide",
+        version="v1",
+        parts=(
+            ExchangePayloadPart(part_type="structured", data={
+                "product_type": "scheduler_task_submission",
+                "task_id": first.task_id,
+                "title": first.title,
+                "instruction": first.instruction,
+                "agent": {"agent_id": first.agent.agent_id, "runtime_provider": "fake"},
+                "context_scope": {"context_id": first.context_scope.context_id},
+            }),
+            ExchangePayloadPart(part_type="structured", data={
+                "product_type": "scheduler_task_submission",
+                "task_id": second.task_id,
+                "title": second.title,
+                "instruction": second.instruction,
+                "agent": {"agent_id": second.agent.agent_id, "runtime_provider": "fake"},
+                "context_scope": {"context_id": second.context_scope.context_id},
+            }),
+        ),
+    )
+    JsonArtifactVersionStore(store_path).put(ambiguous)
+
+    with pytest.raises(ValueError, match="multiple scheduler submission payloads"):
+        admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id="submission:ambiguous",
+            version="v1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+        )
+
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_version_surfaces_malformed_store_error(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    store_path.write_text("{bad json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid exchange artifact store JSON"):
+        admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id="submission:any",
+            version="v1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+        )
+
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
 
 
 def test_run_persisted_scheduler_once_recovers_drains_and_writes_snapshot(tmp_path) -> None:

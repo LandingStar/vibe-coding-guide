@@ -495,6 +495,8 @@ ExchangeArtifactVersionSummary
 ExchangeArtifactAdmissionCandidate
 inspect_exchange_artifact_store(path)
 default_exchange_artifact_store_path(project_root)
+admit_exchange_artifact_version_to_scheduler()
+PersistedExchangeArtifactAdmissionResult
 
 exchange_artifact_to_json_dict()
 exchange_artifact_from_json_dict()
@@ -527,6 +529,22 @@ tasks, mutate scheduler snapshots, mark artifacts consumed, execute runtimes, or
 refresh Local Work Trajectory / scheduler projection artifacts. A later
 scheduler admission slice may consume an exact artifact version from this
 inspection surface, but scheduler snapshots remain the scheduling authority.
+
+The first exact-version admission helper is now:
+
+```text
+admit_exchange_artifact_version_to_scheduler()
+```
+
+It reads one exact `(artifact_id, version)` from `JsonArtifactVersionStore`,
+requires exactly one scheduler submission product payload, and then delegates to
+the existing scheduler submission persistence path. It writes the scheduler
+snapshot and scheduler event log, returning
+`PersistedExchangeArtifactAdmissionResult` with submitted task IDs, dependency
+IDs, submission event IDs, source artifact identity, and authority clues. It
+does not mark the exchange artifact consumed, run providers, refresh scheduler
+projection, expose a stored-artifact MCP write tool, or mutate Local Work
+Trajectory.
 
 ## Scheduler-Relevant Rule
 

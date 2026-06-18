@@ -90,6 +90,65 @@ class PersistedSchedulerTaskBatchSubmissionResult:
     submission_event_ids: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class PersistedSchedulerTaskSubmissionResult:
+    """Result of submitting one task and persisting the scheduler snapshot."""
+
+    submission: SchedulerTaskSubmissionResult
+    snapshot_path: Path
+    event_log_path: Path
+    submission_event_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PersistedExchangeArtifactAdmissionResult:
+    """Result of admitting one exact stored ExchangeArtifact version."""
+
+    artifact_store_path: Path
+    product_type: str
+    source_artifact_id: str
+    source_artifact_version: str
+    snapshot_path: Path
+    event_log_path: Path
+    state: SchedulerState
+    submitted_tasks: tuple[ScheduledTask, ...] = ()
+    dependencies_added: tuple[TaskDependency, ...] = ()
+    submission_event_ids: tuple[str, ...] = ()
+    snapshot_existed: bool = False
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return compact admission metadata for host/review surfaces."""
+
+        return {
+            "artifact_store_path": str(self.artifact_store_path),
+            "product_type": self.product_type,
+            "source_artifact_id": self.source_artifact_id,
+            "source_artifact_version": self.source_artifact_version,
+            "snapshot_path": str(self.snapshot_path),
+            "event_log_path": str(self.event_log_path),
+            "snapshot_existed": self.snapshot_existed,
+            "submitted_task_ids": [task.task_id for task in self.submitted_tasks],
+            "submission_event_ids": list(self.submission_event_ids),
+            "dependencies_added": [
+                dependency.dependency_id for dependency in self.dependencies_added
+            ],
+            "task_count": len(self.submitted_tasks),
+            "dependency_count": len(self.dependencies_added),
+            "state_task_count": len(self.state.tasks),
+            "state_dependency_count": len(self.state.dependencies),
+            "state_written": True,
+            "ran_tasks": False,
+            "refreshed_projection": False,
+            "authority_split": {
+                "scheduler_state_authority": "scheduler_snapshot",
+                "exchange_store_role": "exact-version-coordination-product-source",
+                "provider_executed": False,
+                "scheduler_projection_refreshed": False,
+                "local_work_trajectory_mutated": False,
+            },
+        }
+
+
 def scheduler_task_submission_to_artifact(
     submission: SchedulerTaskSubmission,
     *,
@@ -276,44 +335,152 @@ def submit_scheduler_task_batch_with_persistence(
     appended ``task_submitted`` events are audit breadcrumbs only.
     """
 
-    from .scheduler_store import JsonlSchedulerEventLog, write_scheduler_state_snapshot
+    from .scheduler_store import write_scheduler_state_snapshot
 
     result = submit_scheduler_task_batch(
         state,
         artifact,
         replace_existing=replace_existing,
     )
-    event_log = JsonlSchedulerEventLog(event_log_path)
-    existing_count = len(event_log.read_all())
-    event_ids: list[str] = []
-    for offset, task in enumerate(result.tasks, start=1):
-        sequence = existing_count + offset
-        event_id = f"scheduler-event-{sequence}"
-        event_ids.append(event_id)
-        event_log.append(
-            SchedulerEvent(
-                event_id=event_id,
-                event_kind="task_submitted",
-                timestamp=timestamp,
-                task_id=task.task_id,
-                from_state="",
-                to_state=task.state,
-                reason="scheduler task batch submitted",
-                related_dependency_ids=tuple(
-                    dependency.dependency_id
-                    for dependency in result.dependencies_added
-                    if dependency.target_task_id == task.task_id
-                ),
-                related_artifact_ids=((artifact.artifact_id,) if artifact.artifact_id else ()),
-                sequence=sequence,
-            )
-        )
+    event_ids = _append_scheduler_submission_events(
+        event_log_path,
+        artifact=artifact,
+        tasks=result.tasks,
+        dependencies_added=result.dependencies_added,
+        timestamp=timestamp,
+        reason="scheduler task batch submitted",
+    )
     written_snapshot = write_scheduler_state_snapshot(result.state, snapshot_path)
     return PersistedSchedulerTaskBatchSubmissionResult(
         submission=result,
         snapshot_path=written_snapshot,
         event_log_path=Path(event_log_path),
         submission_event_ids=tuple(event_ids),
+    )
+
+
+def submit_scheduler_task_with_persistence(
+    state: SchedulerState,
+    artifact: ExchangeArtifact,
+    *,
+    snapshot_path: str | Path,
+    event_log_path: str | Path,
+    replace_existing: bool = False,
+    timestamp: str = "",
+) -> PersistedSchedulerTaskSubmissionResult:
+    """Submit one task, append a submission audit event, and write a snapshot."""
+
+    from .scheduler_store import write_scheduler_state_snapshot
+
+    result = submit_scheduler_task(
+        state,
+        artifact,
+        replace_existing=replace_existing,
+    )
+    event_ids = _append_scheduler_submission_events(
+        event_log_path,
+        artifact=artifact,
+        tasks=(result.task,),
+        dependencies_added=result.dependencies_added,
+        timestamp=timestamp,
+        reason="scheduler task submitted",
+    )
+    written_snapshot = write_scheduler_state_snapshot(result.state, snapshot_path)
+    return PersistedSchedulerTaskSubmissionResult(
+        submission=result,
+        snapshot_path=written_snapshot,
+        event_log_path=Path(event_log_path),
+        submission_event_ids=event_ids,
+    )
+
+
+def admit_exchange_artifact_version_to_scheduler(
+    *,
+    artifact_store_path: str | Path,
+    artifact_id: str,
+    version: str,
+    snapshot_path: str | Path,
+    event_log_path: str | Path,
+    replace_existing: bool = False,
+    timestamp: str = "",
+) -> PersistedExchangeArtifactAdmissionResult:
+    """Admit one exact stored ExchangeArtifact version into scheduler state.
+
+    The exchange artifact store supplies the exact coordination product. The
+    scheduler snapshot and event log remain the recovery authority after
+    admission.
+    """
+
+    from .exchange_store import JsonArtifactVersionStore
+    from .scheduler_store import read_scheduler_state_snapshot
+
+    if not artifact_id:
+        raise ValueError("exact scheduler admission requires a non-empty artifact_id")
+    if not version:
+        raise ValueError(
+            f"exact scheduler admission for {artifact_id!r} requires a non-empty version"
+        )
+
+    store_path = Path(artifact_store_path)
+    try:
+        record = JsonArtifactVersionStore(store_path).get(artifact_id, version)
+    except KeyError as exc:
+        raise ValueError(
+            f"exchange artifact version not found in {store_path}: "
+            f"{artifact_id!r}@{version!r}"
+        ) from exc
+
+    artifact = record.artifact
+    product_type = _exact_scheduler_submission_product_type(artifact)
+    snapshot = Path(snapshot_path)
+    event_log = Path(event_log_path)
+    snapshot_existed = snapshot.exists()
+    state = read_scheduler_state_snapshot(snapshot) if snapshot_existed else SchedulerState()
+    event_timestamp = timestamp or artifact.created_at
+
+    if product_type == TASK_SUBMISSION_PRODUCT_TYPE:
+        persisted_single = submit_scheduler_task_with_persistence(
+            state,
+            artifact,
+            snapshot_path=snapshot,
+            event_log_path=event_log,
+            replace_existing=replace_existing,
+            timestamp=event_timestamp,
+        )
+        return PersistedExchangeArtifactAdmissionResult(
+            artifact_store_path=store_path,
+            product_type=product_type,
+            source_artifact_id=persisted_single.submission.source_artifact_id,
+            source_artifact_version=persisted_single.submission.source_artifact_version,
+            snapshot_path=persisted_single.snapshot_path,
+            event_log_path=persisted_single.event_log_path,
+            state=persisted_single.submission.state,
+            submitted_tasks=(persisted_single.submission.task,),
+            dependencies_added=persisted_single.submission.dependencies_added,
+            submission_event_ids=persisted_single.submission_event_ids,
+            snapshot_existed=snapshot_existed,
+        )
+
+    persisted_batch = submit_scheduler_task_batch_with_persistence(
+        state,
+        artifact,
+        snapshot_path=snapshot,
+        event_log_path=event_log,
+        replace_existing=replace_existing,
+        timestamp=event_timestamp,
+    )
+    return PersistedExchangeArtifactAdmissionResult(
+        artifact_store_path=store_path,
+        product_type=product_type,
+        source_artifact_id=persisted_batch.submission.source_artifact_id,
+        source_artifact_version=persisted_batch.submission.source_artifact_version,
+        snapshot_path=persisted_batch.snapshot_path,
+        event_log_path=persisted_batch.event_log_path,
+        state=persisted_batch.submission.state,
+        submitted_tasks=persisted_batch.submission.tasks,
+        dependencies_added=persisted_batch.submission.dependencies_added,
+        submission_event_ids=persisted_batch.submission_event_ids,
+        snapshot_existed=snapshot_existed,
     )
 
 
@@ -440,6 +607,32 @@ def _find_batch_submission_payload(artifact: ExchangeArtifact) -> Mapping[str, o
     return matches[0]
 
 
+def _exact_scheduler_submission_product_type(artifact: ExchangeArtifact) -> str:
+    product_types = [
+        product_type
+        for part in artifact.parts
+        if part.part_type == "structured"
+        for product_type in (part.data.get("product_type"),)
+        if product_type in {
+            TASK_SUBMISSION_PRODUCT_TYPE,
+            TASK_BATCH_SUBMISSION_PRODUCT_TYPE,
+        }
+    ]
+    if not product_types:
+        raise ValueError(
+            f"exchange artifact {artifact.artifact_id!r}@{artifact.version!r} is not a "
+            "scheduler submission artifact; expected structured "
+            f"product_type={TASK_SUBMISSION_PRODUCT_TYPE!r} or "
+            f"product_type={TASK_BATCH_SUBMISSION_PRODUCT_TYPE!r}"
+        )
+    if len(product_types) > 1:
+        raise ValueError(
+            f"exchange artifact {artifact.artifact_id!r}@{artifact.version!r} contains "
+            "multiple scheduler submission payloads; exact-version admission requires exactly one"
+        )
+    return str(product_types[0])
+
+
 def _submission_to_payload(submission: SchedulerTaskSubmission) -> dict[str, object]:
     payload: dict[str, object] = {
         "product_type": TASK_SUBMISSION_PRODUCT_TYPE,
@@ -538,6 +731,45 @@ def _submission_log_part(
             related_artifact_ids=related_artifact_ids,
         ),
     )
+
+
+def _append_scheduler_submission_events(
+    event_log_path: str | Path,
+    *,
+    artifact: ExchangeArtifact,
+    tasks: tuple[ScheduledTask, ...],
+    dependencies_added: tuple[TaskDependency, ...],
+    timestamp: str,
+    reason: str,
+) -> tuple[str, ...]:
+    from .scheduler_store import JsonlSchedulerEventLog
+
+    event_log = JsonlSchedulerEventLog(event_log_path)
+    existing_count = len(event_log.read_all())
+    event_ids: list[str] = []
+    for offset, task in enumerate(tasks, start=1):
+        sequence = existing_count + offset
+        event_id = f"scheduler-event-{sequence}"
+        event_ids.append(event_id)
+        event_log.append(
+            SchedulerEvent(
+                event_id=event_id,
+                event_kind="task_submitted",
+                timestamp=timestamp,
+                task_id=task.task_id,
+                from_state="",
+                to_state=task.state,
+                reason=reason,
+                related_dependency_ids=tuple(
+                    dependency.dependency_id
+                    for dependency in dependencies_added
+                    if dependency.target_task_id == task.task_id
+                ),
+                related_artifact_ids=((artifact.artifact_id,) if artifact.artifact_id else ()),
+                sequence=sequence,
+            )
+        )
+    return tuple(event_ids)
 
 
 def _utc_timestamp() -> str:

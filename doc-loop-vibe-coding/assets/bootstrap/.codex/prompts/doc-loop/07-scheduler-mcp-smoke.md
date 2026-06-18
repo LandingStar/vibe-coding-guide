@@ -25,12 +25,16 @@ Keep the lifecycle split:
    writes the scheduler snapshot, and refreshes the scheduler projection.
 4. `dbc://exchange-artifacts/bundle` inspects stored coordination products and
    reports scheduler-admission candidates. It does not submit tasks.
-5. Host-authorized runners use Python/host wiring through
+5. `admit_exchange_artifact_version_to_scheduler()` is the controlled Python
+   helper for exact-version store admission. It writes scheduler snapshot/event
+   log state, but does not run providers, refresh projection, or mutate
+   Local Work Trajectory.
+6. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-6. Controlled host-runtime dogfood uses
+7. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -80,6 +84,48 @@ The exchange artifact store is a coordination product store. Scheduler
 snapshots remain the scheduling authority. A later admission gate may consume
 an exact artifact version, but this inspection resource is not that admission
 action.
+
+## Exact-Version Store Admission
+
+Use the exact-version admission helper when the current gate asks to consume a
+stored scheduler submission artifact:
+
+```text
+admit_exchange_artifact_version_to_scheduler()
+PersistedExchangeArtifactAdmissionResult
+submit_scheduler_task_with_persistence()
+submit_scheduler_task_batch_with_persistence()
+```
+
+Required inputs:
+
+```text
+artifact_store_path
+artifact_id
+version
+snapshot_path
+event_log_path
+replace_existing
+timestamp
+```
+
+Expected admission behavior:
+
+1. Read the exact `(artifact_id, version)` from `JsonArtifactVersionStore`.
+2. Require exactly one scheduler submission product payload:
+   `scheduler_task_submission` or `scheduler_task_batch_submission`.
+3. Submit through existing scheduler submission adapters.
+4. Append `task_submitted` audit events and write the scheduler snapshot.
+5. Return submitted task IDs, dependency IDs, source artifact identity,
+   submission event IDs, and authority clues.
+6. Reject missing exact versions, malformed stores, non-submission artifacts,
+   and ambiguous multiple scheduler submission payloads with readable errors.
+7. Do not run providers, mark exchange artifacts consumed, refresh scheduler
+   projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+
+This helper is currently a Python/runtime surface, not a stored-artifact MCP
+write tool. If a host needs operator-triggered admission, add a separate narrow
+planning gate before exposing it through MCP or UI.
 
 ## Submit
 
