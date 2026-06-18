@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-19T00:34:00+08:00
+# Checkpoint — 2026-06-19T01:35:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / ExchangeArtifact durable store close
+Post-v1.0 — Agent orchestration / ExchangeArtifact inspection close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,160 +9,33 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact durable store close
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md` after close-review evidence.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`.
-- [x] Define host-run evidence JSON contract.
-- [x] Add deterministic fake-runtime dogfood harness over `HostSchedulerRunRequest`.
-- [x] Add mock-Qoder host-authorized dogfood harness using injected client, explicit host invocation, and explicit grant.
-- [x] Keep MCP scheduler execution fake-only and preserve scheduler projection / Local Work Trajectory authority split.
-- [x] Update prompt / maintenance guidance for running, inspecting, and writing back dogfood evidence.
-- [x] Move `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md` to `READY-FOR-CLOSE-REVIEW`.
-- [x] Execute final close writeback for `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`.
-- [x] Create a narrow planning gate before starting `Controlled Real Qoder Wrapper Spike`.
-- [x] Implement host-owned real Qoder wrapper behind `QoderQueryClient`, preserving MCP fake-only and credential hygiene.
-- [x] Move `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` to `READY-FOR-CLOSE-REVIEW`.
-- [x] Close `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` after close-review evidence.
-- [x] Create follow-up direction analysis for the next Qoder runtime validation slice.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`.
-- [x] Add initial host-owned Qoder smoke runner helper and focused mock/fail-closed tests.
-- [x] Complete prompt/writeback validation for the host-owned Qoder smoke runner helper.
-- [x] Move `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` to `READY-FOR-CLOSE-REVIEW`.
-- [x] Close `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` after close-review evidence.
-- [x] Create follow-up direction analysis for credentialed live Qoder smoke.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`.
-- [x] Check local host readiness for qoder SDK/auth without exposing secrets.
-- [x] Record readiness-negative evidence.
-- [x] Move `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` to `READY-FOR-CLOSE-REVIEW`.
-- [x] Close `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` as readiness-negative evidence.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`.
-- [x] Add read-only `HostSchedulerRunEvidenceSummary` reader.
-- [x] Add `tools.progress_graph.read_host_evidence_bundle()` for host/progress consumers.
-- [x] Update scheduler dogfood prompt guidance for evidence summary consumption.
-- [x] Move `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md` to `READY-FOR-CLOSE-REVIEW`.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md` after close-review evidence.
-- [x] Create follow-up direction analysis for host evidence exposure.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`.
-- [x] Expose `dbc://host-evidence/bundle` through MCP resources.
-- [x] Prove missing evidence directories return an empty read-only bundle.
-- [x] Prove resource reads do not create scheduler projection or Local Work Trajectory artifacts.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`.
-- [x] Create follow-up direction analysis for CLI resource inspection.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`.
-- [x] Add `doc-based-coding resources list`.
-- [x] Add `doc-based-coding resources read <uri>`.
-- [x] Prove `dbc://host-evidence/bundle` can be inspected without MCP host setup.
-- [x] Prove missing resources return clear non-zero CLI errors.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`.
-- [x] Add `errors[]` and `error_count` to HostEvidenceBundle JSON.
-- [x] Isolate malformed evidence files without hiding valid summaries.
-- [x] Keep strict runtime evidence readers strict.
-- [x] Prove CLI/resource payload reports isolated evidence errors.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`.
-- [x] Create follow-up direction analysis for host evidence presentation.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md`.
-- [x] Add a pure `HostEvidencePresentation` model over `HostEvidenceBundle`.
-- [x] Map empty / completed / permission-review / failed / partial / degraded bundle states.
-- [x] Keep MCP resource and CLI bundle payload unchanged.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md` after focused validation.
-- [x] Create follow-up direction analysis for host evidence presentation resource exposure.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md`.
-- [x] Expose `dbc://host-evidence/presentation` as a read-only resource.
-- [x] Prove CLI resource inspection can read the presentation JSON.
-- [x] Keep bundle resource payload unchanged.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md`.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md`.
-- [x] Recheck current host Qoder SDK/auth readiness without exposing secrets.
-- [x] Inspect `dbc://host-evidence/bundle` and `dbc://host-evidence/presentation`.
-- [x] Confirm readiness-negative outcome leaves Qoder smoke snapshot, host evidence JSON, and scheduler projection absent.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md`.
-- [x] Create follow-up direction analysis for Qoder host provisioning / UI binding choices.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md`.
-- [x] Add `QoderSDKHostReadinessReport` and `QoderSDKQueryClient.host_readiness_report()`.
-- [x] Add `doc-based-coding qoder readiness` / `python -m src qoder readiness`.
-- [x] Add `docs/qoder-host-provisioning-check-guide.md`.
-- [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
-- [x] Close `design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md`.
-- [x] Create follow-up direction analysis after Qoder host provisioning check.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`.
-- [x] Add `JsonArtifactVersionStore`.
-- [x] Add `exchange_artifact_to_json_dict()` / `exchange_artifact_from_json_dict()`.
-- [x] Prove all current ExchangeArtifact payload part types round-trip.
-- [x] Prove duplicate and invalid artifact versions are rejected.
 - [x] Close `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`.
+- [x] Add read-only inspection models over `JsonArtifactVersionStore`.
+- [x] Detect scheduler task and batch submission admission candidates without submitting them.
+- [x] Expose `dbc://exchange-artifacts/bundle` through MCP/CLI resource inspection.
+- [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
+- [x] Close `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Line: Host-Authorized Scheduler Runner Adapter — source: design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
-- Completed Line: Controlled Host Runtime Dogfood Harness — source: design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
-- Completed Line: Controlled Real Qoder Wrapper Spike — source: design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
-- Completed Line: Host-Owned Qoder Smoke Runner Helper — source: design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
-- Completed Line: Credentialed Live Qoder Smoke — source: design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
-- Completed Line: Host Evidence Consumer — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
-- Completed Line: Host Evidence MCP Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
-- Completed Line: CLI Resource Inspection For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
-- Completed Line: Resource Error Isolation For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
-- Completed Line: Host Evidence Presentation Contract — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md
-- Completed Line: Host Evidence Presentation Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md
-- Completed Line: Credentialed Live Qoder Rerun Over Presentation Resources — source: design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md
-- Completed Line: Qoder Host Provisioning Check Guide — source: design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md
 - Completed Line: ExchangeArtifact Durable Store Foundation — source: design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md
-- Recommended Next Line: Artifact-store inspection/admission surface or scheduler/exchange integration without changing scheduler authority — source: review/exchange-artifact-durable-store-foundation-2026-06-18.md
-- Other Follow-up Candidates: Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
+- Completed Line: ExchangeArtifact Store Inspection And Admission Prep — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md
+- Recommended Next Line: Scheduler admission helper consuming exact stored ExchangeArtifact versions without changing scheduler authority — source: review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md
+- Other Follow-up Candidates: Host Evidence Preview UI Binding; Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md and design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- .codex/handoffs/CURRENT.md
-- .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
-- design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md
-- design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md
-- design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md
-- design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md
-- design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
-- design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
-- design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
-- design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
-- design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md
-- design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md
-- design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md
-- design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md
-- design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md
-- review/controlled-real-qoder-wrapper-spike-2026-06-17.md
-- review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
-- review/credentialed-live-qoder-smoke-2026-06-17.md
-- review/host-evidence-consumer-2026-06-18.md
-- review/host-evidence-mcp-resource-exposure-2026-06-18.md
-- review/cli-resource-inspection-for-host-evidence-2026-06-18.md
-- review/resource-error-isolation-for-host-evidence-2026-06-18.md
-- review/host-evidence-presentation-contract-2026-06-18.md
-- review/host-evidence-presentation-resource-exposure-2026-06-18.md
-- review/credentialed-live-qoder-rerun-over-presentation-resources-2026-06-18.md
-- review/qoder-host-provisioning-check-guide-2026-06-18.md
-- review/exchange-artifact-durable-store-foundation-2026-06-18.md
-- design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md
-- design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
-- design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
-- design_docs/host-evidence-consumer-followup-direction-analysis.md
-- design_docs/host-evidence-mcp-resource-exposure-followup-direction-analysis.md
-- design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md
-- design_docs/resource-error-isolation-for-host-evidence-followup-direction-analysis.md
-- design_docs/host-evidence-presentation-contract-followup-direction-analysis.md
-- design_docs/host-evidence-presentation-resource-exposure-followup-direction-analysis.md
-- design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
-- review/controlled-host-runtime-dogfood-harness-2026-06-17.md
-- design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
-- design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
-- review/host-authorized-scheduler-runner-adapter-2026-06-17.md
-- design_docs/host-authorized-scheduler-runner-followup-direction-analysis.md
-- design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
+- design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md
+- review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md
 - design_docs/agent-coordination-exchange-artifact-design-record.md
-- design_docs/qoder-runtime-adapter-requirements.md
-- .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
-- src/runtime/orchestration/qoder_sdk_client.py
-- src/runtime/orchestration/scheduler_dogfood.py
+- design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
+- src/runtime/orchestration/exchange_store.py
+- src/runtime/orchestration/scheduler_submission.py
 - src/mcp/tools.py
-- docs/qoder-host-provisioning-check-guide.md
-- tools/progress_graph/host_evidence.py
-- tools/progress_graph/qoder_smoke.py
-- src/runtime/orchestration/scheduler_host_runner.py
-- tools/progress_graph/scheduler_projection.py
+- .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
+- doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
+- tests/test_runtime_orchestration.py
+- tests/test_mcp_tools.py
+- tests/test_mcp_prompts_resources.py
+- tests/test_doc_loop_prompts.py

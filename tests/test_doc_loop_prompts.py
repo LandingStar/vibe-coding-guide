@@ -134,6 +134,11 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding resources list" in text
         assert "doc-based-coding resources read dbc://host-evidence/bundle" in text
         assert "doc-based-coding resources read dbc://host-evidence/presentation" in text
+        assert "doc-based-coding resources read dbc://exchange-artifacts/bundle" in text
+        assert "inspect_exchange_artifact_store" in text
+        assert "default_exchange_artifact_store_path" in text
+        assert "admission_candidates[]" in text
+        assert ".codex/orchestration/exchange-artifacts.json" in text
         assert "doc-based-coding qoder readiness" in text
         assert "QoderSDKHostReadinessReport" in text
         assert "docs/qoder-host-provisioning-check-guide.md" in text
@@ -200,6 +205,40 @@ def test_host_evidence_presentation_resource_is_listed_and_read_only_when_empty(
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
+def test_exchange_artifacts_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
+    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
+    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "latest.md").write_text(
+        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
+        encoding="utf-8",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    resource = next(
+        item for item in tools.list_resources()
+        if item["uri"] == "dbc://exchange-artifacts/bundle"
+    )
+    content = tools.read_resource("dbc://exchange-artifacts/bundle")
+    payload = json.loads(content)
+
+    assert resource["name"] == "exchange-artifacts-bundle"
+    assert resource["mimeType"] == "application/json"
+    assert payload["exists"] is False
+    assert payload["artifact_count"] == 0
+    assert payload["version_count"] == 0
+    assert payload["admission_candidate_count"] == 0
+    assert payload["error_count"] == 0
+    assert payload["summaries"] == []
+    assert payload["errors"] == []
+    assert payload["authority_split"]["scheduler_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
 def test_cli_resources_list_and_read_host_evidence_bundle() -> None:
     listed = subprocess.run(
         [sys.executable, "-m", "src", "resources", "list"],
@@ -249,6 +288,29 @@ def test_cli_resources_read_host_evidence_presentation() -> None:
     assert "error_count" in presentation
     assert "cards" in presentation
     assert "error_rows" in presentation
+
+
+def test_cli_resources_read_exchange_artifacts_bundle() -> None:
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "resources", "read", "dbc://exchange-artifacts/bundle"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert read.returncode == 0
+    bundle = json.loads(read.stdout)
+    assert bundle["store_path"].endswith(".codex\\orchestration\\exchange-artifacts.json") or bundle[
+        "store_path"
+    ].endswith(".codex/orchestration/exchange-artifacts.json")
+    assert "exists" in bundle
+    assert "artifact_count" in bundle
+    assert "version_count" in bundle
+    assert "admission_candidate_count" in bundle
+    assert "summaries" in bundle
+    assert "errors" in bundle
+    assert bundle["authority_split"]["admission_preparation_only"] is True
 
 
 def test_cli_resources_read_missing_resource_returns_clear_error() -> None:

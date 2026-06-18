@@ -81,6 +81,7 @@ from src.runtime.orchestration import (
     evaluate_task_admission,
     exchange_artifact_from_json_dict,
     exchange_artifact_to_json_dict,
+    inspect_exchange_artifact_store,
     has_scheduler_readable_relation,
     mark_ready_tasks,
     part_types,
@@ -706,6 +707,108 @@ def test_json_artifact_version_store_reports_unsupported_schema_version(tmp_path
 
     with pytest.raises(ValueError, match="unsupported exchange artifact store version"):
         JsonArtifactVersionStore(store_path).list_versions("server-api")
+
+
+def test_exchange_artifact_store_inspection_reports_missing_store_as_empty(tmp_path) -> None:
+    store_path = tmp_path / "missing-exchange-artifacts.json"
+
+    bundle = inspect_exchange_artifact_store(store_path)
+
+    assert bundle.exists is False
+    assert bundle.artifact_count == 0
+    assert bundle.version_count == 0
+    assert bundle.error_count == 0
+    payload = bundle.to_json_dict()
+    assert payload["store_path"] == str(store_path)
+    assert payload["summaries"] == []
+    assert payload["authority_split"]["scheduler_mutated"] is False
+    assert payload["authority_split"]["admission_preparation_only"] is True
+
+
+def test_exchange_artifact_store_inspection_summarizes_versions_and_candidates(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(_accepted_contract_artifact(version="v1"))
+    submission = SchedulerTaskSubmission(
+        task_id="task-server",
+        title="Implement server",
+        instruction="Implement the server side.",
+        agent=AgentSpec(agent_id="agent:server", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:server", lane_id="lane:server"),
+        output_artifact_id="task-server:result",
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            submission,
+            artifact_id="submission:server",
+            created_at="2026-06-19T00:10:00+08:00",
+            version="v1",
+        )
+    )
+    batch = SchedulerTaskBatchSubmission(
+        batch_id="batch-maze",
+        tasks=(
+            submission,
+            SchedulerTaskSubmission(
+                task_id="task-client",
+                title="Implement client",
+                instruction="Implement the client side.",
+                agent=AgentSpec(agent_id="agent:client", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:client", lane_id="lane:client"),
+                output_artifact_id="task-client:result",
+            ),
+        ),
+    )
+    store.put(
+        scheduler_task_batch_submission_to_artifact(
+            batch,
+            artifact_id="submission:batch",
+            created_at="2026-06-19T00:11:00+08:00",
+            version="v1",
+        )
+    )
+
+    bundle = inspect_exchange_artifact_store(store_path)
+    payload = bundle.to_json_dict()
+
+    assert bundle.exists is True
+    assert bundle.artifact_count == 3
+    assert bundle.version_count == 3
+    assert bundle.admission_candidate_count == 2
+    assert payload["summaries"][0]["artifact_id"] == "server-api"
+    single = next(
+        summary for summary in payload["summaries"]
+        if summary["artifact_id"] == "submission:server"
+    )
+    assert single["kind"] == "request"
+    assert single["intent"] == "propose"
+    assert single["latest"] is True
+    assert single["scope"]["task_id"] == "task-server"
+    assert single["admission_candidates"][0]["product_type"] == "scheduler_task_submission"
+    assert single["admission_candidates"][0]["task_ids"] == ["task-server"]
+    batch_summary = next(
+        summary for summary in payload["summaries"]
+        if summary["artifact_id"] == "submission:batch"
+    )
+    assert batch_summary["admission_candidates"][0]["product_type"] == "scheduler_task_batch_submission"
+    assert batch_summary["admission_candidates"][0]["batch_id"] == "batch-maze"
+    assert batch_summary["admission_candidates"][0]["task_count"] == 2
+    assert batch_summary["admission_candidates"][0]["task_ids"] == [
+        "task-server",
+        "task-client",
+    ]
+
+
+def test_exchange_artifact_store_inspection_isolates_malformed_store(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store_path.write_text("{bad json", encoding="utf-8")
+
+    bundle = inspect_exchange_artifact_store(store_path)
+
+    assert bundle.exists is True
+    assert bundle.version_count == 0
+    assert bundle.error_count == 1
+    assert "invalid exchange artifact store JSON" in bundle.errors[0]
 
 
 def test_coordination_event_log_appends_reads_and_projects_log_part(tmp_path) -> None:

@@ -36,6 +36,7 @@ _log = logging.getLogger(__name__)
 
 HOST_EVIDENCE_BUNDLE_RESOURCE_URI = "dbc://host-evidence/bundle"
 HOST_EVIDENCE_PRESENTATION_RESOURCE_URI = "dbc://host-evidence/presentation"
+EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI = "dbc://exchange-artifacts/bundle"
 
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
@@ -1816,6 +1817,15 @@ class GovernanceTools:
             ),
             "mimeType": "application/json",
         })
+        results.append({
+            "uri": EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI,
+            "name": "exchange-artifacts-bundle",
+            "description": (
+                "Read-only inspection bundle over the local ExchangeArtifact durable store. "
+                "Reports exact versions and scheduler-admission candidates without submitting tasks."
+            ),
+            "mimeType": "application/json",
+        })
 
         # always_on — already loaded into memory
         for filename in sorted(ctx.always_on_content.keys()):
@@ -1867,6 +1877,17 @@ class GovernanceTools:
             bundle = read_host_evidence_bundle(self._project_root)
             presentation = build_host_evidence_presentation(bundle)
             return json.dumps(presentation.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+        if uri == EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI:
+            from ..runtime.orchestration import (
+                default_exchange_artifact_store_path,
+                inspect_exchange_artifact_store,
+            )
+
+            bundle = inspect_exchange_artifact_store(
+                default_exchange_artifact_store_path(self._project_root)
+            )
+            return json.dumps(bundle.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
         # always_on — pack://always-on/{filename}
         if uri.startswith("pack://always-on/"):

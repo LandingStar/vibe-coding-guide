@@ -555,10 +555,16 @@ version-addressable coordination store while preserving the existing rule that
 scheduler-relevant state must be machine-readable and validated before
 persistence.
 
+The store now also has a read-only inspection/admission-prep surface through
+`ExchangeArtifactInspectionBundle` and `dbc://exchange-artifacts/bundle`. The
+default inspected path is `.codex/orchestration/exchange-artifacts.json`. This
+is a coordination product store convention, not a persistent agent-home
+implementation and not scheduler state authority.
+
 Non-goals:
 
 1. No persistent home implementation yet.
-2. No default storage path commitment until workspace-registration authority is fixed.
+2. No default agent-home storage path commitment until workspace-registration authority is fixed.
 3. No automatic promotion from scratch to home.
 4. No directory creation, deletion, archive, or file persistence in this slice.
 
@@ -580,9 +586,13 @@ shell, payload parts, relation / contract / log products, and validation rule
 that scheduler-relevant content must not exist only in text.
 `src/runtime/orchestration/exchange_store.py` provides
 `InMemoryArtifactVersionStore`, `JsonArtifactVersionStore`,
-`JsonlCoordinationEventLog`, and serialization helpers for current payload part
-types. The JSON store is durable and local, but it remains a coordination
-artifact store rather than scheduler state authority.
+`JsonlCoordinationEventLog`, serialization helpers for current payload part
+types, and a read-only `ExchangeArtifactInspectionBundle` over the local durable
+store. `dbc://exchange-artifacts/bundle` exposes this inspection bundle through
+the existing resource surface so operators and agents can see exact stored
+versions and scheduler submission candidates before a later admission action.
+The JSON store is durable and local, but it remains a coordination artifact
+store rather than scheduler state authority.
 
 Non-goals:
 

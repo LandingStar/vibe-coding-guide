@@ -488,6 +488,13 @@ JsonArtifactVersionStore
 - get(artifact_id, version)
 - latest(artifact_id)
 - list_versions(artifact_id)
+- list_records()
+
+ExchangeArtifactInspectionBundle
+ExchangeArtifactVersionSummary
+ExchangeArtifactAdmissionCandidate
+inspect_exchange_artifact_store(path)
+default_exchange_artifact_store_path(project_root)
 
 exchange_artifact_to_json_dict()
 exchange_artifact_from_json_dict()
@@ -500,6 +507,26 @@ before persistence, rejects overwriting an existing `(artifact_id, version)`
 pair, and preserves exact artifact versions across process boundaries. It is
 still a local file store, not a remote registry, database, or scheduler state
 authority.
+
+The first read-only inspection surface is:
+
+```text
+dbc://exchange-artifacts/bundle
+.codex/orchestration/exchange-artifacts.json
+```
+
+`ExchangeArtifactInspectionBundle` reports stored artifact IDs, exact versions,
+latest flags, kind / intent / lifecycle / producer, scope, payload part types,
+visibility clues, and isolated read errors. It also detects scheduler admission
+candidates when a stored version contains structured payloads with
+`product_type="scheduler_task_submission"` or
+`product_type="scheduler_task_batch_submission"`.
+
+This detection is admission preparation, not admission. It must not submit
+tasks, mutate scheduler snapshots, mark artifacts consumed, execute runtimes, or
+refresh Local Work Trajectory / scheduler projection artifacts. A later
+scheduler admission slice may consume an exact artifact version from this
+inspection surface, but scheduler snapshots remain the scheduling authority.
 
 ## Scheduler-Relevant Rule
 

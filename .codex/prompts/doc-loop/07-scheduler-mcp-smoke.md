@@ -23,12 +23,14 @@ Keep the lifecycle split:
    scheduler-derived trajectory projection artifact.
 3. `schedulerRunOnceAndProject` runs one bounded fake-runtime scheduler pass,
    writes the scheduler snapshot, and refreshes the scheduler projection.
-4. Host-authorized runners use Python/host wiring through
+4. `dbc://exchange-artifacts/bundle` inspects stored coordination products and
+   reports scheduler-admission candidates. It does not submit tasks.
+5. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-5. Controlled host-runtime dogfood uses
+6. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -42,11 +44,42 @@ Prefer explicit paths under `.codex/scheduler/` or a test temp directory:
 .codex/scheduler/scheduler-state.json
 .codex/scheduler/scheduler-events.jsonl
 .codex/scheduler/evidence/<evidence-id>.json
+.codex/orchestration/exchange-artifacts.json
 .codex/progress-graph/scheduler-work-trajectory.json
 ```
 
 Do not invent a default scheduler state path inside a tool call unless the
 current planning-gate has fixed that path.
+
+## Exchange Artifact Store Inspection
+
+Use the read-only exchange artifact bundle when the current gate asks to
+inspect stored coordination products or prepare an admission decision:
+
+```text
+dbc://exchange-artifacts/bundle
+doc-based-coding resources read dbc://exchange-artifacts/bundle
+inspect_exchange_artifact_store()
+default_exchange_artifact_store_path()
+```
+
+Expected inspection behavior:
+
+1. Read `.codex/orchestration/exchange-artifacts.json` by default.
+2. Return exact artifact IDs, versions, latest flags, kind / intent /
+   lifecycle / producer, scope, payload part types, and visibility clues.
+3. Detect scheduler task submission and batch submission candidates through
+   advisory `admission_candidates[]` metadata.
+4. Return an empty bundle when the store file is missing.
+5. Isolate malformed store JSON into `errors[]` / `error_count`.
+6. Do not submit tasks, mark artifacts consumed, execute providers, refresh
+   scheduler projection, mutate scheduler snapshots, or mutate Local Work
+   Trajectory.
+
+The exchange artifact store is a coordination product store. Scheduler
+snapshots remain the scheduling authority. A later admission gate may consume
+an exact artifact version, but this inspection resource is not that admission
+action.
 
 ## Submit
 
@@ -229,6 +262,7 @@ When an MCP resource reader is not available, use the CLI fallback:
 doc-based-coding resources list
 doc-based-coding resources read dbc://host-evidence/bundle
 doc-based-coding resources read dbc://host-evidence/presentation
+doc-based-coding resources read dbc://exchange-artifacts/bundle
 ```
 
 Readiness-negative live smoke outcomes remain review-doc evidence unless an

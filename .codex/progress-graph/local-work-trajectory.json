@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Post-Qoder readiness direction analysis",
-  "recorded_at": "2026-06-18T16:32:11.690873+00:00",
+  "title": "ExchangeArtifact Store Inspection And Admission Prep",
+  "recorded_at": "2026-06-18T17:02:53.685390+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md; docs/qoder-host-provisioning-check-guide.md",
+  "guide_context": "review/exchange-artifact-durable-store-foundation-2026-06-18.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Post-Qoder readiness direction analysis",
+    "title": "ExchangeArtifact Store Inspection And Admission Prep",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 5,
+    "relation_count": 4,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "direction",
+      "label": "artifact store inspection",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md; docs/qoder-host-provisioning-check-guide.md"
+        "context": "review/exchange-artifact-durable-store-foundation-2026-06-18.md"
       }
     }
   },
@@ -36,32 +36,72 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Collect post-readiness candidates and constraints",
+      "title": "Create narrow planning gate for artifact-store inspection surface",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-18T16:00:39.614006+00:00",
-        "activated_at": "2026-06-18T16:00:39.614006+00:00",
+        "created_at": "2026-06-18T16:36:16.474419+00:00",
+        "activated_at": "2026-06-18T16:36:16.474419+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T16:02:40.691345+00:00"
+        "completed_at": "2026-06-18T16:39:27.341226+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement ExchangeArtifact durable store foundation",
+      "title": "Implement read-only ExchangeArtifact store inspection helpers",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Completed ExchangeArtifact Durable Store Foundation. Added local JSON durable artifact version store, serialization helpers, docs, review evidence, and status writeback. Validation: 238 passed across runtime orchestration, MCP tools, and doc-loop prompt tests.",
+      "summary": "Add deterministic summaries and admission-candidate metadata over JsonArtifactVersionStore without scheduler mutation.",
       "metadata": {
-        "created_at": "2026-06-18T16:03:25.849926+00:00",
+        "created_at": "2026-06-18T16:39:34.411956+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-18T16:32:02.386503+00:00",
-        "completed_at": "2026-06-18T16:32:11.690873+00:00",
-        "closed_at": "2026-06-18T16:32:11.690873+00:00"
+        "completed_at": "2026-06-18T16:47:03.279289+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Expose exchange artifact inspection through read-only resource surface",
+      "kind": "task",
+      "status": "completed",
+      "order": 3,
+      "summary": "Add dbc://exchange-artifacts/bundle to GovernanceTools resources and CLI fallback through existing resources read path.",
+      "metadata": {
+        "created_at": "2026-06-18T16:47:13.975921+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T16:48:57.710808+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Write back artifact-store inspection completion evidence",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 4,
+      "summary": "Update planning gate, design records, status docs, review evidence, and checkpoint for the completed inspection/admission-prep slice.",
+      "metadata": {
+        "created_at": "2026-06-18T16:49:08.895981+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T17:02:14.927218+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Close ExchangeArtifact inspection slice",
+      "kind": "close",
+      "status": "completed",
+      "order": 5,
+      "summary": "All implementation, validation, and writeback milestones are complete.",
+      "metadata": {
+        "created_at": "2026-06-18T17:02:34.010960+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T17:02:53.685390+00:00"
       }
     }
   },
@@ -69,6 +109,33 @@
     {
       "source_event_id": "event:001",
       "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

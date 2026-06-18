@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -29,6 +29,12 @@ CoordinationEventKind = Literal[
     "validation_failed",
 ]
 EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION = "exchange-artifact-store.v1"
+DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH = ".codex/orchestration/exchange-artifacts.json"
+
+ExchangeArtifactAdmissionProductType = Literal[
+    "scheduler_task_submission",
+    "scheduler_task_batch_submission",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +44,135 @@ class ArtifactVersionRecord:
     artifact_id: str
     version: str
     artifact: ExchangeArtifact
+
+
+@dataclass(frozen=True, slots=True)
+class ExchangeArtifactAdmissionCandidate:
+    """Advisory admission-prep metadata for a stored artifact version."""
+
+    product_type: ExchangeArtifactAdmissionProductType
+    artifact_id: str
+    version: str
+    part_index: int
+    valid: bool = True
+    task_ids: tuple[str, ...] = ()
+    batch_id: str = ""
+    task_count: int = 0
+    error: str = ""
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible inspection payload."""
+
+        return {
+            "product_type": self.product_type,
+            "artifact_id": self.artifact_id,
+            "version": self.version,
+            "part_index": self.part_index,
+            "valid": self.valid,
+            "task_ids": list(self.task_ids),
+            "batch_id": self.batch_id,
+            "task_count": self.task_count,
+            "error": self.error,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ExchangeArtifactVersionSummary:
+    """Read-only summary for one stored exchange artifact version."""
+
+    artifact_id: str
+    version: str
+    latest: bool
+    kind: str
+    intent: str
+    producer: str
+    lifecycle_state: str
+    created_at: str = ""
+    audience: tuple[str, ...] = ()
+    part_types: tuple[str, ...] = ()
+    scope: ExchangeScope = field(default_factory=ExchangeScope)
+    contains_sensitive_content: bool = False
+    redaction_required: bool = False
+    admission_candidates: tuple[ExchangeArtifactAdmissionCandidate, ...] = ()
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible inspection payload."""
+
+        return {
+            "artifact_id": self.artifact_id,
+            "version": self.version,
+            "latest": self.latest,
+            "kind": self.kind,
+            "intent": self.intent,
+            "producer": self.producer,
+            "lifecycle_state": self.lifecycle_state,
+            "created_at": self.created_at,
+            "audience": list(self.audience),
+            "part_types": list(self.part_types),
+            "scope": _scope_to_json(self.scope),
+            "contains_sensitive_content": self.contains_sensitive_content,
+            "redaction_required": self.redaction_required,
+            "admission_candidates": [
+                candidate.to_json_dict()
+                for candidate in self.admission_candidates
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ExchangeArtifactInspectionBundle:
+    """Read-only inspection bundle over a local exchange artifact store."""
+
+    store_path: Path
+    exists: bool
+    schema_version: str = EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION
+    summaries: tuple[ExchangeArtifactVersionSummary, ...] = ()
+    errors: tuple[str, ...] = ()
+
+    @property
+    def artifact_count(self) -> int:
+        """Return the number of unique artifact ids in the bundle."""
+
+        return len({summary.artifact_id for summary in self.summaries})
+
+    @property
+    def version_count(self) -> int:
+        """Return the number of stored artifact versions in the bundle."""
+
+        return len(self.summaries)
+
+    @property
+    def admission_candidate_count(self) -> int:
+        """Return the number of detected admission-prep candidates."""
+
+        return sum(len(summary.admission_candidates) for summary in self.summaries)
+
+    @property
+    def error_count(self) -> int:
+        """Return the number of isolated inspection errors."""
+
+        return len(self.errors)
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible inspection payload."""
+
+        return {
+            "store_path": str(self.store_path),
+            "exists": self.exists,
+            "schema_version": self.schema_version,
+            "artifact_count": self.artifact_count,
+            "version_count": self.version_count,
+            "admission_candidate_count": self.admission_candidate_count,
+            "error_count": self.error_count,
+            "summaries": [summary.to_json_dict() for summary in self.summaries],
+            "errors": list(self.errors),
+            "authority_split": {
+                "scheduler_state_authority": "scheduler_snapshot",
+                "admission_preparation_only": True,
+                "scheduler_mutated": False,
+                "local_work_trajectory_mutated": False,
+            },
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +313,11 @@ class JsonArtifactVersionStore:
             if record.artifact_id == artifact_id
         )
 
+    def list_records(self) -> tuple[ArtifactVersionRecord, ...]:
+        """Return all stored artifact version records in insertion order."""
+
+        return self._read_records()
+
     def _read_records(self) -> tuple[ArtifactVersionRecord, ...]:
         if not self.path.exists():
             return ()
@@ -274,6 +414,197 @@ class JsonlCoordinationEventLog:
                     ) from exc
                 events.append(_event_from_json(payload))
         return tuple(events)
+
+
+def default_exchange_artifact_store_path(project_root: str | Path) -> Path:
+    """Return the conventional local exchange artifact store path."""
+
+    return Path(project_root) / DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
+
+
+def inspect_exchange_artifact_store(path: str | Path) -> ExchangeArtifactInspectionBundle:
+    """Read a local JSON artifact store into a non-mutating inspection bundle."""
+
+    store_path = Path(path)
+    return build_exchange_artifact_inspection_bundle(
+        store_path,
+        exists=store_path.exists(),
+    )
+
+
+def build_exchange_artifact_inspection_bundle(
+    path: str | Path,
+    *,
+    exists: bool | None = None,
+) -> ExchangeArtifactInspectionBundle:
+    """Build a read-only summary over stored artifact versions.
+
+    Malformed stores are isolated as bundle errors so operator/resource
+    inspection can report the problem without mutating scheduler state.
+    """
+
+    store_path = Path(path)
+    file_exists = store_path.exists() if exists is None else exists
+    if not file_exists:
+        return ExchangeArtifactInspectionBundle(store_path=store_path, exists=False)
+
+    try:
+        records = JsonArtifactVersionStore(store_path).list_records()
+    except Exception as exc:
+        return ExchangeArtifactInspectionBundle(
+            store_path=store_path,
+            exists=True,
+            errors=(str(exc),),
+        )
+
+    latest_keys: dict[str, str] = {}
+    for record in records:
+        latest_keys[record.artifact_id] = record.version
+
+    summaries = tuple(
+        _summarize_artifact_record(
+            record,
+            latest=latest_keys.get(record.artifact_id) == record.version,
+        )
+        for record in records
+    )
+    return ExchangeArtifactInspectionBundle(
+        store_path=store_path,
+        exists=True,
+        summaries=summaries,
+    )
+
+
+def _summarize_artifact_record(
+    record: ArtifactVersionRecord,
+    *,
+    latest: bool,
+) -> ExchangeArtifactVersionSummary:
+    artifact = record.artifact
+    return ExchangeArtifactVersionSummary(
+        artifact_id=record.artifact_id,
+        version=record.version,
+        latest=latest,
+        kind=artifact.kind,
+        intent=artifact.intent,
+        producer=artifact.producer,
+        lifecycle_state=artifact.lifecycle_state,
+        created_at=artifact.created_at,
+        audience=artifact.audience,
+        part_types=tuple(part.part_type for part in artifact.parts),
+        scope=artifact.scope,
+        contains_sensitive_content=artifact.visibility_policy.contains_sensitive_content,
+        redaction_required=artifact.visibility_policy.redaction_required,
+        admission_candidates=_detect_admission_candidates(artifact),
+    )
+
+
+def _detect_admission_candidates(
+    artifact: ExchangeArtifact,
+) -> tuple[ExchangeArtifactAdmissionCandidate, ...]:
+    candidates: list[ExchangeArtifactAdmissionCandidate] = []
+    for index, part in enumerate(artifact.parts):
+        if part.part_type != "structured":
+            continue
+        product_type = part.data.get("product_type")
+        if product_type == "scheduler_task_submission":
+            candidates.append(_task_submission_candidate(artifact, index, part.data))
+        elif product_type == "scheduler_task_batch_submission":
+            candidates.append(_batch_submission_candidate(artifact, index, part.data))
+    return tuple(candidates)
+
+
+def _task_submission_candidate(
+    artifact: ExchangeArtifact,
+    part_index: int,
+    payload: Mapping[str, object],
+) -> ExchangeArtifactAdmissionCandidate:
+    task_id = payload.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        return ExchangeArtifactAdmissionCandidate(
+            product_type="scheduler_task_submission",
+            artifact_id=artifact.artifact_id,
+            version=artifact.version,
+            part_index=part_index,
+            valid=False,
+            error="scheduler_task_submission candidate requires non-empty task_id",
+        )
+    return ExchangeArtifactAdmissionCandidate(
+        product_type="scheduler_task_submission",
+        artifact_id=artifact.artifact_id,
+        version=artifact.version,
+        part_index=part_index,
+        task_ids=(task_id,),
+        task_count=1,
+    )
+
+
+def _batch_submission_candidate(
+    artifact: ExchangeArtifact,
+    part_index: int,
+    payload: Mapping[str, object],
+) -> ExchangeArtifactAdmissionCandidate:
+    batch_id = payload.get("batch_id")
+    tasks = payload.get("tasks")
+    if not isinstance(batch_id, str) or not batch_id:
+        return ExchangeArtifactAdmissionCandidate(
+            product_type="scheduler_task_batch_submission",
+            artifact_id=artifact.artifact_id,
+            version=artifact.version,
+            part_index=part_index,
+            valid=False,
+            error="scheduler_task_batch_submission candidate requires non-empty batch_id",
+        )
+    if not isinstance(tasks, list):
+        return ExchangeArtifactAdmissionCandidate(
+            product_type="scheduler_task_batch_submission",
+            artifact_id=artifact.artifact_id,
+            version=artifact.version,
+            part_index=part_index,
+            valid=False,
+            batch_id=batch_id,
+            error="scheduler_task_batch_submission candidate requires tasks list",
+        )
+
+    task_ids: list[str] = []
+    for index, item in enumerate(tasks):
+        if not isinstance(item, Mapping):
+            return ExchangeArtifactAdmissionCandidate(
+                product_type="scheduler_task_batch_submission",
+                artifact_id=artifact.artifact_id,
+                version=artifact.version,
+                part_index=part_index,
+                valid=False,
+                batch_id=batch_id,
+                task_count=len(tasks),
+                error=f"scheduler_task_batch_submission candidate tasks[{index}] must be an object",
+            )
+        task_id = item.get("task_id")
+        if not isinstance(task_id, str) or not task_id:
+            return ExchangeArtifactAdmissionCandidate(
+                product_type="scheduler_task_batch_submission",
+                artifact_id=artifact.artifact_id,
+                version=artifact.version,
+                part_index=part_index,
+                valid=False,
+                batch_id=batch_id,
+                task_count=len(tasks),
+                error=(
+                    "scheduler_task_batch_submission candidate "
+                    f"tasks[{index}].task_id is required"
+                ),
+            )
+        task_ids.append(task_id)
+
+    return ExchangeArtifactAdmissionCandidate(
+        product_type="scheduler_task_batch_submission",
+        artifact_id=artifact.artifact_id,
+        version=artifact.version,
+        part_index=part_index,
+        task_ids=tuple(task_ids),
+        batch_id=batch_id,
+        task_count=len(tasks),
+    )
 
 
 def exchange_artifact_to_json_dict(artifact: ExchangeArtifact) -> dict[str, object]:
