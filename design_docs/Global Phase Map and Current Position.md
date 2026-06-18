@@ -492,6 +492,8 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 2026-06-19 继续新增：`design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md` 已完成。当前 CLI operator workflow 已形成无 MCP host 的四步闭环：`resources read dbc://exchange-artifacts/bundle` 检查候选，`scheduler admit-exchange-artifact` 写入 scheduler snapshot/event-log，`scheduler inspect-state` 只读验证 scheduler state/event clues，`scheduler project` 显式刷新 scheduler-derived trajectory projection。该闭环仍不运行 provider、不新增 stored-artifact MCP 写工具、不标记 exchange artifact consumed、不进入 daemon/UI、不突变 Local Work Trajectory；review evidence 位于 `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`；focused validation 结果为 `267 passed`。
 
+2026-06-19 继续新增：已完成 `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`。该方向分析在 operator workflow polish 之后重新比较 Admission Ledger、Stored-Artifact MCP Admission Tool、Scheduler Daemon / Durable Queue、Host Evidence / Scheduler Admission UI Binding 与 Provider Execution / Qoder Runtime Recheck；当前推荐下一条窄 gate 为 `Exchange Artifact Admission Ledger`，先固化 admission/consumption/duplicate audit 语义，再考虑 agent-callable MCP 写工具或 daemon。
+
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 
 低优先级 backlog（BL-2/3 adapter-registry/转接层）已结构化记录在 `design_docs/direction-candidates-after-phase-35.md`。

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "ExchangeArtifact Operator Admission Workflow Polish",
-  "recorded_at": "2026-06-18T19:55:13.073010+00:00",
+  "title": "Post Workflow Polish Direction Analysis",
+  "recorded_at": "2026-06-18T19:59:05.855848+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md",
+  "guide_context": "review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "ExchangeArtifact Operator Admission Workflow Polish",
+    "title": "Post Workflow Polish Direction Analysis",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 1,
+    "relation_count": 0,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "workflow polish",
+      "label": "direction",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md"
+        "context": "review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md"
       }
     }
   },
@@ -36,88 +36,18 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create narrow planning gate for operator admission workflow polish",
+      "title": "Analyze next direction after workflow polish",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-18T19:44:08.259123+00:00",
-        "activated_at": "2026-06-18T19:44:08.259123+00:00",
+        "created_at": "2026-06-18T19:58:57.897340+00:00",
+        "activated_at": "2026-06-18T19:58:57.897340+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T19:45:59.758325+00:00"
-      }
-    },
-    "event:002": {
-      "id": "event:002",
-      "lane_id": "lane:main",
-      "title": "Implement scheduler inspect-state and project CLI fallbacks",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Add CLI-only readback and projection refresh commands while keeping admission, projection, and provider execution separate.",
-      "metadata": {
-        "created_at": "2026-06-18T19:46:05.432941+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T19:51:10.639548+00:00"
-      }
-    },
-    "event:003": {
-      "id": "event:003",
-      "lane_id": "lane:main",
-      "title": "Validate workflow polish focused suites",
-      "kind": "validation",
-      "status": "completed",
-      "order": 3,
-      "summary": "Run CLI, runtime orchestration, MCP tools, and doc-loop prompt tests for scheduler/operator workflow boundaries.",
-      "metadata": {
-        "created_at": "2026-06-18T19:51:16.630048+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T19:54:58.426745+00:00"
-      }
-    },
-    "event:004": {
-      "id": "event:004",
-      "lane_id": "lane:main",
-      "title": "Write back workflow polish close",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 4,
-      "summary": "Close planning gate, add review evidence, update prompts, checkpoint, Checklist, and Phase Map.",
-      "metadata": {
-        "created_at": "2026-06-18T19:55:05.087447+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T19:55:13.073010+00:00"
+        "completed_at": "2026-06-18T19:59:05.854846+00:00"
       }
     }
   },
-  "relations": [
-    {
-      "source_event_id": "event:001",
-      "target_event_id": "event:002",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:002",
-      "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:003",
-      "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    }
-  ]
+  "relations": []
 }
