@@ -84,6 +84,12 @@ less important than UI binding or live-provider validation.
 
 ## Current Recommendation
 
+2026-06-18 update: Candidate B was selected and completed as
+`design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md`.
+The run was readiness-negative: the active host still lacks both
+`qoder_agent_sdk` importability and `QODER_PERSONAL_ACCESS_TOKEN`; bundle and
+presentation resources honestly report empty evidence.
+
 Recommended next gate depends on branch cleanliness:
 
 1. If the VS Code/UI dirty branch is intentionally in scope, choose
