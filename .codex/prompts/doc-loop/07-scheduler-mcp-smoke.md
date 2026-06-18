@@ -190,9 +190,11 @@ surface existing host-run evidence:
 
 ```text
 dbc://host-evidence/bundle
+dbc://host-evidence/presentation
 read_host_scheduler_run_evidence_summary()
 read_host_scheduler_run_evidence_summaries()
 read_host_evidence_bundle()
+build_host_evidence_presentation()
 host_scheduler_evidence_dir()
 ```
 
@@ -215,11 +217,18 @@ When MCP resources are available, prefer reading
 `dbc://host-evidence/bundle`. It returns the same compact bundle JSON through
 the standard read-only resource surface.
 
+For host/UI/operator-facing inspection, prefer
+`dbc://host-evidence/presentation`. It returns `HostEvidencePresentation`
+JSON with `status`, `cards[]`, `error_rows[]`, count fields, output refs, and
+authority clues. It is also read-only and must not execute providers or mutate
+scheduler/local trajectory artifacts.
+
 When an MCP resource reader is not available, use the CLI fallback:
 
 ```text
 doc-based-coding resources list
 doc-based-coding resources read dbc://host-evidence/bundle
+doc-based-coding resources read dbc://host-evidence/presentation
 ```
 
 Readiness-negative live smoke outcomes remain review-doc evidence unless an

@@ -126,11 +126,14 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "MCP remains" in text
         assert "must not mutate" in text
         assert "dbc://host-evidence/bundle" in text
+        assert "dbc://host-evidence/presentation" in text
         assert "read_host_evidence_bundle" in text
+        assert "build_host_evidence_presentation" in text
         assert "error_count" in text
         assert "errors[]" in text
         assert "doc-based-coding resources list" in text
         assert "doc-based-coding resources read dbc://host-evidence/bundle" in text
+        assert "doc-based-coding resources read dbc://host-evidence/presentation" in text
 
 
 def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
@@ -158,6 +161,36 @@ def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_pa
     assert payload["error_count"] == 0
     assert payload["summaries"] == []
     assert payload["errors"] == []
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_host_evidence_presentation_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
+    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
+    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "latest.md").write_text(
+        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
+        encoding="utf-8",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    resource = next(
+        item for item in tools.list_resources()
+        if item["uri"] == "dbc://host-evidence/presentation"
+    )
+    content = tools.read_resource("dbc://host-evidence/presentation")
+    payload = json.loads(content)
+
+    assert resource["name"] == "host-evidence-presentation"
+    assert resource["mimeType"] == "application/json"
+    assert payload["status"] == "empty"
+    assert payload["card_count"] == 0
+    assert payload["error_count"] == 0
+    assert payload["cards"] == []
+    assert payload["error_rows"] == []
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
@@ -190,6 +223,27 @@ def test_cli_resources_list_and_read_host_evidence_bundle() -> None:
     assert "error_count" in bundle
     assert "summaries" in bundle
     assert "errors" in bundle
+
+
+def test_cli_resources_read_host_evidence_presentation() -> None:
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "resources", "read", "dbc://host-evidence/presentation"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert read.returncode == 0
+    presentation = json.loads(read.stdout)
+    assert presentation["evidence_dir"].endswith(".codex\\scheduler\\evidence") or presentation[
+        "evidence_dir"
+    ].endswith(".codex/scheduler/evidence")
+    assert "status" in presentation
+    assert "card_count" in presentation
+    assert "error_count" in presentation
+    assert "cards" in presentation
+    assert "error_rows" in presentation
 
 
 def test_cli_resources_read_missing_resource_returns_clear_error() -> None:

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-18T04:50:46.812883+00:00",
+  "recorded_at": "2026-06-18T14:56:16.749265+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 99,
-    "relation_count": 98,
+    "event_count": 101,
+    "relation_count": 100,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1462,6 +1462,38 @@
         "activated_at": "2026-06-18T04:49:54.462984+00:00",
         "completed_at": "2026-06-18T04:50:46.811884+00:00"
       }
+    },
+    "event:100": {
+      "id": "event:100",
+      "lane_id": "lane:main",
+      "title": "暴露 HostEvidencePresentation 只读 resource",
+      "kind": "task",
+      "status": "completed",
+      "order": 100,
+      "summary": "开始实现 HostEvidencePresentation 只读 resource 暴露。",
+      "metadata": {
+        "created_at": "2026-06-18T04:53:27.381522+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-18T04:53:33.593933+00:00",
+        "activated_at": "2026-06-18T04:53:33.593933+00:00",
+        "completed_at": "2026-06-18T14:54:53.219885+00:00"
+      }
+    },
+    "event:101": {
+      "id": "event:101",
+      "lane_id": "lane:main",
+      "title": "准备 presentation resource exposure 后续方向分析",
+      "kind": "decision",
+      "status": "completed",
+      "order": 101,
+      "summary": "开始编写 presentation resource exposure 后续方向分析。",
+      "metadata": {
+        "created_at": "2026-06-18T14:55:16.718629+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-18T14:55:22.984135+00:00",
+        "activated_at": "2026-06-18T14:55:22.984135+00:00",
+        "completed_at": "2026-06-18T14:56:16.749265+00:00"
+      }
     }
   },
   "relations": [
@@ -2341,6 +2373,24 @@
     {
       "source_event_id": "event:098",
       "target_event_id": "event:099",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:099",
+      "target_event_id": "event:100",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:100",
+      "target_event_id": "event:101",
       "kind": "sequence",
       "summary": "",
       "metadata": {

@@ -35,6 +35,7 @@ _log = logging.getLogger(__name__)
 
 
 HOST_EVIDENCE_BUNDLE_RESOURCE_URI = "dbc://host-evidence/bundle"
+HOST_EVIDENCE_PRESENTATION_RESOURCE_URI = "dbc://host-evidence/presentation"
 
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
@@ -1806,6 +1807,15 @@ class GovernanceTools:
             ),
             "mimeType": "application/json",
         })
+        results.append({
+            "uri": HOST_EVIDENCE_PRESENTATION_RESOURCE_URI,
+            "name": "host-evidence-presentation",
+            "description": (
+                "Read-only host/UI/operator-facing presentation over host scheduler evidence. "
+                "Does not execute providers or mutate scheduler/local trajectory artifacts."
+            ),
+            "mimeType": "application/json",
+        })
 
         # always_on — already loaded into memory
         for filename in sorted(ctx.always_on_content.keys()):
@@ -1847,6 +1857,16 @@ class GovernanceTools:
 
             bundle = read_host_evidence_bundle(self._project_root)
             return json.dumps(bundle.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+        if uri == HOST_EVIDENCE_PRESENTATION_RESOURCE_URI:
+            from tools.progress_graph import (
+                build_host_evidence_presentation,
+                read_host_evidence_bundle,
+            )
+
+            bundle = read_host_evidence_bundle(self._project_root)
+            presentation = build_host_evidence_presentation(bundle)
+            return json.dumps(presentation.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
         # always_on — pack://always-on/{filename}
         if uri.startswith("pack://always-on/"):
