@@ -13,7 +13,13 @@ from .graphviz import build_export_surface_dot, build_history_dot, dot_preview_p
 from .html_preview import build_export_surface_html, build_history_html, html_preview_path, write_history_html
 from .host_evidence import (
     HostEvidenceBundle,
+    HostEvidencePresentation,
+    HostEvidencePresentationCard,
+    HostEvidencePresentationErrorRow,
+    HostEvidencePresentationFact,
+    HostEvidencePresentationRef,
     HostEvidenceReadError,
+    build_host_evidence_presentation,
     host_scheduler_evidence_dir,
     read_host_evidence_bundle,
 )
@@ -108,6 +114,11 @@ __all__ = [
     "run_persisted_scheduler_once_and_refresh_projection",
     "scheduler_work_trajectory_json_path",
     "HostEvidenceBundle",
+    "HostEvidencePresentation",
+    "HostEvidencePresentationCard",
+    "HostEvidencePresentationErrorRow",
+    "HostEvidencePresentationFact",
+    "HostEvidencePresentationRef",
     "HostEvidenceReadError",
     "HostSchedulerRunProjectionRefreshResult",
     "HostRuntimeDogfoodHarnessResult",
@@ -115,6 +126,7 @@ __all__ = [
     "HostOwnedQoderSmokeRunResult",
     "QoderSmokeTaskConfig",
     "build_qoder_smoke_scheduler_state",
+    "build_host_evidence_presentation",
     "default_qoder_smoke_event_log_path",
     "default_qoder_smoke_snapshot_path",
     "ensure_qoder_smoke_scheduler_snapshot",

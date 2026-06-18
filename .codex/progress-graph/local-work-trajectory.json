@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-18T03:40:01.653760+00:00",
+  "recorded_at": "2026-06-18T04:50:46.812883+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 96,
-    "relation_count": 95,
+    "event_count": 99,
+    "relation_count": 98,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1414,6 +1414,54 @@
         "source": "single-line-lifecycle",
         "completed_at": "2026-06-18T03:40:01.652761+00:00"
       }
+    },
+    "event:097": {
+      "id": "event:097",
+      "lane_id": "lane:main",
+      "title": "准备 host evidence 错误隔离后的后续方向分析",
+      "kind": "decision",
+      "status": "completed",
+      "order": 97,
+      "summary": "开始编写 host evidence 错误隔离后的后续方向分析，目标收窄到纯数据展示合同与 presentation model。",
+      "metadata": {
+        "created_at": "2026-06-18T04:15:40.985198+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-18T04:18:06.293587+00:00",
+        "activated_at": "2026-06-18T04:18:06.293587+00:00",
+        "completed_at": "2026-06-18T04:18:34.726032+00:00"
+      }
+    },
+    "event:098": {
+      "id": "event:098",
+      "lane_id": "lane:main",
+      "title": "实现 HostEvidencePresentation 数据合同",
+      "kind": "task",
+      "status": "completed",
+      "order": 98,
+      "summary": "开始实现 HostEvidencePresentation 数据合同。",
+      "metadata": {
+        "created_at": "2026-06-18T04:21:01.009986+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-18T04:21:08.587741+00:00",
+        "activated_at": "2026-06-18T04:21:08.587741+00:00",
+        "completed_at": "2026-06-18T04:49:21.243740+00:00"
+      }
+    },
+    "event:099": {
+      "id": "event:099",
+      "lane_id": "lane:main",
+      "title": "准备 presentation contract 后续方向分析",
+      "kind": "decision",
+      "status": "completed",
+      "order": 99,
+      "summary": "开始编写 presentation contract 后续方向分析。",
+      "metadata": {
+        "created_at": "2026-06-18T04:49:45.341730+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-18T04:49:54.462984+00:00",
+        "activated_at": "2026-06-18T04:49:54.462984+00:00",
+        "completed_at": "2026-06-18T04:50:46.811884+00:00"
+      }
     }
   },
   "relations": [
@@ -2266,6 +2314,33 @@
     {
       "source_event_id": "event:095",
       "target_event_id": "event:096",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:096",
+      "target_event_id": "event:097",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:097",
+      "target_event_id": "event:098",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:098",
+      "target_event_id": "event:099",
       "kind": "sequence",
       "summary": "",
       "metadata": {

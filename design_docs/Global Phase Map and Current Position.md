@@ -472,6 +472,8 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 2026-06-18 继续新增：`design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md` 已完成。当前 `HostEvidenceBundle` 增加 `errors[]` / `error_count`，resource/CLI 面对 malformed evidence JSON 时会把坏文件隔离成 compact error summary，而不是让整个 bundle 读取失败；有效 evidence 仍保留在 `summaries[]`，严格 runtime reader 仍保持严格抛错。review evidence 位于 `review/resource-error-isolation-for-host-evidence-2026-06-18.md`；focused validation 结果为 `204 passed, 1 skipped`，外部临时 workspace CLI 坏 evidence 手测通过。
 
+2026-06-18 继续新增：`design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md` 已完成。当前 `HostEvidenceBundle` 之上新增纯数据 presentation contract：`HostEvidencePresentation` / cards / error rows 可把 evidence summaries 与 isolated read errors 归一为 UI/operator-facing view，并覆盖 empty / completed / permission-review / failed / partial / degraded 状态推导；现有 MCP resource 与 CLI bundle payload 保持不变，且本轮未进入 VS Code UI binding、新 MCP execution tool、新 resource URI、scheduler daemon、Qoder 凭据或 SDK 安装。review evidence 位于 `review/host-evidence-presentation-contract-2026-06-18.md`；focused validation 结果为 `231 passed, 1 skipped`。
+
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 
 低优先级 backlog（BL-2/3 adapter-registry/转接层）已结构化记录在 `design_docs/direction-candidates-after-phase-35.md`。

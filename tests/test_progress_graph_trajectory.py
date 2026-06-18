@@ -14,6 +14,7 @@ from src.runtime.orchestration import (
     EditScopeLease,
     ExchangeReference,
     FakeAgentRuntimeAdapter,
+    HostSchedulerRunEvidenceSummary,
     HostSchedulerRunRequest,
     InMemoryArtifactVersionStore,
     JsonlSchedulerEventLog,
@@ -73,7 +74,10 @@ from tools.progress_graph import (
     pack_local_work_range,
     pack_local_work_subgraph,
     QoderSmokeTaskConfig,
+    HostEvidenceBundle,
+    HostEvidenceReadError,
     host_scheduler_evidence_dir,
+    build_host_evidence_presentation,
     read_host_evidence_bundle,
     read_trajectory_artifacts_bundle,
     resume_single_line_event,
@@ -1028,6 +1032,19 @@ def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None
     assert bundle.to_json_dict()["error_count"] == 0
     assert bundle.to_json_dict()["errors"] == []
 
+    presentation = build_host_evidence_presentation(
+        bundle,
+        generated_at="2026-06-18T12:30:00+08:00",
+    )
+    payload = presentation.to_json_dict()
+
+    assert payload["status"] == "empty"
+    assert payload["card_count"] == 0
+    assert payload["error_count"] == 0
+    assert payload["cards"] == []
+    assert payload["error_rows"] == []
+    assert payload["empty_message"] == "No host scheduler run evidence has been recorded."
+
 
 def test_host_evidence_bundle_isolates_malformed_artifacts(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
@@ -1087,6 +1104,157 @@ def test_host_evidence_bundle_isolates_malformed_artifacts(tmp_path: Path) -> No
     }
     assert {error["error_kind"] for error in payload["errors"]} == {"invalid_evidence"}
     assert all("raw" not in error for error in payload["errors"])
+
+    presentation = build_host_evidence_presentation(bundle)
+    presentation_payload = presentation.to_json_dict()
+
+    assert presentation_payload["status"] == "degraded"
+    assert presentation_payload["card_count"] == 1
+    assert presentation_payload["error_count"] == 2
+    assert presentation_payload["cards"][0]["status"] == "completed"
+    assert {Path(error["evidence_path"]).name for error in presentation_payload["error_rows"]} == {
+        "malformed.json",
+        "wrong-product.json",
+    }
+    assert {error["status"] for error in presentation_payload["error_rows"]} == {"read-error"}
+
+
+def test_host_evidence_presentation_builds_completed_card_with_refs_and_authority(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/fake-run.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduler_projection_task(
+                    "task-a",
+                    lane_id="lane:dogfood",
+                    output_artifact_id="task-a:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    run_host_runtime_dogfood_harness(
+        tmp_path,
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        runtime_config=RuntimeRegistryWiringConfig(
+            providers=("fake",),
+            timestamp="2026-06-18T02:20:00+08:00",
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id="presentation-fake",
+                requested_providers=("fake",),
+                requested_by="host:test",
+                reason="presentation contract smoke",
+            ),
+        ),
+        evidence_id="presentation-fake",
+        evidence_output_path=evidence_path,
+        timestamp="2026-06-18T02:20:00+08:00",
+        artifact_store=InMemoryArtifactVersionStore(),
+        guide_context="host-evidence-presentation-test",
+    )
+
+    presentation = build_host_evidence_presentation(
+        read_host_evidence_bundle(tmp_path),
+        generated_at="2026-06-18T02:21:00+08:00",
+    )
+    payload = presentation.to_json_dict()
+    card = payload["cards"][0]
+
+    assert payload["generated_at"] == "2026-06-18T02:21:00+08:00"
+    assert payload["status"] == "ok"
+    assert payload["card_count"] == 1
+    assert card["id"] == "presentation-fake"
+    assert card["title"] == "Host evidence presentation-fake"
+    assert card["status"] == "completed"
+    assert card["severity"] == "info"
+    assert card["runtime_providers"] == ["fake"]
+    assert card["host_surface"] == "host-authorized-adapter"
+    assert card["invocation_id"] == "presentation-fake"
+    assert card["requested_by"] == "host:test"
+    assert card["stop_reason"] == "no_ready_tasks"
+    assert card["run_count"] == 1
+    assert card["output_count"] == 1
+    assert {"label": "Outputs", "value": "1"} in card["key_facts"]
+    assert any(ref["ref_kind"] == "exchange_artifact" for ref in card["refs"])
+    assert {"label": "Local trajectory mutated", "value": "false"} in card["authority_clues"]
+    assert card["metadata"]["reason"] == "presentation contract smoke"
+    assert "host_result" not in card
+
+
+def test_host_evidence_presentation_derives_non_completed_statuses(tmp_path: Path) -> None:
+    permission = _host_evidence_summary_fixture(
+        tmp_path / "permission.json",
+        evidence_id="permission",
+        stop_reason="no_ready_tasks",
+        permission_review_count=1,
+        permission_review_task_ids=("task-permission",),
+    )
+    failed = _host_evidence_summary_fixture(
+        tmp_path / "failed.json",
+        evidence_id="failed",
+        stop_reason="task_failed",
+        failed_task_ids=("task-failed",),
+    )
+    partial = _host_evidence_summary_fixture(
+        tmp_path / "partial.json",
+        evidence_id="partial",
+        stop_reason="max_runs_reached",
+        blocked_task_ids=("task-waiting",),
+    )
+    presentation = build_host_evidence_presentation(
+        HostEvidenceBundle(
+            project_root=tmp_path,
+            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            summaries=(permission, failed, partial),
+        )
+    )
+    payload = presentation.to_json_dict()
+    cards = {card["id"]: card for card in payload["cards"]}
+
+    assert payload["status"] == "failed"
+    assert cards["permission"]["status"] == "permission-review"
+    assert cards["permission"]["severity"] == "warning"
+    assert cards["permission"]["permission_review_count"] == 1
+    assert cards["failed"]["status"] == "failed"
+    assert cards["failed"]["severity"] == "error"
+    assert cards["partial"]["status"] == "partial"
+    assert cards["partial"]["severity"] == "warning"
+
+
+def test_host_evidence_presentation_reports_error_only_bundle_as_degraded(tmp_path: Path) -> None:
+    bundle = HostEvidenceBundle(
+        project_root=tmp_path,
+        evidence_dir=tmp_path / ".codex/scheduler/evidence",
+        summaries=(),
+        errors=(
+            HostEvidenceReadError(
+                evidence_path=tmp_path / ".codex/scheduler/evidence/bad.json",
+                error_kind="invalid_evidence",
+                message="bad evidence",
+            ),
+        ),
+    )
+
+    payload = build_host_evidence_presentation(bundle).to_json_dict()
+
+    assert payload["status"] == "degraded"
+    assert payload["card_count"] == 0
+    assert payload["error_count"] == 1
+    assert payload["empty_message"] == ""
+    assert payload["error_rows"] == [
+        {
+            "id": "host-evidence-error:1",
+            "status": "read-error",
+            "severity": "error",
+            "evidence_path": str(tmp_path / ".codex/scheduler/evidence/bad.json"),
+            "error_kind": "invalid_evidence",
+            "message": "bad evidence",
+        }
+    ]
 
 
 def test_host_runtime_dogfood_harness_mock_qoder_writes_same_evidence_shape(tmp_path: Path) -> None:
@@ -2764,6 +2932,52 @@ def _scheduler_projection_task(
         run_id=run_id,
         output_artifact_id=output_artifact_id,
         output_artifact_ref=output_ref,
+    )
+
+
+def _host_evidence_summary_fixture(
+    evidence_path: Path,
+    *,
+    evidence_id: str,
+    stop_reason: str,
+    stop_detail: str = "",
+    run_count: int = 1,
+    blocked_task_ids: tuple[str, ...] = (),
+    failed_task_ids: tuple[str, ...] = (),
+    permission_review_task_ids: tuple[str, ...] = (),
+    permission_review_count: int = 0,
+) -> HostSchedulerRunEvidenceSummary:
+    return HostSchedulerRunEvidenceSummary(
+        evidence_path=evidence_path,
+        evidence_id=evidence_id,
+        timestamp="2026-06-18T02:30:00+08:00",
+        runtime_providers=("fake",),
+        host_invocation={
+            "surface": "host-authorized-adapter",
+            "invocation_id": evidence_id,
+            "requested_by": "host:test",
+            "reason": f"{evidence_id} fixture",
+        },
+        run_count=run_count,
+        stop_reason=stop_reason,
+        stop_detail=stop_detail,
+        ready_task_ids=(),
+        blocked_task_ids=blocked_task_ids,
+        failed_task_ids=failed_task_ids,
+        permission_review_task_ids=permission_review_task_ids,
+        permission_review_count=permission_review_count,
+        output_artifact_refs=(),
+        snapshot_path="scheduler-state.json",
+        event_log_path="scheduler-events.jsonl",
+        scheduler_projection_path="scheduler-work-trajectory.json",
+        authority_split={
+            "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+            "scheduler_projection_role": "read-only-view",
+            "local_work_trajectory_role": "agent-owned",
+            "local_work_trajectory_mutated": False,
+        },
+        history_summary={},
+        metadata={},
     )
 
 

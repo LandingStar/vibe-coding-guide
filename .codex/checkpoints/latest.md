@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-18T02:12:00+08:00
+# Checkpoint — 2026-06-18T12:36:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / host evidence resource error isolation close
+Post-v1.0 — Agent orchestration / host evidence presentation contract close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -59,6 +59,12 @@ Post-v1.0 — Agent orchestration / host evidence resource error isolation close
 - [x] Keep strict runtime evidence readers strict.
 - [x] Prove CLI/resource payload reports isolated evidence errors.
 - [x] Close `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`.
+- [x] Create follow-up direction analysis for host evidence presentation.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md`.
+- [x] Add a pure `HostEvidencePresentation` model over `HostEvidenceBundle`.
+- [x] Map empty / completed / permission-review / failed / partial / degraded bundle states.
+- [x] Keep MCP resource and CLI bundle payload unchanged.
+- [x] Close `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md` after focused validation.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -71,7 +77,9 @@ Post-v1.0 — Agent orchestration / host evidence resource error isolation close
 - Completed Line: Host Evidence MCP Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
 - Completed Line: CLI Resource Inspection For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
 - Completed Line: Resource Error Isolation For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
-- Recommended Next Line: choose between host evidence UI binding after UI branch cleanup or credentialed live Qoder rerun after SDK/auth provisioning — source: review/resource-error-isolation-for-host-evidence-2026-06-18.md
+- Completed Line: Host Evidence Presentation Contract — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md
+- Recommended Next Line: Host Evidence Presentation Resource Exposure — source: design_docs/host-evidence-presentation-contract-followup-direction-analysis.md
+- Other Follow-up Candidates: VS Code / Preview UI Binding after UI branch cleanup; Credentialed Live Qoder Rerun after SDK/auth provisioning — source: design_docs/host-evidence-presentation-contract-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
@@ -85,6 +93,7 @@ Post-v1.0 — Agent orchestration / host evidence resource error isolation close
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
 - design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
 - design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
+- design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
 - review/credentialed-live-qoder-smoke-2026-06-17.md
@@ -92,11 +101,14 @@ Post-v1.0 — Agent orchestration / host evidence resource error isolation close
 - review/host-evidence-mcp-resource-exposure-2026-06-18.md
 - review/cli-resource-inspection-for-host-evidence-2026-06-18.md
 - review/resource-error-isolation-for-host-evidence-2026-06-18.md
+- review/host-evidence-presentation-contract-2026-06-18.md
 - design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
 - design_docs/host-evidence-consumer-followup-direction-analysis.md
 - design_docs/host-evidence-mcp-resource-exposure-followup-direction-analysis.md
 - design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md
+- design_docs/resource-error-isolation-for-host-evidence-followup-direction-analysis.md
+- design_docs/host-evidence-presentation-contract-followup-direction-analysis.md
 - review/controlled-host-runtime-dogfood-harness-2026-06-17.md
 - design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md
