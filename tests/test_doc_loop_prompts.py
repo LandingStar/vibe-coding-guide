@@ -143,6 +143,10 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "submit_scheduler_task_with_persistence" in text
         assert "exact `(artifact_id, version)`" in text
         assert "not a stored-artifact MCP" in text
+        assert "doc-based-coding scheduler admit-exchange-artifact" in text
+        assert "--artifact-id <artifact-id>" in text
+        assert "--event-log-path .codex/scheduler/scheduler-events.jsonl" in text
+        assert "operator-triggered admission outside Python" in text
         assert ".codex/orchestration/exchange-artifacts.json" in text
         assert "doc-based-coding qoder readiness" in text
         assert "QoderSDKHostReadinessReport" in text

@@ -29,12 +29,16 @@ Keep the lifecycle split:
    helper for exact-version store admission. It writes scheduler snapshot/event
    log state, but does not run providers, refresh projection, or mutate
    Local Work Trajectory.
-6. Host-authorized runners use Python/host wiring through
+6. `doc-based-coding scheduler admit-exchange-artifact` is the CLI operator
+   surface over exact-version store admission. It writes scheduler snapshot and
+   event-log state only; it does not run providers, refresh projection, mark
+   exchange artifacts consumed, or mutate Local Work Trajectory.
+7. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-7. Controlled host-runtime dogfood uses
+8. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -88,7 +92,7 @@ action.
 ## Exact-Version Store Admission
 
 Use the exact-version admission helper when the current gate asks to consume a
-stored scheduler submission artifact:
+stored scheduler submission artifact from Python/runtime code:
 
 ```text
 admit_exchange_artifact_version_to_scheduler()
@@ -124,8 +128,43 @@ Expected admission behavior:
    projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
 
 This helper is currently a Python/runtime surface, not a stored-artifact MCP
-write tool. If a host needs operator-triggered admission, add a separate narrow
-planning gate before exposing it through MCP or UI.
+write tool. For operator-triggered admission outside Python, use the CLI
+surface below.
+
+### CLI Operator Admission
+
+Use the CLI operator surface when an operator or host script needs to admit one
+exact stored scheduler submission artifact without opening an MCP write tool:
+
+```text
+doc-based-coding scheduler admit-exchange-artifact \
+  --artifact-id <artifact-id> \
+  --version <version> \
+  --snapshot-path .codex/scheduler/scheduler-state.json \
+  --event-log-path .codex/scheduler/scheduler-events.jsonl
+```
+
+Optional inputs:
+
+```text
+--artifact-store-path .codex/orchestration/exchange-artifacts.json
+--replace-existing
+--timestamp <timestamp>
+```
+
+Expected CLI behavior:
+
+1. Resolve relative paths under the detected project root.
+2. Default `--artifact-store-path` to
+   `.codex/orchestration/exchange-artifacts.json`.
+3. Require explicit scheduler snapshot and event-log paths.
+4. Print JSON with `ok=true`, `submitted_task_ids`,
+   `submission_event_ids`, count fields, and `authority_split`.
+5. Reject missing arguments and non-submission stored artifacts without
+   scheduler mutation.
+6. Do not run providers, mark exchange artifacts consumed, refresh scheduler
+   projection, expose a stored-artifact MCP write tool, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
 
 ## Submit
 

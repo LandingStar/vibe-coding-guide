@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / ExchangeArtifact exact-version admission close`
-- Active Slice: `ExchangeArtifact Exact-Version Scheduler Admission (COMPLETED; exact stored scheduler submission artifacts can now be admitted into scheduler snapshot/event-log state)`
-- Latest Completed Slice: `ExchangeArtifact Exact-Version Scheduler Admission`
+- Current Phase: `Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI close`
+- Active Slice: `ExchangeArtifact Operator Admission CLI (COMPLETED; exact stored scheduler submission artifacts can now be admitted from a CLI operator surface)`
+- Latest Completed Slice: `ExchangeArtifact Operator Admission CLI`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `249 passed` (runtime orchestration / MCP tools / doc-loop prompt focused suite)
+- Test Baseline: `261 passed` (CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -46,6 +46,7 @@
 - `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`
+- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -61,6 +62,8 @@
 - `review/exchange-artifact-durable-store-foundation-2026-06-18.md`
 - `review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md`
 - `review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md`
+- `review/exchange-artifact-operator-admission-cli-2026-06-19.md`
+- `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`

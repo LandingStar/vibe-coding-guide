@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-19T01:58:00+08:00
+# Checkpoint — 2026-06-19T02:29:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / ExchangeArtifact exact-version admission close
+Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,34 +9,40 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact exact-version admission clo
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`.
-- [x] Activate `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`.
-- [x] Add exact-version admission helper over `JsonArtifactVersionStore`.
-- [x] Support single-task and batch scheduler submission artifacts.
-- [x] Persist admitted task contracts through scheduler snapshot/event log.
-- [x] Reject missing, malformed, non-submission, and ambiguous stored artifacts clearly.
+- [x] Create `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`.
+- [x] Create and close `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md`.
+- [x] Add `doc-based-coding scheduler admit-exchange-artifact`.
+- [x] Require explicit scheduler snapshot/event-log paths.
+- [x] Default artifact store path to `.codex/orchestration/exchange-artifacts.json`.
+- [x] Reject missing arguments and non-submission stored artifacts without scheduler mutation.
 - [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
-- [x] Close `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`.
+- [x] Record review evidence in `review/exchange-artifact-operator-admission-cli-2026-06-19.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Line: ExchangeArtifact Store Inspection And Admission Prep — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md
 - Completed Line: ExchangeArtifact Exact-Version Scheduler Admission — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md
-- Recommended Next Line: Operator/host admission surface over exact stored ExchangeArtifact versions, without provider execution or scheduler projection refresh — source: review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md
+- Completed Line: ExchangeArtifact Operator Admission CLI — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
+- Recommended Next Line: Operator-facing projection refresh or admission-result inspection polish only if needed; keep stored-artifact MCP write exposure as a separate reviewed gate — source: review/exchange-artifact-operator-admission-cli-2026-06-19.md
 - Other Follow-up Candidates: Host Evidence Preview UI Binding; Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md and design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md
 - review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md
+- design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md
+- design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
+- review/exchange-artifact-operator-admission-cli-2026-06-19.md
 - design_docs/agent-coordination-exchange-artifact-design-record.md
 - design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
 - src/runtime/orchestration/exchange_store.py
 - src/runtime/orchestration/scheduler_submission.py
 - src/runtime/orchestration/__init__.py
 - src/mcp/tools.py
+- src/__main__.py
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - tests/test_runtime_orchestration.py
 - tests/test_mcp_tools.py
+- tests/test_cli.py
 - tests/test_doc_loop_prompts.py

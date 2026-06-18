@@ -35,6 +35,7 @@ htmlcov/
 tests/*
 !tests/test_dependency_graph.py
 !tests/test_doc_loop_prompts.py
+!tests/test_cli.py
 !tests/test_progress_graph_trajectory.py
 !tests/test_runtime_orchestration.py
 example/

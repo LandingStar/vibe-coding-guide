@@ -7,6 +7,7 @@ Installed entry point:
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
+    doc-based-coding scheduler <subcommand>    — Scheduler operator helpers
     doc-based-coding generate-instructions     — Generate agent instructions segment
 
 Module entry point:
@@ -313,6 +314,148 @@ def cmd_qoder(args: list[str]) -> int:
     return 0
 
 
+_SCHEDULER_ADMIT_USAGE = (
+    "Usage: doc-based-coding scheduler admit-exchange-artifact "
+    "--artifact-id ID --version VERSION --snapshot-path PATH --event-log-path PATH "
+    "[--artifact-store-path PATH] [--replace-existing] [--timestamp TIMESTAMP]"
+)
+
+
+def _resolve_project_path(root: Path, value: str | Path) -> Path:
+    """Resolve CLI paths relative to the detected project root."""
+
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def cmd_scheduler(args: list[str]) -> int:
+    """Scheduler operator helper subcommands."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding scheduler <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub != "admit-exchange-artifact":
+        print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
+        print("Usage: doc-based-coding scheduler <admit-exchange-artifact> [args]", file=sys.stderr)
+        return 1
+
+    return cmd_scheduler_admit_exchange_artifact(args[1:])
+
+
+def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
+    """Admit one exact stored ExchangeArtifact version into scheduler state."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_ADMIT_USAGE + "\n\n"
+            "This writes scheduler snapshot/event-log state only. It does not run providers, "
+            "refresh scheduler projection, mark exchange artifacts consumed, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    artifact_id = ""
+    version = ""
+    snapshot_path = ""
+    event_log_path = ""
+    replace_existing = False
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--artifact-id",
+            "--version",
+            "--snapshot-path",
+            "--event-log-path",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_ADMIT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler admit-exchange-artifact option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_ADMIT_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--artifact-id", artifact_id),
+            ("--version", version),
+            ("--snapshot-path", snapshot_path),
+            ("--event-log-path", event_log_path),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_ADMIT_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            admit_exchange_artifact_version_to_scheduler,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store,
+            artifact_id=artifact_id,
+            version=version,
+            snapshot_path=_resolve_project_path(root, snapshot_path),
+            event_log_path=_resolve_project_path(root, event_log_path),
+            replace_existing=replace_existing,
+            timestamp=timestamp,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error admitting exchange artifact",
+            e,
+            category="scheduler_admission_failed",
+        )
+
+    payload = {"ok": True}
+    payload.update(result.to_json_dict())
+    _print_json(payload)
+    return 0
+
+
 def cmd_pack(args: list[str]) -> int:
     """Pack management subcommands: list, install, remove, info."""
     from .pack.pack_manager import install_pack, remove_pack, list_packs, get_pack_info
@@ -403,6 +546,7 @@ _COMMANDS = {
     "check": cmd_check,
     "resources": cmd_resources,
     "qoder": cmd_qoder,
+    "scheduler": cmd_scheduler,
     "generate-instructions": cmd_generate_instructions,
     "pack": cmd_pack,
 }
@@ -428,6 +572,7 @@ def main() -> int:
             "  check [text]            Constraint/state check only\n"
             "  resources <sub>         Inspect MCP resources (list/read)\n"
             "  qoder <sub>             Qoder host readiness helpers\n"
+            "  scheduler <sub>         Scheduler operator helpers\n"
             "  generate-instructions   Generate agent instructions segment\n"
             "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"
