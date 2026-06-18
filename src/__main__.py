@@ -320,6 +320,18 @@ _SCHEDULER_ADMIT_USAGE = (
     "[--artifact-store-path PATH] [--replace-existing] [--timestamp TIMESTAMP]"
 )
 
+_SCHEDULER_INSPECT_STATE_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-state --snapshot-path PATH "
+    "[--event-log-path PATH] [--merge-gate-event-log-path PATH]"
+)
+
+_SCHEDULER_PROJECT_USAGE = (
+    "Usage: doc-based-coding scheduler project --snapshot-path PATH "
+    "[--event-log-path PATH] [--merge-gate-event-log-path PATH] [--output-path PATH] "
+    "[--trajectory-id ID] [--title TITLE] [--guide-context PATH_OR_LABEL] "
+    "[--source-graph-id ID] [--source-node-id ID]"
+)
+
 
 def _resolve_project_path(root: Path, value: str | Path) -> Path:
     """Resolve CLI paths relative to the detected project root."""
@@ -336,17 +348,26 @@ def cmd_scheduler(args: list[str]) -> int:
         print(
             "Usage: doc-based-coding scheduler <subcommand> [args]\n\n"
             "Subcommands:\n"
-            "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n",
+            "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n"
+            "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
+            "  project                  Refresh scheduler-derived trajectory projection without running providers\n",
         )
         return 0
 
     sub = args[0]
-    if sub != "admit-exchange-artifact":
-        print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
-        print("Usage: doc-based-coding scheduler <admit-exchange-artifact> [args]", file=sys.stderr)
-        return 1
+    if sub == "admit-exchange-artifact":
+        return cmd_scheduler_admit_exchange_artifact(args[1:])
+    if sub == "inspect-state":
+        return cmd_scheduler_inspect_state(args[1:])
+    if sub == "project":
+        return cmd_scheduler_project(args[1:])
 
-    return cmd_scheduler_admit_exchange_artifact(args[1:])
+    print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
+    print(
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-state|project> [args]",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
@@ -453,6 +474,269 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
     payload = {"ok": True}
     payload.update(result.to_json_dict())
     _print_json(payload)
+    return 0
+
+
+def cmd_scheduler_inspect_state(args: list[str]) -> int:
+    """Read scheduler snapshot and optional event logs without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_STATE_USAGE + "\n\n"
+            "This is a readback command. It does not write scheduler state, refresh projection, "
+            "run providers, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    snapshot_path = ""
+    event_log_path = ""
+    merge_gate_event_log_path = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--snapshot-path", "--event-log-path", "--merge-gate-event-log-path"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_STATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-state option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_STATE_USAGE, file=sys.stderr)
+        return 1
+
+    if not snapshot_path:
+        print(_SCHEDULER_INSPECT_STATE_USAGE, file=sys.stderr)
+        print("Missing required option(s): --snapshot-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    snapshot = _resolve_project_path(root, snapshot_path)
+    scheduler_log = _resolve_project_path(root, event_log_path) if event_log_path else None
+    merge_gate_log = (
+        _resolve_project_path(root, merge_gate_event_log_path)
+        if merge_gate_event_log_path
+        else None
+    )
+
+    try:
+        from .runtime.orchestration import (
+            JsonlSchedulerEventLog,
+            JsonlSchedulerMergeGateEventLog,
+            read_scheduler_state_snapshot,
+        )
+
+        state = read_scheduler_state_snapshot(snapshot)
+        scheduler_events = (
+            JsonlSchedulerEventLog(scheduler_log).read_all()
+            if scheduler_log is not None
+            else ()
+        )
+        merge_gate_events = (
+            JsonlSchedulerMergeGateEventLog(merge_gate_log).read_all()
+            if merge_gate_log is not None
+            else ()
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting scheduler state",
+            e,
+            category="scheduler_inspect_failed",
+        )
+
+    state_counts: dict[str, int] = {}
+    task_ids_by_state: dict[str, list[str]] = {}
+    for task_id, task in sorted(state.tasks.items()):
+        state_counts[task.state] = state_counts.get(task.state, 0) + 1
+        task_ids_by_state.setdefault(task.state, []).append(task_id)
+    event_kind_counts: dict[str, int] = {}
+    for event in scheduler_events:
+        event_kind_counts[event.event_kind] = event_kind_counts.get(event.event_kind, 0) + 1
+    merge_gate_event_kind_counts: dict[str, int] = {}
+    for event in merge_gate_events:
+        merge_gate_event_kind_counts[event.event_kind] = (
+            merge_gate_event_kind_counts.get(event.event_kind, 0) + 1
+        )
+
+    _print_json(
+        {
+            "ok": True,
+            "snapshot_path": str(snapshot),
+            "snapshot_exists": snapshot.exists(),
+            "scheduler_event_log_path": "" if scheduler_log is None else str(scheduler_log),
+            "scheduler_event_log_exists": False if scheduler_log is None else scheduler_log.exists(),
+            "merge_gate_event_log_path": "" if merge_gate_log is None else str(merge_gate_log),
+            "merge_gate_event_log_exists": False if merge_gate_log is None else merge_gate_log.exists(),
+            "task_count": len(state.tasks),
+            "dependency_count": len(state.dependencies),
+            "run_record_count": len(state.run_records),
+            "merge_gate_count": len(state.merge_gates),
+            "task_state_counts": state_counts,
+            "task_ids_by_state": task_ids_by_state,
+            "dependency_ids": [dependency.dependency_id for dependency in state.dependencies],
+            "run_record_task_ids": [record.task_id for record in state.run_records],
+            "merge_gate_ids": [gate.gate_id for gate in state.merge_gates],
+            "scheduler_event_count": len(scheduler_events),
+            "scheduler_event_ids": [event.event_id for event in scheduler_events],
+            "scheduler_event_kind_counts": event_kind_counts,
+            "merge_gate_event_count": len(merge_gate_events),
+            "merge_gate_event_ids": [event.event_id for event in merge_gate_events],
+            "merge_gate_event_kind_counts": merge_gate_event_kind_counts,
+            "ran_tasks": False,
+            "refreshed_projection": False,
+            "authority_split": {
+                "scheduler_state_authority": "scheduler_snapshot",
+                "scheduler_state_mutated": False,
+                "provider_executed": False,
+                "scheduler_projection_refreshed": False,
+                "local_work_trajectory_mutated": False,
+            },
+        }
+    )
+    return 0
+
+
+def cmd_scheduler_project(args: list[str]) -> int:
+    """Refresh scheduler-derived trajectory projection without running providers."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_PROJECT_USAGE + "\n\n"
+            "This writes only the scheduler-derived trajectory projection artifact. "
+            "It does not run providers or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    snapshot_path = ""
+    event_log_path = ""
+    merge_gate_event_log_path = ""
+    output_path = ""
+    trajectory_id = ""
+    title = ""
+    guide_context = ""
+    source_graph_id = ""
+    source_node_id = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--snapshot-path",
+            "--event-log-path",
+            "--merge-gate-event-log-path",
+            "--output-path",
+            "--trajectory-id",
+            "--title",
+            "--guide-context",
+            "--source-graph-id",
+            "--source-node-id",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_PROJECT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            elif arg == "--output-path":
+                output_path = value
+            elif arg == "--trajectory-id":
+                trajectory_id = value
+            elif arg == "--title":
+                title = value
+            elif arg == "--guide-context":
+                guide_context = value
+            elif arg == "--source-graph-id":
+                source_graph_id = value
+            elif arg == "--source-node-id":
+                source_node_id = value
+            i += 2
+            continue
+        print(f"Unknown scheduler project option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_PROJECT_USAGE, file=sys.stderr)
+        return 1
+
+    if not snapshot_path:
+        print(_SCHEDULER_PROJECT_USAGE, file=sys.stderr)
+        print("Missing required option(s): --snapshot-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    snapshot = _resolve_project_path(root, snapshot_path)
+    scheduler_log = _resolve_project_path(root, event_log_path) if event_log_path else None
+    merge_gate_log = (
+        _resolve_project_path(root, merge_gate_event_log_path)
+        if merge_gate_event_log_path
+        else None
+    )
+    target = _resolve_project_path(root, output_path) if output_path else None
+
+    try:
+        from .runtime.orchestration import read_scheduler_state_snapshot
+        from tools.progress_graph import (
+            LocalWorkTrajectory,
+            scheduler_work_trajectory_json_path,
+            write_scheduler_work_trajectory_artifact,
+        )
+
+        state = read_scheduler_state_snapshot(snapshot)
+        written = write_scheduler_work_trajectory_artifact(
+            root,
+            state,
+            scheduler_event_log_path=scheduler_log,
+            merge_gate_event_log_path=merge_gate_log,
+            output_path=target,
+            trajectory_id=trajectory_id or "local-work:scheduler-projection",
+            title=title or "Scheduler Local Work Trajectory",
+            guide_context=guide_context,
+            source_graph_id=source_graph_id,
+            source_node_id=source_node_id,
+        )
+        trajectory = LocalWorkTrajectory.from_json(written.read_text(encoding="utf-8"))
+    except Exception as e:
+        return _handle_error(
+            "Error refreshing scheduler projection",
+            e,
+            category="scheduler_projection_failed",
+        )
+
+    _print_json(
+        {
+            "ok": True,
+            "snapshot_path": str(snapshot),
+            "scheduler_event_log_path": "" if scheduler_log is None else str(scheduler_log),
+            "merge_gate_event_log_path": "" if merge_gate_log is None else str(merge_gate_log),
+            "scheduler_projection_path": str(written),
+            "default_scheduler_projection_path": str(scheduler_work_trajectory_json_path(root)),
+            "trajectory_id": trajectory.trajectory_id,
+            "title": trajectory.title,
+            "event_count": len(trajectory.events),
+            "lane_count": len(trajectory.lanes),
+            "relation_count": len(trajectory.relations),
+            "metadata": dict(trajectory.metadata),
+            "ran_tasks": False,
+            "refreshed_projection": True,
+            "authority_split": {
+                "scheduler_state_authority": "scheduler_snapshot",
+                "scheduler_state_mutated": False,
+                "provider_executed": False,
+                "scheduler_projection_refreshed": True,
+                "local_work_trajectory_mutated": False,
+            },
+        }
+    )
     return 0
 
 

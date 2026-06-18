@@ -71,6 +71,8 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
 
     assert proc.returncode == 0
     assert "admit-exchange-artifact" in proc.stdout
+    assert "inspect-state" in proc.stdout
+    assert "project" in proc.stdout
 
 
 def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
@@ -78,6 +80,27 @@ def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
 
     assert proc.returncode == 0
     assert "--artifact-id ID" in proc.stdout
+    assert "does not run providers" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_inspect_state_help_describes_readback_non_goals() -> None:
+    proc = _run_cli(["scheduler", "inspect-state", "--help"])
+
+    assert proc.returncode == 0
+    assert "--snapshot-path PATH" in proc.stdout
+    assert "readback command" in proc.stdout
+    assert "does not write scheduler state" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_project_help_describes_projection_non_goals() -> None:
+    proc = _run_cli(["scheduler", "project", "--help"])
+
+    assert proc.returncode == 0
+    assert "--snapshot-path PATH" in proc.stdout
+    assert "--output-path PATH" in proc.stdout
+    assert "scheduler-derived trajectory projection" in proc.stdout
     assert "does not run providers" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
@@ -249,3 +272,173 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_non_submission_without_mu
     assert "is not a scheduler submission artifact" in proc.stderr
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
+
+
+def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_tasks(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        SchedulerTaskBatchSubmission,
+        SchedulerTaskSubmission,
+        TaskDependency,
+        scheduler_task_batch_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    projection_path = project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_batch_submission_to_artifact(
+            SchedulerTaskBatchSubmission(
+                batch_id="batch-cli-workflow",
+                title="CLI workflow batch",
+                tasks=(
+                    SchedulerTaskSubmission(
+                        task_id="task-a",
+                        title="Task A",
+                        instruction="Prepare A.",
+                        agent=AgentSpec(agent_id="agent:a", runtime_provider="fake"),
+                        context_scope=ContextScope(context_id="context:a", lane_id="lane:a"),
+                        output_artifact_id="task-a:result",
+                    ),
+                    SchedulerTaskSubmission(
+                        task_id="task-b",
+                        title="Task B",
+                        instruction="Prepare B after A.",
+                        agent=AgentSpec(agent_id="agent:b", runtime_provider="fake"),
+                        context_scope=ContextScope(context_id="context:b", lane_id="lane:b"),
+                        output_artifact_id="task-b:result",
+                        dependencies=(
+                            TaskDependency(
+                                dependency_id="dep-a-b",
+                                source_task_id="task-a",
+                                target_task_id="task-b",
+                                required_state="complete",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            artifact_id="submission:workflow",
+            created_at="2026-06-19T03:00:00+08:00",
+            version="v1",
+        )
+    )
+
+    admit = _run_cli(
+        [
+            "scheduler",
+            "admit-exchange-artifact",
+            "--artifact-id",
+            "submission:workflow",
+            "--version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+        ],
+        cwd=project,
+    )
+    inspect = _run_cli(
+        [
+            "scheduler",
+            "inspect-state",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+        ],
+        cwd=project,
+    )
+    project_proc = _run_cli(
+        [
+            "scheduler",
+            "project",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--guide-context",
+            "cli-workflow-test",
+        ],
+        cwd=project,
+    )
+
+    assert admit.returncode == 0, admit.stderr
+    admitted = json.loads(admit.stdout)
+    assert admitted["submitted_task_ids"] == ["task-a", "task-b"]
+    assert admitted["dependency_count"] == 1
+    assert admitted["ran_tasks"] is False
+    assert admitted["refreshed_projection"] is False
+
+    assert inspect.returncode == 0, inspect.stderr
+    inspected = json.loads(inspect.stdout)
+    assert inspected["task_count"] == 2
+    assert inspected["dependency_count"] == 1
+    assert inspected["task_state_counts"] == {"proposed": 2}
+    assert inspected["task_ids_by_state"] == {"proposed": ["task-a", "task-b"]}
+    assert inspected["scheduler_event_count"] == 2
+    assert inspected["scheduler_event_kind_counts"] == {"task_submitted": 2}
+    assert inspected["dependency_ids"] == ["dep-a-b"]
+    assert inspected["authority_split"]["scheduler_state_mutated"] is False
+    assert inspected["authority_split"]["local_work_trajectory_mutated"] is False
+
+    assert project_proc.returncode == 0, project_proc.stderr
+    projected = json.loads(project_proc.stdout)
+    assert projected["scheduler_projection_path"] == str(projection_path)
+    assert projected["event_count"] == 2
+    assert projected["lane_count"] == 2
+    assert projected["metadata"]["scheduler_event_log_count"] == "2"
+    assert projected["ran_tasks"] is False
+    assert projected["refreshed_projection"] is True
+    assert projected["authority_split"]["provider_executed"] is False
+    assert projected["authority_split"]["local_work_trajectory_mutated"] is False
+    assert projection_path.exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_inspect_state_requires_snapshot_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        ["scheduler", "inspect-state", "--event-log-path", ".codex/scheduler/events.jsonl"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "Missing required option(s): --snapshot-path" in proc.stderr
+
+
+def test_scheduler_project_requires_snapshot_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        ["scheduler", "project", "--title", "Missing Snapshot"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "Missing required option(s): --snapshot-path" in proc.stderr
+
+
+def test_scheduler_inspect_state_reports_missing_snapshot(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        ["scheduler", "inspect-state", "--snapshot-path", ".codex/scheduler/missing.json"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "Error inspecting scheduler state" in proc.stderr
+    assert "missing.json" in proc.stderr
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()

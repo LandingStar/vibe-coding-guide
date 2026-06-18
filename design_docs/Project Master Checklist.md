@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI close`
-- Active Slice: `ExchangeArtifact Operator Admission CLI (COMPLETED; exact stored scheduler submission artifacts can now be admitted from a CLI operator surface)`
-- Latest Completed Slice: `ExchangeArtifact Operator Admission CLI`
+- Current Phase: `Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission workflow polish close`
+- Active Slice: `ExchangeArtifact Operator Admission Workflow Polish (COMPLETED; operator CLI can now admit, inspect scheduler state, and refresh scheduler-derived projection as separate actions)`
+- Latest Completed Slice: `ExchangeArtifact Operator Admission Workflow Polish`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `261 passed` (CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite)
+- Test Baseline: `267 passed` (CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -47,6 +47,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md`
+- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -63,6 +64,7 @@
 - `review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md`
 - `review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md`
 - `review/exchange-artifact-operator-admission-cli-2026-06-19.md`
+- `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
@@ -849,6 +851,7 @@
 - `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`。本轮从 Qoder host readiness 后的方向分析收束到编排层底座，新增 `JsonArtifactVersionStore`、`exchange_artifact_to_json_dict()`、`exchange_artifact_from_json_dict()` 与 `EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION`，使 `ExchangeArtifact` 协调产品具备本地 JSON 持久化、精确版本读取、重复版本拒绝、scheduler-relevant 校验复用，以及当前九类 payload part 的 round-trip 支撑；`InMemoryArtifactVersionStore` 保持用于测试和注入 runtime。review evidence 位于 `review/exchange-artifact-durable-store-foundation-2026-06-18.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `238 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`。本轮新增 `ExchangeArtifactInspectionBundle`、`ExchangeArtifactVersionSummary`、`ExchangeArtifactAdmissionCandidate`、`default_exchange_artifact_store_path()` 与 `inspect_exchange_artifact_store()`，并通过只读资源 `dbc://exchange-artifacts/bundle` / CLI `doc-based-coding resources read dbc://exchange-artifacts/bundle` 暴露 `.codex/orchestration/exchange-artifacts.json` 的精确版本摘要与 scheduler submission 候选元数据。该资源只做 admission prep，不提交任务、不改变 scheduler snapshot 权威、不刷新 scheduler projection、不突变 Local Work Trajectory。review evidence 位于 `review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `243 passed`（pytest 成功后 Windows 进程尾声打印 access-violation 栈；最小 import 与 CLI resource smoke 正常，已记录为残余 Windows/Python test-process 信号）。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`。本轮新增 `PersistedExchangeArtifactAdmissionResult`、`submit_scheduler_task_with_persistence()` 与 `admit_exchange_artifact_version_to_scheduler()`，可从 `JsonArtifactVersionStore` 读取指定 `(artifact_id, version)`，要求其恰好包含一个 `scheduler_task_submission` 或 `scheduler_task_batch_submission` payload，并通过既有 scheduler submission adapters 写入 scheduler snapshot / event log。该 helper 不运行 provider、不刷新 scheduler projection、不标记 exchange artifact consumed、不突变 Local Work Trajectory，也不新增 stored-artifact MCP 写工具；review evidence 位于 `review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `249 passed`（pytest 成功后仍出现既有 Windows/Python access-violation printout，断言与 exit code 成功）。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`。本轮在 CLI operator admission 之后补齐无 MCP host 的验证闭环：新增 `doc-based-coding scheduler inspect-state` 只读检查 scheduler snapshot / event-log summary，新增 `doc-based-coding scheduler project` 显式刷新 scheduler-derived trajectory projection；两者保持 admission、readback、projection refresh 与 provider execution 分离，不新增 stored-artifact MCP 写工具、不运行 provider、不标记 exchange artifact consumed、不突变 Local Work Trajectory。review evidence 位于 `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`；验证结果：CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite `267 passed`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

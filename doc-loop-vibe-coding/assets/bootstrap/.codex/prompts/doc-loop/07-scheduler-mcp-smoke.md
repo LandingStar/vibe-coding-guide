@@ -33,12 +33,17 @@ Keep the lifecycle split:
    surface over exact-version store admission. It writes scheduler snapshot and
    event-log state only; it does not run providers, refresh projection, mark
    exchange artifacts consumed, or mutate Local Work Trajectory.
-7. Host-authorized runners use Python/host wiring through
+7. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+   scheduler snapshot/event-log clues. It does not write state or projection.
+8. `doc-based-coding scheduler project` is the CLI projection refresh surface
+   for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
+   providers or mutate Local Work Trajectory.
+9. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-8. Controlled host-runtime dogfood uses
+10. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -165,6 +170,60 @@ Expected CLI behavior:
 6. Do not run providers, mark exchange artifacts consumed, refresh scheduler
    projection, expose a stored-artifact MCP write tool, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
+
+### CLI Operator Readback And Projection
+
+Use the CLI readback and projection surfaces when an operator or script needs
+to verify admission results without an MCP host:
+
+```text
+doc-based-coding scheduler inspect-state \
+  --snapshot-path .codex/scheduler/scheduler-state.json \
+  --event-log-path .codex/scheduler/scheduler-events.jsonl
+
+doc-based-coding scheduler project \
+  --snapshot-path .codex/scheduler/scheduler-state.json \
+  --event-log-path .codex/scheduler/scheduler-events.jsonl
+```
+
+Optional projection inputs:
+
+```text
+--output-path .codex/progress-graph/scheduler-work-trajectory.json
+--trajectory-id local-work:scheduler-projection
+--title "Scheduler Local Work Trajectory"
+--guide-context <planning-or-review-doc>
+--source-graph-id <graph-id>
+--source-node-id <node-id>
+```
+
+Expected readback behavior:
+
+1. Read scheduler snapshot and optional scheduler / merge-gate JSONL logs.
+2. Print task, dependency, run-record, merge-gate, task-state, and event-log
+   summary clues.
+3. Do not write scheduler state, exchange artifacts, projection artifacts, run
+   providers, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+
+Expected projection CLI behavior:
+
+1. Read scheduler snapshot and optional scheduler / merge-gate JSONL logs.
+2. Write `.codex/progress-graph/scheduler-work-trajectory.json` by default, or
+   the explicit `--output-path`.
+3. Print trajectory identity, projection path, event/lane/relation counts, and
+   authority clues.
+4. Do not run providers, mutate scheduler state, mark exchange artifacts
+   consumed, expose a stored-artifact MCP write tool, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
+
+Recommended operator workflow:
+
+```text
+doc-based-coding resources read dbc://exchange-artifacts/bundle
+doc-based-coding scheduler admit-exchange-artifact ...
+doc-based-coding scheduler inspect-state ...
+doc-based-coding scheduler project ...
+```
 
 ## Submit
 

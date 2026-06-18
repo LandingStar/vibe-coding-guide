@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-19T02:29:00+08:00
+# Checkpoint — 2026-06-19T03:53:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI close
+Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission workflow polish close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -11,15 +11,18 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI clos
 ## Current Todo
 - [x] Complete `ExchangeArtifact Operator Admission CLI`.
 - [x] Create `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`.
-- [x] Compare operator workflow polish, stored-artifact MCP admission, scheduler daemon/durable queue, and host evidence UI binding.
-- [x] Recommend `ExchangeArtifact Operator Admission Workflow Polish` as the next narrow gate.
+- [x] Complete `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`.
+- [x] Add `doc-based-coding scheduler inspect-state`.
+- [x] Add `doc-based-coding scheduler project`.
+- [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
+- [x] Record review evidence in `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Line: ExchangeArtifact Store Inspection And Admission Prep — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md
 - Completed Line: ExchangeArtifact Exact-Version Scheduler Admission — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md
 - Completed Line: ExchangeArtifact Operator Admission CLI — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
-- Recommended Next Line: ExchangeArtifact Operator Admission Workflow Polish — source: design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
+- Completed Line: ExchangeArtifact Operator Admission Workflow Polish — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md
 - Deferred Follow-up Candidates: Stored-Artifact MCP Admission Tool; Scheduler Daemon / Durable Queue; Host Evidence UI Binding; Exchange Artifact Lifecycle Ledger / Consumed Marking — source: design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
 - Other Follow-up Candidates: Host Evidence Preview UI Binding; Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md and design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
 ## Key Context Files
@@ -31,6 +34,8 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI clos
 - design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
 - review/exchange-artifact-operator-admission-cli-2026-06-19.md
+- design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md
+- review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md
 - design_docs/agent-coordination-exchange-artifact-design-record.md
 - design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
 - src/runtime/orchestration/exchange_store.py
