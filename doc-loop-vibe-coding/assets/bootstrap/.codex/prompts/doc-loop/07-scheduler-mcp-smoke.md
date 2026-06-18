@@ -243,8 +243,10 @@ Use the real Qoder wrapper only from a host-owned Python surface, never through
 The current wrapper seam is:
 
 ```text
+doc-based-coding qoder readiness
 QoderSDKQueryClientConfig
 QoderSDKQueryClient
+QoderSDKHostReadinessReport
 QoderQueryClient
 QoderAgentRuntimeAdapter
 run_host_runtime_dogfood_harness()
@@ -252,19 +254,33 @@ run_host_runtime_dogfood_harness()
 
 Expected host construction:
 
-1. Install the optional `qoder-agent-sdk` package in the host runtime
+1. Read `docs/qoder-host-provisioning-check-guide.md`.
+2. Run `doc-based-coding qoder readiness` before any live Qoder smoke attempt.
+3. Install the optional `qoder-agent-sdk` package in the host runtime
    environment. It is not a hard dependency of the doc-based-coding runtime.
-2. Provide `QODER_PERSONAL_ACCESS_TOKEN` or an explicitly supported SDK auth
+4. Provide `QODER_PERSONAL_ACCESS_TOKEN` or an explicitly supported SDK auth
    mode in the host environment. Do not write token values into files,
    scheduler state, evidence JSON, decision logs, review docs, or Local Work
    Trajectory.
-3. Construct `QoderSDKQueryClient(QoderSDKQueryClientConfig(...))` in the
+5. Construct `QoderSDKQueryClient(QoderSDKQueryClientConfig(...))` in the
    host-authorized adapter layer.
-4. Build `RuntimeRegistryWiringConfig(providers=("qoder",), ...)` with
+6. Build `RuntimeRegistryWiringConfig(providers=("qoder",), ...)` with
    `RuntimeHostInvocation(surface="host-authorized-adapter", ...)` and
    `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`.
-5. Pass the wrapper as `qoder_query_client` to
+7. Pass the wrapper as `qoder_query_client` to
    `run_host_runtime_dogfood_harness()`.
+
+Expected readiness command behavior:
+
+- It reports `sdk_importable`, `auth_mode`, `auth_env_var`,
+  `token_present`, `ready`, `error_kind`, `raw_error_type`, and a redacted
+  `summary`.
+- It never prints token values.
+- It does not run a Qoder query, initialize scheduler snapshots, write host
+  evidence JSON, refresh scheduler projection, or mutate Local Work Trajectory.
+- `doc-based-coding qoder readiness --auth-mode qodercli` may report
+  `token_present=false`; that is acceptable when the SDK is importable and
+  exposes `qodercli_auth`.
 
 Expected negative-path behavior:
 

@@ -111,6 +111,7 @@ from .runtime_adapter import (
 from .qoder_sdk_client import (
     DEFAULT_QODER_TOKEN_ENV,
     QoderPermissionRequestPolicy,
+    QoderSDKHostReadinessReport,
     QoderSDKQueryClient,
     QoderSDKQueryClientConfig,
     QoderSdkAuthMode,
@@ -292,6 +293,7 @@ __all__ = [
     "QoderQueryResult",
     "QoderRuntimeError",
     "QoderRuntimeErrorKind",
+    "QoderSDKHostReadinessReport",
     "QoderSDKQueryClient",
     "QoderSDKQueryClientConfig",
     "QoderSdkAuthMode",

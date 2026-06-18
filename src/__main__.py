@@ -6,6 +6,7 @@ Installed entry point:
     doc-based-coding validate                  — Check project constraints
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
+    doc-based-coding qoder readiness           — Check Qoder SDK host readiness
     doc-based-coding generate-instructions     — Generate agent instructions segment
 
 Module entry point:
@@ -240,6 +241,78 @@ def cmd_resources(args: list[str]) -> int:
     return 1
 
 
+def cmd_qoder(args: list[str]) -> int:
+    """Qoder host-runtime helper subcommands."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding qoder <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]\n"
+            "      Check optional qoder-agent-sdk host readiness without printing secrets\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub != "readiness":
+        print(f"Unknown qoder subcommand: {sub}", file=sys.stderr)
+        print("Usage: doc-based-coding qoder <readiness> [args]", file=sys.stderr)
+        return 1
+
+    auth_mode = "env"
+    auth_env_var = ""
+    sdk_module_name = ""
+    i = 1
+    while i < len(args):
+        arg = args[i]
+        if arg == "--auth-mode":
+            if i + 1 >= len(args):
+                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                return 1
+            auth_mode = args[i + 1]
+            i += 2
+            continue
+        if arg == "--auth-env-var":
+            if i + 1 >= len(args):
+                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                return 1
+            auth_env_var = args[i + 1]
+            i += 2
+            continue
+        if arg == "--sdk-module":
+            if i + 1 >= len(args):
+                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                return 1
+            sdk_module_name = args[i + 1]
+            i += 2
+            continue
+        print(f"Unknown qoder readiness option: {arg}", file=sys.stderr)
+        print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+        return 1
+
+    if auth_mode not in {"env", "qodercli"}:
+        print("qoder readiness --auth-mode must be env or qodercli", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_QODER_TOKEN_ENV,
+            QoderSDKQueryClient,
+            QoderSDKQueryClientConfig,
+        )
+
+        config = QoderSDKQueryClientConfig(
+            auth_mode=auth_mode,  # type: ignore[arg-type]
+            auth_env_var=auth_env_var or DEFAULT_QODER_TOKEN_ENV,
+            sdk_module_name=sdk_module_name or "qoder_agent_sdk",
+        )
+        report = QoderSDKQueryClient(config).host_readiness_report()
+    except Exception as e:
+        return _handle_error("Error checking Qoder readiness", e, category="qoder_readiness_failed")
+
+    _print_json(report.to_json_dict())
+    return 0
+
+
 def cmd_pack(args: list[str]) -> int:
     """Pack management subcommands: list, install, remove, info."""
     from .pack.pack_manager import install_pack, remove_pack, list_packs, get_pack_info
@@ -329,6 +402,7 @@ _COMMANDS = {
     "validate": cmd_validate,
     "check": cmd_check,
     "resources": cmd_resources,
+    "qoder": cmd_qoder,
     "generate-instructions": cmd_generate_instructions,
     "pack": cmd_pack,
 }
@@ -353,6 +427,7 @@ def main() -> int:
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
             "  resources <sub>         Inspect MCP resources (list/read)\n"
+            "  qoder <sub>             Qoder host readiness helpers\n"
             "  generate-instructions   Generate agent instructions segment\n"
             "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"

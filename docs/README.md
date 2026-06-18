@@ -35,6 +35,7 @@
 - `project-adoption.md`
 - `dependency-baseline-generator-contract.md`
 - `dependency-baseline-maintenance-guide.md`
+- `qoder-host-provisioning-check-guide.md`
 - `installation-guide.md`
 - `current-prototype-status.md`
 - `first-stable-release-boundary.md`
@@ -83,5 +84,6 @@
 21. `project-adoption.md`
 22. `dependency-baseline-generator-contract.md`
 23. `dependency-baseline-maintenance-guide.md`
-24. `current-prototype-status.md`
-25. `first-stable-release-boundary.md`
+24. `qoder-host-provisioning-check-guide.md`
+25. `current-prototype-status.md`
+26. `first-stable-release-boundary.md`

@@ -134,6 +134,11 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding resources list" in text
         assert "doc-based-coding resources read dbc://host-evidence/bundle" in text
         assert "doc-based-coding resources read dbc://host-evidence/presentation" in text
+        assert "doc-based-coding qoder readiness" in text
+        assert "QoderSDKHostReadinessReport" in text
+        assert "docs/qoder-host-provisioning-check-guide.md" in text
+        assert "token_present" in text
+        assert "qoder readiness --auth-mode qodercli" in text
 
 
 def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
@@ -260,6 +265,40 @@ def test_cli_resources_read_missing_resource_returns_clear_error() -> None:
     assert "Resource not found: dbc://missing" in read.stderr
 
 
+def test_cli_qoder_readiness_outputs_secret_safe_report() -> None:
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "qoder", "readiness"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert read.returncode == 0
+    payload = json.loads(read.stdout)
+    assert payload["sdk_module_name"] == "qoder_agent_sdk"
+    assert payload["auth_env_var"] == "QODER_PERSONAL_ACCESS_TOKEN"
+    assert isinstance(payload["sdk_importable"], bool)
+    assert isinstance(payload["token_present"], bool)
+    assert isinstance(payload["ready"], bool)
+    assert "token_value" not in payload
+
+
+def test_cli_qoder_readiness_accepts_qodercli_auth_mode() -> None:
+    read = subprocess.run(
+        [sys.executable, "-m", "src", "qoder", "readiness", "--auth-mode", "qodercli"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert read.returncode == 0
+    payload = json.loads(read.stdout)
+    assert payload["auth_mode"] == "qodercli"
+    assert payload["token_present"] is False
+
+
 def test_dependency_baseline_maintenance_guide_is_discoverable() -> None:
     guide = _read("docs/dependency-baseline-maintenance-guide.md")
     assert "Python + Pylance" in guide
@@ -278,3 +317,14 @@ def test_dependency_baseline_contract_is_linked_from_docs() -> None:
     assert "dependency-baseline-generator-contract.md" in docs_readme
     assert "dependency-baseline-maintenance-guide.md" in docs_readme
     assert "dependency-baseline-generator-contract.md" in adoption
+
+
+def test_qoder_host_provisioning_guide_is_linked_from_docs() -> None:
+    docs_readme = _read("docs/README.md")
+    guide = _read("docs/qoder-host-provisioning-check-guide.md")
+
+    assert "qoder-host-provisioning-check-guide.md" in docs_readme
+    assert "doc-based-coding qoder readiness" in guide
+    assert "QODER_PERSONAL_ACCESS_TOKEN" in guide
+    assert "token_present" in guide
+    assert "must not be written" in guide

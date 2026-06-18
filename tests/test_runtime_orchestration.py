@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -50,6 +51,7 @@ from src.runtime.orchestration import (
     QoderQueryRequest,
     QoderQueryResult,
     QoderRuntimeError,
+    QoderSDKHostReadinessReport,
     PermissionRequest,
     RuntimeCapabilities,
     RuntimeHostInvocation,
@@ -1207,6 +1209,29 @@ def test_qoder_sdk_query_client_fails_closed_when_sdk_missing() -> None:
     assert "redaction-fixture-value" not in str(raised.value)
 
 
+def test_qoder_sdk_host_readiness_report_is_credential_safe_when_missing() -> None:
+    def missing_importer(name: str):
+        raise ModuleNotFoundError(name)
+
+    client = QoderSDKQueryClient(
+        sdk_importer=missing_importer,
+        environment={"QODER_PERSONAL_ACCESS_TOKEN": "redaction-fixture-value"},
+    )
+
+    report = client.host_readiness_report()
+    payload = report.to_json_dict()
+
+    assert isinstance(report, QoderSDKHostReadinessReport)
+    assert payload["sdk_module_name"] == "qoder_agent_sdk"
+    assert payload["sdk_importable"] is False
+    assert payload["auth_mode"] == "env"
+    assert payload["auth_env_var"] == "QODER_PERSONAL_ACCESS_TOKEN"
+    assert payload["token_present"] is True
+    assert payload["ready"] is False
+    assert payload["error_kind"] == "sdk_unavailable"
+    assert "redaction-fixture-value" not in json.dumps(payload)
+
+
 def test_qoder_sdk_query_client_fails_closed_when_auth_token_missing() -> None:
     client = QoderSDKQueryClient(
         sdk_importer=lambda name: _FakeQoderSDK(messages=()),
@@ -1218,6 +1243,23 @@ def test_qoder_sdk_query_client_fails_closed_when_auth_token_missing() -> None:
 
     assert raised.value.error_kind == "authentication_failed"
     assert "QODER_PERSONAL_ACCESS_TOKEN" in raised.value.summary
+
+
+def test_qoder_sdk_host_readiness_report_supports_ready_qodercli_auth() -> None:
+    sdk = _FakeQoderSDK(messages=())
+    client = QoderSDKQueryClient(
+        QoderSDKQueryClientConfig(auth_mode="qodercli"),
+        sdk_importer=lambda name: sdk,
+        environment={},
+    )
+
+    report = client.host_readiness_report()
+
+    assert report.sdk_importable is False
+    assert report.auth_mode == "qodercli"
+    assert report.token_present is False
+    assert report.ready is True
+    assert report.error_kind == ""
 
 
 def test_qoder_sdk_query_client_streams_text_into_query_result() -> None:

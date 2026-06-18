@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import importlib.util
 import inspect
 import os
 import threading
@@ -47,6 +48,34 @@ class QoderSDKQueryClientConfig:
     permission_request_policy: QoderPermissionRequestPolicy = "deny"
     sdk_module_name: str = "qoder_agent_sdk"
     metadata: Mapping[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class QoderSDKHostReadinessReport:
+    """Credential-safe host readiness report for the optional Qoder SDK."""
+
+    sdk_module_name: str
+    sdk_importable: bool
+    auth_mode: QoderSdkAuthMode
+    auth_env_var: str
+    token_present: bool
+    ready: bool
+    error_kind: str = ""
+    raw_error_type: str = ""
+    summary: str = ""
+
+    def to_json_dict(self) -> dict[str, object]:
+        return {
+            "sdk_module_name": self.sdk_module_name,
+            "sdk_importable": self.sdk_importable,
+            "auth_mode": self.auth_mode,
+            "auth_env_var": self.auth_env_var,
+            "token_present": self.token_present,
+            "ready": self.ready,
+            "error_kind": self.error_kind,
+            "raw_error_type": self.raw_error_type,
+            "summary": self.summary,
+        }
 
 
 class QoderSDKQueryClient:
@@ -195,6 +224,35 @@ class QoderSDKQueryClient:
             error_kind="authentication_failed",
             summary="Qoder SDK auth helper is unavailable on the imported SDK module.",
             raw_error_type="MissingAuthFactory",
+        )
+
+    def host_readiness_report(self) -> QoderSDKHostReadinessReport:
+        """Return credential-safe readiness details without executing a query."""
+
+        sdk_importable = _module_importable(self.config.sdk_module_name)
+        auth_env_var = self.config.auth_env_var or DEFAULT_QODER_TOKEN_ENV
+        token_present = bool(self._environment.get(auth_env_var, ""))
+        try:
+            self.validate_host_ready()
+        except QoderRuntimeError as exc:
+            return QoderSDKHostReadinessReport(
+                sdk_module_name=self.config.sdk_module_name,
+                sdk_importable=sdk_importable,
+                auth_mode=self.config.auth_mode,
+                auth_env_var=auth_env_var,
+                token_present=token_present,
+                ready=False,
+                error_kind=exc.error_kind,
+                raw_error_type=exc.raw_error_type,
+                summary=exc.summary,
+            )
+        return QoderSDKHostReadinessReport(
+            sdk_module_name=self.config.sdk_module_name,
+            sdk_importable=sdk_importable,
+            auth_mode=self.config.auth_mode,
+            auth_env_var=auth_env_var,
+            token_present=token_present,
+            ready=True,
         )
 
     def _build_options(
@@ -440,6 +498,13 @@ def _run_async(coro: Any) -> Any:
     if "error" in result:
         raise result["error"]
     return result.get("value")
+
+
+def _module_importable(module_name: str) -> bool:
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return False
 
 
 def _message_to_mapping(message: Any) -> dict[str, Any]:
