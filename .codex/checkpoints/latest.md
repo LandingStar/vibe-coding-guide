@@ -9,21 +9,18 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI clos
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Create `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`.
-- [x] Create and close `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md`.
-- [x] Add `doc-based-coding scheduler admit-exchange-artifact`.
-- [x] Require explicit scheduler snapshot/event-log paths.
-- [x] Default artifact store path to `.codex/orchestration/exchange-artifacts.json`.
-- [x] Reject missing arguments and non-submission stored artifacts without scheduler mutation.
-- [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
-- [x] Record review evidence in `review/exchange-artifact-operator-admission-cli-2026-06-19.md`.
+- [x] Complete `ExchangeArtifact Operator Admission CLI`.
+- [x] Create `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`.
+- [x] Compare operator workflow polish, stored-artifact MCP admission, scheduler daemon/durable queue, and host evidence UI binding.
+- [x] Recommend `ExchangeArtifact Operator Admission Workflow Polish` as the next narrow gate.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Line: ExchangeArtifact Store Inspection And Admission Prep — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md
 - Completed Line: ExchangeArtifact Exact-Version Scheduler Admission — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md
 - Completed Line: ExchangeArtifact Operator Admission CLI — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
-- Recommended Next Line: Operator-facing projection refresh or admission-result inspection polish only if needed; keep stored-artifact MCP write exposure as a separate reviewed gate — source: review/exchange-artifact-operator-admission-cli-2026-06-19.md
+- Recommended Next Line: ExchangeArtifact Operator Admission Workflow Polish — source: design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
+- Deferred Follow-up Candidates: Stored-Artifact MCP Admission Tool; Scheduler Daemon / Durable Queue; Host Evidence UI Binding; Exchange Artifact Lifecycle Ledger / Consumed Marking — source: design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
 - Other Follow-up Candidates: Host Evidence Preview UI Binding; Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md and design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
@@ -31,6 +28,7 @@ Post-v1.0 — Agent orchestration / ExchangeArtifact operator admission CLI clos
 - design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md
 - review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md
 - design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md
+- design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md
 - review/exchange-artifact-operator-admission-cli-2026-06-19.md
 - design_docs/agent-coordination-exchange-artifact-design-record.md
