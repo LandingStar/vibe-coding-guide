@@ -142,7 +142,11 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "PersistedExchangeArtifactAdmissionResult" in text
         assert "submit_scheduler_task_with_persistence" in text
         assert "exact `(artifact_id, version)`" in text
-        assert "not a stored-artifact MCP" in text
+        assert "admitExchangeArtifact" in text
+        assert "MCP Exact-Version Admission" in text
+        assert "allowDuplicateAdmission" in text
+        assert "same ledger duplicate policy as the CLI" in text
+        assert "scheduler_state_mutated=false" in text
         assert "doc-based-coding scheduler admit-exchange-artifact" in text
         assert "doc-based-coding scheduler inspect-admissions" in text
         assert "doc-based-coding scheduler inspect-state" in text

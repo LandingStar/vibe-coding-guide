@@ -904,6 +904,64 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="admitExchangeArtifact",
+                description=(
+                    "Admit one exact stored ExchangeArtifact scheduler submission into "
+                    "scheduler snapshot/event-log state while recording the durable "
+                    "admission ledger. Reuses the exact-version admission path and rejects "
+                    "duplicate artifact/version admission by default before scheduler "
+                    "mutation. This does not run providers, refresh scheduler projection, "
+                    "mark exchange artifacts consumed, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact id to admit.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact version to admit.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler task event JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional admission ledger path. Defaults to .codex/orchestration/exchange-artifact-admissions.json.",
+                        },
+                        "allowDuplicateAdmission": {
+                            "type": "boolean",
+                            "description": "Explicitly allow re-admitting an already admitted exact artifact/version. Default false.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Whether admitted scheduler tasks may replace existing task ids. Separate from duplicate admission policy. Default false.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Actor recorded in the admission ledger. Defaults to mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for scheduler task_submitted events.",
+                        },
+                    },
+                    "required": ["artifactId", "version", "snapshotPath", "eventLogPath"],
+                },
+            ),
+            Tool(
                 name="schedulerRunOnceAndProject",
                 description=(
                     "Run one bounded persisted scheduler pass with the built-in fake runtime "
@@ -1127,6 +1185,19 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 producer=arguments.get("producer", "schedulerSubmitTasks"),
                 timestamp=arguments.get("timestamp", ""),
                 replace_existing=arguments.get("replaceExisting", False),
+            )
+        elif name == "admitExchangeArtifact":
+            result = tools.admit_exchange_artifact(
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
+                replace_existing=arguments.get("replaceExisting", False),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
             )
         elif name == "schedulerRunOnceAndProject":
             result = tools.scheduler_run_once_and_project(

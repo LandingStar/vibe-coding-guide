@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Exchange Artifact Admission Ledger",
-  "recorded_at": "2026-06-18T21:09:52.040340+00:00",
+  "title": "Stored-Artifact MCP Admission Tool",
+  "recorded_at": "2026-06-18T21:31:46.126393+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md",
+  "guide_context": "design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Exchange Artifact Admission Ledger",
+    "title": "Stored-Artifact MCP Admission Tool",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 5,
+    "relation_count": 4,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "admission ledger",
+      "label": "mcp admission",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md"
+        "context": "design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md"
       }
     }
   },
@@ -36,59 +36,75 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create narrow planning gate for admission ledger",
+      "title": "Create narrow planning gate for stored-artifact MCP admission",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-18T20:49:26.830183+00:00",
-        "activated_at": "2026-06-18T20:49:26.830183+00:00",
+        "created_at": "2026-06-18T21:11:36.947650+00:00",
+        "activated_at": "2026-06-18T21:11:36.947650+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T20:51:57.028149+00:00"
+        "completed_at": "2026-06-18T21:12:13.204321+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement ledger store and CLI admission integration",
+      "title": "Implement stored-artifact MCP admission tool",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Add the durable local admission ledger model/store, wire CLI admission duplicate policy and readback, then cover with focused tests.",
+      "summary": "Add shared admission-with-ledger runtime helper, expose GovernanceTools.admit_exchange_artifact, register MCP schema, and cover success/duplicate/override behavior.",
       "metadata": {
-        "created_at": "2026-06-18T20:52:12.393133+00:00",
+        "created_at": "2026-06-18T21:12:20.084386+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T21:06:18.279584+00:00"
+        "activated_at": "2026-06-18T21:25:08.414744+00:00",
+        "completed_at": "2026-06-18T21:31:00.319828+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate admission ledger runtime and CLI behavior",
+      "title": "Validate MCP admission tool behavior",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Focused CLI/runtime/MCP/prompt suite passed with 274 tests, covering ledger round-trip, duplicate rejection, explicit duplicate admission, inspect-admissions, and existing resource boundaries.",
+      "summary": "Run focused MCP/CLI validation for Stored-Artifact MCP Admission Tool before write-back.",
       "metadata": {
-        "created_at": "2026-06-18T21:02:28.853759+00:00",
+        "created_at": "2026-06-18T21:20:42.564950+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-18T21:06:18.279584+00:00",
-        "completed_at": "2026-06-18T21:09:01.936881+00:00"
+        "activated_at": "2026-06-18T21:31:00.319828+00:00",
+        "completed_at": "2026-06-18T21:31:08.651669+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Close admission ledger slice",
-      "kind": "close",
+      "title": "Write back MCP admission slice",
+      "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Exchange Artifact Admission Ledger slice is complete with durable ledger, duplicate policy, inspect-admissions, docs, prompts, review, status writeback, and focused validation.",
+      "summary": "Close planning gate, add review/follow-up docs, and synchronize status surfaces for the MCP admission slice.",
       "metadata": {
-        "created_at": "2026-06-18T21:09:21.371160+00:00",
+        "created_at": "2026-06-18T21:25:17.318085+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T21:09:52.040340+00:00"
+        "activated_at": "2026-06-18T21:31:08.651669+00:00",
+        "completed_at": "2026-06-18T21:31:14.055617+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Close stored-artifact MCP admission slice",
+      "kind": "close",
+      "status": "completed",
+      "order": 5,
+      "summary": "Stored-Artifact MCP Admission Tool completed and validated. Next recommended gate: Exchange Artifact Lifecycle Consumed Projection.",
+      "metadata": {
+        "created_at": "2026-06-18T21:31:29.409335+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T21:31:46.126393+00:00"
       }
     }
   },
@@ -114,6 +130,15 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

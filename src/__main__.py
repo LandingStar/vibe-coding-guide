@@ -469,12 +469,9 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
 
     try:
         from .runtime.orchestration import (
-            ExchangeArtifactAdmissionRecord,
-            JsonExchangeArtifactAdmissionLedger,
-            admit_exchange_artifact_version_to_scheduler,
+            admit_exchange_artifact_version_with_ledger,
             default_exchange_artifact_admission_ledger_path,
             default_exchange_artifact_store_path,
-            utc_admission_timestamp,
         )
 
         store = (
@@ -489,140 +486,30 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
         )
         snapshot = _resolve_project_path(root, snapshot_path)
         event_log = _resolve_project_path(root, event_log_path)
-        ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
-        previous_admissions = ledger.find_successful_admissions(artifact_id, version)
-        if previous_admissions and not allow_duplicate_admission:
-            duplicate = previous_admissions[-1]
-            record = ledger.append(
-                ExchangeArtifactAdmissionRecord(
-                    ledger_id="",
-                    artifact_store_path=store,
-                    artifact_id=artifact_id,
-                    artifact_version=version,
-                    product_type=duplicate.product_type,
-                    surface="cli:scheduler admit-exchange-artifact",
-                    actor=actor,
-                    timestamp=utc_admission_timestamp(),
-                    snapshot_path=snapshot,
-                    event_log_path=event_log,
-                    status="rejected_duplicate",
-                    error_summary=(
-                        "duplicate exact exchange artifact admission rejected; "
-                        "pass --allow-duplicate-admission to admit intentionally"
-                    ),
-                    duplicate_of=duplicate.ledger_id,
-                )
-            )
-            _print_json(
-                {
-                    "ok": False,
-                    "error": record.error_summary,
-                    "admission_ledger_path": str(ledger_path),
-                    "admission_ledger_record_id": record.ledger_id,
-                    "duplicate_of": record.duplicate_of,
-                    "allow_duplicate": record.allow_duplicate,
-                    "artifact_id": artifact_id,
-                    "version": version,
-                    "scheduler_state_mutated": False,
-                    "event_log_mutated": False,
-                    "authority_split": {
-                        "admission_ledger_authority": "exchange_artifact_admission_ledger",
-                        "scheduler_state_authority": "scheduler_snapshot",
-                        "scheduler_state_mutated": False,
-                        "exchange_store_mutated": False,
-                        "provider_executed": False,
-                        "scheduler_projection_refreshed": False,
-                        "local_work_trajectory_mutated": False,
-                    },
-                }
-            )
-            print(record.error_summary, file=sys.stderr)
-            return 1
-
-        result = admit_exchange_artifact_version_to_scheduler(
+        payload = admit_exchange_artifact_version_with_ledger(
             artifact_store_path=store,
             artifact_id=artifact_id,
             version=version,
             snapshot_path=snapshot,
             event_log_path=event_log,
+            admission_ledger_path=ledger_path,
+            allow_duplicate_admission=allow_duplicate_admission,
             replace_existing=replace_existing,
+            actor=actor,
+            surface="cli:scheduler admit-exchange-artifact",
             timestamp=timestamp,
         )
-        record = ledger.append(
-            ExchangeArtifactAdmissionRecord(
-                ledger_id="",
-                artifact_store_path=store,
-                artifact_id=artifact_id,
-                artifact_version=version,
-                product_type=result.product_type,
-                surface="cli:scheduler admit-exchange-artifact",
-                actor=actor,
-                timestamp=utc_admission_timestamp(),
-                snapshot_path=result.snapshot_path,
-                event_log_path=result.event_log_path,
-                status="admitted",
-                submitted_task_ids=tuple(task.task_id for task in result.submitted_tasks),
-                dependency_ids=tuple(
-                    dependency.dependency_id
-                    for dependency in result.dependencies_added
-                ),
-                submission_event_ids=result.submission_event_ids,
-                allow_duplicate=allow_duplicate_admission,
-            )
-        )
     except Exception as e:
-        try:
-            if artifact_id and version and snapshot_path and event_log_path:
-                from .runtime.orchestration import (
-                    ExchangeArtifactAdmissionRecord,
-                    JsonExchangeArtifactAdmissionLedger,
-                    default_exchange_artifact_admission_ledger_path,
-                    default_exchange_artifact_store_path,
-                    utc_admission_timestamp,
-                )
-
-                root_for_failure = _find_project_root()
-                failure_store = (
-                    _resolve_project_path(root_for_failure, artifact_store_path)
-                    if artifact_store_path
-                    else default_exchange_artifact_store_path(root_for_failure)
-                )
-                failure_ledger_path = (
-                    _resolve_project_path(root_for_failure, admission_ledger_path)
-                    if admission_ledger_path
-                    else default_exchange_artifact_admission_ledger_path(root_for_failure)
-                )
-                JsonExchangeArtifactAdmissionLedger(failure_ledger_path).append(
-                    ExchangeArtifactAdmissionRecord(
-                        ledger_id="",
-                        artifact_store_path=failure_store,
-                        artifact_id=artifact_id,
-                        artifact_version=version,
-                        product_type="",
-                        surface="cli:scheduler admit-exchange-artifact",
-                        actor=actor,
-                        timestamp=utc_admission_timestamp(),
-                        snapshot_path=_resolve_project_path(root_for_failure, snapshot_path),
-                        event_log_path=_resolve_project_path(root_for_failure, event_log_path),
-                        status="failed",
-                        error_summary=str(e),
-                        allow_duplicate=allow_duplicate_admission,
-                    )
-                )
-        except Exception:
-            pass
         return _handle_error(
             "Error admitting exchange artifact",
             e,
             category="scheduler_admission_failed",
         )
 
-    payload = {"ok": True}
-    payload.update(result.to_json_dict())
-    payload["admission_ledger_path"] = str(ledger_path)
-    payload["admission_ledger_record_id"] = record.ledger_id
-    payload["allow_duplicate_admission"] = allow_duplicate_admission
     _print_json(payload)
+    if not payload.get("ok"):
+        print(str(payload.get("error", "exchange artifact admission failed")), file=sys.stderr)
+        return 1
     return 0
 
 

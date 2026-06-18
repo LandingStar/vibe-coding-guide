@@ -34,20 +34,24 @@ Keep the lifecycle split:
    event-log state only; it does not run providers, refresh projection, mark
    exchange artifacts consumed, or mutate Local Work Trajectory. It also writes
    an admission ledger record by default.
-7. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
+7. `admitExchangeArtifact` is the MCP exact-version admission tool. It reuses
+   the same admission ledger policy as the CLI, writes scheduler snapshot and
+   event-log state only, and does not run providers, refresh projection, mark
+   exchange artifacts consumed, or mutate Local Work Trajectory.
+8. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
    for the local ExchangeArtifact admission ledger. It does not write scheduler
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
-8. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+9. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-9. `doc-based-coding scheduler project` is the CLI projection refresh surface
+10. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-10. Host-authorized runners use Python/host wiring through
+11. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-11. Controlled host-runtime dogfood uses
+12. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -137,9 +141,62 @@ Expected admission behavior:
 7. Do not run providers, mark exchange artifacts consumed, refresh scheduler
    projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
 
-This helper is currently a Python/runtime surface, not a stored-artifact MCP
-write tool. For operator-triggered admission outside Python, use the CLI
+For agent/host-facing MCP exact admission, use the `admitExchangeArtifact`
+tool below. For operator-triggered admission outside Python or MCP, use the CLI
 surface below.
+
+### MCP Exact-Version Admission
+
+Use the MCP tool when an agent or MCP host needs to admit one exact stored
+scheduler submission artifact through the structured tool surface:
+
+```text
+admitExchangeArtifact
+```
+
+Required inputs:
+
+```text
+artifactId
+version
+snapshotPath
+eventLogPath
+```
+
+Optional inputs:
+
+```text
+artifactStorePath
+admissionLedgerPath
+allowDuplicateAdmission
+replaceExisting
+actor
+timestamp
+```
+
+Expected MCP behavior:
+
+1. Resolve relative paths under the MCP project root.
+2. Default `artifactStorePath` to
+   `.codex/orchestration/exchange-artifacts.json`.
+3. Default `admissionLedgerPath` to
+   `.codex/orchestration/exchange-artifact-admissions.json`.
+4. Reuse the same ledger duplicate policy as the CLI: reject duplicate exact
+   artifact/version admission before scheduler mutation unless
+   `allowDuplicateAdmission=true`.
+5. Keep `allowDuplicateAdmission` distinct from `replaceExisting`: duplicate
+   admission controls ledger replay policy, while replace-existing controls
+   scheduler task replacement semantics.
+6. Return snake_case JSON fields including `ok`, `artifact_store_path`,
+   `admission_ledger_path`, `admission_ledger_record_id`,
+   `submitted_task_ids`, `submission_event_ids`, `dependency_ids`,
+   `task_count`, `dependency_count`, `ran_tasks=false`,
+   `refreshed_projection=false`, and `authority_split`.
+7. On duplicate rejection, return a non-throwing `ok=false` payload with
+   `status=rejected_duplicate`, `duplicate_of`, `scheduler_state_mutated=false`,
+   and `event_log_mutated=false`.
+8. Do not run providers, mark exchange artifacts consumed, refresh scheduler
+   projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
 
 ### CLI Operator Admission
 
@@ -185,7 +242,7 @@ Expected CLI behavior:
 8. Reject missing arguments, duplicate admission, and non-submission stored
    artifacts without scheduler mutation.
 9. Do not run providers, mark exchange artifacts consumed, refresh scheduler
-   projection, expose a stored-artifact MCP write tool, or mutate
+   projection, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
 
 ### CLI Admission Ledger Readback
@@ -253,13 +310,14 @@ Expected projection CLI behavior:
 3. Print trajectory identity, projection path, event/lane/relation counts, and
    authority clues.
 4. Do not run providers, mutate scheduler state, mark exchange artifacts
-   consumed, expose a stored-artifact MCP write tool, or mutate
+   consumed, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
 
 Recommended operator workflow:
 
 ```text
 doc-based-coding resources read dbc://exchange-artifacts/bundle
+admitExchangeArtifact
 doc-based-coding scheduler admit-exchange-artifact ...
 doc-based-coding scheduler inspect-admissions ...
 doc-based-coding scheduler inspect-state ...

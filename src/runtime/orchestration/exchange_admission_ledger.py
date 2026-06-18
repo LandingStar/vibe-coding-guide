@@ -284,6 +284,171 @@ def inspect_exchange_artifact_admission_ledger(
     )
 
 
+def admit_exchange_artifact_version_with_ledger(
+    *,
+    artifact_store_path: str | Path,
+    artifact_id: str,
+    version: str,
+    snapshot_path: str | Path,
+    event_log_path: str | Path,
+    admission_ledger_path: str | Path,
+    allow_duplicate_admission: bool = False,
+    replace_existing: bool = False,
+    actor: str = "operator",
+    surface: str = "runtime:admit_exchange_artifact_version_with_ledger",
+    timestamp: str = "",
+) -> dict[str, object]:
+    """Admit an exact stored scheduler artifact and record the admission ledger.
+
+    This is the shared policy point for CLI and MCP admission. It rejects
+    duplicate exact artifact/version admission before scheduler mutation unless
+    an explicit duplicate override is provided.
+    """
+
+    from .scheduler_submission import admit_exchange_artifact_version_to_scheduler
+
+    store_path = Path(artifact_store_path)
+    snapshot = Path(snapshot_path)
+    event_log = Path(event_log_path)
+    ledger_path = Path(admission_ledger_path)
+    ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+
+    try:
+        previous_admissions = ledger.find_successful_admissions(artifact_id, version)
+    except Exception as exc:
+        return _admission_error_payload(
+            error=str(exc),
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            snapshot_path=snapshot,
+            event_log_path=event_log,
+            admission_ledger_path=ledger_path,
+        )
+
+    if previous_admissions and not allow_duplicate_admission:
+        duplicate = previous_admissions[-1]
+        record = ledger.append(
+            ExchangeArtifactAdmissionRecord(
+                ledger_id="",
+                artifact_store_path=store_path,
+                artifact_id=artifact_id,
+                artifact_version=version,
+                product_type=duplicate.product_type,
+                surface=surface,
+                actor=actor,
+                timestamp=utc_admission_timestamp(),
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                status="rejected_duplicate",
+                error_summary=(
+                    "duplicate exact exchange artifact admission rejected; "
+                    "set allow_duplicate_admission=true to admit intentionally"
+                ),
+                duplicate_of=duplicate.ledger_id,
+            )
+        )
+        return {
+            "ok": False,
+            "error": record.error_summary,
+            "status": record.status,
+            "artifact_store_path": str(store_path),
+            "admission_ledger_path": str(ledger_path),
+            "admission_ledger_record_id": record.ledger_id,
+            "duplicate_of": record.duplicate_of,
+            "allow_duplicate": record.allow_duplicate,
+            "allow_duplicate_admission": allow_duplicate_admission,
+            "artifact_id": artifact_id,
+            "version": version,
+            "snapshot_path": str(snapshot),
+            "event_log_path": str(event_log),
+            "scheduler_state_mutated": False,
+            "event_log_mutated": False,
+            "ran_tasks": False,
+            "refreshed_projection": False,
+            "authority_split": _admission_authority_split(scheduler_state_mutated=False),
+        }
+
+    try:
+        result = admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            snapshot_path=snapshot,
+            event_log_path=event_log,
+            replace_existing=replace_existing,
+            timestamp=timestamp,
+        )
+    except Exception as exc:
+        try:
+            ledger.append(
+                ExchangeArtifactAdmissionRecord(
+                    ledger_id="",
+                    artifact_store_path=store_path,
+                    artifact_id=artifact_id,
+                    artifact_version=version,
+                    product_type="",
+                    surface=surface,
+                    actor=actor,
+                    timestamp=utc_admission_timestamp(),
+                    snapshot_path=snapshot,
+                    event_log_path=event_log,
+                    status="failed",
+                    error_summary=str(exc),
+                    allow_duplicate=allow_duplicate_admission,
+                )
+            )
+        except Exception:
+            pass
+        return _admission_error_payload(
+            error=str(exc),
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            snapshot_path=snapshot,
+            event_log_path=event_log,
+            admission_ledger_path=ledger_path,
+            allow_duplicate_admission=allow_duplicate_admission,
+        )
+
+    record = ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            artifact_version=version,
+            product_type=result.product_type,
+            surface=surface,
+            actor=actor,
+            timestamp=utc_admission_timestamp(),
+            snapshot_path=result.snapshot_path,
+            event_log_path=result.event_log_path,
+            status="admitted",
+            submitted_task_ids=tuple(task.task_id for task in result.submitted_tasks),
+            dependency_ids=tuple(
+                dependency.dependency_id
+                for dependency in result.dependencies_added
+            ),
+            submission_event_ids=result.submission_event_ids,
+            allow_duplicate=allow_duplicate_admission,
+        )
+    )
+
+    payload = {"ok": True}
+    payload.update(result.to_json_dict())
+    dependency_ids = [
+        dependency.dependency_id
+        for dependency in result.dependencies_added
+    ]
+    payload["admission_ledger_path"] = str(ledger_path)
+    payload["admission_ledger_record_id"] = record.ledger_id
+    payload["allow_duplicate_admission"] = allow_duplicate_admission
+    payload["dependency_ids"] = dependency_ids
+    payload["dependencies_added"] = dependency_ids
+    payload["authority_split"] = _admission_authority_split(scheduler_state_mutated=True)
+    return payload
+
+
 def exchange_artifact_admission_record_from_json_dict(
     payload: Mapping[str, object],
 ) -> ExchangeArtifactAdmissionRecord:
@@ -318,6 +483,46 @@ def utc_admission_timestamp() -> str:
     """Return an ISO-8601 UTC timestamp for local ledger events."""
 
     return datetime.now(UTC).isoformat()
+
+
+def _admission_error_payload(
+    *,
+    error: str,
+    artifact_store_path: Path,
+    artifact_id: str,
+    version: str,
+    snapshot_path: Path,
+    event_log_path: Path,
+    admission_ledger_path: Path,
+    allow_duplicate_admission: bool = False,
+) -> dict[str, object]:
+    return {
+        "ok": False,
+        "error": error,
+        "artifact_store_path": str(artifact_store_path),
+        "artifact_id": artifact_id,
+        "version": version,
+        "snapshot_path": str(snapshot_path),
+        "event_log_path": str(event_log_path),
+        "admission_ledger_path": str(admission_ledger_path),
+        "allow_duplicate_admission": allow_duplicate_admission,
+        "ran_tasks": False,
+        "refreshed_projection": False,
+        "authority_split": _admission_authority_split(scheduler_state_mutated=False),
+    }
+
+
+def _admission_authority_split(*, scheduler_state_mutated: bool) -> dict[str, object]:
+    return {
+        "admission_ledger_authority": "exchange_artifact_admission_ledger",
+        "scheduler_state_authority": "scheduler_snapshot",
+        "exchange_store_role": "exact-version-coordination-product-source",
+        "scheduler_state_mutated": scheduler_state_mutated,
+        "exchange_store_mutated": False,
+        "provider_executed": False,
+        "scheduler_projection_refreshed": False,
+        "local_work_trajectory_mutated": False,
+    }
 
 
 def _next_ledger_id(records: list[ExchangeArtifactAdmissionRecord]) -> str:

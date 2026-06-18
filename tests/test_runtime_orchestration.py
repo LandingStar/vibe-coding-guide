@@ -73,6 +73,7 @@ from src.runtime.orchestration import (
     SchedulerTaskBatchSubmission,
     SchedulerTaskSubmission,
     admit_exchange_artifact_version_to_scheduler,
+    admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
     cleanup_receipt_to_artifact,
     build_orchestration_preflight_bundle,
@@ -3241,6 +3242,58 @@ def test_admit_exchange_artifact_version_surfaces_malformed_store_error(tmp_path
 
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_version_with_ledger_rejects_duplicate_before_scheduler_mutation(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-ledger-dup",
+                title="Ledger duplicate task",
+                instruction="Admit once, reject replay by default.",
+                agent=AgentSpec(agent_id="agent:ledger-dup", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:ledger-dup"),
+                output_artifact_id="task-ledger-dup:result",
+            ),
+            artifact_id="submission:ledger-dup",
+            created_at="2026-06-19T05:20:00+08:00",
+            version="v1",
+        )
+    )
+
+    first = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="submission:ledger-dup",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+    )
+    duplicate = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="submission:ledger-dup",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        replace_existing=True,
+    )
+
+    assert first["ok"] is True
+    assert duplicate["ok"] is False
+    assert duplicate["status"] == "rejected_duplicate"
+    assert duplicate["duplicate_of"] == "exchange-artifact-admission-1"
+    assert duplicate["scheduler_state_mutated"] is False
+    assert duplicate["event_log_mutated"] is False
+    assert duplicate["authority_split"]["scheduler_state_mutated"] is False
+    assert len(read_scheduler_state_snapshot(snapshot_path).tasks) == 1
+    assert len(JsonlSchedulerEventLog(event_log_path).read_all()) == 1
+    records = JsonExchangeArtifactAdmissionLedger(ledger_path).read_all()
+    assert [record.status for record in records] == ["admitted", "rejected_duplicate"]
 
 
 def test_run_persisted_scheduler_once_recovers_drains_and_writes_snapshot(tmp_path) -> None:

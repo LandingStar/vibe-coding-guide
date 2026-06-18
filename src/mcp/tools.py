@@ -844,6 +844,80 @@ class GovernanceTools:
             "source_log": _exchange_log_to_dict(artifact.parts[1].log) if len(artifact.parts) > 1 else {},
         }
 
+    def admit_exchange_artifact(
+        self,
+        *,
+        artifact_id: str,
+        version: str,
+        snapshot_path: str,
+        event_log_path: str,
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        allow_duplicate_admission: bool = False,
+        replace_existing: bool = False,
+        actor: str = "mcp",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Admit one exact stored ExchangeArtifact version into scheduler state."""
+
+        if not artifact_id:
+            return {
+                "ok": False,
+                "error": "admitExchangeArtifact requires artifactId.",
+            }
+        if not version:
+            return {
+                "ok": False,
+                "error": "admitExchangeArtifact requires version.",
+            }
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "admitExchangeArtifact requires snapshotPath.",
+            }
+        if not event_log_path:
+            return {
+                "ok": False,
+                "error": "admitExchangeArtifact requires eventLogPath.",
+            }
+
+        from ..runtime.orchestration import (
+            admit_exchange_artifact_version_with_ledger,
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        ledger = (
+            resolve_path(admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(self._project_root)
+        )
+
+        return admit_exchange_artifact_version_with_ledger(
+            artifact_store_path=store,
+            artifact_id=artifact_id,
+            version=version,
+            snapshot_path=resolve_path(snapshot_path),
+            event_log_path=resolve_path(event_log_path),
+            admission_ledger_path=ledger,
+            allow_duplicate_admission=allow_duplicate_admission,
+            replace_existing=replace_existing,
+            actor=actor or "mcp",
+            surface="mcp:admitExchangeArtifact",
+            timestamp=timestamp,
+        )
+
     def scheduler_projection(
         self,
         *,
