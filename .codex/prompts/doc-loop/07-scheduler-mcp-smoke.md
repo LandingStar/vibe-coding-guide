@@ -208,6 +208,8 @@ Expected consumer behavior:
 5. Return an empty bundle when the evidence directory is missing.
 6. Do not execute providers, initialize scheduler snapshots, refresh scheduler
    projections, mutate Local Work Trajectory, or synthesize evidence.
+7. Isolate malformed local evidence files into `errors[]` / `error_count`
+   without hiding valid `summaries[]`; strict runtime readers may still fail.
 
 When MCP resources are available, prefer reading
 `dbc://host-evidence/bundle`. It returns the same compact bundle JSON through

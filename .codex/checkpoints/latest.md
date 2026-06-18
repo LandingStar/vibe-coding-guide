@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-18T01:22:00+08:00
+# Checkpoint — 2026-06-18T02:12:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / host evidence CLI resource inspection close
+Post-v1.0 — Agent orchestration / host evidence resource error isolation close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -53,6 +53,12 @@ Post-v1.0 — Agent orchestration / host evidence CLI resource inspection close
 - [x] Prove `dbc://host-evidence/bundle` can be inspected without MCP host setup.
 - [x] Prove missing resources return clear non-zero CLI errors.
 - [x] Close `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`.
+- [x] Add `errors[]` and `error_count` to HostEvidenceBundle JSON.
+- [x] Isolate malformed evidence files without hiding valid summaries.
+- [x] Keep strict runtime evidence readers strict.
+- [x] Prove CLI/resource payload reports isolated evidence errors.
+- [x] Close `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -64,7 +70,8 @@ Post-v1.0 — Agent orchestration / host evidence CLI resource inspection close
 - Completed Line: Host Evidence Consumer — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
 - Completed Line: Host Evidence MCP Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
 - Completed Line: CLI Resource Inspection For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
-- Recommended Next Line: Resource Error Isolation For Host Evidence — source: design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md
+- Completed Line: Resource Error Isolation For Host Evidence — source: design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
+- Recommended Next Line: choose between host evidence UI binding after UI branch cleanup or credentialed live Qoder rerun after SDK/auth provisioning — source: review/resource-error-isolation-for-host-evidence-2026-06-18.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
@@ -77,12 +84,14 @@ Post-v1.0 — Agent orchestration / host evidence CLI resource inspection close
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md
 - design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md
+- design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
 - review/credentialed-live-qoder-smoke-2026-06-17.md
 - review/host-evidence-consumer-2026-06-18.md
 - review/host-evidence-mcp-resource-exposure-2026-06-18.md
 - review/cli-resource-inspection-for-host-evidence-2026-06-18.md
+- review/resource-error-isolation-for-host-evidence-2026-06-18.md
 - design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
 - design_docs/host-evidence-consumer-followup-direction-analysis.md

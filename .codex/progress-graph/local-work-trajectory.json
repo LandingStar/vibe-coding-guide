@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Agent orchestration layer planning",
-  "recorded_at": "2026-06-17T17:12:10.531215+00:00",
+  "recorded_at": "2026-06-18T03:40:01.653760+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "AGENTS.md; design_docs/Project Master Checklist.md; design_docs/Global Phase Map and Current Position.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Agent orchestration layer planning",
     "lane_count": 1,
-    "event_count": 94,
-    "relation_count": 93,
+    "event_count": 96,
+    "relation_count": 95,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -1385,6 +1385,35 @@
         "activated_at": "2026-06-17T17:12:04.125744+00:00",
         "completed_at": "2026-06-17T17:12:10.531215+00:00"
       }
+    },
+    "event:095": {
+      "id": "event:095",
+      "lane_id": "lane:main",
+      "title": "实现 Host Evidence resource 错误隔离",
+      "kind": "task",
+      "status": "completed",
+      "order": 95,
+      "summary": "启动 Resource Error Isolation For Host Evidence 窄切片：为 resource/CLI 消费面隔离 malformed evidence 文件，同时保持严格 runtime reader 不变。",
+      "metadata": {
+        "created_at": "2026-06-17T18:00:47.448453+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-17T18:07:49.121715+00:00",
+        "completed_at": "2026-06-17T18:07:59.466014+00:00"
+      }
+    },
+    "event:096": {
+      "id": "event:096",
+      "lane_id": "lane:main",
+      "title": "关闭 host evidence 错误隔离 gate",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 96,
+      "summary": "关闭 Resource Error Isolation gate，补 review evidence、Checklist、Phase Map、checkpoint 与 prompt 指导。",
+      "metadata": {
+        "created_at": "2026-06-17T18:08:10.290946+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T03:40:01.652761+00:00"
+      }
     }
   },
   "relations": [
@@ -2219,6 +2248,24 @@
     {
       "source_event_id": "event:093",
       "target_event_id": "event:094",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:094",
+      "target_event_id": "event:095",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:095",
+      "target_event_id": "event:096",
       "kind": "sequence",
       "summary": "",
       "metadata": {

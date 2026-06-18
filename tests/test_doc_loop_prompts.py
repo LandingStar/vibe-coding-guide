@@ -127,6 +127,8 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "must not mutate" in text
         assert "dbc://host-evidence/bundle" in text
         assert "read_host_evidence_bundle" in text
+        assert "error_count" in text
+        assert "errors[]" in text
         assert "doc-based-coding resources list" in text
         assert "doc-based-coding resources read dbc://host-evidence/bundle" in text
 
@@ -153,7 +155,9 @@ def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_pa
     assert resource["name"] == "host-evidence-bundle"
     assert resource["mimeType"] == "application/json"
     assert payload["evidence_count"] == 0
+    assert payload["error_count"] == 0
     assert payload["summaries"] == []
+    assert payload["errors"] == []
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
@@ -183,7 +187,9 @@ def test_cli_resources_list_and_read_host_evidence_bundle() -> None:
         "evidence_dir"
     ].endswith(".codex/scheduler/evidence")
     assert "evidence_count" in bundle
+    assert "error_count" in bundle
     assert "summaries" in bundle
+    assert "errors" in bundle
 
 
 def test_cli_resources_read_missing_resource_returns_clear_error() -> None:

@@ -1025,6 +1025,68 @@ def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None
     assert bundle.evidence_dir == host_scheduler_evidence_dir(tmp_path)
     assert bundle.summaries == ()
     assert bundle.to_json_dict()["evidence_count"] == 0
+    assert bundle.to_json_dict()["error_count"] == 0
+    assert bundle.to_json_dict()["errors"] == []
+
+
+def test_host_evidence_bundle_isolates_malformed_artifacts(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_dir = tmp_path / ".codex/scheduler/evidence"
+    valid_path = evidence_dir / "valid-run.json"
+    malformed_path = evidence_dir / "malformed.json"
+    wrong_product_path = evidence_dir / "wrong-product.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduler_projection_task(
+                    "task-a",
+                    lane_id="lane:dogfood",
+                    output_artifact_id="task-a:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    run_host_runtime_dogfood_harness(
+        tmp_path,
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        runtime_config=RuntimeRegistryWiringConfig(
+            providers=("fake",),
+            timestamp="2026-06-18T01:40:00+08:00",
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id="dogfood-valid-summary",
+                requested_providers=("fake",),
+                requested_by="host:test",
+                reason="valid dogfood evidence summary",
+            ),
+        ),
+        evidence_id="dogfood-valid-summary",
+        evidence_output_path=valid_path,
+        timestamp="2026-06-18T01:40:00+08:00",
+        artifact_store=InMemoryArtifactVersionStore(),
+        guide_context="dogfood-harness-error-isolation-test",
+    )
+    malformed_path.write_text("{not json", encoding="utf-8")
+    wrong_product_path.write_text(
+        '{"product_type": "wrong", "schema_version": "1"}',
+        encoding="utf-8",
+    )
+
+    bundle = read_host_evidence_bundle(tmp_path)
+    payload = bundle.to_json_dict()
+
+    assert payload["evidence_count"] == 1
+    assert payload["summaries"][0]["evidence_id"] == "dogfood-valid-summary"
+    assert payload["error_count"] == 2
+    assert {Path(error["evidence_path"]).name for error in payload["errors"]} == {
+        "malformed.json",
+        "wrong-product.json",
+    }
+    assert {error["error_kind"] for error in payload["errors"]} == {"invalid_evidence"}
+    assert all("raw" not in error for error in payload["errors"])
 
 
 def test_host_runtime_dogfood_harness_mock_qoder_writes_same_evidence_shape(tmp_path: Path) -> None:
