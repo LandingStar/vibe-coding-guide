@@ -19,6 +19,7 @@ from src.runtime.orchestration import (
     ContextScope,
     EditScopeLease,
     ExchangeArtifact,
+    ExchangeCausality,
     ExchangeContract,
     ExchangeLog,
     ExchangePayloadPart,
@@ -32,6 +33,7 @@ from src.runtime.orchestration import (
     HostSchedulerRunEvidenceSummary,
     HostSchedulerRunResult,
     InMemoryArtifactVersionStore,
+    JsonArtifactVersionStore,
     JsonlCoordinationEventLog,
     JsonlSchedulerEventLog,
     JsonlSchedulerMergeGateEventLog,
@@ -61,6 +63,7 @@ from src.runtime.orchestration import (
     RuntimeRunResult,
     SessionHandle,
     SharedProcessSandboxProvider,
+    VisibilityPolicy,
     QoderSDKQueryClient,
     QoderSDKQueryClientConfig,
     ScratchManifest,
@@ -76,6 +79,8 @@ from src.runtime.orchestration import (
     drain_ready_tasks,
     evaluate_stop_condition,
     evaluate_task_admission,
+    exchange_artifact_from_json_dict,
+    exchange_artifact_to_json_dict,
     has_scheduler_readable_relation,
     mark_ready_tasks,
     part_types,
@@ -632,6 +637,75 @@ def test_exchange_artifact_version_store_rejects_invalid_scheduler_relevant_arti
 
     with pytest.raises(ValueError, match="must not exist only in text"):
         store.put(invalid)
+
+
+def test_exchange_artifact_json_round_trip_covers_current_payload_parts() -> None:
+    artifact = _all_parts_exchange_artifact()
+
+    restored = exchange_artifact_from_json_dict(exchange_artifact_to_json_dict(artifact))
+
+    assert restored == artifact
+    assert part_types(restored) == (
+        "text",
+        "structured",
+        "ref",
+        "artifact_delta",
+        "contract",
+        "evidence",
+        "relation",
+        "storage_manifest",
+        "log",
+    )
+    assert validate_exchange_artifact(restored) == ()
+
+
+def test_json_artifact_version_store_persists_versions_and_reads_latest(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    first = _accepted_contract_artifact(version="v1")
+    second = _accepted_contract_artifact(version="v2")
+
+    first_record = store.put(first)
+    second_record = store.put(second)
+    restored = JsonArtifactVersionStore(store_path)
+
+    assert first_record.artifact == first
+    assert second_record.artifact == second
+    assert restored.get("server-api", "v1").artifact == first
+    assert restored.latest("server-api").artifact == second
+    assert restored.list_versions("server-api") == ("v1", "v2")
+
+    with pytest.raises(ValueError, match="already exists"):
+        restored.put(first)
+
+
+def test_json_artifact_version_store_rejects_invalid_artifact_before_write(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    invalid = ExchangeArtifact(
+        artifact_id="blocked-client",
+        kind="blocker",
+        intent="declare_blocked",
+        producer="agent:client",
+        version="v1",
+        parts=(ExchangePayloadPart(part_type="text", text="blocked by server api"),),
+    )
+
+    with pytest.raises(ValueError, match="must not exist only in text"):
+        store.put(invalid)
+
+    assert not store_path.exists()
+
+
+def test_json_artifact_version_store_reports_unsupported_schema_version(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store_path.write_text(
+        json.dumps({"schema_version": "exchange-artifact-store.v0", "records": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unsupported exchange artifact store version"):
+        JsonArtifactVersionStore(store_path).list_versions("server-api")
 
 
 def test_coordination_event_log_appends_reads_and_projects_log_part(tmp_path) -> None:
@@ -4600,6 +4674,117 @@ def _accepted_contract_artifact(*, version: str) -> ExchangeArtifact:
         producer="agent:server",
         version=version,
         parts=(ExchangePayloadPart(part_type="contract", contract=contract),),
+    )
+
+
+def _all_parts_exchange_artifact() -> ExchangeArtifact:
+    contract = ExchangeContract(
+        contract_id="server-api",
+        contract_kind="api",
+        version="v2",
+        title="Maze server API",
+        producer="agent:server",
+        consumers=("agent:client", "agent:test"),
+        status="accepted",
+        schema_ref=ExchangeReference(
+            ref_kind="file",
+            ref_id="schema",
+            path="docs/server-api.schema.json",
+            label="schema",
+        ),
+        content={"endpoints": [{"method": "POST", "path": "/move"}]},
+        compatibility=">=v2",
+        supersedes=("server-api@v1",),
+        effective_from="2026-06-18T23:00:00+08:00",
+    )
+    relation = ExchangeRelation(
+        relation_id="rel-1",
+        relation_kind="produces_contract",
+        source=ExchangeReference(ref_kind="task", ref_id="task-server"),
+        target=ExchangeReference(ref_kind="contract", ref_id="server-api", version="v2"),
+        strength="required",
+        reason="server task produced accepted API contract",
+        since="2026-06-18T23:01:00+08:00",
+    )
+    log = ExchangeLog(
+        timestamp="2026-06-18T23:02:00+08:00",
+        actor="agent:server",
+        action="artifact_recorded",
+        channel="coordination-event-log",
+        summary="Recorded server API contract and validation evidence.",
+        related_artifact_ids=("exchange:server-api",),
+        related_event_ids=("event:server-api",),
+        related_run_ids=("run:server",),
+        sequence=3,
+        clock="wall",
+    )
+    return ExchangeArtifact(
+        artifact_id="exchange:server-api",
+        kind="contract",
+        intent="inform",
+        producer="agent:server",
+        audience=("agent:client", "agent:test"),
+        scope=ExchangeScope(
+            trajectory_id="local-work:test",
+            lane_id="lane:server",
+            event_id="event:server-api",
+            task_id="task-server",
+            context_id="context:server",
+            agent_id="agent:server",
+            runtime_session_id="session:server",
+        ),
+        causality=ExchangeCausality(
+            replies_to=("exchange:proposal",),
+            depends_on=("exchange:maze-contract",),
+            supersedes=("exchange:server-api@v1",),
+            caused_by=("task-server",),
+            correlation_id="corr:maze",
+        ),
+        lifecycle_state="accepted",
+        visibility_policy=VisibilityPolicy(
+            audience=("agent:client", "agent:test"),
+            cross_lane=True,
+            contains_sensitive_content=False,
+            redaction_required=False,
+        ),
+        created_at="2026-06-18T23:00:00+08:00",
+        version="v2",
+        parts=(
+            ExchangePayloadPart(part_type="text", text="Server API contract accepted."),
+            ExchangePayloadPart(
+                part_type="structured",
+                data={"product_type": "api_summary", "endpoint_count": 1},
+            ),
+            ExchangePayloadPart(
+                part_type="ref",
+                ref=ExchangeReference(
+                    ref_kind="file",
+                    ref_id="docs/server-api.md",
+                    version="v2",
+                    path="docs/server-api.md",
+                    label="API doc",
+                ),
+            ),
+            ExchangePayloadPart(
+                part_type="artifact_delta",
+                data={
+                    "artifact_id": "server-api",
+                    "version": "v2",
+                    "changed_refs": ["docs/server-api.md"],
+                },
+            ),
+            ExchangePayloadPart(part_type="contract", contract=contract),
+            ExchangePayloadPart(
+                part_type="evidence",
+                data={"command": "pytest tests/test_server_api.py", "status": "passed"},
+            ),
+            ExchangePayloadPart(part_type="relation", relation=relation),
+            ExchangePayloadPart(
+                part_type="storage_manifest",
+                data={"product_type": "scratch_manifest", "entries": []},
+            ),
+            ExchangePayloadPart(part_type="log", log=log),
+        ),
     )
 
 

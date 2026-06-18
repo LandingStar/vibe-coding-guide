@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-18T23:49:00+08:00
+# Checkpoint — 2026-06-19T00:34:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / Qoder host provisioning check close
+Post-v1.0 — Agent orchestration / ExchangeArtifact durable store close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -83,6 +83,13 @@ Post-v1.0 — Agent orchestration / Qoder host provisioning check close
 - [x] Add `docs/qoder-host-provisioning-check-guide.md`.
 - [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
 - [x] Close `design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md`.
+- [x] Create follow-up direction analysis after Qoder host provisioning check.
+- [x] Activate `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`.
+- [x] Add `JsonArtifactVersionStore`.
+- [x] Add `exchange_artifact_to_json_dict()` / `exchange_artifact_from_json_dict()`.
+- [x] Prove all current ExchangeArtifact payload part types round-trip.
+- [x] Prove duplicate and invalid artifact versions are rejected.
+- [x] Close `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -99,7 +106,8 @@ Post-v1.0 — Agent orchestration / Qoder host provisioning check close
 - Completed Line: Host Evidence Presentation Resource Exposure — source: design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md
 - Completed Line: Credentialed Live Qoder Rerun Over Presentation Resources — source: design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md
 - Completed Line: Qoder Host Provisioning Check Guide — source: design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md
-- Recommended Next Line: Credentialed Live Qoder Smoke only after host SDK/auth provisioning; otherwise Host Evidence Preview UI Binding if UI dirty branch is intentionally in scope — source: review/qoder-host-provisioning-check-guide-2026-06-18.md
+- Completed Line: ExchangeArtifact Durable Store Foundation — source: design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md
+- Recommended Next Line: Artifact-store inspection/admission surface or scheduler/exchange integration without changing scheduler authority — source: review/exchange-artifact-durable-store-foundation-2026-06-18.md
 - Other Follow-up Candidates: Presentation Resource Timestamp Polish; Scheduler Daemon / Durable Queue — source: design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
@@ -118,6 +126,7 @@ Post-v1.0 — Agent orchestration / Qoder host provisioning check close
 - design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md
 - design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md
 - design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md
+- design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md
 - review/controlled-real-qoder-wrapper-spike-2026-06-17.md
 - review/host-owned-qoder-smoke-runner-helper-2026-06-17.md
 - review/credentialed-live-qoder-smoke-2026-06-17.md
@@ -129,6 +138,8 @@ Post-v1.0 — Agent orchestration / Qoder host provisioning check close
 - review/host-evidence-presentation-resource-exposure-2026-06-18.md
 - review/credentialed-live-qoder-rerun-over-presentation-resources-2026-06-18.md
 - review/qoder-host-provisioning-check-guide-2026-06-18.md
+- review/exchange-artifact-durable-store-foundation-2026-06-18.md
+- design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md
 - design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md
 - design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md
 - design_docs/host-evidence-consumer-followup-direction-analysis.md
@@ -144,6 +155,7 @@ Post-v1.0 — Agent orchestration / Qoder host provisioning check close
 - review/host-authorized-scheduler-runner-adapter-2026-06-17.md
 - design_docs/host-authorized-scheduler-runner-followup-direction-analysis.md
 - design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
+- design_docs/agent-coordination-exchange-artifact-design-record.md
 - design_docs/qoder-runtime-adapter-requirements.md
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - src/runtime/orchestration/qoder_sdk_client.py

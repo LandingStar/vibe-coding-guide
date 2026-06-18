@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
-from .exchange import ExchangeArtifact, ExchangeLog, validate_exchange_artifact
+from .exchange import (
+    ExchangeArtifact,
+    ExchangeCausality,
+    ExchangeContract,
+    ExchangeLog,
+    ExchangePayloadPart,
+    ExchangeReference,
+    ExchangeRelation,
+    ExchangeScope,
+    VisibilityPolicy,
+    validate_exchange_artifact,
+)
 
 CoordinationEventKind = Literal[
     "artifact_recorded",
@@ -16,6 +28,7 @@ CoordinationEventKind = Literal[
     "artifact_archived",
     "validation_failed",
 ]
+EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION = "exchange-artifact-store.v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +127,118 @@ class InMemoryArtifactVersionStore:
         return tuple(self._versions.get(artifact_id, ()))
 
 
+class JsonArtifactVersionStore:
+    """Local JSON-backed append-only store for exchange artifact versions."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def put(self, artifact: ExchangeArtifact) -> ArtifactVersionRecord:
+        """Store one artifact version after validating scheduler-facing shape."""
+
+        _validate_storable_exchange_artifact(artifact)
+        records = list(self._read_records())
+        key = (artifact.artifact_id, artifact.version)
+        if any((record.artifact_id, record.version) == key for record in records):
+            raise ValueError(
+                f"exchange artifact version already exists: "
+                f"{artifact.artifact_id!r}@{artifact.version!r}"
+            )
+        record = ArtifactVersionRecord(
+            artifact_id=artifact.artifact_id,
+            version=artifact.version,
+            artifact=artifact,
+        )
+        records.append(record)
+        self._write_records(tuple(records))
+        return record
+
+    def get(self, artifact_id: str, version: str) -> ArtifactVersionRecord:
+        """Return a stored version or raise KeyError."""
+
+        for record in self._read_records():
+            if record.artifact_id == artifact_id and record.version == version:
+                return record
+        raise KeyError((artifact_id, version))
+
+    def latest(self, artifact_id: str) -> ArtifactVersionRecord:
+        """Return the most recently inserted version for an artifact id."""
+
+        versions = [record for record in self._read_records() if record.artifact_id == artifact_id]
+        if not versions:
+            raise KeyError(artifact_id)
+        return versions[-1]
+
+    def list_versions(self, artifact_id: str) -> tuple[str, ...]:
+        """Return versions in insertion order."""
+
+        return tuple(
+            record.version
+            for record in self._read_records()
+            if record.artifact_id == artifact_id
+        )
+
+    def _read_records(self) -> tuple[ArtifactVersionRecord, ...]:
+        if not self.path.exists():
+            return ()
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid exchange artifact store JSON at {self.path}: {exc.msg}") from exc
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"exchange artifact store {self.path} must contain a JSON object")
+        schema_version = payload.get("schema_version")
+        if schema_version != EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION:
+            raise ValueError(
+                f"unsupported exchange artifact store version {schema_version!r}; "
+                f"expected {EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION!r}"
+            )
+        records_value = payload.get("records", [])
+        if not isinstance(records_value, list):
+            raise ValueError(f"exchange artifact store {self.path} field 'records' must be a list")
+        records: list[ArtifactVersionRecord] = []
+        for index, item in enumerate(records_value):
+            if not isinstance(item, Mapping):
+                raise ValueError(
+                    f"exchange artifact store {self.path} records[{index}] must be an object"
+                )
+            artifact_payload = item.get("artifact")
+            if not isinstance(artifact_payload, Mapping):
+                raise ValueError(
+                    f"exchange artifact store {self.path} records[{index}].artifact must be an object"
+                )
+            artifact = exchange_artifact_from_json_dict(artifact_payload)
+            _validate_storable_exchange_artifact(artifact)
+            records.append(
+                ArtifactVersionRecord(
+                    artifact_id=artifact.artifact_id,
+                    version=artifact.version,
+                    artifact=artifact,
+                )
+            )
+        return tuple(records)
+
+    def _write_records(self, records: tuple[ArtifactVersionRecord, ...]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION,
+            "records": [
+                {
+                    "artifact_id": record.artifact_id,
+                    "version": record.version,
+                    "artifact": exchange_artifact_to_json_dict(record.artifact),
+                }
+                for record in records
+            ],
+        }
+        temp_path = self.path.with_name(f"{self.path.name}.tmp")
+        temp_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        temp_path.replace(self.path)
+
+
 class JsonlCoordinationEventLog:
     """Append-only JSONL coordination event log."""
 
@@ -151,6 +276,47 @@ class JsonlCoordinationEventLog:
         return tuple(events)
 
 
+def exchange_artifact_to_json_dict(artifact: ExchangeArtifact) -> dict[str, object]:
+    """Serialize an exchange artifact to a stable JSON-compatible dict."""
+
+    return {
+        "artifact_id": artifact.artifact_id,
+        "kind": artifact.kind,
+        "intent": artifact.intent,
+        "producer": artifact.producer,
+        "audience": list(artifact.audience),
+        "scope": _scope_to_json(artifact.scope),
+        "causality": _causality_to_json(artifact.causality),
+        "lifecycle_state": artifact.lifecycle_state,
+        "visibility_policy": _visibility_policy_to_json(artifact.visibility_policy),
+        "created_at": artifact.created_at,
+        "version": artifact.version,
+        "parts": [_payload_part_to_json(part) for part in artifact.parts],
+    }
+
+
+def exchange_artifact_from_json_dict(payload: Mapping[str, object]) -> ExchangeArtifact:
+    """Deserialize an exchange artifact from a JSON-compatible dict."""
+
+    parts_value = payload.get("parts", [])
+    if not isinstance(parts_value, list):
+        raise ValueError("exchange artifact field 'parts' must be a list")
+    return ExchangeArtifact(
+        artifact_id=_mapping_str(payload, "artifact_id"),
+        kind=_mapping_str(payload, "kind") or "message",  # type: ignore[arg-type]
+        intent=_mapping_str(payload, "intent") or "inform",  # type: ignore[arg-type]
+        producer=_mapping_str(payload, "producer"),
+        audience=_string_tuple(payload.get("audience")),
+        scope=_scope_from_json(_mapping(payload.get("scope"))),
+        causality=_causality_from_json(_mapping(payload.get("causality"))),
+        lifecycle_state=_mapping_str(payload, "lifecycle_state") or "draft",  # type: ignore[arg-type]
+        visibility_policy=_visibility_policy_from_json(_mapping(payload.get("visibility_policy"))),
+        created_at=_mapping_str(payload, "created_at"),
+        version=_mapping_str(payload, "version"),
+        parts=tuple(_payload_part_from_json(_mapping(part)) for part in parts_value),
+    )
+
+
 def _event_to_json(event: CoordinationEvent) -> dict[str, object]:
     payload = asdict(event)
     payload["related_artifact_ids"] = list(event.related_artifact_ids)
@@ -173,3 +339,241 @@ def _event_from_json(payload: dict[str, object]) -> CoordinationEvent:
         related_run_ids=tuple(str(item) for item in payload.get("related_run_ids", ()) or ()),
         sequence=payload.get("sequence") if isinstance(payload.get("sequence"), int) else None,
     )
+
+
+def _validate_storable_exchange_artifact(artifact: ExchangeArtifact) -> None:
+    if not artifact.artifact_id:
+        raise ValueError("exchange artifact requires a non-empty artifact_id")
+    if not artifact.version:
+        raise ValueError(f"exchange artifact {artifact.artifact_id!r} requires a non-empty version")
+
+    errors = validate_exchange_artifact(artifact)
+    if errors:
+        joined = "; ".join(errors)
+        raise ValueError(f"exchange artifact {artifact.artifact_id!r} is invalid: {joined}")
+
+
+def _scope_to_json(scope: ExchangeScope) -> dict[str, str]:
+    return {
+        "trajectory_id": scope.trajectory_id,
+        "lane_id": scope.lane_id,
+        "event_id": scope.event_id,
+        "task_id": scope.task_id,
+        "context_id": scope.context_id,
+        "agent_id": scope.agent_id,
+        "runtime_session_id": scope.runtime_session_id,
+    }
+
+
+def _scope_from_json(payload: Mapping[str, object]) -> ExchangeScope:
+    return ExchangeScope(
+        trajectory_id=_mapping_str(payload, "trajectory_id"),
+        lane_id=_mapping_str(payload, "lane_id"),
+        event_id=_mapping_str(payload, "event_id"),
+        task_id=_mapping_str(payload, "task_id"),
+        context_id=_mapping_str(payload, "context_id"),
+        agent_id=_mapping_str(payload, "agent_id"),
+        runtime_session_id=_mapping_str(payload, "runtime_session_id"),
+    )
+
+
+def _causality_to_json(causality: ExchangeCausality) -> dict[str, object]:
+    return {
+        "replies_to": list(causality.replies_to),
+        "depends_on": list(causality.depends_on),
+        "supersedes": list(causality.supersedes),
+        "caused_by": list(causality.caused_by),
+        "correlation_id": causality.correlation_id,
+    }
+
+
+def _causality_from_json(payload: Mapping[str, object]) -> ExchangeCausality:
+    return ExchangeCausality(
+        replies_to=_string_tuple(payload.get("replies_to")),
+        depends_on=_string_tuple(payload.get("depends_on")),
+        supersedes=_string_tuple(payload.get("supersedes")),
+        caused_by=_string_tuple(payload.get("caused_by")),
+        correlation_id=_mapping_str(payload, "correlation_id"),
+    )
+
+
+def _visibility_policy_to_json(policy: VisibilityPolicy) -> dict[str, object]:
+    return {
+        "audience": list(policy.audience),
+        "cross_lane": policy.cross_lane,
+        "contains_sensitive_content": policy.contains_sensitive_content,
+        "redaction_required": policy.redaction_required,
+    }
+
+
+def _visibility_policy_from_json(payload: Mapping[str, object]) -> VisibilityPolicy:
+    return VisibilityPolicy(
+        audience=_string_tuple(payload.get("audience")),
+        cross_lane=_mapping_bool(payload, "cross_lane"),
+        contains_sensitive_content=_mapping_bool(payload, "contains_sensitive_content"),
+        redaction_required=_mapping_bool(payload, "redaction_required"),
+    )
+
+
+def _payload_part_to_json(part: ExchangePayloadPart) -> dict[str, object]:
+    return {
+        "part_type": part.part_type,
+        "text": part.text,
+        "data": dict(part.data),
+        "ref": None if part.ref is None else _reference_to_json(part.ref),
+        "relation": None if part.relation is None else _relation_to_json(part.relation),
+        "contract": None if part.contract is None else _contract_to_json(part.contract),
+        "log": None if part.log is None else _log_to_json(part.log),
+    }
+
+
+def _payload_part_from_json(payload: Mapping[str, object]) -> ExchangePayloadPart:
+    ref = payload.get("ref")
+    relation = payload.get("relation")
+    contract = payload.get("contract")
+    log = payload.get("log")
+    return ExchangePayloadPart(
+        part_type=_mapping_str(payload, "part_type") or "text",  # type: ignore[arg-type]
+        text=_mapping_str(payload, "text"),
+        data=dict(_mapping(payload.get("data"))),
+        ref=None if ref is None else _reference_from_json(_mapping(ref)),
+        relation=None if relation is None else _relation_from_json(_mapping(relation)),
+        contract=None if contract is None else _contract_from_json(_mapping(contract)),
+        log=None if log is None else _log_from_json(_mapping(log)),
+    )
+
+
+def _reference_to_json(ref: ExchangeReference) -> dict[str, str]:
+    return {
+        "ref_kind": ref.ref_kind,
+        "ref_id": ref.ref_id,
+        "version": ref.version,
+        "path": ref.path,
+        "label": ref.label,
+    }
+
+
+def _reference_from_json(payload: Mapping[str, object]) -> ExchangeReference:
+    return ExchangeReference(
+        ref_kind=_mapping_str(payload, "ref_kind"),
+        ref_id=_mapping_str(payload, "ref_id"),
+        version=_mapping_str(payload, "version"),
+        path=_mapping_str(payload, "path"),
+        label=_mapping_str(payload, "label"),
+    )
+
+
+def _relation_to_json(relation: ExchangeRelation) -> dict[str, object]:
+    return {
+        "relation_id": relation.relation_id,
+        "relation_kind": relation.relation_kind,
+        "source": _reference_to_json(relation.source),
+        "target": _reference_to_json(relation.target),
+        "direction": relation.direction,
+        "strength": relation.strength,
+        "status": relation.status,
+        "reason": relation.reason,
+        "since": relation.since,
+        "until": relation.until,
+    }
+
+
+def _relation_from_json(payload: Mapping[str, object]) -> ExchangeRelation:
+    return ExchangeRelation(
+        relation_id=_mapping_str(payload, "relation_id"),
+        relation_kind=_mapping_str(payload, "relation_kind") or "depends_on",  # type: ignore[arg-type]
+        source=_reference_from_json(_mapping(payload.get("source"))),
+        target=_reference_from_json(_mapping(payload.get("target"))),
+        direction=_mapping_str(payload, "direction") or "source_to_target",
+        strength=_mapping_str(payload, "strength"),
+        status=_mapping_str(payload, "status") or "active",  # type: ignore[arg-type]
+        reason=_mapping_str(payload, "reason"),
+        since=_mapping_str(payload, "since"),
+        until=_mapping_str(payload, "until"),
+    )
+
+
+def _contract_to_json(contract: ExchangeContract) -> dict[str, object]:
+    return {
+        "contract_id": contract.contract_id,
+        "contract_kind": contract.contract_kind,
+        "version": contract.version,
+        "title": contract.title,
+        "producer": contract.producer,
+        "consumers": list(contract.consumers),
+        "status": contract.status,
+        "schema_ref": None if contract.schema_ref is None else _reference_to_json(contract.schema_ref),
+        "content": dict(contract.content),
+        "compatibility": contract.compatibility,
+        "supersedes": list(contract.supersedes),
+        "effective_from": contract.effective_from,
+    }
+
+
+def _contract_from_json(payload: Mapping[str, object]) -> ExchangeContract:
+    schema_ref = payload.get("schema_ref")
+    return ExchangeContract(
+        contract_id=_mapping_str(payload, "contract_id"),
+        contract_kind=_mapping_str(payload, "contract_kind") or "coordination_protocol",  # type: ignore[arg-type]
+        version=_mapping_str(payload, "version"),
+        title=_mapping_str(payload, "title"),
+        producer=_mapping_str(payload, "producer"),
+        consumers=_string_tuple(payload.get("consumers")),
+        status=_mapping_str(payload, "status") or "draft",  # type: ignore[arg-type]
+        schema_ref=None if schema_ref is None else _reference_from_json(_mapping(schema_ref)),
+        content=dict(_mapping(payload.get("content"))),
+        compatibility=_mapping_str(payload, "compatibility"),
+        supersedes=_string_tuple(payload.get("supersedes")),
+        effective_from=_mapping_str(payload, "effective_from"),
+    )
+
+
+def _log_to_json(log: ExchangeLog) -> dict[str, object]:
+    return {
+        "timestamp": log.timestamp,
+        "actor": log.actor,
+        "action": log.action,
+        "channel": log.channel,
+        "summary": log.summary,
+        "related_artifact_ids": list(log.related_artifact_ids),
+        "related_event_ids": list(log.related_event_ids),
+        "related_run_ids": list(log.related_run_ids),
+        "sequence": log.sequence,
+        "clock": log.clock,
+    }
+
+
+def _log_from_json(payload: Mapping[str, object]) -> ExchangeLog:
+    sequence = payload.get("sequence")
+    return ExchangeLog(
+        timestamp=_mapping_str(payload, "timestamp"),
+        actor=_mapping_str(payload, "actor"),
+        action=_mapping_str(payload, "action"),
+        channel=_mapping_str(payload, "channel"),
+        summary=_mapping_str(payload, "summary"),
+        related_artifact_ids=_string_tuple(payload.get("related_artifact_ids")),
+        related_event_ids=_string_tuple(payload.get("related_event_ids")),
+        related_run_ids=_string_tuple(payload.get("related_run_ids")),
+        sequence=sequence if isinstance(sequence, int) else None,
+        clock=_mapping_str(payload, "clock") or "wall",  # type: ignore[arg-type]
+    )
+
+
+def _mapping(value: object) -> Mapping[str, object]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _mapping_str(mapping: Mapping[str, object], key: str) -> str:
+    value = mapping.get(key)
+    return value if isinstance(value, str) else ""
+
+
+def _mapping_bool(mapping: Mapping[str, object], key: str) -> bool:
+    value = mapping.get(key)
+    return value if isinstance(value, bool) else False
+
+
+def _string_tuple(value: object) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(item for item in value if isinstance(item, str))

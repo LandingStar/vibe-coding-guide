@@ -482,9 +482,24 @@ InMemoryArtifactVersionStore
 - get(artifact_id, version)
 - latest(artifact_id)
 - list_versions(artifact_id)
+
+JsonArtifactVersionStore
+- put(ExchangeArtifact)
+- get(artifact_id, version)
+- latest(artifact_id)
+- list_versions(artifact_id)
+
+exchange_artifact_to_json_dict()
+exchange_artifact_from_json_dict()
 ```
 
-The first implementation validates scheduler-relevant artifact shape before insertion and rejects overwriting an existing `(artifact_id, version)` pair. It is not durable yet; persistence is intentionally left for the scheduler skeleton / storage backend slice.
+The in-memory implementation remains useful for runtime tests and injected
+fake adapters. `JsonArtifactVersionStore` is the first local durable store: it
+uses a caller-provided JSON path, validates scheduler-relevant artifact shape
+before persistence, rejects overwriting an existing `(artifact_id, version)`
+pair, and preserves exact artifact versions across process boundaries. It is
+still a local file store, not a remote registry, database, or scheduler state
+authority.
 
 ## Scheduler-Relevant Rule
 

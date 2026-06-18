@@ -548,6 +548,13 @@ requires both `storage_manifest` and `log`. This makes agent-private storage
 visible to the artifact-centered coordination layer without making Local Work
 Trajectory or prose transcript the storage authority.
 
+`src/runtime/orchestration/exchange_store.py` now also provides
+`JsonArtifactVersionStore` and exchange artifact JSON serialization helpers.
+This gives agent storage products and scheduler submission products a durable,
+version-addressable coordination store while preserving the existing rule that
+scheduler-relevant state must be machine-readable and validated before
+persistence.
+
 Non-goals:
 
 1. No persistent home implementation yet.
@@ -565,6 +572,17 @@ Deliverables:
 2. Core payload part schemas for text, structured data, references, artifact deltas, contracts, evidence, relations, storage manifests, and logs.
 3. Scheduler-relevant rule: state-changing content must not exist only in prose.
 4. Mapping to RawTranscript, CoordinationEventLog, and ArtifactVersionStore.
+
+Current implementation:
+
+`src/runtime/orchestration/exchange.py` defines the first `ExchangeArtifact`
+shell, payload parts, relation / contract / log products, and validation rule
+that scheduler-relevant content must not exist only in text.
+`src/runtime/orchestration/exchange_store.py` provides
+`InMemoryArtifactVersionStore`, `JsonArtifactVersionStore`,
+`JsonlCoordinationEventLog`, and serialization helpers for current payload part
+types. The JSON store is durable and local, but it remains a coordination
+artifact store rather than scheduler state authority.
 
 Non-goals:
 

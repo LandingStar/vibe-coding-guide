@@ -50,11 +50,15 @@ from .exchange import (
     validate_exchange_artifact,
 )
 from .exchange_store import (
+    EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION,
     ArtifactVersionRecord,
     CoordinationEvent,
     CoordinationEventKind,
     InMemoryArtifactVersionStore,
+    JsonArtifactVersionStore,
     JsonlCoordinationEventLog,
+    exchange_artifact_from_json_dict,
+    exchange_artifact_to_json_dict,
 )
 from .landing import (
     BridgeLandingArtifact,
@@ -246,6 +250,7 @@ __all__ = [
     "ExchangeArtifactIntent",
     "ExchangeArtifactKind",
     "ExchangeArtifactLifecycleState",
+    "EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION",
     "ArtifactVersionRecord",
     "CoordinationEvent",
     "CoordinationEventKind",
@@ -266,6 +271,7 @@ __all__ = [
     "RelationKind",
     "RelationStatus",
     "InMemoryArtifactVersionStore",
+    "JsonArtifactVersionStore",
     "JsonlCoordinationEventLog",
     "JsonlSchedulerEventLog",
     "JsonlSchedulerMergeGateEventLog",
@@ -383,6 +389,8 @@ __all__ = [
     "sandbox_capability_placeholder",
     "scratch_manifest_to_artifact",
     "evaluate_stop_condition",
+    "exchange_artifact_from_json_dict",
+    "exchange_artifact_to_json_dict",
     "drain_ready_tasks",
     "evaluate_task_admission",
     "mark_ready_tasks",
