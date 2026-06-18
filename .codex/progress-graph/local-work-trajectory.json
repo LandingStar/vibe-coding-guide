@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Post Workflow Polish Direction Analysis",
-  "recorded_at": "2026-06-18T19:59:05.855848+00:00",
+  "title": "Exchange Artifact Admission Ledger",
+  "recorded_at": "2026-06-18T21:09:52.040340+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md",
+  "guide_context": "design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Post Workflow Polish Direction Analysis",
+    "title": "Exchange Artifact Admission Ledger",
     "lane_count": 1,
-    "event_count": 1,
-    "relation_count": 0,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "direction",
+      "label": "admission ledger",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md"
+        "context": "design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md"
       }
     }
   },
@@ -36,18 +36,89 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Analyze next direction after workflow polish",
+      "title": "Create narrow planning gate for admission ledger",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-18T19:58:57.897340+00:00",
-        "activated_at": "2026-06-18T19:58:57.897340+00:00",
+        "created_at": "2026-06-18T20:49:26.830183+00:00",
+        "activated_at": "2026-06-18T20:49:26.830183+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T19:59:05.854846+00:00"
+        "completed_at": "2026-06-18T20:51:57.028149+00:00"
+      }
+    },
+    "event:002": {
+      "id": "event:002",
+      "lane_id": "lane:main",
+      "title": "Implement ledger store and CLI admission integration",
+      "kind": "task",
+      "status": "completed",
+      "order": 2,
+      "summary": "Add the durable local admission ledger model/store, wire CLI admission duplicate policy and readback, then cover with focused tests.",
+      "metadata": {
+        "created_at": "2026-06-18T20:52:12.393133+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T21:06:18.279584+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Validate admission ledger runtime and CLI behavior",
+      "kind": "validation",
+      "status": "completed",
+      "order": 3,
+      "summary": "Focused CLI/runtime/MCP/prompt suite passed with 274 tests, covering ledger round-trip, duplicate rejection, explicit duplicate admission, inspect-admissions, and existing resource boundaries.",
+      "metadata": {
+        "created_at": "2026-06-18T21:02:28.853759+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-18T21:06:18.279584+00:00",
+        "completed_at": "2026-06-18T21:09:01.936881+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Close admission ledger slice",
+      "kind": "close",
+      "status": "completed",
+      "order": 4,
+      "summary": "Exchange Artifact Admission Ledger slice is complete with durable ledger, duplicate policy, inspect-admissions, docs, prompts, review, status writeback, and focused validation.",
+      "metadata": {
+        "created_at": "2026-06-18T21:09:21.371160+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-18T21:09:52.040340+00:00"
       }
     }
   },
-  "relations": []
+  "relations": [
+    {
+      "source_event_id": "event:001",
+      "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    }
+  ]
 }

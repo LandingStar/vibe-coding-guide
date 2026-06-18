@@ -32,18 +32,22 @@ Keep the lifecycle split:
 6. `doc-based-coding scheduler admit-exchange-artifact` is the CLI operator
    surface over exact-version store admission. It writes scheduler snapshot and
    event-log state only; it does not run providers, refresh projection, mark
-   exchange artifacts consumed, or mutate Local Work Trajectory.
-7. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+   exchange artifacts consumed, or mutate Local Work Trajectory. It also writes
+   an admission ledger record by default.
+7. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
+   for the local ExchangeArtifact admission ledger. It does not write scheduler
+   state, exchange artifacts, projection artifacts, or Local Work Trajectory.
+8. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-8. `doc-based-coding scheduler project` is the CLI projection refresh surface
+9. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-9. Host-authorized runners use Python/host wiring through
+10. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-10. Controlled host-runtime dogfood uses
+11. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -58,6 +62,7 @@ Prefer explicit paths under `.codex/scheduler/` or a test temp directory:
 .codex/scheduler/scheduler-events.jsonl
 .codex/scheduler/evidence/<evidence-id>.json
 .codex/orchestration/exchange-artifacts.json
+.codex/orchestration/exchange-artifact-admissions.json
 .codex/progress-graph/scheduler-work-trajectory.json
 ```
 
@@ -153,6 +158,9 @@ Optional inputs:
 
 ```text
 --artifact-store-path .codex/orchestration/exchange-artifacts.json
+--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
+--allow-duplicate-admission
+--actor <actor-id>
 --replace-existing
 --timestamp <timestamp>
 ```
@@ -163,12 +171,44 @@ Expected CLI behavior:
 2. Default `--artifact-store-path` to
    `.codex/orchestration/exchange-artifacts.json`.
 3. Require explicit scheduler snapshot and event-log paths.
-4. Print JSON with `ok=true`, `submitted_task_ids`,
-   `submission_event_ids`, count fields, and `authority_split`.
-5. Reject missing arguments and non-submission stored artifacts without
-   scheduler mutation.
-6. Do not run providers, mark exchange artifacts consumed, refresh scheduler
+4. Default `--admission-ledger-path` to
+   `.codex/orchestration/exchange-artifact-admissions.json`.
+5. Before scheduler mutation, reject duplicate exact artifact/version admission
+   when a previous `admitted` ledger record exists and
+   `--allow-duplicate-admission` is absent.
+6. Keep `--allow-duplicate-admission` distinct from `--replace-existing`:
+   duplicate admission controls ledger replay policy, while replace-existing
+   controls scheduler task replacement semantics.
+7. Print JSON with `ok=true`, `submitted_task_ids`,
+   `submission_event_ids`, count fields, `admission_ledger_path`,
+   `admission_ledger_record_id`, and `authority_split`.
+8. Reject missing arguments, duplicate admission, and non-submission stored
+   artifacts without scheduler mutation.
+9. Do not run providers, mark exchange artifacts consumed, refresh scheduler
    projection, expose a stored-artifact MCP write tool, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
+
+### CLI Admission Ledger Readback
+
+Use the CLI admission-ledger readback surface when an operator or host script
+needs to verify exact stored-artifact admission history without mutating
+scheduler state:
+
+```text
+doc-based-coding scheduler inspect-admissions \
+  --admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json \
+  --artifact-id <artifact-id> \
+  --version <version>
+```
+
+Expected ledger behavior:
+
+1. Read `.codex/orchestration/exchange-artifact-admissions.json` by default.
+2. Report compact `status_counts`, `records[]`, `artifact_ids`, filters, and
+   authority clues.
+3. Include `admitted`, `rejected_duplicate`, and `failed` records.
+4. Return an empty readback when the ledger file is missing.
+5. Do not mutate scheduler state, exchange artifacts, scheduler projection, or
    `.codex/progress-graph/local-work-trajectory.json`.
 
 ### CLI Operator Readback And Projection
@@ -221,6 +261,7 @@ Recommended operator workflow:
 ```text
 doc-based-coding resources read dbc://exchange-artifacts/bundle
 doc-based-coding scheduler admit-exchange-artifact ...
+doc-based-coding scheduler inspect-admissions ...
 doc-based-coding scheduler inspect-state ...
 doc-based-coding scheduler project ...
 ```
@@ -521,6 +562,8 @@ Record:
 - paths used
 - submitted task IDs
 - dependency IDs
+- admission ledger path and record IDs
+- whether duplicate admission was rejected or explicitly allowed
 - whether projection was refreshed before run
 - run count and stop reason
 - scheduler projection artifact path

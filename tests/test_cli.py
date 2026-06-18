@@ -71,6 +71,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
 
     assert proc.returncode == 0
     assert "admit-exchange-artifact" in proc.stdout
+    assert "inspect-admissions" in proc.stdout
     assert "inspect-state" in proc.stdout
     assert "project" in proc.stdout
 
@@ -80,7 +81,19 @@ def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
 
     assert proc.returncode == 0
     assert "--artifact-id ID" in proc.stdout
+    assert "--admission-ledger-path PATH" in proc.stdout
+    assert "--allow-duplicate-admission" in proc.stdout
     assert "does not run providers" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_inspect_admissions_help_describes_readback_non_goals() -> None:
+    proc = _run_cli(["scheduler", "inspect-admissions", "--help"])
+
+    assert proc.returncode == 0
+    assert "--admission-ledger-path PATH" in proc.stdout
+    assert "readback command" in proc.stdout
+    assert "does not write scheduler state" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -160,6 +173,7 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
     snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
     event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
     artifact = scheduler_task_submission_to_artifact(
@@ -203,8 +217,16 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
     assert payload["refreshed_projection"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert payload["artifact_store_path"] == str(store_path)
+    assert payload["admission_ledger_path"] == str(ledger_path)
+    assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-1"
     assert snapshot_path.exists()
     assert event_log_path.exists()
+    assert ledger_path.exists()
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert ledger["records"][0]["status"] == "admitted"
+    assert ledger["records"][0]["artifact_id"] == "submission:cli"
+    assert ledger["records"][0]["submitted_task_ids"] == ["task-cli"]
+    assert ledger["records"][0]["allow_duplicate"] is False
     assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
@@ -272,6 +294,151 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_non_submission_without_mu
     assert "is not a scheduler submission artifact" in proc.stderr
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
+    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert ledger["records"][0]["status"] == "failed"
+    assert "is not a scheduler submission artifact" in ledger["records"][0]["error_summary"]
+
+
+def test_scheduler_admit_exchange_artifact_cli_rejects_duplicate_before_scheduler_mutation(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        JsonlSchedulerEventLog,
+        SchedulerTaskSubmission,
+        read_scheduler_state_snapshot,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-dup",
+                title="Duplicate admission task",
+                instruction="Admit once, reject replay by default.",
+                agent=AgentSpec(agent_id="agent:dup", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:dup", lane_id="lane:dup"),
+                output_artifact_id="task-dup:result",
+            ),
+            artifact_id="submission:dup",
+            created_at="2026-06-19T04:20:00+08:00",
+            version="v1",
+        )
+    )
+
+    first = _run_cli(
+        [
+            "scheduler",
+            "admit-exchange-artifact",
+            "--artifact-id",
+            "submission:dup",
+            "--version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+        ],
+        cwd=project,
+    )
+    duplicate = _run_cli(
+        [
+            "scheduler",
+            "admit-exchange-artifact",
+            "--artifact-id",
+            "submission:dup",
+            "--version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--replace-existing",
+        ],
+        cwd=project,
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert duplicate.returncode == 1
+    payload = json.loads(duplicate.stdout)
+    assert payload["ok"] is False
+    assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-2"
+    assert payload["duplicate_of"] == "exchange-artifact-admission-1"
+    assert payload["scheduler_state_mutated"] is False
+    assert "duplicate exact exchange artifact admission rejected" in duplicate.stderr
+    assert len(read_scheduler_state_snapshot(snapshot_path).tasks) == 1
+    assert len(JsonlSchedulerEventLog(event_log_path).read_all()) == 1
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert [record["status"] for record in ledger["records"]] == [
+        "admitted",
+        "rejected_duplicate",
+    ]
+    assert ledger["records"][1]["duplicate_of"] == "exchange-artifact-admission-1"
+
+
+def test_scheduler_admit_exchange_artifact_cli_allows_explicit_duplicate_admission(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-explicit-dup",
+                title="Explicit duplicate admission task",
+                instruction="Allow explicit replay.",
+                agent=AgentSpec(agent_id="agent:explicit-dup", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:explicit-dup"),
+                output_artifact_id="task-explicit-dup:result",
+            ),
+            artifact_id="submission:explicit-dup",
+            created_at="2026-06-19T04:21:00+08:00",
+            version="v1",
+        )
+    )
+    base_args = [
+        "scheduler",
+        "admit-exchange-artifact",
+        "--artifact-id",
+        "submission:explicit-dup",
+        "--version",
+        "v1",
+        "--snapshot-path",
+        ".codex/scheduler/scheduler-state.json",
+        "--event-log-path",
+        ".codex/scheduler/scheduler-events.jsonl",
+    ]
+
+    first = _run_cli(base_args, cwd=project)
+    second = _run_cli(
+        [*base_args, "--allow-duplicate-admission", "--replace-existing", "--actor", "agent:guide"],
+        cwd=project,
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    payload = json.loads(second.stdout)
+    assert payload["allow_duplicate_admission"] is True
+    assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-2"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert [record["status"] for record in ledger["records"]] == ["admitted", "admitted"]
+    assert ledger["records"][1]["allow_duplicate"] is True
+    assert ledger["records"][1]["actor"] == "agent:guide"
 
 
 def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_tasks(tmp_path) -> None:
@@ -400,6 +567,91 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     assert projected["authority_split"]["local_work_trajectory_mutated"] is False
     assert projection_path.exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(["scheduler", "inspect-admissions"], cwd=project)
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["exists"] is False
+    assert payload["record_count"] == 0
+    assert payload["status_counts"] == {}
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_inspect_admissions_filters_records(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-filter",
+                title="Filterable ledger task",
+                instruction="Admit for ledger filtering.",
+                agent=AgentSpec(agent_id="agent:filter", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:filter"),
+                output_artifact_id="task-filter:result",
+            ),
+            artifact_id="submission:filter",
+            created_at="2026-06-19T04:30:00+08:00",
+            version="v1",
+        )
+    )
+    admit = _run_cli(
+        [
+            "scheduler",
+            "admit-exchange-artifact",
+            "--artifact-id",
+            "submission:filter",
+            "--version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+        ],
+        cwd=project,
+    )
+    inspect = _run_cli(
+        [
+            "scheduler",
+            "inspect-admissions",
+            "--artifact-id",
+            "submission:filter",
+            "--version",
+            "v1",
+        ],
+        cwd=project,
+    )
+
+    assert admit.returncode == 0, admit.stderr
+    assert inspect.returncode == 0, inspect.stderr
+    payload = json.loads(inspect.stdout)
+    assert payload["ok"] is True
+    assert payload["exists"] is True
+    assert payload["record_count"] == 1
+    assert payload["status_counts"] == {"admitted": 1}
+    assert payload["artifact_id_filter"] == "submission:filter"
+    assert payload["artifact_version_filter"] == "v1"
+    assert payload["records"][0]["submitted_task_ids"] == ["task-filter"]
+    inspected_snapshot_path = Path(payload["records"][0]["snapshot_path"])
+    assert inspected_snapshot_path.name == "scheduler-state.json"
+    assert inspected_snapshot_path.parent.name == "scheduler"
 
 
 def test_scheduler_inspect_state_requires_snapshot_path(tmp_path) -> None:

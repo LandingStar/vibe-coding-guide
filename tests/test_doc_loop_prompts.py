@@ -144,15 +144,21 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "exact `(artifact_id, version)`" in text
         assert "not a stored-artifact MCP" in text
         assert "doc-based-coding scheduler admit-exchange-artifact" in text
+        assert "doc-based-coding scheduler inspect-admissions" in text
         assert "doc-based-coding scheduler inspect-state" in text
         assert "doc-based-coding scheduler project" in text
         assert "--artifact-id <artifact-id>" in text
+        assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
+        assert "--allow-duplicate-admission" in text
+        assert "duplicate admission controls ledger replay policy" in text
         assert "--event-log-path .codex/scheduler/scheduler-events.jsonl" in text
         assert "operator-triggered admission outside Python" in text
         assert "Recommended operator workflow" in text
+        assert "Expected ledger behavior" in text
         assert "Expected readback behavior" in text
         assert "Expected projection CLI behavior" in text
         assert ".codex/orchestration/exchange-artifacts.json" in text
+        assert ".codex/orchestration/exchange-artifact-admissions.json" in text
         assert "doc-based-coding qoder readiness" in text
         assert "QoderSDKHostReadinessReport" in text
         assert "docs/qoder-host-provisioning-check-guide.md" in text

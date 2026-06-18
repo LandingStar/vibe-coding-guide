@@ -317,7 +317,14 @@ def cmd_qoder(args: list[str]) -> int:
 _SCHEDULER_ADMIT_USAGE = (
     "Usage: doc-based-coding scheduler admit-exchange-artifact "
     "--artifact-id ID --version VERSION --snapshot-path PATH --event-log-path PATH "
-    "[--artifact-store-path PATH] [--replace-existing] [--timestamp TIMESTAMP]"
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--allow-duplicate-admission] [--actor ACTOR] [--replace-existing] "
+    "[--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_INSPECT_ADMISSIONS_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-admissions "
+    "[--admission-ledger-path PATH] [--artifact-id ID] [--version VERSION]"
 )
 
 _SCHEDULER_INSPECT_STATE_USAGE = (
@@ -349,6 +356,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "Usage: doc-based-coding scheduler <subcommand> [args]\n\n"
             "Subcommands:\n"
             "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n"
+            "  inspect-admissions       Read ExchangeArtifact admission ledger summary without mutation\n"
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n",
         )
@@ -357,6 +365,8 @@ def cmd_scheduler(args: list[str]) -> int:
     sub = args[0]
     if sub == "admit-exchange-artifact":
         return cmd_scheduler_admit_exchange_artifact(args[1:])
+    if sub == "inspect-admissions":
+        return cmd_scheduler_inspect_admissions(args[1:])
     if sub == "inspect-state":
         return cmd_scheduler_inspect_state(args[1:])
     if sub == "project":
@@ -364,7 +374,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-state|project> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|project> [args]",
         file=sys.stderr,
     )
     return 1
@@ -382,11 +392,14 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
         return 0
 
     artifact_store_path = ""
+    admission_ledger_path = ""
     artifact_id = ""
     version = ""
     snapshot_path = ""
     event_log_path = ""
     replace_existing = False
+    allow_duplicate_admission = False
+    actor = "operator-cli"
     timestamp = ""
 
     i = 0
@@ -396,12 +409,18 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
             replace_existing = True
             i += 1
             continue
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
         if arg in {
             "--artifact-store-path",
+            "--admission-ledger-path",
             "--artifact-id",
             "--version",
             "--snapshot-path",
             "--event-log-path",
+            "--actor",
             "--timestamp",
         }:
             if i + 1 >= len(args):
@@ -411,6 +430,8 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
             value = args[i + 1]
             if arg == "--artifact-store-path":
                 artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
             elif arg == "--artifact-id":
                 artifact_id = value
             elif arg == "--version":
@@ -419,6 +440,8 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
                 snapshot_path = value
             elif arg == "--event-log-path":
                 event_log_path = value
+            elif arg == "--actor":
+                actor = value
             elif arg == "--timestamp":
                 timestamp = value
             i += 2
@@ -446,8 +469,12 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
 
     try:
         from .runtime.orchestration import (
+            ExchangeArtifactAdmissionRecord,
+            JsonExchangeArtifactAdmissionLedger,
             admit_exchange_artifact_version_to_scheduler,
+            default_exchange_artifact_admission_ledger_path,
             default_exchange_artifact_store_path,
+            utc_admission_timestamp,
         )
 
         store = (
@@ -455,16 +482,135 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
             if artifact_store_path
             else default_exchange_artifact_store_path(root)
         )
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        snapshot = _resolve_project_path(root, snapshot_path)
+        event_log = _resolve_project_path(root, event_log_path)
+        ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+        previous_admissions = ledger.find_successful_admissions(artifact_id, version)
+        if previous_admissions and not allow_duplicate_admission:
+            duplicate = previous_admissions[-1]
+            record = ledger.append(
+                ExchangeArtifactAdmissionRecord(
+                    ledger_id="",
+                    artifact_store_path=store,
+                    artifact_id=artifact_id,
+                    artifact_version=version,
+                    product_type=duplicate.product_type,
+                    surface="cli:scheduler admit-exchange-artifact",
+                    actor=actor,
+                    timestamp=utc_admission_timestamp(),
+                    snapshot_path=snapshot,
+                    event_log_path=event_log,
+                    status="rejected_duplicate",
+                    error_summary=(
+                        "duplicate exact exchange artifact admission rejected; "
+                        "pass --allow-duplicate-admission to admit intentionally"
+                    ),
+                    duplicate_of=duplicate.ledger_id,
+                )
+            )
+            _print_json(
+                {
+                    "ok": False,
+                    "error": record.error_summary,
+                    "admission_ledger_path": str(ledger_path),
+                    "admission_ledger_record_id": record.ledger_id,
+                    "duplicate_of": record.duplicate_of,
+                    "allow_duplicate": record.allow_duplicate,
+                    "artifact_id": artifact_id,
+                    "version": version,
+                    "scheduler_state_mutated": False,
+                    "event_log_mutated": False,
+                    "authority_split": {
+                        "admission_ledger_authority": "exchange_artifact_admission_ledger",
+                        "scheduler_state_authority": "scheduler_snapshot",
+                        "scheduler_state_mutated": False,
+                        "exchange_store_mutated": False,
+                        "provider_executed": False,
+                        "scheduler_projection_refreshed": False,
+                        "local_work_trajectory_mutated": False,
+                    },
+                }
+            )
+            print(record.error_summary, file=sys.stderr)
+            return 1
+
         result = admit_exchange_artifact_version_to_scheduler(
             artifact_store_path=store,
             artifact_id=artifact_id,
             version=version,
-            snapshot_path=_resolve_project_path(root, snapshot_path),
-            event_log_path=_resolve_project_path(root, event_log_path),
+            snapshot_path=snapshot,
+            event_log_path=event_log,
             replace_existing=replace_existing,
             timestamp=timestamp,
         )
+        record = ledger.append(
+            ExchangeArtifactAdmissionRecord(
+                ledger_id="",
+                artifact_store_path=store,
+                artifact_id=artifact_id,
+                artifact_version=version,
+                product_type=result.product_type,
+                surface="cli:scheduler admit-exchange-artifact",
+                actor=actor,
+                timestamp=utc_admission_timestamp(),
+                snapshot_path=result.snapshot_path,
+                event_log_path=result.event_log_path,
+                status="admitted",
+                submitted_task_ids=tuple(task.task_id for task in result.submitted_tasks),
+                dependency_ids=tuple(
+                    dependency.dependency_id
+                    for dependency in result.dependencies_added
+                ),
+                submission_event_ids=result.submission_event_ids,
+                allow_duplicate=allow_duplicate_admission,
+            )
+        )
     except Exception as e:
+        try:
+            if artifact_id and version and snapshot_path and event_log_path:
+                from .runtime.orchestration import (
+                    ExchangeArtifactAdmissionRecord,
+                    JsonExchangeArtifactAdmissionLedger,
+                    default_exchange_artifact_admission_ledger_path,
+                    default_exchange_artifact_store_path,
+                    utc_admission_timestamp,
+                )
+
+                root_for_failure = _find_project_root()
+                failure_store = (
+                    _resolve_project_path(root_for_failure, artifact_store_path)
+                    if artifact_store_path
+                    else default_exchange_artifact_store_path(root_for_failure)
+                )
+                failure_ledger_path = (
+                    _resolve_project_path(root_for_failure, admission_ledger_path)
+                    if admission_ledger_path
+                    else default_exchange_artifact_admission_ledger_path(root_for_failure)
+                )
+                JsonExchangeArtifactAdmissionLedger(failure_ledger_path).append(
+                    ExchangeArtifactAdmissionRecord(
+                        ledger_id="",
+                        artifact_store_path=failure_store,
+                        artifact_id=artifact_id,
+                        artifact_version=version,
+                        product_type="",
+                        surface="cli:scheduler admit-exchange-artifact",
+                        actor=actor,
+                        timestamp=utc_admission_timestamp(),
+                        snapshot_path=_resolve_project_path(root_for_failure, snapshot_path),
+                        event_log_path=_resolve_project_path(root_for_failure, event_log_path),
+                        status="failed",
+                        error_summary=str(e),
+                        allow_duplicate=allow_duplicate_admission,
+                    )
+                )
+        except Exception:
+            pass
         return _handle_error(
             "Error admitting exchange artifact",
             e,
@@ -473,8 +619,78 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
 
     payload = {"ok": True}
     payload.update(result.to_json_dict())
+    payload["admission_ledger_path"] = str(ledger_path)
+    payload["admission_ledger_record_id"] = record.ledger_id
+    payload["allow_duplicate_admission"] = allow_duplicate_admission
     _print_json(payload)
     return 0
+
+
+def cmd_scheduler_inspect_admissions(args: list[str]) -> int:
+    """Read ExchangeArtifact admission ledger records without mutation."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_ADMISSIONS_USAGE + "\n\n"
+            "This is a readback command. It does not write scheduler state, exchange "
+            "artifacts, projection artifacts, or Local Work Trajectory.",
+        )
+        return 0
+
+    admission_ledger_path = ""
+    artifact_id = ""
+    version = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--admission-ledger-path", "--artifact-id", "--version"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_ADMISSIONS_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-admissions option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_ADMISSIONS_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_admission_ledger_path,
+            inspect_exchange_artifact_admission_ledger,
+        )
+
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        inspection = inspect_exchange_artifact_admission_ledger(
+            ledger_path,
+            artifact_id=artifact_id,
+            artifact_version=version,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting exchange artifact admissions",
+            e,
+            category="scheduler_admission_inspect_failed",
+        )
+
+    payload = {"ok": inspection.error_count == 0}
+    payload.update(inspection.to_json_dict())
+    _print_json(payload)
+    return 1 if inspection.error_count else 0
 
 
 def cmd_scheduler_inspect_state(args: list[str]) -> int:
