@@ -6,6 +6,17 @@ import sys
 from pathlib import Path
 
 from src.mcp.tools import GovernanceTools
+from src.runtime.orchestration import (
+    AgentSpec,
+    ContextScope,
+    ExchangeArtifactAdmissionRecord,
+    JsonArtifactVersionStore,
+    JsonExchangeArtifactAdmissionLedger,
+    SchedulerTaskSubmission,
+    default_exchange_artifact_admission_ledger_path,
+    default_exchange_artifact_store_path,
+    scheduler_task_submission_to_artifact,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,6 +52,20 @@ SCHEDULER_MCP_SMOKE_PROMPTS = [
 
 def _read(rel_path: str) -> str:
     return (ROOT / rel_path).read_text(encoding="utf-8")
+
+
+def _write_minimal_project_state(project_root: Path) -> None:
+    gate_dir = project_root / "design_docs" / "stages" / "planning-gate"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
+    checkpoint_dir = project_root / ".codex" / "checkpoints"
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "latest.md").write_text(
+        "# Checkpoint\n## Current Phase\nTest\n"
+        "## Active Planning Gate\n"
+        "design_docs/stages/planning-gate/test.md\n",
+        encoding="utf-8",
+    )
 
 
 def test_local_prompts_require_forward_question_for_progression() -> None:
@@ -138,6 +163,10 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "inspect_exchange_artifact_store" in text
         assert "default_exchange_artifact_store_path" in text
         assert "admission_candidates[]" in text
+        assert "admission_state" in text
+        assert "ledger-derived" in text
+        assert "exchange artifact lifecycle" in text
+        assert "admission_state_source" in text
         assert "admit_exchange_artifact_version_to_scheduler" in text
         assert "PersistedExchangeArtifactAdmissionResult" in text
         assert "submit_scheduler_task_with_persistence" in text
@@ -171,15 +200,7 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
 
 
 def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
-    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
-    gate_dir.mkdir(parents=True)
-    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
-    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
-    checkpoint_dir.mkdir(parents=True)
-    (checkpoint_dir / "latest.md").write_text(
-        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
-        encoding="utf-8",
-    )
+    _write_minimal_project_state(tmp_path)
     tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
 
     resource = next(
@@ -200,15 +221,7 @@ def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_pa
 
 
 def test_host_evidence_presentation_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
-    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
-    gate_dir.mkdir(parents=True)
-    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
-    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
-    checkpoint_dir.mkdir(parents=True)
-    (checkpoint_dir / "latest.md").write_text(
-        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
-        encoding="utf-8",
-    )
+    _write_minimal_project_state(tmp_path)
     tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
 
     resource = next(
@@ -230,15 +243,7 @@ def test_host_evidence_presentation_resource_is_listed_and_read_only_when_empty(
 
 
 def test_exchange_artifacts_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
-    gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
-    gate_dir.mkdir(parents=True)
-    (gate_dir / "test.md").write_text("# Test\n", encoding="utf-8")
-    checkpoint_dir = tmp_path / ".codex" / "checkpoints"
-    checkpoint_dir.mkdir(parents=True)
-    (checkpoint_dir / "latest.md").write_text(
-        "# Checkpoint\n## Current Phase\nTest\n## Active Planning Gate\ndesign_docs/stages/planning-gate/test.md\n",
-        encoding="utf-8",
-    )
+    _write_minimal_project_state(tmp_path)
     tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
 
     resource = next(
@@ -254,11 +259,97 @@ def test_exchange_artifacts_bundle_resource_is_listed_and_read_only_when_empty(t
     assert payload["artifact_count"] == 0
     assert payload["version_count"] == 0
     assert payload["admission_candidate_count"] == 0
+    assert payload["admission_ledger_path"].endswith(
+        ".codex\\orchestration\\exchange-artifact-admissions.json"
+    ) or payload["admission_ledger_path"].endswith(
+        ".codex/orchestration/exchange-artifact-admissions.json"
+    )
+    assert payload["admission_ledger_exists"] is False
     assert payload["error_count"] == 0
     assert payload["summaries"] == []
     assert payload["errors"] == []
     assert payload["authority_split"]["scheduler_mutated"] is False
+    assert payload["authority_split"]["exchange_store_mutated"] is False
+    assert (
+        payload["authority_split"]["admission_state_source"]
+        == "exchange_artifact_admission_ledger"
+    )
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_exchange_artifacts_bundle_resource_projects_admission_state(tmp_path: Path) -> None:
+    _write_minimal_project_state(tmp_path)
+    store_path = default_exchange_artifact_store_path(tmp_path)
+    ledger_path = default_exchange_artifact_admission_ledger_path(tmp_path)
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-server",
+                title="Implement server",
+                instruction="Implement server side.",
+                agent=AgentSpec(agent_id="agent:server", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:server"),
+            ),
+            artifact_id="submission:server",
+            created_at="2026-06-19T06:20:00+08:00",
+            version="v1",
+        )
+    )
+    ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+    admitted = ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=store_path,
+            artifact_id="submission:server",
+            artifact_version="v1",
+            product_type="scheduler_task_submission",
+            surface="mcp:admitExchangeArtifact",
+            actor="agent:guide",
+            timestamp="2026-06-19T06:21:00+08:00",
+            snapshot_path=tmp_path / ".codex" / "scheduler" / "scheduler-state.json",
+            event_log_path=tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl",
+            status="admitted",
+            submitted_task_ids=("task-server",),
+            submission_event_ids=("scheduler-event-1",),
+        )
+    )
+    duplicate = ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=store_path,
+            artifact_id="submission:server",
+            artifact_version="v1",
+            product_type="scheduler_task_submission",
+            surface="mcp:admitExchangeArtifact",
+            actor="agent:guide",
+            timestamp="2026-06-19T06:22:00+08:00",
+            snapshot_path=tmp_path / ".codex" / "scheduler" / "scheduler-state.json",
+            event_log_path=tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl",
+            status="rejected_duplicate",
+            error_summary="duplicate exact artifact/version admission",
+            duplicate_of=admitted.ledger_id,
+        )
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    content = tools.read_resource("dbc://exchange-artifacts/bundle")
+    payload = json.loads(content)
+    summary = payload["summaries"][0]
+    admission_state = summary["admission_state"]
+
+    assert payload["exists"] is True
+    assert payload["admission_ledger_exists"] is True
+    assert admission_state["status"] == "admitted"
+    assert admission_state["record_count"] == 2
+    assert admission_state["latest_record_id"] == duplicate.ledger_id
+    assert admission_state["latest_status"] == "rejected_duplicate"
+    assert admission_state["latest_error_summary"] == "duplicate exact artifact/version admission"
+    assert admission_state["admitted_record_ids"] == [admitted.ledger_id]
+    assert admission_state["rejected_duplicate_record_ids"] == [duplicate.ledger_id]
+    assert payload["authority_split"]["scheduler_mutated"] is False
+    assert payload["authority_split"]["exchange_store_mutated"] is False
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
@@ -332,9 +423,13 @@ def test_cli_resources_read_exchange_artifacts_bundle() -> None:
     assert "artifact_count" in bundle
     assert "version_count" in bundle
     assert "admission_candidate_count" in bundle
+    assert "admission_ledger_path" in bundle
+    assert "admission_ledger_exists" in bundle
     assert "summaries" in bundle
     assert "errors" in bundle
     assert bundle["authority_split"]["admission_preparation_only"] is True
+    assert bundle["authority_split"]["exchange_store_mutated"] is False
+    assert bundle["authority_split"]["admission_state_source"] == "exchange_artifact_admission_ledger"
 
 
 def test_cli_resources_read_missing_resource_returns_clear_error() -> None:

@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Stored-Artifact MCP admission close`
-- Active Slice: `Stored-Artifact MCP Admission Tool (COMPLETED; MCP admitExchangeArtifact now reuses the durable ledger duplicate policy for exact stored scheduler submission admission)`
-- Latest Completed Slice: `Stored-Artifact MCP Admission Tool`
+- Current Phase: `Post-v1.0 — Agent orchestration / ExchangeArtifact admission state projection close`
+- Active Slice: `Exchange Artifact Admission State Projection (COMPLETED; dbc://exchange-artifacts/bundle now exposes ledger-derived admission_state per exact artifact version)`
+- Latest Completed Slice: `Exchange Artifact Admission State Projection`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `198 passed` (tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite; local ignored MCP harness also passed 279 in this workspace)
+- Test Baseline: `201 passed` (tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -50,6 +50,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md`
 - `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`
+- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -69,11 +70,13 @@
 - `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`
 - `review/exchange-artifact-admission-ledger-2026-06-19.md`
 - `review/stored-artifact-mcp-admission-tool-2026-06-19.md`
+- `review/exchange-artifact-admission-state-projection-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md`
 - `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`
+- `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -861,6 +864,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`。本轮在 CLI operator admission 之后补齐无 MCP host 的验证闭环：新增 `doc-based-coding scheduler inspect-state` 只读检查 scheduler snapshot / event-log summary，新增 `doc-based-coding scheduler project` 显式刷新 scheduler-derived trajectory projection；两者保持 admission、readback、projection refresh 与 provider execution 分离，不新增 stored-artifact MCP 写工具、不运行 provider、不标记 exchange artifact consumed、不突变 Local Work Trajectory。review evidence 位于 `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`；验证结果：CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite `267 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md`。本轮新增本地 durable admission ledger：`ExchangeArtifactAdmissionRecord` / `JsonExchangeArtifactAdmissionLedger` / `inspect_exchange_artifact_admission_ledger()` 默认写读 `.codex/orchestration/exchange-artifact-admissions.json`；CLI `scheduler admit-exchange-artifact` 新增 `--admission-ledger-path`、`--allow-duplicate-admission`、`--actor`，成功 admission 记录 `admitted`，重复 exact artifact/version 默认在 scheduler mutation 前拒绝并记录 `rejected_duplicate`，显式允许重复时记录 `allow_duplicate=true`；新增 `scheduler inspect-admissions` 只读检查 ledger。MCP 写工具、daemon、UI、provider execution 与 exchange-store consumed marking 仍延后；review evidence 位于 `review/exchange-artifact-admission-ledger-2026-06-19.md`；验证结果：CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite `274 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`。本轮新增 MCP 写工具 `admitExchangeArtifact`，由 `GovernanceTools.admit_exchange_artifact()` 接入并复用 `admit_exchange_artifact_version_with_ledger()`，使 MCP 与 CLI 共用 exact-version ExchangeArtifact scheduler admission、durable admission ledger、duplicate rejection 与 explicit duplicate override policy；重复 exact artifact/version admission 默认在 scheduler mutation 前拒绝并记录 `rejected_duplicate`，`allowDuplicateAdmission=true` 才允许重放，且继续与 scheduler `replaceExisting` 语义分离。该工具不运行 provider、不自动刷新 scheduler projection、不标记 exchange artifact consumed、不突变 Local Work Trajectory；review evidence 位于 `review/stored-artifact-mcp-admission-tool-2026-06-19.md`；后续方向分析位于 `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `198 passed`，本地 ignored MCP harness 扩展验证 `279 passed`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`。本轮新增 `ExchangeArtifactAdmissionStateProjection`，并把 ledger-derived `admission_state` 投影到 `ExchangeArtifactVersionSummary` / `dbc://exchange-artifacts/bundle` / `doc-based-coding resources read dbc://exchange-artifacts/bundle`；默认读取 `.codex/orchestration/exchange-artifact-admissions.json`，缺 ledger 时返回 `not_admitted`， malformed ledger 隔离进 bundle `errors[]` 而不隐藏有效 store summaries。该投影只读，不标记 exchange artifact consumed、不突变 exchange store lifecycle、不运行 provider、不刷新 scheduler projection、不突变 Local Work Trajectory；review evidence 位于 `review/exchange-artifact-admission-state-projection-2026-06-19.md`；后续方向分析位于 `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `201 passed`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

@@ -1,6 +1,6 @@
-# Checkpoint — 2026-06-19T05:36:00+08:00
+# Checkpoint — 2026-06-19T10:20:00+08:00
 ## Current Phase
-Post-v1.0 — Agent orchestration / Stored-Artifact MCP admission close
+Post-v1.0 — Agent orchestration / ExchangeArtifact admission state projection close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,13 +9,13 @@ Post-v1.0 — Agent orchestration / Stored-Artifact MCP admission close
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Complete `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`.
-- [x] Add MCP `admitExchangeArtifact` exact-version admission tool.
-- [x] Reuse durable admission ledger policy across CLI and MCP admission.
-- [x] Preserve duplicate admission policy separate from scheduler `replaceExisting`.
+- [x] Complete `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`.
+- [x] Add ledger-derived `admission_state` to exchange artifact inspection summaries.
+- [x] Wire `dbc://exchange-artifacts/bundle` to read the default admission ledger path.
+- [x] Preserve missing-ledger `not_admitted` behavior and malformed-ledger error isolation.
 - [x] Update scheduler smoke prompt guidance and bootstrap prompt copy.
-- [x] Record review evidence in `review/stored-artifact-mcp-admission-tool-2026-06-19.md`.
-- [x] Create `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`.
+- [x] Record review evidence in `review/exchange-artifact-admission-state-projection-2026-06-19.md`.
+- [x] Create `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -25,26 +25,25 @@ Post-v1.0 — Agent orchestration / Stored-Artifact MCP admission close
 - Completed Line: ExchangeArtifact Operator Admission Workflow Polish — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md
 - Completed Line: Exchange Artifact Admission Ledger — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md
 - Completed Line: Stored-Artifact MCP Admission Tool — source: design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md
-- Recommended Next Line: Exchange Artifact Lifecycle Consumed Projection — source: design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md
-- Deferred Follow-up Candidates: Scheduler Daemon / Durable Queue; Host Evidence / Scheduler Admission UI Binding; Provider Execution / Qoder Runtime Recheck; Exchange artifact store lifecycle mutation — source: design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md
+- Completed Line: Exchange Artifact Admission State Projection — source: design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md
+- Recommended Next Line: Scheduler Daemon / Durable Queue Readiness — source: design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md
+- Deferred Follow-up Candidates: Host Evidence / Scheduler Admission UI Binding; Provider Execution / Qoder Runtime Recheck; Exchange artifact store lifecycle mutation; richer daemon retry/cancellation policy — source: design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
+- design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md
+- review/exchange-artifact-admission-state-projection-2026-06-19.md
+- design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md
 - review/stored-artifact-mcp-admission-tool-2026-06-19.md
 - design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md
-- design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md
-- review/exchange-artifact-admission-ledger-2026-06-19.md
-- design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md
 - design_docs/agent-coordination-exchange-artifact-design-record.md
 - design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
 - src/runtime/orchestration/exchange_admission_ledger.py
 - src/runtime/orchestration/exchange_store.py
 - src/runtime/orchestration/scheduler_submission.py
 - src/runtime/orchestration/__init__.py
-- src/__main__.py
 - src/mcp/tools.py
-- src/mcp/server.py
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
 - tests/test_runtime_orchestration.py

@@ -92,9 +92,18 @@ Expected inspection behavior:
    lifecycle / producer, scope, payload part types, and visibility clues.
 3. Detect scheduler task submission and batch submission candidates through
    advisory `admission_candidates[]` metadata.
-4. Return an empty bundle when the store file is missing.
-5. Isolate malformed store JSON into `errors[]` / `error_count`.
-6. Do not submit tasks, mark artifacts consumed, execute providers, refresh
+4. Include ledger-derived `admission_state` for each exact artifact version
+   when `.codex/orchestration/exchange-artifact-admissions.json` is available.
+   Missing ledgers produce `admission_state.status=not_admitted`.
+5. Keep `admission_state` read-only: it is not exchange artifact lifecycle
+   mutation, consumed marking, scheduler projection refresh, or a scheduler
+   admission action.
+6. Return an empty bundle when the store file is missing.
+7. Isolate malformed store or admission ledger JSON into `errors[]` /
+   `error_count` without hiding valid store summaries.
+8. Report `authority_split.admission_state_source` as
+   `exchange_artifact_admission_ledger`.
+9. Do not submit tasks, mark artifacts consumed, execute providers, refresh
    scheduler projection, mutate scheduler snapshots, or mutate Local Work
    Trajectory.
 

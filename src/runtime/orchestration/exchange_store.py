@@ -20,6 +20,10 @@ from .exchange import (
     VisibilityPolicy,
     validate_exchange_artifact,
 )
+from .exchange_admission_ledger import (
+    ExchangeArtifactAdmissionRecord,
+    JsonExchangeArtifactAdmissionLedger,
+)
 
 CoordinationEventKind = Literal[
     "artifact_recorded",
@@ -34,6 +38,14 @@ DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH = ".codex/orchestration/exchange-a
 ExchangeArtifactAdmissionProductType = Literal[
     "scheduler_task_submission",
     "scheduler_task_batch_submission",
+]
+ExchangeArtifactAdmissionProjectionStatus = Literal[
+    "not_admitted",
+    "admitted",
+    "failed",
+    "rejected_duplicate",
+    "mixed",
+    "unknown",
 ]
 
 
@@ -77,6 +89,44 @@ class ExchangeArtifactAdmissionCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class ExchangeArtifactAdmissionStateProjection:
+    """Ledger-derived read model for one exact exchange artifact version."""
+
+    status: ExchangeArtifactAdmissionProjectionStatus = "not_admitted"
+    record_count: int = 0
+    status_counts: Mapping[str, int] = field(default_factory=dict)
+    latest_record_id: str = ""
+    latest_status: str = ""
+    latest_timestamp: str = ""
+    latest_actor: str = ""
+    latest_surface: str = ""
+    latest_error_summary: str = ""
+    admitted_record_ids: tuple[str, ...] = ()
+    rejected_duplicate_record_ids: tuple[str, ...] = ()
+    failed_record_ids: tuple[str, ...] = ()
+    source: str = "exchange_artifact_admission_ledger"
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible admission-state projection."""
+
+        return {
+            "status": self.status,
+            "record_count": self.record_count,
+            "status_counts": dict(self.status_counts),
+            "latest_record_id": self.latest_record_id,
+            "latest_status": self.latest_status,
+            "latest_timestamp": self.latest_timestamp,
+            "latest_actor": self.latest_actor,
+            "latest_surface": self.latest_surface,
+            "latest_error_summary": self.latest_error_summary,
+            "admitted_record_ids": list(self.admitted_record_ids),
+            "rejected_duplicate_record_ids": list(self.rejected_duplicate_record_ids),
+            "failed_record_ids": list(self.failed_record_ids),
+            "source": self.source,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ExchangeArtifactVersionSummary:
     """Read-only summary for one stored exchange artifact version."""
 
@@ -94,6 +144,9 @@ class ExchangeArtifactVersionSummary:
     contains_sensitive_content: bool = False
     redaction_required: bool = False
     admission_candidates: tuple[ExchangeArtifactAdmissionCandidate, ...] = ()
+    admission_state: ExchangeArtifactAdmissionStateProjection = field(
+        default_factory=ExchangeArtifactAdmissionStateProjection
+    )
 
     def to_json_dict(self) -> dict[str, object]:
         """Return a compact JSON-compatible inspection payload."""
@@ -116,6 +169,7 @@ class ExchangeArtifactVersionSummary:
                 candidate.to_json_dict()
                 for candidate in self.admission_candidates
             ],
+            "admission_state": self.admission_state.to_json_dict(),
         }
 
 
@@ -128,6 +182,8 @@ class ExchangeArtifactInspectionBundle:
     schema_version: str = EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION
     summaries: tuple[ExchangeArtifactVersionSummary, ...] = ()
     errors: tuple[str, ...] = ()
+    admission_ledger_path: Path | None = None
+    admission_ledger_exists: bool = False
 
     @property
     def artifact_count(self) -> int:
@@ -163,13 +219,19 @@ class ExchangeArtifactInspectionBundle:
             "artifact_count": self.artifact_count,
             "version_count": self.version_count,
             "admission_candidate_count": self.admission_candidate_count,
+            "admission_ledger_path": (
+                "" if self.admission_ledger_path is None else str(self.admission_ledger_path)
+            ),
+            "admission_ledger_exists": self.admission_ledger_exists,
             "error_count": self.error_count,
             "summaries": [summary.to_json_dict() for summary in self.summaries],
             "errors": list(self.errors),
             "authority_split": {
                 "scheduler_state_authority": "scheduler_snapshot",
                 "admission_preparation_only": True,
+                "admission_state_source": "exchange_artifact_admission_ledger",
                 "scheduler_mutated": False,
+                "exchange_store_mutated": False,
                 "local_work_trajectory_mutated": False,
             },
         }
@@ -422,13 +484,18 @@ def default_exchange_artifact_store_path(project_root: str | Path) -> Path:
     return Path(project_root) / DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
 
 
-def inspect_exchange_artifact_store(path: str | Path) -> ExchangeArtifactInspectionBundle:
+def inspect_exchange_artifact_store(
+    path: str | Path,
+    *,
+    admission_ledger_path: str | Path | None = None,
+) -> ExchangeArtifactInspectionBundle:
     """Read a local JSON artifact store into a non-mutating inspection bundle."""
 
     store_path = Path(path)
     return build_exchange_artifact_inspection_bundle(
         store_path,
         exists=store_path.exists(),
+        admission_ledger_path=admission_ledger_path,
     )
 
 
@@ -436,6 +503,7 @@ def build_exchange_artifact_inspection_bundle(
     path: str | Path,
     *,
     exists: bool | None = None,
+    admission_ledger_path: str | Path | None = None,
 ) -> ExchangeArtifactInspectionBundle:
     """Build a read-only summary over stored artifact versions.
 
@@ -444,9 +512,15 @@ def build_exchange_artifact_inspection_bundle(
     """
 
     store_path = Path(path)
+    ledger_path = Path(admission_ledger_path) if admission_ledger_path is not None else None
     file_exists = store_path.exists() if exists is None else exists
     if not file_exists:
-        return ExchangeArtifactInspectionBundle(store_path=store_path, exists=False)
+        return ExchangeArtifactInspectionBundle(
+            store_path=store_path,
+            exists=False,
+            admission_ledger_path=ledger_path,
+            admission_ledger_exists=ledger_path.exists() if ledger_path is not None else False,
+        )
 
     try:
         records = JsonArtifactVersionStore(store_path).list_records()
@@ -455,7 +529,25 @@ def build_exchange_artifact_inspection_bundle(
             store_path=store_path,
             exists=True,
             errors=(str(exc),),
+            admission_ledger_path=ledger_path,
+            admission_ledger_exists=ledger_path.exists() if ledger_path is not None else False,
         )
+
+    ledger_records: tuple[ExchangeArtifactAdmissionRecord, ...] = ()
+    ledger_errors: tuple[str, ...] = ()
+    ledger_exists = ledger_path.exists() if ledger_path is not None else False
+    if ledger_path is not None and ledger_exists:
+        try:
+            ledger_records = JsonExchangeArtifactAdmissionLedger(ledger_path).read_all()
+        except Exception as exc:
+            ledger_errors = (str(exc),)
+
+    records_by_key: dict[tuple[str, str], list[ExchangeArtifactAdmissionRecord]] = {}
+    for record in ledger_records:
+        records_by_key.setdefault(
+            (record.artifact_id, record.artifact_version),
+            [],
+        ).append(record)
 
     latest_keys: dict[str, str] = {}
     for record in records:
@@ -465,6 +557,9 @@ def build_exchange_artifact_inspection_bundle(
         _summarize_artifact_record(
             record,
             latest=latest_keys.get(record.artifact_id) == record.version,
+            admission_state=_build_admission_state_projection(
+                tuple(records_by_key.get((record.artifact_id, record.version), ()))
+            ),
         )
         for record in records
     )
@@ -472,6 +567,9 @@ def build_exchange_artifact_inspection_bundle(
         store_path=store_path,
         exists=True,
         summaries=summaries,
+        errors=ledger_errors,
+        admission_ledger_path=ledger_path,
+        admission_ledger_exists=ledger_exists,
     )
 
 
@@ -479,6 +577,7 @@ def _summarize_artifact_record(
     record: ArtifactVersionRecord,
     *,
     latest: bool,
+    admission_state: ExchangeArtifactAdmissionStateProjection | None = None,
 ) -> ExchangeArtifactVersionSummary:
     artifact = record.artifact
     return ExchangeArtifactVersionSummary(
@@ -496,6 +595,54 @@ def _summarize_artifact_record(
         contains_sensitive_content=artifact.visibility_policy.contains_sensitive_content,
         redaction_required=artifact.visibility_policy.redaction_required,
         admission_candidates=_detect_admission_candidates(artifact),
+        admission_state=admission_state or ExchangeArtifactAdmissionStateProjection(),
+    )
+
+
+def _build_admission_state_projection(
+    records: tuple[ExchangeArtifactAdmissionRecord, ...],
+) -> ExchangeArtifactAdmissionStateProjection:
+    if not records:
+        return ExchangeArtifactAdmissionStateProjection()
+
+    status_counts: dict[str, int] = {}
+    admitted_ids: list[str] = []
+    rejected_ids: list[str] = []
+    failed_ids: list[str] = []
+    for record in records:
+        status_counts[record.status] = status_counts.get(record.status, 0) + 1
+        if record.status == "admitted":
+            admitted_ids.append(record.ledger_id)
+        elif record.status == "rejected_duplicate":
+            rejected_ids.append(record.ledger_id)
+        elif record.status == "failed":
+            failed_ids.append(record.ledger_id)
+
+    latest = records[-1]
+    if admitted_ids:
+        status: ExchangeArtifactAdmissionProjectionStatus = "admitted"
+    elif len(status_counts) > 1:
+        status = "mixed"
+    elif failed_ids:
+        status = "failed"
+    elif rejected_ids:
+        status = "rejected_duplicate"
+    else:
+        status = "unknown"
+
+    return ExchangeArtifactAdmissionStateProjection(
+        status=status,
+        record_count=len(records),
+        status_counts=status_counts,
+        latest_record_id=latest.ledger_id,
+        latest_status=latest.status,
+        latest_timestamp=latest.timestamp,
+        latest_actor=latest.actor,
+        latest_surface=latest.surface,
+        latest_error_summary=latest.error_summary,
+        admitted_record_ids=tuple(admitted_ids),
+        rejected_duplicate_record_ids=tuple(rejected_ids),
+        failed_record_ids=tuple(failed_ids),
     )
 
 

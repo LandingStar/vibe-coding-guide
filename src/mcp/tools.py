@@ -1954,12 +1954,16 @@ class GovernanceTools:
 
         if uri == EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI:
             from ..runtime.orchestration import (
+                default_exchange_artifact_admission_ledger_path,
                 default_exchange_artifact_store_path,
                 inspect_exchange_artifact_store,
             )
 
             bundle = inspect_exchange_artifact_store(
-                default_exchange_artifact_store_path(self._project_root)
+                default_exchange_artifact_store_path(self._project_root),
+                admission_ledger_path=default_exchange_artifact_admission_ledger_path(
+                    self._project_root
+                ),
             )
             return json.dumps(bundle.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 

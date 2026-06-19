@@ -802,6 +802,106 @@ def test_exchange_artifact_store_inspection_summarizes_versions_and_candidates(t
         "task-server",
         "task-client",
     ]
+    assert single["admission_state"]["status"] == "not_admitted"
+    assert single["admission_state"]["record_count"] == 0
+
+
+def test_exchange_artifact_store_inspection_projects_admission_state_from_ledger(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-server",
+                title="Implement server",
+                instruction="Implement the server side.",
+                agent=AgentSpec(agent_id="agent:server", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:server"),
+            ),
+            artifact_id="submission:server",
+            created_at="2026-06-19T06:05:00+08:00",
+            version="v1",
+        )
+    )
+    ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+    admitted = ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=store_path,
+            artifact_id="submission:server",
+            artifact_version="v1",
+            product_type="scheduler_task_submission",
+            surface="mcp:admitExchangeArtifact",
+            actor="agent:guide",
+            timestamp="2026-06-19T06:06:00+08:00",
+            snapshot_path=tmp_path / "scheduler-state.json",
+            event_log_path=tmp_path / "scheduler-events.jsonl",
+            status="admitted",
+            submitted_task_ids=("task-server",),
+            submission_event_ids=("scheduler-event-1",),
+        )
+    )
+    rejected = ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=store_path,
+            artifact_id="submission:server",
+            artifact_version="v1",
+            product_type="scheduler_task_submission",
+            surface="mcp:admitExchangeArtifact",
+            actor="agent:guide",
+            timestamp="2026-06-19T06:07:00+08:00",
+            snapshot_path=tmp_path / "scheduler-state.json",
+            event_log_path=tmp_path / "scheduler-events.jsonl",
+            status="rejected_duplicate",
+            error_summary="duplicate rejected",
+            duplicate_of=admitted.ledger_id,
+        )
+    )
+
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    )
+    payload = bundle.to_json_dict()
+    summary = payload["summaries"][0]
+    admission_state = summary["admission_state"]
+
+    assert payload["admission_ledger_path"] == str(ledger_path)
+    assert payload["admission_ledger_exists"] is True
+    assert admission_state["status"] == "admitted"
+    assert admission_state["record_count"] == 2
+    assert admission_state["status_counts"] == {
+        "admitted": 1,
+        "rejected_duplicate": 1,
+    }
+    assert admission_state["latest_record_id"] == rejected.ledger_id
+    assert admission_state["latest_status"] == "rejected_duplicate"
+    assert admission_state["latest_error_summary"] == "duplicate rejected"
+    assert admission_state["admitted_record_ids"] == [admitted.ledger_id]
+    assert admission_state["rejected_duplicate_record_ids"] == [rejected.ledger_id]
+    assert payload["authority_split"]["exchange_store_mutated"] is False
+
+
+def test_exchange_artifact_store_inspection_isolates_malformed_admission_ledger(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    JsonArtifactVersionStore(store_path).put(_accepted_contract_artifact(version="v1"))
+    ledger_path.write_text("{bad json", encoding="utf-8")
+
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    )
+    payload = bundle.to_json_dict()
+
+    assert bundle.exists is True
+    assert bundle.version_count == 1
+    assert bundle.error_count == 1
+    assert "invalid exchange artifact admission ledger JSON" in bundle.errors[0]
+    assert payload["summaries"][0]["admission_state"]["status"] == "not_admitted"
+    assert payload["admission_ledger_exists"] is True
 
 
 def test_exchange_artifact_store_inspection_isolates_malformed_store(tmp_path) -> None:

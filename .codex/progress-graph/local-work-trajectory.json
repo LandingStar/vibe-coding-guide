@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Stored-Artifact MCP Admission Tool",
-  "recorded_at": "2026-06-18T21:31:46.126393+00:00",
+  "title": "Exchange Artifact Admission State Projection",
+  "recorded_at": "2026-06-19T02:17:35.360157+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md",
+  "guide_context": "design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Stored-Artifact MCP Admission Tool",
+    "title": "Exchange Artifact Admission State Projection",
     "lane_count": 1,
     "event_count": 5,
     "relation_count": 4,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "mcp admission",
+      "label": "admission state",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md"
+        "context": "design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md"
       }
     }
   },
@@ -36,75 +36,73 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create narrow planning gate for stored-artifact MCP admission",
+      "title": "Create narrow planning gate for admission state projection",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-18T21:11:36.947650+00:00",
-        "activated_at": "2026-06-18T21:11:36.947650+00:00",
+        "created_at": "2026-06-19T02:03:11.198994+00:00",
+        "activated_at": "2026-06-19T02:03:11.198994+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T21:12:13.204321+00:00"
+        "completed_at": "2026-06-19T02:03:48.474871+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement stored-artifact MCP admission tool",
+      "title": "Implement admission_state read projection",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Add shared admission-with-ledger runtime helper, expose GovernanceTools.admit_exchange_artifact, register MCP schema, and cover success/duplicate/override behavior.",
+      "summary": "继续实现 admission_state read projection；当前已确认 active lane 为 lane:main，接下来补齐资源/CLI readback 与 prompt 覆盖。",
       "metadata": {
-        "created_at": "2026-06-18T21:12:20.084386+00:00",
+        "created_at": "2026-06-19T02:03:59.739721+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-18T21:25:08.414744+00:00",
-        "completed_at": "2026-06-18T21:31:00.319828+00:00"
+        "updated_at": "2026-06-19T02:09:24.597807+00:00",
+        "completed_at": "2026-06-19T02:12:11.049894+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate MCP admission tool behavior",
+      "title": "Run tracked focused validation for admission_state projection",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Run focused MCP/CLI validation for Stored-Artifact MCP Admission Tool before write-back.",
+      "summary": "Run CLI/runtime/MCP admission/doc-loop prompt suite before write-back and commit.",
       "metadata": {
-        "created_at": "2026-06-18T21:20:42.564950+00:00",
+        "created_at": "2026-06-19T02:12:15.659574+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-18T21:31:00.319828+00:00",
-        "completed_at": "2026-06-18T21:31:08.651669+00:00"
+        "completed_at": "2026-06-19T02:13:04.106628+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Write back MCP admission slice",
+      "title": "Write back admission_state projection close",
       "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Close planning gate, add review/follow-up docs, and synchronize status surfaces for the MCP admission slice.",
+      "summary": "Close planning gate, add review/follow-up direction analysis, refresh Checklist/Phase Map/checkpoint.",
       "metadata": {
-        "created_at": "2026-06-18T21:25:17.318085+00:00",
+        "created_at": "2026-06-19T02:16:20.188917+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-18T21:31:08.651669+00:00",
-        "completed_at": "2026-06-18T21:31:14.055617+00:00"
+        "completed_at": "2026-06-19T02:17:09.118231+00:00"
       }
     },
     "event:005": {
       "id": "event:005",
       "lane_id": "lane:main",
-      "title": "Close stored-artifact MCP admission slice",
+      "title": "Close admission_state projection slice",
       "kind": "close",
       "status": "completed",
       "order": 5,
-      "summary": "Stored-Artifact MCP Admission Tool completed and validated. Next recommended gate: Exchange Artifact Lifecycle Consumed Projection.",
+      "summary": "Exchange Artifact Admission State Projection completed and validated. Next recommended gate: Scheduler Daemon / Durable Queue Readiness.",
       "metadata": {
-        "created_at": "2026-06-18T21:31:29.409335+00:00",
+        "created_at": "2026-06-19T02:17:28.176891+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-18T21:31:46.126393+00:00"
+        "completed_at": "2026-06-19T02:17:35.360157+00:00"
       }
     }
   },
