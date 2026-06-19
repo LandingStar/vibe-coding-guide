@@ -72,6 +72,7 @@ from src.runtime.orchestration import (
     ScratchManifestEntry,
     SchedulerTaskBatchSubmission,
     SchedulerTaskSubmission,
+    SchedulerDaemonTickRequest,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
@@ -104,6 +105,7 @@ from src.runtime.orchestration import (
     run_host_authorized_scheduler_once,
     run_ready_task,
     run_scheduled_task_with_registry,
+    run_scheduler_daemon_tick,
     roll_up_work_item,
     sandbox_capability_placeholder,
     scheduler_task_batch_submission_from_artifact,
@@ -115,6 +117,7 @@ from src.runtime.orchestration import (
     submit_scheduler_task_batch_with_persistence,
     submit_scheduler_task,
     validate_exchange_artifact,
+    summarize_scheduler_queue,
     wake_dependent_tasks,
     write_compacted_scheduler_snapshot,
     write_host_scheduler_run_evidence,
@@ -3613,6 +3616,140 @@ def test_run_persisted_scheduler_once_with_wiring_rejects_non_fake_without_host_
             sandbox_registry=sandbox_registry,
             runtime_wiring=runtime_wiring,
         )
+
+
+def test_scheduler_daemon_tick_advances_one_bounded_fake_task(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+                "task-b": _scheduled_task("task-b", output_artifact_id="task-b:result"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-b",
+                    source_task_id="task-a",
+                    target_task_id="task-b",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_tick(
+        SchedulerDaemonTickRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            max_runs=1,
+            timestamp="2026-06-19T10:40:00+08:00",
+        )
+    )
+    payload = result.to_json_dict()
+    written = read_scheduler_state_snapshot(snapshot_path)
+
+    assert payload["ok"] is True
+    assert payload["run_count"] == 1
+    assert payload["stop_reason"] == "max_runs_reached"
+    assert payload["ran_tasks"] is True
+    assert payload["refreshed_projection"] is False
+    assert payload["scheduler_event_count"] == 5
+    assert payload["queue_summary"]["completed_task_ids"] == ["task-a"]
+    assert payload["queue_summary"]["ready_task_ids"] == ["task-b"]
+    assert payload["queue_summary"]["dependency_ids"] == ["dep-a-b"]
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert written.tasks["task-a"].state == "complete"
+    assert written.tasks["task-b"].state == "ready"
+
+
+def test_scheduler_daemon_tick_reports_blocked_queue_without_running(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-blocked": _scheduled_task(
+                    "task-blocked",
+                    edit_lease=EditScopeLease(
+                        lease_id="lease-blocked",
+                        task_id="task-blocked",
+                        allowed_artifacts=("src/app.py",),
+                    ),
+                    sandbox_profile=SandboxProfile(
+                        profile_id="none",
+                        profile_kind="none",
+                    ),
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_tick(
+        SchedulerDaemonTickRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            max_runs=1,
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["run_count"] == 0
+    assert payload["stop_reason"] == "blocked_tasks"
+    assert payload["ran_tasks"] is False
+    assert payload["queue_summary"]["blocked_task_ids"] == ["task-blocked"]
+    assert payload["queue_summary"]["task_state_counts"] == {"blocked": 1}
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_scheduler_daemon_tick_rejects_non_fake_without_injected_runtime(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
+
+    with pytest.raises(ValueError, match="only supports runtime_provider='fake'"):
+        run_scheduler_daemon_tick(
+            SchedulerDaemonTickRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_provider="qoder",
+            )
+        )
+
+
+def test_summarize_scheduler_queue_groups_task_states() -> None:
+    summary = summarize_scheduler_queue(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", state="complete"),
+                "task-b": _scheduled_task("task-b", state="ready"),
+                "task-c": _scheduled_task("task-c", state="waiting"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-c",
+                    source_task_id="task-a",
+                    target_task_id="task-c",
+                    required_state="complete",
+                ),
+            ),
+        )
+    )
+    payload = summary.to_json_dict()
+
+    assert payload["task_state_counts"] == {
+        "complete": 1,
+        "ready": 1,
+        "waiting": 1,
+    }
+    assert payload["completed_task_ids"] == ["task-a"]
+    assert payload["ready_task_ids"] == ["task-b"]
+    assert payload["waiting_task_ids"] == ["task-c"]
+    assert payload["dependency_ids"] == ["dep-a-c"]
 
 
 def test_host_scheduler_runner_fake_result_is_json_serializable(tmp_path) -> None:

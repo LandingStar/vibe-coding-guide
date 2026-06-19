@@ -73,6 +73,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "admit-exchange-artifact" in proc.stdout
     assert "inspect-admissions" in proc.stdout
     assert "inspect-state" in proc.stdout
+    assert "tick" in proc.stdout
     assert "project" in proc.stdout
 
 
@@ -104,6 +105,18 @@ def test_scheduler_inspect_state_help_describes_readback_non_goals() -> None:
     assert "--snapshot-path PATH" in proc.stdout
     assert "readback command" in proc.stdout
     assert "does not write scheduler state" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_tick_help_describes_bounded_fake_runtime_non_goals() -> None:
+    proc = _run_cli(["scheduler", "tick", "--help"])
+
+    assert proc.returncode == 0
+    assert "--snapshot-path PATH" in proc.stdout
+    assert "--event-log-path PATH" in proc.stdout
+    assert "--max-runs N" in proc.stdout
+    assert "bounded fake-runtime" in proc.stdout
+    assert "does not refresh scheduler projection" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -522,20 +535,21 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
         ],
         cwd=project,
     )
-    project_proc = _run_cli(
+    tick = _run_cli(
         [
             "scheduler",
-            "project",
+            "tick",
             "--snapshot-path",
             ".codex/scheduler/scheduler-state.json",
             "--event-log-path",
             ".codex/scheduler/scheduler-events.jsonl",
-            "--guide-context",
-            "cli-workflow-test",
+            "--max-runs",
+            "1",
+            "--timestamp",
+            "2026-06-19T10:50:00+08:00",
         ],
         cwd=project,
     )
-
     assert admit.returncode == 0, admit.stderr
     admitted = json.loads(admit.stdout)
     assert admitted["submitted_task_ids"] == ["task-a", "task-b"]
@@ -555,17 +569,75 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     assert inspected["authority_split"]["scheduler_state_mutated"] is False
     assert inspected["authority_split"]["local_work_trajectory_mutated"] is False
 
+    assert tick.returncode == 0, tick.stderr
+    ticked = json.loads(tick.stdout)
+    assert ticked["run_count"] == 1
+    assert ticked["stop_reason"] == "max_runs_reached"
+    assert ticked["ran_tasks"] is True
+    assert ticked["refreshed_projection"] is False
+    assert ticked["queue_summary"]["completed_task_ids"] == ["task-a"]
+    assert ticked["queue_summary"]["ready_task_ids"] == ["task-b"]
+    assert ticked["authority_split"]["scheduler_state_mutated"] is True
+    assert ticked["authority_split"]["provider_executed"] is True
+    assert ticked["authority_split"]["scheduler_projection_refreshed"] is False
+    assert ticked["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not projection_path.exists()
+
+    project_proc = _run_cli(
+        [
+            "scheduler",
+            "project",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--guide-context",
+            "cli-workflow-test",
+        ],
+        cwd=project,
+    )
+
     assert project_proc.returncode == 0, project_proc.stderr
     projected = json.loads(project_proc.stdout)
     assert projected["scheduler_projection_path"] == str(projection_path)
     assert projected["event_count"] == 2
     assert projected["lane_count"] == 2
-    assert projected["metadata"]["scheduler_event_log_count"] == "2"
+    assert projected["metadata"]["scheduler_event_log_count"] == "7"
     assert projected["ran_tasks"] is False
     assert projected["refreshed_projection"] is True
     assert projected["authority_split"]["provider_executed"] is False
     assert projected["authority_split"]["local_work_trajectory_mutated"] is False
     assert projection_path.exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_tick_rejects_non_fake_provider_without_mutation(tmp_path) -> None:
+    from src.runtime.orchestration import SchedulerState, write_scheduler_state_snapshot
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "tick",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--runtime-provider",
+            "qoder",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "only --runtime-provider fake" in proc.stderr
+    assert not event_log_path.exists()
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

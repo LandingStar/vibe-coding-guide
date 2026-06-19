@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Exchange Artifact Admission State Projection",
-  "recorded_at": "2026-06-19T02:17:35.360157+00:00",
+  "title": "Scheduler Daemon Durable Queue Readiness",
+  "recorded_at": "2026-06-19T02:40:22.583048+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md",
+  "guide_context": "design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Exchange Artifact Admission State Projection",
+    "title": "Scheduler Daemon Durable Queue Readiness",
     "lane_count": 1,
-    "event_count": 5,
-    "relation_count": 4,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "admission state",
+      "label": "daemon readiness",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md"
+        "context": "design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md"
       }
     }
   },
@@ -36,73 +36,58 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create narrow planning gate for admission state projection",
+      "title": "Create narrow planning gate for scheduler daemon readiness",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T02:03:11.198994+00:00",
-        "activated_at": "2026-06-19T02:03:11.198994+00:00",
+        "created_at": "2026-06-19T02:21:28.765013+00:00",
+        "activated_at": "2026-06-19T02:21:28.765013+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:03:48.474871+00:00"
+        "completed_at": "2026-06-19T02:22:12.948906+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement admission_state read projection",
+      "title": "Implement daemon-ready bounded scheduler tick contract",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "继续实现 admission_state read projection；当前已确认 active lane 为 lane:main，接下来补齐资源/CLI readback 与 prompt 覆盖。",
+      "summary": "Add a thin runtime wrapper over persisted scheduler run primitives with queue summary/readback and fake-runtime guard.",
       "metadata": {
-        "created_at": "2026-06-19T02:03:59.739721+00:00",
+        "created_at": "2026-06-19T02:22:21.145507+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-19T02:09:24.597807+00:00",
-        "completed_at": "2026-06-19T02:12:11.049894+00:00"
+        "completed_at": "2026-06-19T02:32:14.119461+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Run tracked focused validation for admission_state projection",
+      "title": "Validate scheduler daemon readiness slice",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Run CLI/runtime/MCP admission/doc-loop prompt suite before write-back and commit.",
+      "summary": "Run focused and tracked validation over runtime, CLI, MCP admission, and doc-loop prompt surfaces.",
       "metadata": {
-        "created_at": "2026-06-19T02:12:15.659574+00:00",
+        "created_at": "2026-06-19T02:32:25.793208+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:13:04.106628+00:00"
+        "completed_at": "2026-06-19T02:33:16.174555+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Write back admission_state projection close",
+      "title": "Close scheduler daemon readiness writeback",
       "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Close planning gate, add review/follow-up direction analysis, refresh Checklist/Phase Map/checkpoint.",
+      "summary": "Update checkpoint/status docs, run final focused validation and scoped change analysis, then commit the daemon-ready scheduler tick slice.",
       "metadata": {
-        "created_at": "2026-06-19T02:16:20.188917+00:00",
+        "created_at": "2026-06-19T02:37:33.245772+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:17:09.118231+00:00"
-      }
-    },
-    "event:005": {
-      "id": "event:005",
-      "lane_id": "lane:main",
-      "title": "Close admission_state projection slice",
-      "kind": "close",
-      "status": "completed",
-      "order": 5,
-      "summary": "Exchange Artifact Admission State Projection completed and validated. Next recommended gate: Scheduler Daemon / Durable Queue Readiness.",
-      "metadata": {
-        "created_at": "2026-06-19T02:17:28.176891+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:17:35.360157+00:00"
+        "completed_at": "2026-06-19T02:40:22.583048+00:00"
       }
     }
   },
@@ -128,15 +113,6 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:004",
-      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

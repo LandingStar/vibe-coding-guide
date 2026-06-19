@@ -179,7 +179,10 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding scheduler admit-exchange-artifact" in text
         assert "doc-based-coding scheduler inspect-admissions" in text
         assert "doc-based-coding scheduler inspect-state" in text
+        assert "doc-based-coding scheduler tick" in text
         assert "doc-based-coding scheduler project" in text
+        assert "daemon-ready bounded advancement" in text
+        assert "queue_summary" in text
         assert "--artifact-id <artifact-id>" in text
         assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
         assert "--allow-duplicate-admission" in text

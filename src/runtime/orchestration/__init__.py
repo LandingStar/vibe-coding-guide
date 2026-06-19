@@ -234,6 +234,13 @@ from .scheduler_runner import (
     run_persisted_scheduler_once,
     run_persisted_scheduler_once_with_wiring,
 )
+from .scheduler_daemon import (
+    SchedulerDaemonQueueSummary,
+    SchedulerDaemonTickRequest,
+    SchedulerDaemonTickResult,
+    run_scheduler_daemon_tick,
+    summarize_scheduler_queue,
+)
 from .scheduler_host_runner import (
     HostSchedulerRunRequest,
     HostSchedulerRunResult,
@@ -397,6 +404,9 @@ __all__ = [
     "PersistedSchedulerTaskSubmissionResult",
     "PersistedExchangeArtifactAdmissionResult",
     "PersistedSchedulerRunOnceResult",
+    "SchedulerDaemonQueueSummary",
+    "SchedulerDaemonTickRequest",
+    "SchedulerDaemonTickResult",
     "HostSchedulerRunRequest",
     "HostSchedulerRunResult",
     "HostSchedulerRunEvidence",
@@ -447,6 +457,7 @@ __all__ = [
     "resolve_task_permission_review",
     "run_ready_task",
     "run_preflighted_task",
+    "run_scheduler_daemon_tick",
     "run_persisted_scheduler_once",
     "run_persisted_scheduler_once_with_wiring",
     "run_host_authorized_scheduler_once",
@@ -466,6 +477,7 @@ __all__ = [
     "submit_scheduler_task_batch_with_persistence",
     "submit_scheduler_task",
     "submit_scheduler_task_with_persistence",
+    "summarize_scheduler_queue",
     "task_to_runtime_spec",
     "utc_admission_timestamp",
     "validate_exchange_artifact",

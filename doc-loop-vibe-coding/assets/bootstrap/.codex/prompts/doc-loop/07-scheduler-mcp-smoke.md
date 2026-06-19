@@ -43,15 +43,18 @@ Keep the lifecycle split:
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
 9. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-10. `doc-based-coding scheduler project` is the CLI projection refresh surface
+10. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
+   surface. It runs one fake-runtime tick over scheduler snapshot/event-log
+   state and does not refresh scheduler projection automatically.
+11. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-11. Host-authorized runners use Python/host wiring through
+12. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-12. Controlled host-runtime dogfood uses
+13. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -279,13 +282,18 @@ Expected ledger behavior:
 
 ### CLI Operator Readback And Projection
 
-Use the CLI readback and projection surfaces when an operator or script needs
-to verify admission results without an MCP host:
+Use the CLI readback, bounded tick, and projection surfaces when an operator or
+script needs to verify admission results without an MCP host:
 
 ```text
 doc-based-coding scheduler inspect-state \
   --snapshot-path .codex/scheduler/scheduler-state.json \
   --event-log-path .codex/scheduler/scheduler-events.jsonl
+
+doc-based-coding scheduler tick \
+  --snapshot-path .codex/scheduler/scheduler-state.json \
+  --event-log-path .codex/scheduler/scheduler-events.jsonl \
+  --max-runs 1
 
 doc-based-coding scheduler project \
   --snapshot-path .codex/scheduler/scheduler-state.json \
@@ -311,6 +319,17 @@ Expected readback behavior:
 3. Do not write scheduler state, exchange artifacts, projection artifacts, run
    providers, or mutate `.codex/progress-graph/local-work-trajectory.json`.
 
+Expected tick behavior:
+
+1. Recover scheduler state from explicit snapshot and event-log paths.
+2. Run at most the requested `--max-runs` fake-runtime tasks.
+3. Return `run_count`, `stop_reason`, `queue_summary`, scheduler event count,
+   and `authority_split`.
+4. Write scheduler snapshot/event-log state through scheduler primitives.
+5. Do not run real providers, refresh scheduler projection, mutate exchange
+   artifacts, mutate admission ledger, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
+
 Expected projection CLI behavior:
 
 1. Read scheduler snapshot and optional scheduler / merge-gate JSONL logs.
@@ -330,6 +349,7 @@ admitExchangeArtifact
 doc-based-coding scheduler admit-exchange-artifact ...
 doc-based-coding scheduler inspect-admissions ...
 doc-based-coding scheduler inspect-state ...
+doc-based-coding scheduler tick ...
 doc-based-coding scheduler project ...
 ```
 
