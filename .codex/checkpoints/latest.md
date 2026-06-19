@@ -23,7 +23,7 @@ Post-v1.0 - Agent orchestration / Background scheduler daemon lifecycle protocol
 (none)
 ## Direction Candidates
 - Completed Line: Background Scheduler Daemon Lifecycle Protocol - source: design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md
-- Potential Next Operator Line: Scheduler Daemon Lifecycle CLI/MCP Read-Write Surface - source: review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md
+- Recommended Next Operator Line: Scheduler Daemon Lifecycle CLI/MCP Read-Write Surface - source: design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
 - Deferred Line: Edit Lease Conflict Policy Expansion - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - Deferred Line: Runtime Subagent Policy - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - Deferred Line: Real Sandbox Provider Spike - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
@@ -33,6 +33,7 @@ Post-v1.0 - Agent orchestration / Background scheduler daemon lifecycle protocol
 - design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md
 - review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md
+- design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
 - src/runtime/orchestration/scheduler_daemon_lifecycle.py
 - src/runtime/orchestration/scheduler_daemon.py
 - tests/test_runtime_orchestration.py
