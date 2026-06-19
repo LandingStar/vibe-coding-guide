@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import {
+  buildSchedulerOperatorWorkflowArgs,
+  type SchedulerOperatorAction,
+} from './schedulerOperatorContracts';
 
 const execFileAsync = promisify(execFile);
 
@@ -76,11 +80,6 @@ export type SchedulerOperatorWorkflowState = {
   lastAction: SchedulerOperatorLastAction;
 };
 
-export type SchedulerOperatorAction =
-  | { kind: 'admit'; artifactId: string; version: string }
-  | { kind: 'runLoop' }
-  | { kind: 'project' };
-
 export function buildIdleSchedulerOperatorLastAction(): SchedulerOperatorLastAction {
   return {
     action: '',
@@ -141,7 +140,7 @@ export async function runSchedulerOperatorAction(
   },
 ): Promise<SchedulerOperatorLastAction> {
   const startedAt = new Date().toISOString();
-  const args = schedulerActionArgs(options.action);
+  const args = buildSchedulerOperatorWorkflowArgs(options.action);
   options.outputChannel.appendLine(
     `[SchedulerOperator] Running ${options.action.kind}: ${options.pythonPath} doc-based-coding ${args.join(' ')}`,
   );
@@ -293,58 +292,6 @@ function buildCliScriptInvocation(
     'raise SystemExit(main())',
   ].join('\n');
   return ['-c', script];
-}
-
-function schedulerActionArgs(action: SchedulerOperatorAction): string[] {
-  const baseArgs = [
-    'scheduler',
-    'operator-workflow',
-    '--artifact-store-path',
-    '.codex/orchestration/exchange-artifacts.json',
-    '--admission-ledger-path',
-    '.codex/orchestration/exchange-artifact-admissions.json',
-    '--snapshot-path',
-    '.codex/scheduler/scheduler-state.json',
-    '--event-log-path',
-    '.codex/scheduler/scheduler-events.jsonl',
-    '--projection-output-path',
-    '.codex/progress-graph/scheduler-work-trajectory.json',
-    '--actor',
-    'vscode-scheduler-operator',
-  ];
-  if (action.kind === 'admit') {
-    return [
-      ...baseArgs,
-      '--artifact-id',
-      action.artifactId,
-      '--version',
-      action.version,
-      '--admit',
-    ];
-  }
-  if (action.kind === 'runLoop') {
-    const evidenceId = `vscode-operator-${Date.now()}`;
-    return [
-      ...baseArgs,
-      '--run-loop',
-      '--runtime-provider',
-      'fake',
-      '--max-ticks',
-      '3',
-      '--max-runs-per-tick',
-      '1',
-      '--evidence-id',
-      evidenceId,
-      '--evidence-path',
-      `.codex/scheduler/evidence/${evidenceId}.json`,
-    ];
-  }
-  return [
-    ...baseArgs,
-    '--refresh-projection',
-    '--guide-context',
-    'vscode-scheduler-operator',
-  ];
 }
 
 function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperatorExchangeSummary {

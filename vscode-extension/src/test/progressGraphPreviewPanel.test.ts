@@ -106,22 +106,28 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
     join(__dirname, '..', '..', 'src', 'views', 'schedulerOperatorWorkflow.ts'),
     'utf-8',
   );
+  const schedulerOperatorContractSource = readFileSync(
+    join(__dirname, '..', '..', 'src', 'views', 'schedulerOperatorContracts.ts'),
+    'utf-8',
+  );
 
   assert.match(source, /readSchedulerOperatorWorkflowState/);
   assert.match(source, /runSchedulerOperatorAction/);
   assert.match(source, /case 'schedulerOperatorAction'/);
   assert.match(source, /_coerceSchedulerOperatorAction/);
+  assert.match(source, /coerceSchedulerOperatorActionMessage/);
   assert.match(source, /schedulerOperatorWorkflow: schedulerOperatorWorkflow/);
   assert.match(schedulerOperatorSource, /dbc:\/\/exchange-artifacts\/bundle/);
-  assert.match(schedulerOperatorSource, /'scheduler',\s*'operator-workflow'/);
-  assert.match(schedulerOperatorSource, /'--admit'/);
-  assert.match(schedulerOperatorSource, /'--run-loop'/);
-  assert.match(schedulerOperatorSource, /'--refresh-projection'/);
-  assert.match(schedulerOperatorSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
-  assert.match(schedulerOperatorSource, /'--admission-ledger-path',\s*'\.codex\/orchestration\/exchange-artifact-admissions\.json'/);
-  assert.match(schedulerOperatorSource, /'--projection-output-path',\s*'\.codex\/progress-graph\/scheduler-work-trajectory\.json'/);
-  assert.match(schedulerOperatorSource, /'--runtime-provider',\s*'fake'/);
-  assert.match(schedulerOperatorSource, /'--max-ticks',\s*'3'/);
+  assert.match(schedulerOperatorSource, /buildSchedulerOperatorWorkflowArgs/);
+  assert.match(schedulerOperatorContractSource, /'scheduler',\s*'operator-workflow'/);
+  assert.match(schedulerOperatorContractSource, /'--admit'/);
+  assert.match(schedulerOperatorContractSource, /'--run-loop'/);
+  assert.match(schedulerOperatorContractSource, /'--refresh-projection'/);
+  assert.match(schedulerOperatorContractSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
+  assert.match(schedulerOperatorContractSource, /'--admission-ledger-path',\s*'\.codex\/orchestration\/exchange-artifact-admissions\.json'/);
+  assert.match(schedulerOperatorContractSource, /'--projection-output-path',\s*'\.codex\/progress-graph\/scheduler-work-trajectory\.json'/);
+  assert.match(schedulerOperatorContractSource, /'--runtime-provider',\s*'fake'/);
+  assert.match(schedulerOperatorContractSource, /'--max-ticks',\s*'3'/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'admission_result'\)/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'loop_result'\)/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'projection_result'\)/);
@@ -129,10 +135,11 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /from src\.__main__ import main/);
   assert.match(schedulerOperatorSource, /sys\.argv = \["doc-based-coding"/);
   assert.match(schedulerOperatorSource, /tools\.read_resource/);
-  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'admit-exchange-artifact'/);
-  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'daemon-loop'/);
-  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'project'/);
+  assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'admit-exchange-artifact'/);
+  assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'daemon-loop'/);
+  assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'project'/);
   assert.doesNotMatch(schedulerOperatorSource, /localTrajectory|write_resource|callTool/);
+  assert.doesNotMatch(schedulerOperatorContractSource, /localTrajectory|write_resource|callTool/);
 });
 
 test('progress graph refresh does not treat a target project tools directory as platform source root', () => {

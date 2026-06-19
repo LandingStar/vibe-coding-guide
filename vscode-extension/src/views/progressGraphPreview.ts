@@ -23,10 +23,13 @@ import {
   buildSchedulerOperatorPaths,
   readSchedulerOperatorWorkflowState,
   runSchedulerOperatorAction,
-  type SchedulerOperatorAction,
   type SchedulerOperatorLastAction,
   type SchedulerOperatorWorkflowState,
 } from './schedulerOperatorWorkflow';
+import {
+  coerceSchedulerOperatorActionMessage,
+  type SchedulerOperatorAction,
+} from './schedulerOperatorContracts';
 type ProgressGraphPreviewMessage = {
     command:
       | 'refresh'
@@ -307,23 +310,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
   }
 
   private _coerceSchedulerOperatorAction(message: ProgressGraphPreviewMessage): SchedulerOperatorAction | null {
-    if (message.action === 'admit') {
-      if (!message.artifactId || !message.version) {
-        return null;
-      }
-      return {
-        kind: 'admit',
-        artifactId: message.artifactId,
-        version: message.version,
-      };
-    }
-    if (message.action === 'runLoop') {
-      return { kind: 'runLoop' };
-    }
-    if (message.action === 'project') {
-      return { kind: 'project' };
-    }
-    return null;
+    return coerceSchedulerOperatorActionMessage(message);
   }
 
     private _previewUri(workspaceFolder: vscode.WorkspaceFolder): vscode.Uri {

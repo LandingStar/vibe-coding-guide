@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Operator Workflow Dogfood Fixture",
-  "recorded_at": "2026-06-19T11:42:04.299135+00:00",
+  "title": "Scheduler Operator Extension-Host Click Sequence Smoke",
+  "recorded_at": "2026-06-19T13:04:47.127161+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md",
+  "guide_context": "design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Operator Workflow Dogfood Fixture",
+    "title": "Scheduler Operator Extension-Host Click Sequence Smoke",
     "lane_count": 1,
     "event_count": 3,
     "relation_count": 2,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "dogfood fixture",
+      "label": "extension-host smoke",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md"
+        "context": "design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md"
       }
     }
   },
@@ -36,45 +36,44 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create operator workflow dogfood fixture planning gate",
+      "title": "Define narrow extension-host smoke slice",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T11:23:05.784776+00:00",
-        "activated_at": "2026-06-19T11:23:05.784776+00:00",
+        "created_at": "2026-06-19T12:54:03.590233+00:00",
+        "activated_at": "2026-06-19T12:54:03.590233+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T11:24:44.934305+00:00"
+        "completed_at": "2026-06-19T12:56:25.858018+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement controlled scheduler operator dogfood fixture",
+      "title": "Extract scheduler operator click contract",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "继续实现校验：核对 fixture helper、JsonArtifactVersionStore replace 语义、CLI seed-dogfood-fixture surface 与 seed/read/admit/run/project/readback workflow tests。",
+      "summary": "Add a testable host-contract helper for webview messages and shared CLI args.",
       "metadata": {
-        "created_at": "2026-06-19T11:24:52.263619+00:00",
+        "created_at": "2026-06-19T12:56:32.946862+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-19T11:34:12.674926+00:00",
-        "completed_at": "2026-06-19T11:41:19.330896+00:00"
+        "completed_at": "2026-06-19T13:04:33.813563+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Write back dogfood fixture completion state",
+      "title": "Write back click sequence smoke completion",
       "kind": "writeback",
       "status": "completed",
       "order": 3,
-      "summary": "关闭 planning gate，新增 review evidence 与 follow-up direction analysis，并同步 Checklist / Phase Map / checkpoint。",
+      "summary": "Close planning gate, record review evidence, update state docs, and validate build/tests/screenshot.",
       "metadata": {
-        "created_at": "2026-06-19T11:41:25.557738+00:00",
+        "created_at": "2026-06-19T13:04:40.598431+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T11:42:04.299135+00:00"
+        "completed_at": "2026-06-19T13:04:47.127161+00:00"
       }
     }
   },

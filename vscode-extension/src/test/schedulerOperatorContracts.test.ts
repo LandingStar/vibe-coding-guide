@@ -1,0 +1,132 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  buildSchedulerOperatorWorkflowArgs,
+  coerceSchedulerOperatorActionMessage,
+  type SchedulerOperatorAction,
+} from '../views/schedulerOperatorContracts.js';
+
+function flagCount(args: string[], flag: string): number {
+  return args.filter((arg) => arg === flag).length;
+}
+
+function assertOnlyExplicitActionFlag(args: string[], expectedFlag: string): void {
+  for (const flag of ['--admit', '--run-loop', '--refresh-projection']) {
+    assert.equal(flagCount(args, flag), flag === expectedFlag ? 1 : 0);
+  }
+}
+
+function assertSharedWorkflowBase(args: string[]): void {
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'operator-workflow']);
+  assert.ok(args.includes('--artifact-store-path'));
+  assert.ok(args.includes('.codex/orchestration/exchange-artifacts.json'));
+  assert.ok(args.includes('--admission-ledger-path'));
+  assert.ok(args.includes('.codex/orchestration/exchange-artifact-admissions.json'));
+  assert.ok(args.includes('--snapshot-path'));
+  assert.ok(args.includes('.codex/scheduler/scheduler-state.json'));
+  assert.ok(args.includes('--event-log-path'));
+  assert.ok(args.includes('.codex/scheduler/scheduler-events.jsonl'));
+  assert.ok(args.includes('--projection-output-path'));
+  assert.ok(args.includes('.codex/progress-graph/scheduler-work-trajectory.json'));
+  assert.ok(args.includes('--actor'));
+  assert.ok(args.includes('vscode-scheduler-operator'));
+}
+
+test('scheduler operator click sequence maps webview messages to shared workflow args', () => {
+  const messages = [
+    {
+      command: 'schedulerOperatorAction',
+      action: 'admit',
+      artifactId: 'scheduler-operator-dogfood-multilane',
+      version: 'v1',
+    },
+    {
+      command: 'schedulerOperatorAction',
+      action: 'runLoop',
+    },
+    {
+      command: 'schedulerOperatorAction',
+      action: 'project',
+    },
+  ];
+  const actions = messages.map((message) => coerceSchedulerOperatorActionMessage(message));
+
+  assert.deepEqual(actions, [
+    {
+      kind: 'admit',
+      artifactId: 'scheduler-operator-dogfood-multilane',
+      version: 'v1',
+    },
+    { kind: 'runLoop' },
+    { kind: 'project' },
+  ] satisfies SchedulerOperatorAction[]);
+
+  const admitArgs = buildSchedulerOperatorWorkflowArgs(actions[0]!, { now: () => 123456 });
+  assertSharedWorkflowBase(admitArgs);
+  assertOnlyExplicitActionFlag(admitArgs, '--admit');
+  assert.deepEqual(
+    admitArgs.slice(admitArgs.indexOf('--artifact-id'), admitArgs.indexOf('--artifact-id') + 4),
+    ['--artifact-id', 'scheduler-operator-dogfood-multilane', '--version', 'v1'],
+  );
+
+  const loopArgs = buildSchedulerOperatorWorkflowArgs(actions[1]!, {
+    evidenceId: 'vscode-operator-smoke',
+  });
+  assertSharedWorkflowBase(loopArgs);
+  assertOnlyExplicitActionFlag(loopArgs, '--run-loop');
+  assert.ok(loopArgs.includes('--runtime-provider'));
+  assert.ok(loopArgs.includes('fake'));
+  assert.ok(loopArgs.includes('--max-ticks'));
+  assert.ok(loopArgs.includes('3'));
+  assert.ok(loopArgs.includes('--max-runs-per-tick'));
+  assert.ok(loopArgs.includes('1'));
+  assert.ok(loopArgs.includes('--evidence-id'));
+  assert.ok(loopArgs.includes('vscode-operator-smoke'));
+  assert.ok(loopArgs.includes('--evidence-path'));
+  assert.ok(loopArgs.includes('.codex/scheduler/evidence/vscode-operator-smoke.json'));
+
+  const projectArgs = buildSchedulerOperatorWorkflowArgs(actions[2]!, { now: () => 123456 });
+  assertSharedWorkflowBase(projectArgs);
+  assertOnlyExplicitActionFlag(projectArgs, '--refresh-projection');
+  assert.ok(projectArgs.includes('--guide-context'));
+  assert.ok(projectArgs.includes('vscode-scheduler-operator'));
+});
+
+test('scheduler operator click contract rejects incomplete admission messages', () => {
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'admit',
+      artifactId: 'submission:missing-version',
+    }),
+    null,
+  );
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'admit',
+      version: 'v1',
+    }),
+    null,
+  );
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'refresh',
+      action: 'runLoop',
+    }),
+    null,
+  );
+});
+
+test('scheduler operator run-loop args can derive deterministic evidence path from clock', () => {
+  const args = buildSchedulerOperatorWorkflowArgs(
+    { kind: 'runLoop' },
+    { now: () => 42 },
+  );
+
+  assert.ok(args.includes('--evidence-id'));
+  assert.ok(args.includes('vscode-operator-42'));
+  assert.ok(args.includes('--evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/vscode-operator-42.json'));
+});
