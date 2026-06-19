@@ -11,25 +11,37 @@ const evidenceDir = path.join(repoRoot, 'output', 'electron', 'webview-runner-sm
 const extensionTestsPath = path.join(extensionRoot, 'dist', 'electron-test', 'suite', 'index.js');
 const summaryPath = path.join(evidenceDir, 'electron-webview-smoke-summary.json');
 const renderedHtmlPath = path.join(evidenceDir, 'rendered-progress-graph-preview.html');
+const repoLocalCodeExe = path.join(
+  repoRoot,
+  'output',
+  'electron',
+  'vscode-executable',
+  process.platform === 'win32' ? 'Code.exe' : 'code',
+);
+const defaultUserCodeExe = 'C:\\Users\\16329\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe';
 
 prepareWorkspace(workspaceRoot);
 
-const configuredExecutable = process.env.VSCODE_ELECTRON_SMOKE_EXECUTABLE;
-const defaultCodeCmd = 'C:\\Users\\16329\\AppData\\Local\\Programs\\Microsoft VS Code\\bin\\code.cmd';
-const defaultCodeExe = 'C:\\Users\\16329\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe';
-const vscodeExecutablePath = resolveVSCodeExecutablePath(
-  configuredExecutable
-  || (process.platform === 'win32' && existsSync(defaultCodeExe) ? defaultCodeExe : undefined),
-);
+const executableResolution = resolveVSCodeExecutable({
+  configuredPath: process.env.VSCODE_ELECTRON_SMOKE_EXECUTABLE,
+  repoLocalPath: repoLocalCodeExe,
+  userFallbackPath: process.platform === 'win32' ? defaultUserCodeExe : undefined,
+});
 
-if (!vscodeExecutablePath) {
+if (!executableResolution.executablePath) {
   throw new Error(
-    'VS Code executable not found. Set VSCODE_ELECTRON_SMOKE_EXECUTABLE to Code.exe or a compatible VS Code executable.',
+    [
+      'VS Code executable not found.',
+      'Set VSCODE_ELECTRON_SMOKE_EXECUTABLE to Code.exe or place an isolated executable at:',
+      `  ${repoLocalCodeExe}`,
+    ].join('\n'),
   );
 }
 
+printExecutableDiagnostic(executableResolution);
+
 await runVSCodeElectronSmoke({
-  executablePath: vscodeExecutablePath,
+  executablePath: executableResolution.executablePath,
   args: [
     workspaceRoot,
     '--disable-extensions',
@@ -45,6 +57,8 @@ await runVSCodeElectronSmoke({
     `--extensionTestsPath=${extensionTestsPath}`,
   ],
   env: buildElectronLaunchEnv(process.env),
+}).catch((error) => {
+  throw enrichElectronSmokeError(error, executableResolution);
 });
 
 assertEvidenceWritten();
@@ -144,19 +158,84 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf-8');
 }
 
-function resolveVSCodeExecutablePath(configuredPath) {
-  if (!configuredPath) {
-    return undefined;
+export function resolveVSCodeExecutable({ configuredPath, repoLocalPath, userFallbackPath }) {
+  const candidates = [
+    {
+      sourceKind: 'env',
+      sourceLabel: 'VSCODE_ELECTRON_SMOKE_EXECUTABLE',
+      configuredPath,
+    },
+    {
+      sourceKind: 'repo-local',
+      sourceLabel: 'output/electron/vscode-executable',
+      configuredPath: repoLocalPath,
+    },
+    {
+      sourceKind: 'user-local',
+      sourceLabel: 'default user VS Code install',
+      configuredPath: userFallbackPath,
+    },
+  ];
+
+  for (const candidate of candidates) {
+    const executablePath = resolveVSCodeExecutablePath(candidate.configuredPath);
+    if (executablePath) {
+      return {
+        ...candidate,
+        executablePath,
+      };
+    }
   }
+
+  return {
+    sourceKind: 'missing',
+    sourceLabel: 'none',
+    configuredPath: null,
+    executablePath: null,
+  };
+}
+
+function resolveVSCodeExecutablePath(configuredPath) {
+  if (!configuredPath || !existsSync(configuredPath)) {
+    return null;
+  }
+
   if (process.platform === 'win32') {
     const lowerPath = configuredPath.toLowerCase();
     if (lowerPath.endsWith('code.cmd')) {
       const codeExe = path.resolve(path.dirname(configuredPath), '..', 'Code.exe');
-      return existsSync(codeExe) ? codeExe : undefined;
+      return existsSync(codeExe) ? codeExe : null;
     }
   }
 
   return configuredPath;
+}
+
+function printExecutableDiagnostic(resolution) {
+  console.log('[electron-smoke] VS Code executable resolution');
+  console.log(`[electron-smoke] source=${resolution.sourceKind} (${resolution.sourceLabel})`);
+  console.log(`[electron-smoke] executable=${resolution.executablePath}`);
+  if (resolution.sourceKind === 'user-local') {
+    console.log(
+      '[electron-smoke] using the user-local VS Code install; if it is updating, set VSCODE_ELECTRON_SMOKE_EXECUTABLE or place an isolated Code.exe under output/electron/vscode-executable/',
+    );
+  }
+}
+
+function enrichElectronSmokeError(error, resolution) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (resolution.sourceKind !== 'user-local') {
+    return error;
+  }
+
+  return new Error([
+    message,
+    '',
+    'Electron smoke used the user-local VS Code install. If startup reports `vscode-updating`, rerun with:',
+    '  VSCODE_ELECTRON_SMOKE_EXECUTABLE=<path-to-isolated-Code.exe>',
+    'or place an isolated executable at:',
+    `  ${repoLocalCodeExe}`,
+  ].join('\n'));
 }
 
 function buildElectronLaunchEnv(baseEnv) {

@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Electron webview runner spike close`
-- Active Slice: `Electron Webview Runner Spike (COMPLETED; narrow real VS Code Electron runner seam implemented, focused validation passed, true rendered Electron evidence deferred by local VS Code update mutex)`
-- Latest Completed Slice: `Electron Webview Runner Spike`
+- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke isolated executable hardening close`
+- Active Slice: `Electron Smoke Isolated VS Code Executable (COMPLETED; runner now resolves env/repo-local/user-local executable sources and explains user-local update-lock remediation)`
+- Latest Completed Slice: `Electron Smoke Isolated VS Code Executable`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; Progress Graph Preview panel test `11 passed`; extension manifest test `1 passed`; Progress Graph Preview HTML test `13 passed`; Scheduler Operator lifecycle smoke `3 passed`; Local Work Trajectory renderer test `2 passed`; scheduler operator contract test `3 passed`; focused scheduler projection/runtime pytest `2 passed, 245 deselected`; Electron smoke runner implemented but `npm run test:electron:smoke --prefix vscode-extension` is currently blocked before extension-test startup by the local VS Code `vscode-updating` mutex, so no rendered Electron evidence was produced yet
+- Test Baseline: VS Code extension build passed; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; extension manifest test `1 passed`; Electron smoke runner now reports selected executable source and remediation path, but `npm run test:electron:smoke --prefix vscode-extension` still selects user-local VS Code and is blocked before extension-test startup by the local `vscode-updating` mutex, so rendered Electron evidence still requires an isolated executable or cleared update lock
 
 ## 当前 Handoff Footprint
 
@@ -68,6 +68,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-projection-readability-review.md`
 - `design_docs/stages/planning-gate/2026-06-19-extension-host-scheduler-projection-lifecycle-smoke.md`
 - `design_docs/stages/planning-gate/2026-06-19-electron-webview-runner-spike.md`
+- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-isolated-vscode-executable.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -105,6 +106,7 @@
 - `review/scheduler-projection-readability-review-2026-06-19.md`
 - `review/extension-host-scheduler-projection-lifecycle-smoke-2026-06-19.md`
 - `review/electron-webview-runner-spike-2026-06-19.md`
+- `review/electron-smoke-isolated-vscode-executable-2026-06-20.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -128,6 +130,7 @@
 - `design_docs/scheduler-projection-readability-review-followup-direction-analysis.md`
 - `design_docs/extension-host-scheduler-projection-lifecycle-smoke-followup-direction-analysis.md`
 - `design_docs/electron-webview-runner-spike-followup-direction-analysis.md`
+- `design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
