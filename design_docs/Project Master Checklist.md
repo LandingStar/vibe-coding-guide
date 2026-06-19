@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke release validation promotion decision`
-- Active Slice: `Electron Smoke Release Validation Promotion Direction Analysis (COMPLETED; recommends a pre-provisioned release checklist gate while keeping VS Code download explicit)`
-- Latest Completed Slice: `Electron Smoke Release Validation Promotion Direction Analysis`
+- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke release checklist pre-provisioned gate close`
+- Active Slice: `Electron Smoke Release Checklist Pre-Provisioned Gate (COMPLETED; release.py now runs Electron smoke by default after VSIX packaging when pre-provisioned VS Code 1.93.1 executable/manifest are present, with explicit --skip-electron-smoke escape hatch)`
+- Latest Completed Slice: `Electron Smoke Release Checklist Pre-Provisioned Gate`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download; explicit provisioning for VS Code `1.93.1` passed; Electron smoke passed with repo-local executable; rendered evidence summary confirmed `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`; screenshot sanity check passed (`1600x1000`, `sampled_unique_colors=38`). Electron smoke is still not promoted to release-grade validation until a separate checklist/cache policy decision.
+- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download; explicit provisioning for VS Code `1.93.1` passed; Electron smoke passed with repo-local executable; rendered evidence summary confirmed `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`; screenshot sanity check passed (`1600x1000`, `sampled_unique_colors=38`). Release script now includes a pre-provisioned Electron smoke gate by default; focused release tests `26 passed`, Electron provisioning test `4 passed`, Electron runner test `3 passed`, release dry-run and skip dry-run passed, release smoke preflight/summary helper passed.
 
 ## 当前 Handoff Footprint
 
@@ -71,6 +71,7 @@
 - `design_docs/stages/planning-gate/2026-06-20-electron-smoke-isolated-vscode-executable.md`
 - `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-executable-provisioning-policy.md`
 - `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md`
+- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -111,6 +112,7 @@
 - `review/electron-smoke-isolated-vscode-executable-2026-06-20.md`
 - `review/electron-smoke-vscode-executable-provisioning-policy-2026-06-20.md`
 - `review/electron-smoke-vscode-provisioning-automation-2026-06-20.md`
+- `review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`

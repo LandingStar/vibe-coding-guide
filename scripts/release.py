@@ -7,6 +7,7 @@ Usage:
     python scripts/release.py                   # Full release
     python scripts/release.py --dry-run         # Show release plan
     python scripts/release.py --skip-tests      # Skip pytest (for iteration)
+    python scripts/release.py --skip-electron-smoke  # Skip Electron smoke gate
     python scripts/release.py --version 0.9.2   # Override version for zip name
 """
 
@@ -28,6 +29,22 @@ DIST_DIR = ROOT / "dist"
 RELEASE_DIR = ROOT / "release"
 EXTENSION_DIR = ROOT / "vscode-extension"
 EXTENSION_VENDOR_DIR = EXTENSION_DIR / "vendor"
+ELECTRON_SMOKE_VSCODE_VERSION = "1.93.1"
+ELECTRON_VSCODE_EXECUTABLE = (
+    ROOT
+    / "output"
+    / "electron"
+    / "vscode-executable"
+    / ("Code.exe" if sys.platform.startswith("win") else "code")
+)
+ELECTRON_VSCODE_MANIFEST = ELECTRON_VSCODE_EXECUTABLE.parent / "manifest.json"
+ELECTRON_SMOKE_SUMMARY = (
+    ROOT
+    / "output"
+    / "electron"
+    / "webview-runner-smoke"
+    / "electron-webview-smoke-summary.json"
+)
 
 # Files to include in the release zip alongside the wheels
 RELEASE_EXTRAS = [
@@ -83,6 +100,131 @@ def _run_tests() -> bool:
         cwd=str(ROOT),
     )
     return result.returncode == 0
+
+
+def _display_path(path: Path) -> str:
+    """Return a readable path for release diagnostics."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _preflight_electron_smoke_executable(
+    *,
+    executable_path: Path = ELECTRON_VSCODE_EXECUTABLE,
+    manifest_path: Path = ELECTRON_VSCODE_MANIFEST,
+    expected_version: str = ELECTRON_SMOKE_VSCODE_VERSION,
+) -> tuple[bool, str]:
+    """Check that release Electron smoke has an explicitly provisioned VS Code."""
+    remediation = (
+        "Run: npm run provision:electron:vscode --prefix vscode-extension -- "
+        f"provision {expected_version}"
+    )
+
+    if not executable_path.exists():
+        return (
+            False,
+            "Pre-provisioned VS Code executable is missing: "
+            f"{_display_path(executable_path)}. {remediation}",
+        )
+    if not manifest_path.exists():
+        return (
+            False,
+            "Pre-provisioned VS Code manifest is missing: "
+            f"{_display_path(manifest_path)}. {remediation}",
+        )
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return False, f"Electron smoke manifest is invalid JSON: {_display_path(manifest_path)} ({exc})"
+
+    version = str(manifest.get("version", ""))
+    if version != expected_version:
+        return (
+            False,
+            "Electron smoke manifest version mismatch: "
+            f"expected {expected_version}, got {version or '<missing>'}. {remediation}",
+        )
+
+    target_executable = manifest.get("target_executable")
+    if target_executable:
+        try:
+            target_path = Path(str(target_executable)).resolve()
+            expected_path = executable_path.resolve()
+        except OSError as exc:
+            return False, f"Electron smoke manifest target_executable is invalid: {exc}"
+        if target_path != expected_path:
+            return (
+                False,
+                "Electron smoke manifest target_executable does not match release preflight path: "
+                f"{target_path} != {expected_path}",
+            )
+
+    return True, (
+        "Pre-provisioned VS Code executable ready: "
+        f"version={version}, executable={_display_path(executable_path)}"
+    )
+
+
+def _assert_electron_smoke_summary(summary_path: Path = ELECTRON_SMOKE_SUMMARY) -> tuple[bool, str]:
+    """Validate the Electron smoke evidence summary expected by release gate."""
+    if not summary_path.exists():
+        return False, f"Electron smoke summary was not produced: {_display_path(summary_path)}"
+
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return False, f"Electron smoke summary is invalid JSON: {_display_path(summary_path)} ({exc})"
+
+    expected = {
+        "ok": True,
+        "panelVisible": True,
+        "hasSchedulerTrajectoryRoot": True,
+        "hasSchedulerTrajectoryPayload": True,
+        "lanes": 4,
+        "events": 6,
+        "relations": 12,
+    }
+    mismatches = [
+        f"{key}: expected {expected_value!r}, got {summary.get(key)!r}"
+        for key, expected_value in expected.items()
+        if summary.get(key) != expected_value
+    ]
+    if mismatches:
+        return False, "Electron smoke summary assertions failed: " + "; ".join(mismatches)
+
+    return True, f"Electron smoke summary assertions passed: {_display_path(summary_path)}"
+
+
+def _run_electron_smoke_release_gate(dry_run: bool = False) -> bool:
+    """Run release-grade Electron smoke through the explicit pre-provisioned gate."""
+    print(f"\n{'='*60}")
+    print("Running Electron smoke release gate...")
+    print(f"{'='*60}")
+
+    ok, message = _preflight_electron_smoke_executable()
+    print(f"  {message}")
+    if not ok:
+        return False
+
+    if dry_run:
+        print("  [dry-run] Would run: npm run test:electron:smoke --prefix vscode-extension")
+        return True
+
+    npm_executable = _resolve_npm_executable()
+    if npm_executable is None:
+        print("ERROR: Could not find npm executable required to run Electron smoke.", file=sys.stderr)
+        return False
+
+    result = subprocess.run([npm_executable, "run", "test:electron:smoke"], cwd=str(EXTENSION_DIR))
+    if result.returncode != 0:
+        return False
+
+    ok, message = _assert_electron_smoke_summary()
+    print(f"  {message}")
+    return ok
 
 
 def _build_extension_package(dry_run: bool = False) -> Path | None:
@@ -207,6 +349,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Package doc-based-coding release")
     parser.add_argument("--dry-run", action="store_true", help="Show release plan without executing")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running pytest")
+    parser.add_argument(
+        "--skip-electron-smoke",
+        action="store_true",
+        help="Skip release Electron smoke gate; provisioning remains explicit and no download is attempted",
+    )
     parser.add_argument("--skip-checks", action="store_true", help="Skip version consistency check")
     parser.add_argument("--no-isolation", action="store_true", help="Build without isolated venv (avoids PyPI downloads)")
     parser.add_argument("--version", type=str, help="Override version for zip name")
@@ -240,11 +387,32 @@ def main() -> int:
         print(f"  1. Build dual-package wheels with version and secret hygiene checks")
         print(f"  2. Run full test suite")
         print(f"  3. Build VS Code extension VSIX")
-        print(f"  4. Package release zip: doc-based-coding-v{version}.zip")
+        if args.skip_electron_smoke:
+            print(f"  4. Skip Electron smoke release gate (--skip-electron-smoke)")
+        else:
+            print(
+                "  4. Run Electron smoke release gate with pre-provisioned "
+                f"VS Code {ELECTRON_SMOKE_VSCODE_VERSION}"
+            )
+        print(f"  5. Package release zip: doc-based-coding-v{version}.zip")
         print()
         extension_vsix = _build_extension_package(dry_run=True)
         if extension_vsix is None:
             return 1
+        if not args.skip_electron_smoke:
+            print()
+            print("Electron smoke release gate:")
+            print(
+                "  [dry-run] Would preflight: "
+                f"{ELECTRON_VSCODE_EXECUTABLE.relative_to(ROOT)} and "
+                f"{ELECTRON_VSCODE_MANIFEST.relative_to(ROOT)}"
+            )
+            print("  [dry-run] Would run: npm run test:electron:smoke --prefix vscode-extension")
+            print(
+                "  [dry-run] Missing pre-provisioned executable remediation: "
+                "npm run provision:electron:vscode --prefix vscode-extension -- "
+                f"provision {ELECTRON_SMOKE_VSCODE_VERSION}"
+            )
         _package_release(version, extension_vsix, dry_run=True)
         return 0
 
@@ -273,8 +441,18 @@ def main() -> int:
         return 1
     print(f"\n  VSIX: {extension_vsix.relative_to(ROOT)}")
 
-    # Step 4: Package
-    print("\nStep 4: Packaging release...")
+    # Step 4: Electron smoke release gate
+    if args.skip_electron_smoke:
+        print("\nStep 4: Skipping Electron smoke release gate (--skip-electron-smoke)")
+    else:
+        print("\nStep 4: Running Electron smoke release gate...")
+        if not _run_electron_smoke_release_gate():
+            print("\nERROR: Electron smoke release gate failed.", file=sys.stderr)
+            return 1
+        print("\n  Electron smoke: PASSED")
+
+    # Step 5: Package
+    print("\nStep 5: Packaging release...")
     zip_path = _package_release(version, extension_vsix)
     if zip_path is None:
         return 1
@@ -287,6 +465,7 @@ def main() -> int:
     print(f"  Zip:     {zip_path.relative_to(ROOT)}")
     print(f"  Wheels:  dist/")
     print(f"  VSIX:    {extension_vsix.relative_to(ROOT)}")
+    print(f"  Electron smoke: {'SKIPPED' if args.skip_electron_smoke else 'PASSED'}")
     print(f"\n  Next steps:")
     print(f"    1. Verify installation in a clean venv")
     print(f"    2. Verify extension install from VSIX")

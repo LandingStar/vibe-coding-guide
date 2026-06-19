@@ -39,6 +39,7 @@ tests/*
 !tests/test_mcp_admission.py
 !tests/test_progress_graph_trajectory.py
 !tests/test_runtime_orchestration.py
+!tests/test_release_versioning.py
 example/
 
 # OS

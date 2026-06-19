@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-20T02:08:00+08:00
+# Checkpoint - 2026-06-20T02:21:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Electron smoke release validation promotion decision
+Post-v1.0 - Agent orchestration / Electron smoke release checklist pre-provisioned gate close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -31,18 +31,28 @@ Post-v1.0 - Agent orchestration / Electron smoke release validation promotion de
 - [x] Capture screenshot-style evidence and sanity-check it is non-blank.
 - [x] Update review/status/follow-up docs with rendered evidence result.
 - [x] Prepare release validation promotion direction analysis.
+- [x] Complete `design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md`.
+- [x] Add release preflight for pre-provisioned VS Code `1.93.1` executable and manifest.
+- [x] Run Electron smoke by default in `scripts/release.py` after VSIX packaging and before release zip packaging.
+- [x] Add explicit `--skip-electron-smoke` release escape hatch.
+- [x] Validate release dry-run, skip dry-run, preflight helper, and smoke summary helper.
+- [x] Record review evidence in `review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md`.
 ## Pending User Decision
-Decide whether to open the recommended `Electron Smoke Release Checklist Pre-Provisioned Gate`.
+(none)
 ## Direction Candidates
 - Completed Line: Electron Smoke VS Code Executable Provisioning Policy - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-executable-provisioning-policy.md
 - Completed Line: Electron Smoke VS Code Provisioning Automation - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
 - Completed Evidence Line: VS Code `1.93.1` provisioned, Electron smoke passed, rendered evidence produced - source: design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
-- Recommended Promotion Decision Line: `Electron Smoke Release Checklist Pre-Provisioned Gate` - source: design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
+- Completed Promotion Line: `Electron Smoke Release Checklist Pre-Provisioned Gate` - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md
+- Deferred Promotion Line: CI-managed pinned VS Code cache/offline provenance - source: design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
+- Possible Evidence Line: run a full `scripts/release.py --no-isolation` only when ready to refresh release artifacts - source: scripts/release.py
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
+- design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md
 - review/electron-smoke-vscode-provisioning-automation-2026-06-20.md
+- review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md
 - design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
 - design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
 - output/electron/webview-runner-smoke/electron-webview-smoke-summary.json
