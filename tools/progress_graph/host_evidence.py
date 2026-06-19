@@ -323,20 +323,34 @@ def _scheduler_loop_evidence_presentation_card(
 ) -> HostEvidencePresentationCard:
     status = _scheduler_loop_evidence_card_status(summary)
     authority_split = dict(summary.authority_split)
+    evidence_metadata = dict(summary.metadata)
     final_queue = dict(summary.final_queue_summary)
     ready_task_ids = tuple(str(item) for item in final_queue.get("ready_task_ids", ()) or ())
     blocked_task_ids = tuple(str(item) for item in final_queue.get("blocked_task_ids", ()) or ())
     failed_task_ids = tuple(str(item) for item in final_queue.get("failed_task_ids", ()) or ())
     completed_task_ids = tuple(str(item) for item in final_queue.get("completed_task_ids", ()) or ())
+    runtime_host_surface = _metadata_str(evidence_metadata, "runtime_host_surface")
+    host_invocation_id = _metadata_str(evidence_metadata, "host_invocation_id")
+    scheduler_projection_path = _metadata_str(evidence_metadata, "scheduler_projection_path")
+    scheduler_projection_role = _metadata_str(evidence_metadata, "scheduler_projection_role")
+    if not scheduler_projection_path:
+        scheduler_projection_path = _object_to_text(authority_split.get("scheduler_projection_path"))
+    if not scheduler_projection_role:
+        scheduler_projection_role = _object_to_text(authority_split.get("scheduler_projection_role"))
+    host_surface = runtime_host_surface or "scheduler-daemon-loop"
+    invocation_id = host_invocation_id or summary.evidence_id
     subtitle_parts = [
         part for part in (
-            "scheduler-loop",
+            host_surface,
             summary.stop_reason,
             f"{summary.total_run_count} run(s)",
         )
         if part
     ]
-    key_facts = (
+    key_facts = [
+        HostEvidencePresentationFact("Runtime provider", summary.runtime_provider),
+        HostEvidencePresentationFact("Host surface", host_surface),
+        HostEvidencePresentationFact("Host invocation", invocation_id),
         HostEvidencePresentationFact("Stop reason", summary.stop_reason),
         HostEvidencePresentationFact("Ticks", str(summary.tick_count)),
         HostEvidencePresentationFact("Runs", str(summary.total_run_count)),
@@ -345,22 +359,33 @@ def _scheduler_loop_evidence_presentation_card(
         HostEvidencePresentationFact("Ready tasks", str(len(ready_task_ids))),
         HostEvidencePresentationFact("Blocked tasks", str(len(blocked_task_ids))),
         HostEvidencePresentationFact("Failed tasks", str(len(failed_task_ids))),
-    )
-    refs = (
+    ]
+    if scheduler_projection_path:
+        key_facts.append(
+            HostEvidencePresentationFact("Scheduler projection path", scheduler_projection_path)
+        )
+    if scheduler_projection_role:
+        key_facts.append(
+            HostEvidencePresentationFact("Scheduler projection role", scheduler_projection_role)
+        )
+
+    refs: list[HostEvidencePresentationRef] = [
         HostEvidencePresentationRef("Evidence", str(summary.evidence_path)),
         HostEvidencePresentationRef("Snapshot", summary.snapshot_path),
         HostEvidencePresentationRef("Event log", summary.event_log_path),
-    )
-    authority_clues = tuple(
-        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
-        for label, key in (
-            ("Scheduler state", "scheduler_state_authority"),
-            ("Scheduler state mutated", "scheduler_state_mutated"),
-            ("Provider executed", "provider_executed"),
-            ("Scheduler projection refreshed", "scheduler_projection_refreshed"),
-            ("Local trajectory mutated", "local_work_trajectory_mutated"),
+    ]
+    if scheduler_projection_path:
+        refs.append(
+            HostEvidencePresentationRef(
+                "Scheduler projection",
+                scheduler_projection_path,
+            )
         )
-        if key in authority_split
+
+    authority_clues = _scheduler_loop_authority_clues(
+        authority_split,
+        scheduler_projection_path=scheduler_projection_path,
+        scheduler_projection_role=scheduler_projection_role,
     )
     return HostEvidencePresentationCard(
         id=summary.evidence_id,
@@ -370,16 +395,16 @@ def _scheduler_loop_evidence_presentation_card(
         severity=_host_evidence_card_severity(status),
         timestamp=summary.timestamp,
         runtime_providers=(summary.runtime_provider,),
-        host_surface="scheduler-daemon-loop",
-        invocation_id=summary.evidence_id,
+        host_surface=host_surface,
+        invocation_id=invocation_id,
         requested_by="operator-or-host",
         stop_reason=summary.stop_reason,
         stop_detail=summary.stop_detail,
         run_count=summary.total_run_count,
         output_count=0,
         permission_review_count=0,
-        key_facts=key_facts,
-        refs=refs,
+        key_facts=tuple(key_facts),
+        refs=tuple(refs),
         authority_clues=authority_clues,
         metadata={
             "evidence_product_type": summary.product_type,
@@ -390,7 +415,11 @@ def _scheduler_loop_evidence_presentation_card(
             "blocked_task_ids": list(blocked_task_ids),
             "failed_task_ids": list(failed_task_ids),
             "completed_task_ids": list(completed_task_ids),
-            "evidence_metadata": dict(summary.metadata),
+            "runtime_host_surface": runtime_host_surface,
+            "host_invocation_id": host_invocation_id,
+            "scheduler_projection_path": scheduler_projection_path,
+            "scheduler_projection_role": scheduler_projection_role,
+            "evidence_metadata": evidence_metadata,
         },
     )
 
@@ -444,6 +473,34 @@ def _scheduler_loop_evidence_card_status(
     return "unknown"
 
 
+def _scheduler_loop_authority_clues(
+    authority_split: dict[str, object],
+    *,
+    scheduler_projection_path: str,
+    scheduler_projection_role: str,
+) -> tuple[HostEvidencePresentationFact, ...]:
+    clues = [
+        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
+        for label, key in (
+            ("Scheduler state", "scheduler_state_authority"),
+            ("Scheduler state mutated", "scheduler_state_mutated"),
+            ("Provider executed", "provider_executed"),
+            ("Scheduler projection refreshed", "scheduler_projection_refreshed"),
+            ("Local trajectory mutated", "local_work_trajectory_mutated"),
+        )
+        if key in authority_split
+    ]
+    if scheduler_projection_role and "scheduler_projection_role" not in authority_split:
+        clues.append(
+            HostEvidencePresentationFact("Scheduler projection role", scheduler_projection_role)
+        )
+    if scheduler_projection_path and "scheduler_projection_path" not in authority_split:
+        clues.append(
+            HostEvidencePresentationFact("Scheduler projection path", scheduler_projection_path)
+        )
+    return tuple(clues)
+
+
 def _host_evidence_card_severity(
     status: HostEvidenceCardStatus,
 ) -> HostEvidenceSeverity:
@@ -472,6 +529,11 @@ def _mapping_str(mapping: dict[str, object] | HostSchedulerRunEvidenceSummary | 
         value = mapping.get(key)
     else:
         value = None
+    return value if isinstance(value, str) else ""
+
+
+def _metadata_str(metadata: dict[str, object], key: str) -> str:
+    value = metadata.get(key)
     return value if isinstance(value, str) else ""
 
 

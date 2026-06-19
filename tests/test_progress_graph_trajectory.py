@@ -1416,6 +1416,139 @@ def test_host_evidence_presentation_builds_completed_card_with_refs_and_authorit
     assert "host_result" not in card
 
 
+def test_scheduler_loop_evidence_presentation_surfaces_host_projection_clues(tmp_path: Path) -> None:
+    summary = SchedulerLoopEvidenceSummary(
+        evidence_path=tmp_path / ".codex/scheduler/evidence/loop.json",
+        evidence_id="loop-host-projection",
+        timestamp="2026-06-19T16:40:00+08:00",
+        product_type="scheduler_loop_evidence",
+        snapshot_path=".codex/scheduler/scheduler-state.json",
+        event_log_path=".codex/scheduler/scheduler-events.jsonl",
+        runtime_provider="qoder",
+        stop_policy={"max_ticks": 2, "max_runs_per_tick": 1},
+        tick_count=1,
+        total_run_count=1,
+        stop_reason="no_ready_tasks",
+        stop_detail="no ready tasks remain",
+        scheduler_event_count=4,
+        iterations=(
+            {
+                "tick_index": 1,
+                "run_count": 1,
+                "tick_stop_reason": "no_ready_tasks",
+            },
+        ),
+        final_queue_summary={
+            "completed_task_ids": ["task-q"],
+            "ready_task_ids": [],
+            "blocked_task_ids": [],
+            "failed_task_ids": [],
+        },
+        authority_split={
+            "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+            "scheduler_state_mutated": True,
+            "provider_executed": True,
+            "scheduler_projection_refreshed": True,
+            "scheduler_projection_role": "read-only-view",
+            "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+            "local_work_trajectory_mutated": False,
+        },
+        metadata={
+            "surface": "host-authorized-scheduler-daemon-loop",
+            "runtime_host_surface": "host-authorized-adapter",
+            "host_invocation_id": "host-loop-projection-qoder",
+            "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+        },
+    )
+
+    payload = build_host_evidence_presentation(
+        HostEvidenceBundle(
+            project_root=tmp_path,
+            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            summaries=(summary,),
+        )
+    ).to_json_dict()
+    card = payload["cards"][0]
+
+    assert payload["status"] == "ok"
+    assert card["runtime_providers"] == ["qoder"]
+    assert card["host_surface"] == "host-authorized-adapter"
+    assert card["invocation_id"] == "host-loop-projection-qoder"
+    assert card["run_count"] == 1
+    assert {"label": "Runtime provider", "value": "qoder"} in card["key_facts"]
+    assert {"label": "Host surface", "value": "host-authorized-adapter"} in card["key_facts"]
+    assert {"label": "Host invocation", "value": "host-loop-projection-qoder"} in card["key_facts"]
+    assert {
+        "label": "Scheduler projection path",
+        "value": ".codex/progress-graph/scheduler-work-trajectory.json",
+    } in card["key_facts"]
+    assert {
+        "label": "Scheduler projection role",
+        "value": "read-only-view",
+    } in card["key_facts"]
+    assert any(ref["label"] == "Scheduler projection" for ref in card["refs"])
+    assert {
+        "label": "Scheduler projection refreshed",
+        "value": "true",
+    } in card["authority_clues"]
+    assert {
+        "label": "Local trajectory mutated",
+        "value": "false",
+    } in card["authority_clues"]
+    assert card["metadata"]["scheduler_projection_path"] == ".codex/progress-graph/scheduler-work-trajectory.json"
+
+
+def test_scheduler_loop_evidence_presentation_keeps_legacy_metadata_compatible(tmp_path: Path) -> None:
+    summary = SchedulerLoopEvidenceSummary(
+        evidence_path=tmp_path / ".codex/scheduler/evidence/loop.json",
+        evidence_id="loop-legacy",
+        timestamp="2026-06-19T16:45:00+08:00",
+        product_type="scheduler_loop_evidence",
+        snapshot_path="state.json",
+        event_log_path="events.jsonl",
+        runtime_provider="fake",
+        stop_policy={"max_ticks": 1},
+        tick_count=1,
+        total_run_count=0,
+        stop_reason="no_ready_tasks",
+        stop_detail="no ready tasks remain",
+        scheduler_event_count=0,
+        iterations=(
+            {
+                "tick_index": 1,
+                "run_count": 0,
+                "tick_stop_reason": "no_ready_tasks",
+            },
+        ),
+        final_queue_summary={
+            "completed_task_ids": [],
+            "ready_task_ids": [],
+            "blocked_task_ids": [],
+            "failed_task_ids": [],
+        },
+        authority_split={
+            "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+            "scheduler_projection_refreshed": False,
+            "local_work_trajectory_mutated": False,
+        },
+        metadata={},
+    )
+
+    card = build_host_evidence_presentation(
+        HostEvidenceBundle(
+            project_root=tmp_path,
+            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            summaries=(summary,),
+        )
+    ).to_json_dict()["cards"][0]
+
+    assert card["host_surface"] == "scheduler-daemon-loop"
+    assert card["invocation_id"] == "loop-legacy"
+    assert {"label": "Host invocation", "value": "loop-legacy"} in card["key_facts"]
+    assert card["metadata"]["scheduler_projection_path"] == ""
+    assert not any(ref["label"] == "Scheduler projection" for ref in card["refs"])
+
+
 def test_host_evidence_presentation_derives_non_completed_statuses(tmp_path: Path) -> None:
     permission = _host_evidence_summary_fixture(
         tmp_path / "permission.json",

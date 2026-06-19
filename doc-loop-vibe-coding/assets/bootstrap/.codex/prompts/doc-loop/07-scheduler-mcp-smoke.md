@@ -545,6 +545,19 @@ This helper is for host-owned workflow polish. It must not be treated as a
 background daemon, a scheduler state mutation beyond the bounded loop, or a
 CLI/MCP real-provider surface.
 
+Expected scheduler-loop evidence presentation behavior:
+
+- `dbc://host-evidence/presentation` remains read-only and must not execute
+  providers, refresh projection, or mutate scheduler/trajectory state
+- scheduler-loop cards surface runtime provider, host surface, host invocation,
+  tick/run/event counts, and final queue counts as `key_facts`
+- when evidence metadata or authority split includes projection clues,
+  scheduler projection path/role/refreshed state are surfaced through
+  `key_facts`, `refs`, `authority_clues`, and card `metadata`
+- legacy scheduler-loop evidence without projection metadata must still render
+  cleanly without a scheduler projection ref
+- malformed evidence remains isolated into `errors[]` / `error_rows`
+
 ## Controlled Host Runtime Dogfood Harness
 
 Use `run_host_runtime_dogfood_harness()` when the current gate asks for repeatable

@@ -203,6 +203,10 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "projection_summary" in text
         assert "scheduler_projection_refreshed=true" in text
         assert "host-owned workflow polish" in text
+        assert "Expected scheduler-loop evidence presentation behavior" in text
+        assert "runtime provider, host surface, host invocation" in text
+        assert "scheduler projection path/role/refreshed state" in text
+        assert "legacy scheduler-loop evidence without projection metadata" in text
         assert "--artifact-id <artifact-id>" in text
         assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
         assert "--allow-duplicate-admission" in text
@@ -309,9 +313,16 @@ def test_host_evidence_resources_read_scheduler_loop_evidence(tmp_path: Path) ->
                     "scheduler_state_mutated": True,
                     "provider_executed": True,
                     "scheduler_projection_refreshed": False,
+                    "scheduler_projection_role": "read-only-view",
+                    "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
                     "local_work_trajectory_mutated": False,
                 },
-                "metadata": {"surface": "test"},
+                "metadata": {
+                    "surface": "host-authorized-scheduler-daemon-loop",
+                    "runtime_host_surface": "host-authorized-adapter",
+                    "host_invocation_id": "host-loop-smoke",
+                    "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+                },
             },
             ensure_ascii=False,
             indent=2,
@@ -330,9 +341,23 @@ def test_host_evidence_resources_read_scheduler_loop_evidence(tmp_path: Path) ->
     assert bundle["summaries"][0]["tick_count"] == 1
     assert "loop_result" not in bundle["summaries"][0]
     assert presentation["status"] == "ok"
-    assert presentation["cards"][0]["title"] == "Scheduler loop evidence loop-smoke"
-    assert presentation["cards"][0]["host_surface"] == "scheduler-daemon-loop"
-    assert presentation["cards"][0]["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
+    card = presentation["cards"][0]
+    assert card["title"] == "Scheduler loop evidence loop-smoke"
+    assert card["host_surface"] == "host-authorized-adapter"
+    assert card["invocation_id"] == "host-loop-smoke"
+    assert card["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
+    assert card["metadata"]["scheduler_projection_path"] == ".codex/progress-graph/scheduler-work-trajectory.json"
+    assert {"label": "Runtime provider", "value": "fake"} in card["key_facts"]
+    assert {"label": "Host invocation", "value": "host-loop-smoke"} in card["key_facts"]
+    assert {
+        "label": "Scheduler projection path",
+        "value": ".codex/progress-graph/scheduler-work-trajectory.json",
+    } in card["key_facts"]
+    assert any(ref["label"] == "Scheduler projection" for ref in card["refs"])
+    assert {
+        "label": "Scheduler projection refreshed",
+        "value": "false",
+    } in card["authority_clues"]
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
