@@ -362,6 +362,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
     );
 
+    if (context.extensionMode === vscode.ExtensionMode.Test) {
+        context.subscriptions.push(
+            vscode.commands.registerCommand('docBasedCoding.test.getProgressGraphPreviewSnapshot', () => (
+                progressGraphPreviewPanel?.getTestSnapshot() ?? {
+                    panelVisible: false,
+                    lastRenderedHtml: null,
+                }
+            )),
+        );
+    }
+
     // Register diagnose command
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.diagnose', async () => {

@@ -177,6 +177,13 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     }
   }
 
+  getTestSnapshot(): { panelVisible: boolean; lastRenderedHtml: string | null } {
+    return {
+      panelVisible: Boolean(this._panel?.visible),
+      lastRenderedHtml: this._panel?.webview.html ?? null,
+    };
+  }
+
   private async _reload(): Promise<void> {
     if (!this._panel || !this._workspaceFolder) {
       return;

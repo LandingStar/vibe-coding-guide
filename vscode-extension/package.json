@@ -330,6 +330,7 @@
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint src/",
     "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "test:electron:smoke": "npm run build && node scripts/run-electron-webview-smoke.mjs",
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {

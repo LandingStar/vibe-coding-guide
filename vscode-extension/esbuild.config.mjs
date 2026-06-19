@@ -8,6 +8,9 @@ const watch = process.argv.includes('--watch');
 const testEntryPoints = readdirSync('src/test', { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
     .map((entry) => path.join('src/test', entry.name));
+const electronTestEntryPoints = readdirSync('src/electron-test/suite', { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
+    .map((entry) => path.join('src/electron-test/suite', entry.name));
 
 /** @type {esbuild.BuildOptions} */
 const extensionBuildOptions = {
@@ -54,12 +57,27 @@ const testBuildOptions = {
     external: ['vscode'],
 };
 
+/** @type {esbuild.BuildOptions} */
+const electronTestBuildOptions = {
+    entryPoints: electronTestEntryPoints,
+    bundle: true,
+    outdir: 'dist/electron-test/suite',
+    format: 'cjs',
+    platform: 'node',
+    target: 'node20',
+    sourcemap: !production,
+    minify: false,
+    treeShaking: true,
+    external: ['vscode'],
+};
+
 async function main() {
     if (watch) {
         const contexts = await Promise.all([
             esbuild.context(extensionBuildOptions),
             esbuild.context(webviewBuildOptions),
             ...(testEntryPoints.length > 0 ? [esbuild.context(testBuildOptions)] : []),
+            ...(electronTestEntryPoints.length > 0 ? [esbuild.context(electronTestBuildOptions)] : []),
         ]);
         await Promise.all(contexts.map((context) => context.watch()));
         console.log('[watch] build started');
@@ -69,6 +87,7 @@ async function main() {
             esbuild.build(extensionBuildOptions),
             esbuild.build(webviewBuildOptions),
             ...(testEntryPoints.length > 0 ? [esbuild.build(testBuildOptions)] : []),
+            ...(electronTestEntryPoints.length > 0 ? [esbuild.build(electronTestBuildOptions)] : []),
         ]);
         console.log('build complete');
     }

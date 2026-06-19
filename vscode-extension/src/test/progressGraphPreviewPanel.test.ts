@@ -169,3 +169,20 @@ test('generated VS Code MCP config uses the installed CLI entry point', () => {
   assert.match(extensionSource, /doc-based-coding-mcp\.exe/);
   assert.match(extensionSource, /return 'doc-based-coding-mcp';/);
 });
+
+test('progress graph preview exposes rendered html probe only in extension test mode', () => {
+  const previewSource = readFileSync(sourcePath, 'utf-8');
+  const extensionSource = readFileSync(extensionSourcePath, 'utf-8');
+
+  assert.match(previewSource, /getTestSnapshot\(\): \{ panelVisible: boolean; lastRenderedHtml: string \| null \}/);
+  assert.match(previewSource, /lastRenderedHtml: this\._panel\?\.webview\.html \?\? null/);
+  assert.match(extensionSource, /context\.extensionMode === vscode\.ExtensionMode\.Test/);
+  assert.match(extensionSource, /docBasedCoding\.test\.getProgressGraphPreviewSnapshot/);
+  assert.doesNotMatch(
+    extensionSource.slice(
+      extensionSource.indexOf('context.subscriptions.push(\n        vscode.commands.registerCommand(\'docBasedCoding.openProgressGraphPreview\''),
+      extensionSource.indexOf('if (context.extensionMode === vscode.ExtensionMode.Test)'),
+    ),
+    /docBasedCoding\.test\.getProgressGraphPreviewSnapshot/,
+  );
+});

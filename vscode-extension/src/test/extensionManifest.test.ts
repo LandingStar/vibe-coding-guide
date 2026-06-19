@@ -18,4 +18,5 @@ test('extension manifest does not expose local work trajectory mutation commands
   assert.equal(commands.has('docBasedCoding.startLocalWorkTrajectory'), false);
   assert.equal(commands.has('docBasedCoding.appendLocalWorkTrajectoryEvent'), false);
   assert.equal(commands.has('docBasedCoding.advanceLocalWorkTrajectoryEvent'), false);
+  assert.equal(commands.has('docBasedCoding.test.getProgressGraphPreviewSnapshot'), false);
 });
