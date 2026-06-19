@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Agent orchestration next-slice direction analysis",
-  "recorded_at": "2026-06-19T18:56:57.902858+00:00",
+  "title": "Scheduler event-log compaction and replay hardening",
+  "recorded_at": "2026-06-19T19:06:26.828415+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/agent-runtime-layering-and-orchestration-slice-plan.md",
+  "guide_context": "design_docs/agent-orchestration-after-release-evidence-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Agent orchestration next-slice direction analysis",
+    "title": "Scheduler event-log compaction and replay hardening",
     "lane_count": 1,
     "event_count": 4,
     "relation_count": 3,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "orchestration direction",
+      "label": "scheduler persistence",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/agent-runtime-layering-and-orchestration-slice-plan.md"
+        "context": "design_docs/agent-orchestration-after-release-evidence-direction-analysis.md"
       }
     }
   },
@@ -36,60 +36,58 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Inspect orchestration state and candidate documents",
-      "kind": "review",
+      "title": "Create narrow planning gate and inspect scheduler persistence code",
+      "kind": "start",
       "status": "completed",
       "order": 1,
-      "summary": "Continue post-release orchestration direction analysis after release evidence close; scope is docs-first next-slice selection, not implementation.",
+      "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T18:50:48.288694+00:00",
-        "activated_at": "2026-06-19T18:50:48.288694+00:00",
+        "created_at": "2026-06-19T18:58:55.868707+00:00",
+        "activated_at": "2026-06-19T18:58:55.868707+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-19T18:52:33.987400+00:00",
-        "completed_at": "2026-06-19T18:55:18.277579+00:00"
+        "completed_at": "2026-06-19T19:00:16.356284+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Select post-release orchestration gap candidates",
-      "kind": "decision",
+      "title": "Implement scheduler compaction archive/reset contract",
+      "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Reviewed current orchestration docs and follow-ups; existing work already covers fake/mock-Qoder runtime seams, bounded loop, host-injected loop, projection workflow, Host Evidence UI, and release Electron evidence. Remaining next-slice candidates should focus on scheduler persistence hardening, background daemon lifecycle, edit lease policy, real sandbox, or runtime-subagent policy.",
+      "summary": "Extend scheduler_store compaction with explicit archive/reset behavior while preserving non-destructive default behavior.",
       "metadata": {
-        "created_at": "2026-06-19T18:53:39.737379+00:00",
+        "created_at": "2026-06-19T19:00:25.673070+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-19T18:55:18.277579+00:00",
-        "completed_at": "2026-06-19T18:55:23.711699+00:00"
+        "completed_at": "2026-06-19T19:05:58.058950+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Write direction analysis and prepare commit",
-      "kind": "writeback",
+      "title": "Validate scheduler compaction and orchestration runtime",
+      "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Created design_docs/agent-orchestration-after-release-evidence-direction-analysis.md and prepared to stage only the new direction-analysis doc plus agent-owned local trajectory metadata.",
+      "summary": "Ran compaction/replay focused pytest (17 passed) and full tests/test_runtime_orchestration.py (185 passed).",
       "metadata": {
-        "created_at": "2026-06-19T18:55:30.377668+00:00",
+        "created_at": "2026-06-19T19:06:04.399480+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T18:55:58.718173+00:00"
+        "completed_at": "2026-06-19T19:06:13.829905+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Close orchestration direction analysis",
-      "kind": "close",
+      "title": "Write review and status docs for compaction hardening",
+      "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Direction-analysis slice completed; next recommended planning gate is Scheduler Event-Log Compaction And Replay Hardening.",
+      "summary": "Recorded review evidence and updated planning gate, Checklist, Phase Map, and checkpoint to reflect completed scheduler event-log compaction/replay hardening.",
       "metadata": {
-        "created_at": "2026-06-19T18:56:31.694568+00:00",
+        "created_at": "2026-06-19T19:06:20.015802+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T18:56:57.902858+00:00"
+        "completed_at": "2026-06-19T19:06:26.828415+00:00"
       }
     }
   },

@@ -50,6 +50,11 @@ class SchedulerCompactionResult:
 
     recovery: SchedulerRecoveryResult
     compacted_snapshot_path: Path
+    archived_event_log_path: Path | None = None
+    archive_requested: bool = False
+    reset_event_log_requested: bool = False
+    archived_event_count: int = 0
+    active_event_count_after_compaction: int = 0
     event_log_truncated: bool = False
 
     @property
@@ -63,6 +68,28 @@ class SchedulerCompactionResult:
         """Return the number of events represented by the compacted snapshot."""
 
         return self.recovery.event_count
+
+    @property
+    def replay_boundary_summary(self) -> dict[str, object]:
+        """Return compact clues about the post-compaction replay boundary."""
+
+        return {
+            "snapshot_path": str(self.recovery.snapshot_path),
+            "event_log_path": str(self.recovery.event_log_path),
+            "compacted_snapshot_path": str(self.compacted_snapshot_path),
+            "archived_event_log_path": (
+                str(self.archived_event_log_path)
+                if self.archived_event_log_path is not None
+                else ""
+            ),
+            "strict": self.recovery.strict,
+            "compacted_event_count": self.event_count,
+            "archived_event_count": self.archived_event_count,
+            "active_event_count_after_compaction": self.active_event_count_after_compaction,
+            "archive_requested": self.archive_requested,
+            "reset_event_log_requested": self.reset_event_log_requested,
+            "event_log_truncated": self.event_log_truncated,
+        }
 
 
 class JsonlSchedulerEventLog:
@@ -79,6 +106,21 @@ class JsonlSchedulerEventLog:
             handle.write(json.dumps(_scheduler_event_to_json(event), ensure_ascii=False, sort_keys=True))
             handle.write("\n")
         return event
+
+    def write_all(self, events: tuple[SchedulerEvent, ...]) -> Path:
+        """Replace this log with exactly the provided events."""
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8", newline="\n") as handle:
+            for event in events:
+                handle.write(json.dumps(_scheduler_event_to_json(event), ensure_ascii=False, sort_keys=True))
+                handle.write("\n")
+        return self.path
+
+    def clear(self) -> Path:
+        """Reset this event log to an empty post-compaction boundary."""
+
+        return self.write_all(())
 
     def read_all(self) -> tuple[SchedulerEvent, ...]:
         """Read all scheduler events from this log."""
@@ -222,12 +264,24 @@ def write_compacted_scheduler_snapshot(
     compacted_snapshot_path: str | Path,
     *,
     strict: bool = True,
+    archive_event_log_path: str | Path | None = None,
+    reset_event_log: bool = False,
 ) -> SchedulerCompactionResult:
     """Write a recovered scheduler state into a new compacted snapshot.
 
-    This first compaction primitive is intentionally non-destructive: it does
-    not truncate, rotate, or rewrite the source JSONL event log.
+    The default remains non-destructive for existing callers. When
+    ``archive_event_log_path`` is provided, all events represented by the
+    compacted snapshot are copied to that archive path. When ``reset_event_log``
+    is true, the active event log is then reset to an empty post-compaction
+    replay boundary after the compacted snapshot and archive have both been
+    written.
     """
+
+    if reset_event_log and archive_event_log_path is None:
+        raise ValueError(
+            "reset_event_log requires archive_event_log_path so compacted "
+            "scheduler history is preserved before the active log is reset"
+        )
 
     recovery = recover_scheduler_state(
         snapshot_path,
@@ -238,10 +292,24 @@ def write_compacted_scheduler_snapshot(
         recovery.recovered_state,
         compacted_snapshot_path,
     )
+    archived_path = None
+    archived_event_count = 0
+    if archive_event_log_path is not None:
+        archive_log = JsonlSchedulerEventLog(archive_event_log_path)
+        archived_path = archive_log.write_all(recovery.events)
+        archived_event_count = recovery.event_count
+    if reset_event_log:
+        JsonlSchedulerEventLog(event_log_path).clear()
+    active_event_count = len(JsonlSchedulerEventLog(event_log_path).read_all())
     return SchedulerCompactionResult(
         recovery=recovery,
         compacted_snapshot_path=written,
-        event_log_truncated=False,
+        archived_event_log_path=archived_path,
+        archive_requested=archive_event_log_path is not None,
+        reset_event_log_requested=reset_event_log,
+        archived_event_count=archived_event_count,
+        active_event_count_after_compaction=active_event_count,
+        event_log_truncated=reset_event_log,
     )
 
 
@@ -270,7 +338,10 @@ def replay_scheduler_events(
             if strict:
                 raise ValueError(
                     f"scheduler event {event.event_id!r} references unknown task "
-                    f"{event.task_id!r}; replay requires a baseline task contract"
+                    f"{event.task_id!r}; replay requires a baseline snapshot task "
+                    "contract. Scheduler event logs are replay/audit material "
+                    "and do not create task contracts across a compaction "
+                    "or recovery boundary."
                 )
             continue
         task = tasks[event.task_id]

@@ -5883,6 +5883,192 @@ def test_write_compacted_scheduler_snapshot_persists_recovered_state_without_tru
     assert compacted_state.tasks["task-1"].state == "complete"
     assert compacted_state.run_records[0].run_id == "run-1"
     assert len(JsonlSchedulerEventLog(event_log_path).read_all()) == 1
+    assert result.archived_event_log_path is None
+    assert result.archive_requested is False
+    assert result.reset_event_log_requested is False
+    assert result.archived_event_count == 0
+    assert result.active_event_count_after_compaction == 1
+    assert result.replay_boundary_summary["event_log_truncated"] is False
+
+
+def test_write_compacted_scheduler_snapshot_can_archive_and_reset_event_log(
+    tmp_path,
+) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    compacted_path = tmp_path / "scheduler-state.compacted.json"
+    archive_path = tmp_path / "archive" / "scheduler-events.pre-compaction.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-1": _scheduled_task("task-1")}),
+        snapshot_path,
+    )
+    scheduler_log = JsonlSchedulerEventLog(event_log_path)
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-1",
+            event_kind="task_ready",
+            timestamp="2026-06-20T00:00:00+08:00",
+            task_id="task-1",
+            from_state="proposed",
+            to_state="ready",
+            sequence=1,
+        )
+    )
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-2",
+            event_kind="task_completed",
+            timestamp="2026-06-20T00:01:00+08:00",
+            task_id="task-1",
+            from_state="running",
+            to_state="complete",
+            run_id="run-1",
+            session_id="session-1",
+            output_artifact_id="task-1:result",
+            output_artifact_version="v1",
+            sequence=2,
+        )
+    )
+
+    result = write_compacted_scheduler_snapshot(
+        snapshot_path,
+        event_log_path,
+        compacted_path,
+        archive_event_log_path=archive_path,
+        reset_event_log=True,
+    )
+
+    assert result.compacted_snapshot_path == compacted_path
+    assert result.archived_event_log_path == archive_path
+    assert result.archive_requested is True
+    assert result.reset_event_log_requested is True
+    assert result.event_log_truncated is True
+    assert result.event_count == 2
+    assert result.archived_event_count == 2
+    assert result.active_event_count_after_compaction == 0
+    assert JsonlSchedulerEventLog(archive_path).read_all()[1].event_id == "scheduler-event-2"
+    assert JsonlSchedulerEventLog(event_log_path).read_all() == ()
+    compacted_state = read_scheduler_state_snapshot(compacted_path)
+    assert compacted_state.tasks["task-1"].state == "complete"
+    assert compacted_state.run_records[0].run_id == "run-1"
+    assert result.replay_boundary_summary["archived_event_count"] == 2
+    assert result.replay_boundary_summary["active_event_count_after_compaction"] == 0
+
+
+def test_recover_scheduler_state_replays_only_post_compaction_events_after_reset(
+    tmp_path,
+) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    compacted_path = tmp_path / "scheduler-state.compacted.json"
+    archive_path = tmp_path / "scheduler-events.archive.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-1": _scheduled_task("task-1"),
+                "task-2": _scheduled_task("task-2", state="waiting"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-1-2",
+                    source_task_id="task-1",
+                    target_task_id="task-2",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+    JsonlSchedulerEventLog(event_log_path).append(
+        SchedulerEvent(
+            event_id="scheduler-event-1",
+            event_kind="task_completed",
+            timestamp="2026-06-20T00:10:00+08:00",
+            task_id="task-1",
+            from_state="running",
+            to_state="complete",
+            run_id="run-1",
+            output_artifact_id="task-1:result",
+            output_artifact_version="v1",
+            sequence=1,
+        )
+    )
+    write_compacted_scheduler_snapshot(
+        snapshot_path,
+        event_log_path,
+        compacted_path,
+        archive_event_log_path=archive_path,
+        reset_event_log=True,
+    )
+    JsonlSchedulerEventLog(event_log_path).append(
+        SchedulerEvent(
+            event_id="scheduler-event-2",
+            event_kind="task_ready",
+            timestamp="2026-06-20T00:11:00+08:00",
+            task_id="task-2",
+            from_state="waiting",
+            to_state="ready",
+            sequence=2,
+        )
+    )
+
+    recovery = recover_scheduler_state(compacted_path, event_log_path)
+
+    assert recovery.event_count == 1
+    assert recovery.baseline_state.tasks["task-1"].state == "complete"
+    assert recovery.recovered_state.tasks["task-1"].state == "complete"
+    assert recovery.recovered_state.tasks["task-2"].state == "ready"
+    assert recovery.recovered_state.run_records[0].run_id == "run-1"
+
+
+def test_write_compacted_scheduler_snapshot_archive_reset_handles_missing_log(
+    tmp_path,
+) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "missing-scheduler-events.jsonl"
+    compacted_path = tmp_path / "scheduler-state.compacted.json"
+    archive_path = tmp_path / "scheduler-events.archive.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-1": _scheduled_task("task-1")}),
+        snapshot_path,
+    )
+
+    result = write_compacted_scheduler_snapshot(
+        snapshot_path,
+        event_log_path,
+        compacted_path,
+        archive_event_log_path=archive_path,
+        reset_event_log=True,
+    )
+
+    assert result.event_count == 0
+    assert result.archived_event_count == 0
+    assert result.active_event_count_after_compaction == 0
+    assert archive_path.exists()
+    assert event_log_path.exists()
+    assert archive_path.read_text(encoding="utf-8") == ""
+    assert event_log_path.read_text(encoding="utf-8") == ""
+    assert read_scheduler_state_snapshot(compacted_path).tasks["task-1"].state == "proposed"
+
+
+def test_write_compacted_scheduler_snapshot_requires_archive_before_reset(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    compacted_path = tmp_path / "scheduler-state.compacted.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-1": _scheduled_task("task-1")}),
+        snapshot_path,
+    )
+
+    with pytest.raises(ValueError, match="reset_event_log requires archive_event_log_path"):
+        write_compacted_scheduler_snapshot(
+            snapshot_path,
+            event_log_path,
+            compacted_path,
+            reset_event_log=True,
+        )
+
+    assert not compacted_path.exists()
 
 
 def test_write_compacted_scheduler_snapshot_honors_non_strict_recovery(tmp_path) -> None:
@@ -6081,7 +6267,7 @@ def test_replay_scheduler_events_rejects_unknown_task_in_strict_mode() -> None:
         sequence=1,
     )
 
-    with pytest.raises(ValueError, match="references unknown task"):
+    with pytest.raises(ValueError, match="snapshot task contract"):
         replay_scheduler_events(SchedulerState(), (event,))
 
     recovered = replay_scheduler_events(SchedulerState(), (event,), strict=False)
