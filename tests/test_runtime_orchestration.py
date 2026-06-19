@@ -78,12 +78,15 @@ from src.runtime.orchestration import (
     SchedulerDaemonTickRequest,
     HostSchedulerDaemonLoopRequest,
     HostSchedulerDaemonLoopResult,
+    SchedulerDaemonLifecycleRequest,
+    SchedulerDaemonLifecycleRunOnceRequest,
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
+    apply_scheduler_daemon_lifecycle_action,
     cleanup_receipt_to_artifact,
     build_orchestration_preflight_bundle,
     build_host_scheduler_run_evidence,
@@ -99,6 +102,7 @@ from src.runtime.orchestration import (
     exchange_artifact_to_json_dict,
     inspect_exchange_artifact_admission_ledger,
     inspect_exchange_artifact_store,
+    inspect_scheduler_daemon_lifecycle_control,
     has_scheduler_readable_relation,
     mark_ready_tasks,
     part_types,
@@ -118,6 +122,7 @@ from src.runtime.orchestration import (
     run_ready_task,
     run_scheduled_task_with_registry,
     run_scheduler_daemon_loop,
+    run_scheduler_daemon_lifecycle_once,
     run_scheduler_daemon_tick,
     roll_up_work_item,
     sandbox_capability_placeholder,
@@ -133,6 +138,7 @@ from src.runtime.orchestration import (
     summarize_scheduler_queue,
     wake_dependent_tasks,
     write_compacted_scheduler_snapshot,
+    read_scheduler_daemon_lifecycle_control,
     write_host_scheduler_run_evidence,
     read_scheduler_state_snapshot,
     read_host_scheduler_run_evidence_summaries,
@@ -4298,6 +4304,270 @@ def test_scheduler_daemon_loop_zero_max_ticks_is_read_only(tmp_path) -> None:
     assert payload["authority_split"]["scheduler_state_mutated"] is False
     assert payload["final_queue_summary"]["task_state_counts"] == {"proposed": 1}
     assert written.tasks["task-a"].state == "proposed"
+    assert not event_log_path.exists()
+
+
+def test_scheduler_daemon_lifecycle_transitions_round_trip(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+
+    started = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            run_id="run-1",
+            timestamp="100",
+            stale_after_seconds=30,
+            metadata={"owner": "test"},
+        )
+    )
+    paused = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="pause",
+            timestamp="110",
+        )
+    )
+    resumed = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="resume",
+            timestamp="120",
+        )
+    )
+    heartbeat = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="heartbeat",
+            timestamp="130",
+        )
+    )
+    cancelling = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="cancel",
+            timestamp="140",
+        )
+    )
+    stopped = apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="shutdown",
+            timestamp="150",
+        )
+    )
+    control = read_scheduler_daemon_lifecycle_control(control_path)
+
+    assert started.control.state == "running"
+    assert started.control.snapshot_path == str(snapshot_path)
+    assert started.control.metadata == {"owner": "test"}
+    assert paused.control.state == "paused"
+    assert resumed.control.state == "running"
+    assert heartbeat.control.heartbeat_at == "130"
+    assert cancelling.control.state == "cancelling"
+    assert cancelling.control.requested_action == "cancel"
+    assert stopped.control.state == "stopped"
+    assert control.state == "stopped"
+    assert control.run_id == "run-1"
+    assert control.stale_after_seconds == 30
+    assert control.to_json_dict()["authority_split"]["starts_background_process"] is False
+
+
+def test_scheduler_daemon_lifecycle_marks_stale_from_heartbeat_threshold(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=tmp_path / "scheduler-state.json",
+            event_log_path=tmp_path / "scheduler-events.jsonl",
+            timestamp="100",
+            stale_after_seconds=10,
+        )
+    )
+
+    fresh = inspect_scheduler_daemon_lifecycle_control(
+        control_path,
+        now_epoch_seconds=105,
+    )
+    stale = inspect_scheduler_daemon_lifecycle_control(
+        control_path,
+        now_epoch_seconds=111,
+    )
+
+    assert fresh.changed is False
+    assert fresh.control.state == "running"
+    assert stale.changed is True
+    assert stale.previous_state == "running"
+    assert stale.control.state == "stale"
+    assert "heartbeat age exceeded 10 seconds" in stale.reason
+
+
+def test_scheduler_daemon_lifecycle_stale_detection_accepts_iso_heartbeat(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=tmp_path / "scheduler-state.json",
+            event_log_path=tmp_path / "scheduler-events.jsonl",
+            timestamp="2026-06-20T00:00:00+00:00",
+            stale_after_seconds=60,
+        )
+    )
+
+    fresh = inspect_scheduler_daemon_lifecycle_control(
+        control_path,
+        now_epoch_seconds=1781913630,
+    )
+    stale = inspect_scheduler_daemon_lifecycle_control(
+        control_path,
+        now_epoch_seconds=1781913661,
+    )
+
+    assert fresh.changed is False
+    assert fresh.control.state == "running"
+    assert stale.changed is True
+    assert stale.control.state == "stale"
+
+
+def test_scheduler_daemon_lifecycle_run_once_skips_paused_without_scheduler_mutation(
+    tmp_path,
+) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="pause",
+            timestamp="101",
+        )
+    )
+
+    result = run_scheduler_daemon_lifecycle_once(
+        SchedulerDaemonLifecycleRunOnceRequest(
+            control_path=control_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="102",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["skipped"] is True
+    assert "paused" in payload["skip_reason"]
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
+    assert not event_log_path.exists()
+
+
+def test_scheduler_daemon_lifecycle_run_once_runs_bounded_loop_and_records_summary(
+    tmp_path,
+) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+
+    result = run_scheduler_daemon_lifecycle_once(
+        SchedulerDaemonLifecycleRunOnceRequest(
+            control_path=control_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+    control = read_scheduler_daemon_lifecycle_control(control_path)
+    payload = result.to_json_dict()
+
+    assert result.skipped is False
+    assert result.loop is not None
+    assert result.loop.total_run_count == 1
+    assert control.state == "running"
+    assert control.heartbeat_at == "110"
+    assert control.last_result_summary["stop_reason"] == "no_ready_tasks"
+    assert control.last_result_summary["total_run_count"] == 1
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["starts_background_process"] is False
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "complete"
+
+
+def test_scheduler_daemon_lifecycle_run_once_consumes_cancel_without_running_loop(
+    tmp_path,
+) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="cancel",
+            timestamp="101",
+        )
+    )
+
+    result = run_scheduler_daemon_lifecycle_once(
+        SchedulerDaemonLifecycleRunOnceRequest(
+            control_path=control_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="102",
+        )
+    )
+    control = read_scheduler_daemon_lifecycle_control(control_path)
+    payload = result.to_json_dict()
+
+    assert result.skipped is True
+    assert control.state == "cancelled"
+    assert control.last_result_summary["stop_reason"] == "cancelled"
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
     assert not event_log_path.exists()
 
 

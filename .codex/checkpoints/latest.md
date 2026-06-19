@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-20T03:14:00+08:00
+# Checkpoint - 2026-06-20T03:29:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Scheduler event-log compaction and replay hardening close
+Post-v1.0 - Agent orchestration / Background scheduler daemon lifecycle protocol close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,21 +9,21 @@ Post-v1.0 - Agent orchestration / Scheduler event-log compaction and replay hard
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Complete `design_docs/stages/planning-gate/2026-06-20-scheduler-event-log-compaction-and-replay-hardening.md`.
-- [x] Preserve non-destructive default behavior for `write_compacted_scheduler_snapshot()`.
-- [x] Add explicit archive/reset replay-boundary path through `archive_event_log_path` and `reset_event_log=True`.
-- [x] Expose compaction replay-boundary metadata on `SchedulerCompactionResult`.
-- [x] Add `JsonlSchedulerEventLog.write_all()` and `JsonlSchedulerEventLog.clear()`.
-- [x] Make strict unknown-task replay errors explain snapshot task-contract authority.
-- [x] Validate compaction/replay focused pytest: `17 passed`.
-- [x] Validate full runtime orchestration pytest: `185 passed`.
-- [x] Record review evidence in `review/scheduler-event-log-compaction-and-replay-hardening-2026-06-20.md`.
+- [x] Complete `design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md`.
+- [x] Add `src/runtime/orchestration/scheduler_daemon_lifecycle.py`.
+- [x] Add local JSON lifecycle control contract and store helpers.
+- [x] Support start / heartbeat / pause / resume / cancel / shutdown / stale inspect transitions.
+- [x] Add lifecycle-gated `run_scheduler_daemon_lifecycle_once()` over existing bounded daemon loop.
+- [x] Export lifecycle protocol from `src/runtime/orchestration/__init__.py`.
+- [x] Validate lifecycle/daemon-loop focused pytest: `16 passed`.
+- [x] Validate full runtime orchestration pytest: `191 passed`.
+- [x] Record review evidence in `review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md`.
 - [x] Update Checklist / Phase Map / checkpoint status.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Recommended Next Backend Line: Background Scheduler Daemon Lifecycle Protocol - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
-- Completed Line: Scheduler Event-Log Compaction And Replay Hardening - source: design_docs/stages/planning-gate/2026-06-20-scheduler-event-log-compaction-and-replay-hardening.md
+- Completed Line: Background Scheduler Daemon Lifecycle Protocol - source: design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md
+- Potential Next Operator Line: Scheduler Daemon Lifecycle CLI/MCP Read-Write Surface - source: review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md
 - Deferred Line: Edit Lease Conflict Policy Expansion - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - Deferred Line: Runtime Subagent Policy - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - Deferred Line: Real Sandbox Provider Spike - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
@@ -31,7 +31,8 @@ Post-v1.0 - Agent orchestration / Scheduler event-log compaction and replay hard
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
-- design_docs/stages/planning-gate/2026-06-20-scheduler-event-log-compaction-and-replay-hardening.md
-- review/scheduler-event-log-compaction-and-replay-hardening-2026-06-20.md
-- src/runtime/orchestration/scheduler_store.py
+- design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md
+- review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md
+- src/runtime/orchestration/scheduler_daemon_lifecycle.py
+- src/runtime/orchestration/scheduler_daemon.py
 - tests/test_runtime_orchestration.py
