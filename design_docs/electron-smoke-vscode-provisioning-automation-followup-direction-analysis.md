@@ -1,7 +1,7 @@
 # Electron Smoke VS Code Provisioning Automation Follow-Up Direction Analysis
 
 > Date: 2026-06-20
-> Status: direction analysis
+> Status: completed evidence follow-up
 
 ## Context
 
@@ -22,7 +22,38 @@ npm run provision:electron:vscode --prefix vscode-extension -- dry-run <exact-ve
 npm run provision:electron:vscode --prefix vscode-extension -- provision <exact-version>
 ```
 
-No download has been executed yet. Rendered Electron evidence is still missing.
+Follow-up evidence run completed with exact VS Code version `1.93.1`:
+
+```powershell
+npm run provision:electron:vscode --prefix vscode-extension -- provision 1.93.1
+npm run test:electron:smoke --prefix vscode-extension
+```
+
+The runner selected the repo-local executable:
+
+```text
+[electron-smoke] source=repo-local (output/electron/vscode-executable)
+```
+
+Rendered evidence exists at:
+
+```text
+output/electron/webview-runner-smoke/electron-webview-smoke-summary.json
+output/electron/webview-runner-smoke/rendered-progress-graph-preview.html
+output/playwright/electron-webview-smoke/rendered-progress-graph-preview.png
+```
+
+The summary confirmed:
+
+- `panelVisible=true`;
+- scheduler trajectory root present;
+- scheduler trajectory payload present;
+- `lanes=4`;
+- `events=6`;
+- `relations=12`.
+
+The screenshot artifact passed a light non-blank sanity check:
+`width=1600 height=1000`, `sampled_unique_colors=38`.
 
 ## Candidate A - Provision Exact VS Code Version And Run Smoke
 
@@ -48,7 +79,7 @@ npm run test:electron:smoke --prefix vscode-extension
 
 ### Fit
 
-Highest. This is the evidence-producing next step.
+Completed. This produced the missing rendered Electron evidence.
 
 ## Candidate B - Version Pin Decision Only
 
@@ -77,9 +108,12 @@ Promote Electron smoke only after provisioning and rendered evidence pass.
 
 ### Fit
 
-Deferred.
+Now eligible for a separate decision, but still deferred from this document.
+Promotion should define whether the release checklist requires a pre-provisioned
+local executable, a pinned cache, or a CI-managed cache.
 
 ## Recommendation
 
-Prefer Candidate A after selecting an exact version. If no version is chosen,
-use Candidate B as a short decision step, then run Candidate A.
+Candidate A is complete. The next narrow decision should be whether to promote
+Electron smoke into release-grade validation, and if so which executable/cache
+policy the release checklist will own.

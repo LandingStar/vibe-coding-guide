@@ -81,9 +81,64 @@ npm run provision:electron:vscode --prefix vscode-extension -- dry-run 1.93.1
 The dry-run printed version, platform, cache path, target path, and the explicit
 `provision <version>` next command. No download was executed.
 
+Follow-up rendered evidence validation:
+
+```text
+npm run provision:electron:vscode --prefix vscode-extension -- provision 1.93.1
+```
+
+Result:
+
+- provisioned isolated VS Code executable at
+  `output/electron/vscode-executable/Code.exe`;
+- wrote `output/electron/vscode-executable/manifest.json`;
+- manifest version: `1.93.1`;
+- manifest platform: `win32-x64-archive`;
+- manifest SHA-256:
+  `29fce3e07e9c682d7f4bca35cfc7ad69409101cc026010db7f0369792009cf4c`.
+
+```text
+npm run test:electron:smoke --prefix vscode-extension
+```
+
+Result:
+
+- build completed;
+- runner selected `repo-local (output/electron/vscode-executable)`;
+- smoke exited with code `0`;
+- wrote `output/electron/webview-runner-smoke/electron-webview-smoke-summary.json`;
+- wrote `output/electron/webview-runner-smoke/rendered-progress-graph-preview.html`.
+
+Summary assertions:
+
+```json
+{
+  "ok": true,
+  "panelVisible": true,
+  "hasSchedulerTrajectoryRoot": true,
+  "hasSchedulerTrajectoryPayload": true,
+  "lanes": 4,
+  "events": 6,
+  "relations": 12
+}
+```
+
+Screenshot-style validation:
+
+```text
+.\node_modules\.bin\playwright.cmd screenshot --viewport-size=1600,1000 "file:///E:/workspace/tool%20develop/vibe%20coding%20facilities/doc%20based%20coding/output/electron/webview-runner-smoke/rendered-progress-graph-preview.html" "output/playwright/electron-webview-smoke/rendered-progress-graph-preview.png"
+```
+
+The screenshot artifact was created at
+`output/playwright/electron-webview-smoke/rendered-progress-graph-preview.png`.
+Sanity check reported `width=1600 height=1000` and
+`sampled_unique_colors=38`, so the evidence is not a blank page.
+
 ## Boundary Checks
 
-- No VS Code executable was downloaded in this slice.
+- No VS Code executable was downloaded during the original implementation
+  slice; the follow-up evidence run used the explicit opt-in provisioning
+  command.
 - No executable or manifest was committed.
 - No CI cache provisioning was added.
 - `npm run build`, `npm test`, and `npm run test:electron:smoke` do not call
@@ -92,5 +147,7 @@ The dry-run printed version, platform, cache path, target path, and the explicit
 
 ## Residual Risk
 
-Rendered Electron evidence still requires executing the opt-in provisioning
-command for a selected exact VS Code version, then running the Electron smoke.
+Rendered Electron evidence now exists for the pinned local VS Code `1.93.1`
+executable. Release-grade promotion remains a separate decision: the smoke is
+still a targeted validation line until the release checklist explicitly adopts
+it and defines cache/offline behavior.

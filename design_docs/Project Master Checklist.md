@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke VS Code provisioning automation close`
-- Active Slice: `Electron Smoke VS Code Provisioning Automation (COMPLETED; explicit opt-in provisioning script with exact version pin, dry-run, manifest, and no implicit build/test/smoke download)`
-- Latest Completed Slice: `Electron Smoke VS Code Provisioning Automation`
+- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke rendered evidence follow-up close`
+- Active Slice: `Electron Smoke Rendered Evidence Follow-Up (COMPLETED; isolated VS Code 1.93.1 provisioned explicitly, real Electron smoke passed, rendered HTML and screenshot evidence produced)`
+- Latest Completed Slice: `Electron Smoke Rendered Evidence Follow-Up`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download. Rendered Electron evidence still requires executing provisioning for an exact VS Code version and then running Electron smoke
+- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download; explicit provisioning for VS Code `1.93.1` passed; Electron smoke passed with repo-local executable; rendered evidence summary confirmed `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`; screenshot sanity check passed (`1600x1000`, `sampled_unique_colors=38`). Electron smoke is still not promoted to release-grade validation until a separate checklist/cache policy decision.
 
 ## 当前 Handoff Footprint
 
