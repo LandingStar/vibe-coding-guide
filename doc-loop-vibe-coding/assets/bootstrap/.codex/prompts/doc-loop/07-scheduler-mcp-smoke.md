@@ -71,7 +71,14 @@ Keep the lifecycle split:
    scheduler-derived trajectory summary. This is explicit host workflow
    composition, not scheduler-owned Local Work Trajectory mutation and not
    CLI/MCP real-provider exposure.
-16. Controlled host-runtime dogfood uses
+16. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
+   `doc-based-coding scheduler operator-workflow`, or
+   `run_scheduler_operator_workflow()` when a Codex/MCP/Host UX caller needs
+   one explicit contract over candidate inspection, exact admission, bounded
+   fake loop evidence, scheduler projection refresh, and Host Evidence
+   presentation readback. Mutating steps remain opt-in through
+   `admit` / `runLoop` / `refreshProjection`.
+17. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -388,6 +395,8 @@ Expected projection CLI behavior:
 Recommended operator workflow:
 
 ```text
+schedulerOperatorWorkflow
+doc-based-coding scheduler operator-workflow ...
 doc-based-coding resources read dbc://exchange-artifacts/bundle
 admitExchangeArtifact
 doc-based-coding scheduler admit-exchange-artifact ...
@@ -397,6 +406,27 @@ doc-based-coding scheduler tick ...
 doc-based-coding scheduler daemon-loop ...
 doc-based-coding scheduler project ...
 ```
+
+Prefer `schedulerOperatorWorkflow` or `doc-based-coding scheduler
+operator-workflow` when the current gate wants the complete operator sequence
+through one shared contract. Prefer the lower-level commands/tools when the
+gate is specifically validating an individual lifecycle step.
+
+Expected shared workflow behavior:
+
+1. Default mode is read-only: inspect candidates and read Host Evidence
+   presentation.
+2. `admit=true` / `--admit` admits one exact artifact/version and writes the
+   admission ledger.
+3. `runLoop=true` / `--run-loop` runs only the bounded fake scheduler loop and
+   writes scheduler-loop evidence.
+4. `refreshProjection=true` / `--refresh-projection` refreshes only the
+   scheduler-derived projection artifact.
+5. Per-step status is returned in `steps[]`; failed admission skips dependent
+   loop/projection steps.
+6. The shared workflow does not run live providers, start a background daemon,
+   mark ExchangeArtifacts consumed, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
 
 ## Submit
 

@@ -136,3 +136,41 @@
 2. **如果新增"pack 验证"工具**（validate_description + validate_pack_organization），应合并为一个 `validate_pack` 工具
 3. **考虑为 governance_decide 添加 `include_pack_info: bool` 参数**，减少 agent 需要额外调用 get_pack_info 的情况
 4. **promote_dogfood_evidence 的参数**：如果 pipeline 继续变复杂，考虑接受一个结构化的 `config` 对象而非平铺参数
+
+## 2026-06-17 增量：Scheduler Tools
+
+新增 MCP tool：
+
+| Tool Name | 参数 | 核心职责 | 领域 |
+|-----------|------|---------|------|
+| `schedulerSubmitTasks` | `snapshotPath*`, `eventLogPath*`, `batch`, `batchId`, `tasks`, `title`, `summary`, `artifactId`, `artifactVersion`, `producer`, `timestamp`, `replaceExisting` | 将结构化 scheduler task batch submission 提交到 scheduler-owned snapshot/event log；复用 `scheduler_submission` exchange-artifact intake；不运行任务、不刷新 projection、不写 local trajectory | 调度任务提交 / 调度状态 |
+| `schedulerProjection` | `snapshotPath*`, `schedulerEventLogPath`, `mergeGateEventLogPath`, `outputPath`, `trajectoryId`, `title`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 从 scheduler snapshot 与可选 JSONL history 写出 scheduler-derived trajectory projection artifact | 调度可观测 / Progress Graph |
+| `schedulerRunOnceAndProject` | `snapshotPath*`, `eventLogPath*`, `mergeGateEventLogPath`, `outputPath`, `maxRuns`, `timestamp`, `runtimeProvider`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 显式读取 persisted scheduler snapshot/event log，执行一次 bounded fake-runtime scheduler pass，写回 snapshot，并刷新 scheduler-derived trajectory projection artifact；`runtimeProvider` 当前只允许 `fake` | 调度执行烟测 / 调度可观测 |
+
+合并判断：
+
+- 不并入 `localTrajectory`：`localTrajectory` 是 agent-owned lifecycle mutation tool，写 `.codex/progress-graph/local-work-trajectory.json`；`schedulerSubmitTasks` / `schedulerProjection` / `schedulerRunOnceAndProject` 都是 scheduler-owned surface，不应让 Local Work Trajectory 成为调度权威。
+- 不并入 `analyze_changes`：输入、数据源与使用时机均不同；`schedulerProjection` 面向运行时调度状态可观测，不是源码变更影响分析。
+- `schedulerSubmitTasks` 不并入 `schedulerRunOnceAndProject`：前者只提交任务合同并写 snapshot/event log；后者推进 ready task 执行。提交与执行是 scheduler 生命周期中的两个动作，合并会让 MCP 调用方难以只登记任务而不运行。
+- `schedulerSubmitTasks` 不并入 `schedulerProjection`：前者改变 scheduler task graph；后者只刷新只读 projection artifact。两者输出可以串联，但不应共享一个模糊的“刷新/提交”工具。
+- `schedulerRunOnceAndProject` 不替代 `schedulerProjection`：前者会推进 scheduler snapshot 与 event log，后者只刷新 projection artifact。两者都不写 agent-owned local trajectory。
+- `schedulerRunOnceAndProject` 第一版只暴露 fake runtime / shared-process sandbox smoke path；`runtimeProvider` 是显式 guard 参数，默认/空值/`fake` 才会执行，`qoder` 或未知 provider 会返回 fake-only 错误。真实 Qoder 或多 runtime provider 选择应等 host permission、sandbox 与 adapter registry 入口明确后再扩。
+- 当前 fake-only 执行路径已经通过 `build_runtime_registry_from_config()` 构建 `AgentRuntimeAdapterRegistry`，并传入 `RuntimeHostInvocation(surface="mcp-scheduler-run-once")`。成功返回会报告 `runtime_registry_providers=["fake"]`。这只是把 Host wiring seam 提前固定住，不代表 MCP 已允许真实 qoder 执行。
+- 当前保留为独立工具是合理的，因为它们分别对应 submit / project / run+project 三个不同 lifecycle action，同时避免把 scheduler mutation 误解为 trajectory mutation。
+- 当前端到端冒烟顺序已固化为 `schedulerSubmitTasks -> schedulerProjection -> schedulerRunOnceAndProject`，并由 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 及 bootstrap 副本提供 agent 操作提示；该提示词只用于 scheduler lifecycle 验证，不替代 `localTrajectory`。
+
+## 2026-06-19 增量：Scheduler Operator Workflow Tool
+
+新增 MCP tool：
+
+| Tool Name | 参数 | 核心职责 | 领域 |
+|-----------|------|---------|------|
+| `schedulerOperatorWorkflow` | `artifactId`, `version`, `admit`, `runLoop`, `refreshProjection`, `artifactStorePath`, `admissionLedgerPath`, `snapshotPath`, `eventLogPath`, `mergeGateEventLogPath`, `projectionOutputPath`, `evidenceId`, `evidencePath`, `runtimeProvider`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `allowDuplicateAdmission`, `replaceExisting`, `actor`, `timestamp`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 共享显式 operator workflow：读取 ExchangeArtifact admission candidates，按 opt-in flag admit exact artifact/version、运行 bounded fake scheduler loop 并写 evidence、刷新 scheduler projection，然后读取 Host Evidence presentation；返回 per-step status | 调度 operator workflow / Host UX 收敛 |
+
+合并判断：
+
+- 不替代 `admitExchangeArtifact`：`schedulerOperatorWorkflow` 是组合型 operator surface；`admitExchangeArtifact` 仍是精确 admission 的最小写工具。
+- 不替代 `schedulerProjection`：统一 workflow 的 projection 步骤是 opt-in 串联动作；单独刷新 projection 仍需要保持独立只读投影写面。
+- 不替代 `schedulerRunOnceAndProject`：统一 workflow 走 bounded daemon-loop + evidence readback 产品路径；`schedulerRunOnceAndProject` 仍是早期 one-pass fake-runtime smoke surface。
+- 不并入 `localTrajectory`：统一 workflow 只写 scheduler-owned snapshot/event-log、admission ledger、scheduler-loop evidence 与 scheduler-derived projection artifact；不会写 agent-owned `.codex/progress-graph/local-work-trajectory.json`。
+- `runtimeProvider` 当前仍只允许 `fake`。真实 Qoder 或其他 provider 必须继续走 host-owned runtime injection / permission evidence gate。

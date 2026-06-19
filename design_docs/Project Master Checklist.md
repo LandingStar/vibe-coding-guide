@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler operator workflow dogfood fixture close`
-- Active Slice: `Scheduler Operator Workflow Dogfood Fixture (COMPLETED; CLI seed-dogfood-fixture writes one controlled ExchangeArtifact scheduler-admission candidate and validates seed/read/admit/run/project/readback over fake runtime)`
-- Latest Completed Slice: `Scheduler Operator Workflow Dogfood Fixture`
+- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler operator unified workflow surface close`
+- Active Slice: `Scheduler Operator Unified Workflow Surface (COMPLETED; backend helper, MCP schedulerOperatorWorkflow, and CLI scheduler operator-workflow share an explicit opt-in workflow over candidate inspect/admit/bounded fake loop/projection/evidence readback)`
+- Latest Completed Slice: `Scheduler Operator Unified Workflow Surface`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: scheduler operator dogfood fixture focused runtime tests `2 passed`; focused CLI workflow tests `2 passed`; scheduler / ExchangeArtifact / Host Evidence focused regression `126 passed`; previous VS Code Scheduler Operator UI validation remains `23 passed` with screenshot artifact at `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`
+- Test Baseline: scheduler operator unified workflow focused runtime tests `3 passed`; focused CLI workflow tests `3 passed`; focused MCP workflow tests `1 passed`; scheduler / ExchangeArtifact / Host Evidence / operator workflow focused regression `134 passed`; previous VS Code Scheduler Operator UI validation remains `23 passed` with screenshot artifact at `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`
 
 ## 当前 Handoff Footprint
 
@@ -61,6 +61,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-admission-host-evidence-operator-workflow-ui.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-workflow-dogfood-fixture.md`
+- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-unified-workflow-surface.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -91,6 +92,7 @@
 - `review/host-evidence-ui-binding-2026-06-19.md`
 - `review/scheduler-admission-host-evidence-operator-workflow-ui-2026-06-19.md`
 - `review/scheduler-operator-workflow-dogfood-fixture-2026-06-19.md`
+- `review/scheduler-operator-unified-workflow-surface-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -107,6 +109,7 @@
 - `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`
 - `design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md`
 - `design_docs/scheduler-operator-workflow-dogfood-fixture-followup-direction-analysis.md`
+- `design_docs/scheduler-operator-unified-workflow-surface-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`

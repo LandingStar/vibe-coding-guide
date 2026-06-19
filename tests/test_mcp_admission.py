@@ -17,6 +17,7 @@ from src.runtime.orchestration import (
     SchedulerTaskSubmission,
     read_scheduler_state_snapshot,
     scheduler_task_submission_to_artifact,
+    seed_scheduler_operator_dogfood_fixture,
 )
 
 
@@ -128,5 +129,49 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         assert payload["ok"] is True
         assert payload["submitted_task_ids"] == ["task-server-admit"]
         assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-1"
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Path) -> None:
+    seed_scheduler_operator_dogfood_fixture(tmp_path)
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerOperatorWorkflow" in names
+        workflow_tool = next(tool for tool in tools if tool.name == "schedulerOperatorWorkflow")
+        assert "admit" in workflow_tool.inputSchema["properties"]
+        assert "runLoop" in workflow_tool.inputSchema["properties"]
+        assert "refreshProjection" in workflow_tool.inputSchema["properties"]
+
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorWorkflow",
+                    arguments={
+                        "artifactId": "fixture:scheduler-operator-dogfood",
+                        "version": "v1",
+                        "admit": True,
+                        "runLoop": True,
+                        "refreshProjection": True,
+                        "evidenceId": "mcp-operator-workflow",
+                        "timestamp": "2026-06-19T11:45:00+08:00",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+        assert payload["ok"] is True
+        assert payload["admission_result"]["submitted_task_ids"] == [
+            "dogfood:prepare",
+            "dogfood:verify",
+        ]
+        assert payload["loop_result"]["total_run_count"] == 2
+        assert payload["projection_result"]["event_count"] == 2
+        assert payload["host_evidence_presentation"]["card_count"] == 1
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())

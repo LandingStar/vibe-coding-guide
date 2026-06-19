@@ -133,6 +133,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerSubmitTasks" in text
         assert "schedulerProjection" in text
         assert "schedulerRunOnceAndProject" in text
+        assert "schedulerOperatorWorkflow" in text
+        assert "doc-based-coding scheduler operator-workflow" in text
+        assert "admit` / `runLoop` / `refreshProjection`" in text
         assert "localTrajectory" in text
         assert ".codex/progress-graph/local-work-trajectory.json" in text
         assert ".codex/progress-graph/scheduler-work-trajectory.json" in text

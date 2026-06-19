@@ -357,6 +357,18 @@ _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE = (
     "[--replace-existing] [--created-at TIMESTAMP]"
 )
 
+_SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
+    "Usage: doc-based-coding scheduler operator-workflow "
+    "[--artifact-id ID --version VERSION] [--admit] [--run-loop] [--refresh-projection] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] [--merge-gate-event-log-path PATH] "
+    "[--projection-output-path PATH] [--evidence-id ID] [--evidence-path PATH] "
+    "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
+    "[--max-runtime-failures N] [--allow-duplicate-admission] [--replace-existing] "
+    "[--actor ACTOR] [--timestamp TIMESTAMP] [--guide-context PATH_OR_LABEL] "
+    "[--source-graph-id ID] [--source-node-id ID]"
+)
+
 
 def _resolve_project_path(root: Path, value: str | Path) -> Path:
     """Resolve CLI paths relative to the detected project root."""
@@ -379,7 +391,8 @@ def cmd_scheduler(args: list[str]) -> int:
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
             "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
-            "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n",
+            "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
+            "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n",
         )
         return 0
 
@@ -398,10 +411,12 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_project(args[1:])
     if sub == "seed-dogfood-fixture":
         return cmd_scheduler_seed_dogfood_fixture(args[1:])
+    if sub == "operator-workflow":
+        return cmd_scheduler_operator_workflow(args[1:])
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project|seed-dogfood-fixture> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project|seed-dogfood-fixture|operator-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -620,6 +635,200 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
 
     _print_json(result.to_json_dict())
     return 0
+
+
+def cmd_scheduler_operator_workflow(args: list[str]) -> int:
+    """Run the shared explicit scheduler operator workflow."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_OPERATOR_WORKFLOW_USAGE + "\n\n"
+            "This is a shared host/operator workflow surface. It always inspects "
+            "candidates and Host Evidence presentation, but scheduler mutations are "
+            "opt-in through --admit, --run-loop, and --refresh-projection. It does "
+            "not mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_id = ""
+    version = ""
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    merge_gate_event_log_path = ""
+    projection_output_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    runtime_provider = "fake"
+    actor = "operator-cli"
+    timestamp = ""
+    guide_context = ""
+    source_graph_id = ""
+    source_node_id = ""
+    admit = False
+    run_loop = False
+    refresh_projection = False
+    allow_duplicate_admission = False
+    replace_existing = False
+    max_ticks = 3
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--admit":
+            admit = True
+            i += 1
+            continue
+        if arg == "--run-loop":
+            run_loop = True
+            i += 1
+            continue
+        if arg == "--refresh-projection":
+            refresh_projection = True
+            i += 1
+            continue
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-id",
+            "--version",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--merge-gate-event-log-path",
+            "--projection-output-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--runtime-provider",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+            "--actor",
+            "--timestamp",
+            "--guide-context",
+            "--source-graph-id",
+            "--source-node-id",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_OPERATOR_WORKFLOW_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            elif arg == "--projection-output-path":
+                projection_output_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--guide-context":
+                guide_context = value
+            elif arg == "--source-graph-id":
+                source_graph_id = value
+            elif arg == "--source-node-id":
+                source_node_id = value
+            elif arg == "--max-ticks":
+                try:
+                    max_ticks = int(value)
+                except ValueError:
+                    print(_SCHEDULER_OPERATOR_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-ticks must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runs-per-tick":
+                try:
+                    max_runs_per_tick = int(value)
+                except ValueError:
+                    print(_SCHEDULER_OPERATOR_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-runs-per-tick must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runtime-failures":
+                try:
+                    max_runtime_failures = int(value)
+                except ValueError:
+                    print(_SCHEDULER_OPERATOR_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-runtime-failures must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler operator-workflow option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_OPERATOR_WORKFLOW_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from tools.progress_graph import (
+            SchedulerOperatorWorkflowRequest,
+            run_scheduler_operator_workflow,
+        )
+
+        result = run_scheduler_operator_workflow(
+            SchedulerOperatorWorkflowRequest(
+                project_root=root,
+                artifact_id=artifact_id,
+                version=version,
+                admit=admit,
+                run_loop=run_loop,
+                refresh_projection=refresh_projection,
+                artifact_store_path=artifact_store_path or None,
+                admission_ledger_path=admission_ledger_path or None,
+                snapshot_path=snapshot_path or None,
+                event_log_path=event_log_path or None,
+                merge_gate_event_log_path=merge_gate_event_log_path or None,
+                projection_output_path=projection_output_path or None,
+                evidence_id=evidence_id,
+                evidence_path=evidence_path or None,
+                runtime_provider=runtime_provider,
+                max_ticks=max_ticks,
+                max_runs_per_tick=max_runs_per_tick,
+                max_runtime_failures=max_runtime_failures,
+                allow_duplicate_admission=allow_duplicate_admission,
+                replace_existing=replace_existing,
+                actor=actor,
+                timestamp=timestamp,
+                guide_context=guide_context,
+                source_graph_id=source_graph_id,
+                source_node_id=source_node_id,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler operator workflow",
+            e,
+            category="scheduler_operator_workflow_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
 
 
 def cmd_scheduler_inspect_admissions(args: list[str]) -> int:

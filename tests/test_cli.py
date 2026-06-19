@@ -77,6 +77,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "daemon-loop" in proc.stdout
     assert "project" in proc.stdout
     assert "seed-dogfood-fixture" in proc.stdout
+    assert "operator-workflow" in proc.stdout
 
 
 def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
@@ -98,6 +99,17 @@ def test_scheduler_seed_dogfood_fixture_help_describes_non_goals() -> None:
     assert "--replace-existing" in proc.stdout
     assert "controlled ExchangeArtifact scheduler-admission candidate" in proc.stdout
     assert "does not admit tasks" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_operator_workflow_help_describes_opt_in_mutation() -> None:
+    proc = _run_cli(["scheduler", "operator-workflow", "--help"])
+
+    assert proc.returncode == 0
+    assert "--admit" in proc.stdout
+    assert "--run-loop" in proc.stdout
+    assert "--refresh-projection" in proc.stdout
+    assert "opt-in" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -645,6 +657,65 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
         "dogfood:prepare",
         "dogfood:verify",
     ]
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_cli_runs_shared_surface(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    seed = _run_cli(
+        [
+            "scheduler",
+            "seed-dogfood-fixture",
+            "--created-at",
+            "2026-06-19T03:00:00+08:00",
+        ],
+        cwd=project,
+    )
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "fixture:scheduler-operator-dogfood",
+            "--version",
+            "v1",
+            "--admit",
+            "--run-loop",
+            "--refresh-projection",
+            "--evidence-id",
+            "operator-workflow-cli",
+            "--timestamp",
+            "2026-06-19T11:40:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    assert workflow.returncode == 0, workflow.stderr
+    payload = json.loads(workflow.stdout)
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "scheduler-operator-workflow"
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["candidate_bundle"]["admission_candidate_count"] == 1
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
+    assert payload["loop_result"]["evidence_id"] == "operator-workflow-cli"
+    assert payload["projection_result"]["event_count"] == 2
+    assert payload["host_evidence_presentation"]["card_count"] == 1
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (project / ".codex" / "scheduler" / "evidence" / "operator-workflow-cli.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

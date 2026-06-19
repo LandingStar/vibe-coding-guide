@@ -140,6 +140,10 @@ from src.runtime.orchestration import (
     write_scheduler_state_snapshot,
     write_scheduler_loop_evidence,
 )
+from tools.progress_graph import (
+    SchedulerOperatorWorkflowRequest,
+    run_scheduler_operator_workflow,
+)
 
 
 def test_bridge_group_item_defaults_allow_pre_dispatch_missing_lineage() -> None:
@@ -3194,6 +3198,133 @@ def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_p
     assert replaced.replaced_existing is True
     assert len(records) == 1
     assert records[0].artifact.created_at == "2026-06-19T12:00:00+08:00"
+
+
+def test_scheduler_operator_workflow_read_only_inspects_without_mutation(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    projection_path = tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(project_root=tmp_path)
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["name"] for step in payload["steps"]] == [
+        "inspectCandidates",
+        "admit",
+        "runLoop",
+        "refreshProjection",
+        "readHostEvidencePresentation",
+    ]
+    assert payload["steps"][0]["status"] == "completed"
+    assert payload["steps"][1]["status"] == "skipped"
+    assert payload["steps"][2]["status"] == "skipped"
+    assert payload["steps"][3]["status"] == "skipped"
+    assert payload["candidate_bundle"]["admission_candidate_count"] == 1
+    assert payload["host_evidence_presentation"]["status"] == "empty"
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not snapshot_path.exists()
+    assert not ledger_path.exists()
+    assert not projection_path.exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
+    seed_scheduler_operator_dogfood_fixture(tmp_path)
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="fixture:scheduler-operator-dogfood",
+            version="v1",
+            admit=True,
+            run_loop=True,
+            refresh_projection=True,
+            evidence_id="workflow-helper-loop",
+            timestamp="2026-06-19T11:30:00+08:00",
+            guide_context="workflow-helper-test",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
+    assert payload["loop_result"]["tick_count"] == 2
+    assert payload["loop_result"]["total_run_count"] == 2
+    assert payload["loop_result"]["stop_reason"] == "no_ready_tasks"
+    assert payload["loop_result"]["evidence_written"] is True
+    assert payload["projection_result"]["event_count"] == 2
+    assert payload["projection_result"]["guide_context"] == "workflow-helper-test"
+    assert payload["host_evidence_presentation"]["card_count"] == 1
+    assert payload["host_evidence_presentation"]["cards"][0]["id"] == "workflow-helper-loop"
+    assert payload["host_evidence_presentation"]["cards"][0]["metadata"][
+        "scheduler_projection_refreshed"
+    ] == "true"
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert (tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-loop.json").exists()
+    assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_duplicate_admission_stops_dependent_steps(tmp_path) -> None:
+    seed_scheduler_operator_dogfood_fixture(tmp_path)
+    first = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="fixture:scheduler-operator-dogfood",
+            version="v1",
+            admit=True,
+            run_loop=False,
+            refresh_projection=False,
+        )
+    )
+    duplicate = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="fixture:scheduler-operator-dogfood",
+            version="v1",
+            admit=True,
+            run_loop=True,
+            refresh_projection=True,
+            evidence_id="duplicate-should-not-run",
+        )
+    )
+    payload = duplicate.to_json_dict()
+
+    assert first.ok is True
+    assert payload["ok"] is False
+    assert payload["steps"][1]["name"] == "admit"
+    assert payload["steps"][1]["status"] == "failed"
+    assert payload["steps"][1]["result"]["status"] == "rejected_duplicate"
+    assert payload["steps"][2]["name"] == "runLoop"
+    assert payload["steps"][2]["status"] == "skipped"
+    assert payload["steps"][3]["name"] == "refreshProjection"
+    assert payload["steps"][3]["status"] == "skipped"
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert not (tmp_path / ".codex" / "scheduler" / "evidence" / "duplicate-should-not-run.json").exists()
 
 
 def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:

@@ -1122,6 +1122,70 @@ class GovernanceTools:
             "metadata": dict(result.projection.metadata),
         }
 
+    def scheduler_operator_workflow(
+        self,
+        *,
+        artifact_id: str = "",
+        version: str = "",
+        admit: bool = False,
+        run_loop: bool = False,
+        refresh_projection: bool = False,
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        snapshot_path: str = "",
+        event_log_path: str = "",
+        merge_gate_event_log_path: str = "",
+        projection_output_path: str = "",
+        evidence_id: str = "",
+        evidence_path: str = "",
+        runtime_provider: str = "fake",
+        max_ticks: int = 3,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        allow_duplicate_admission: bool = False,
+        replace_existing: bool = False,
+        actor: str = "mcp",
+        timestamp: str = "",
+        guide_context: str = "",
+        source_graph_id: str = "",
+        source_node_id: str = "",
+    ) -> dict[str, Any]:
+        """Run the shared explicit scheduler operator workflow."""
+
+        from tools.progress_graph import (
+            SchedulerOperatorWorkflowRequest,
+            run_scheduler_operator_workflow,
+        )
+
+        request = SchedulerOperatorWorkflowRequest(
+            project_root=self._project_root,
+            artifact_id=artifact_id,
+            version=version,
+            admit=admit,
+            run_loop=run_loop,
+            refresh_projection=refresh_projection,
+            artifact_store_path=artifact_store_path or None,
+            admission_ledger_path=admission_ledger_path or None,
+            snapshot_path=snapshot_path or None,
+            event_log_path=event_log_path or None,
+            merge_gate_event_log_path=merge_gate_event_log_path or None,
+            projection_output_path=projection_output_path or None,
+            evidence_id=evidence_id,
+            evidence_path=evidence_path or None,
+            runtime_provider=runtime_provider or "fake",
+            max_ticks=max_ticks,
+            max_runs_per_tick=max_runs_per_tick,
+            max_runtime_failures=max_runtime_failures,
+            allow_duplicate_admission=allow_duplicate_admission,
+            replace_existing=replace_existing,
+            actor=actor or "mcp",
+            timestamp=timestamp,
+            guide_context=guide_context,
+            source_graph_id=source_graph_id,
+            source_node_id=source_node_id,
+        )
+        return run_scheduler_operator_workflow(request).to_json_dict()
+
     def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 

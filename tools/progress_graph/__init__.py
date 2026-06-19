@@ -50,6 +50,15 @@ from .scheduler_projection import (
     scheduler_work_trajectory_json_path,
     write_scheduler_work_trajectory_artifact,
 )
+from .scheduler_operator_workflow import (
+    DEFAULT_SCHEDULER_OPERATOR_EVIDENCE_ID,
+    DEFAULT_SCHEDULER_OPERATOR_EVENT_LOG_RELATIVE_PATH,
+    DEFAULT_SCHEDULER_OPERATOR_SNAPSHOT_RELATIVE_PATH,
+    SchedulerOperatorWorkflowRequest,
+    SchedulerOperatorWorkflowResult,
+    SchedulerOperatorWorkflowStep,
+    run_scheduler_operator_workflow,
+)
 from .scheduler_dogfood import (
     HostRuntimeDogfoodHarnessResult,
     run_host_runtime_dogfood_harness,
@@ -115,6 +124,7 @@ __all__ = [
     "run_host_authorized_scheduler_once_and_refresh_projection",
     "run_host_runtime_dogfood_harness",
     "run_persisted_scheduler_once_and_refresh_projection",
+    "run_scheduler_operator_workflow",
     "scheduler_work_trajectory_json_path",
     "HostEvidenceBundle",
     "HostEvidencePresentation",
@@ -135,6 +145,12 @@ __all__ = [
     "default_qoder_smoke_snapshot_path",
     "ensure_qoder_smoke_scheduler_snapshot",
     "SchedulerRunProjectionRefreshResult",
+    "SchedulerOperatorWorkflowRequest",
+    "SchedulerOperatorWorkflowResult",
+    "SchedulerOperatorWorkflowStep",
+    "DEFAULT_SCHEDULER_OPERATOR_EVIDENCE_ID",
+    "DEFAULT_SCHEDULER_OPERATOR_EVENT_LOG_RELATIVE_PATH",
+    "DEFAULT_SCHEDULER_OPERATOR_SNAPSHOT_RELATIVE_PATH",
     "write_scheduler_work_trajectory_artifact",
     "run_host_owned_qoder_smoke",
     "TrajectoryArtifactsBundle",

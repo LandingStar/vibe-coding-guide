@@ -1024,6 +1024,119 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["snapshotPath", "eventLogPath"],
                 },
             ),
+            Tool(
+                name="schedulerOperatorWorkflow",
+                description=(
+                    "Run the explicit shared scheduler operator workflow: inspect "
+                    "ExchangeArtifact scheduler-admission candidates, optionally admit "
+                    "one exact artifact version, optionally run a bounded fake-runtime "
+                    "scheduler loop with durable evidence, optionally refresh the "
+                    "scheduler-derived projection, then read Host Evidence presentation. "
+                    "Mutating steps are opt-in via admit/runLoop/refreshProjection; "
+                    "this does not mutate agent-owned Local Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact id to admit when admit=true.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact version to admit when admit=true.",
+                        },
+                        "admit": {
+                            "type": "boolean",
+                            "description": "Whether to admit the exact artifact/version. Default false.",
+                        },
+                        "runLoop": {
+                            "type": "boolean",
+                            "description": "Whether to run a bounded fake scheduler loop. Default false.",
+                        },
+                        "refreshProjection": {
+                            "type": "boolean",
+                            "description": "Whether to refresh scheduler-derived trajectory projection. Default false.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional admission ledger path.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Optional scheduler snapshot path. Defaults under .codex/scheduler.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event log path. Defaults under .codex/scheduler.",
+                        },
+                        "mergeGateEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler merge-gate event log path.",
+                        },
+                        "projectionOutputPath": {
+                            "type": "string",
+                            "description": "Optional scheduler projection output path.",
+                        },
+                        "evidenceId": {
+                            "type": "string",
+                            "description": "Optional scheduler-loop evidence id when runLoop=true.",
+                        },
+                        "evidencePath": {
+                            "type": "string",
+                            "description": "Optional scheduler-loop evidence output path.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Current workflow only supports 'fake'.",
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "Bounded loop max ticks. Default 3.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "Bounded loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "Runtime failure stop threshold. Default 1.",
+                        },
+                        "allowDuplicateAdmission": {
+                            "type": "boolean",
+                            "description": "Allow duplicate exact artifact/version admission. Default false.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Allow admitted scheduler tasks to replace existing task ids. Default false.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Actor recorded in admission ledger. Defaults to mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for scheduler and evidence events.",
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Optional guide context stored on the projection.",
+                        },
+                        "sourceGraphId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph id for projection.",
+                        },
+                        "sourceNodeId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph node id for projection.",
+                        },
+                    },
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -1208,6 +1321,33 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 max_runs=arguments.get("maxRuns"),
                 timestamp=arguments.get("timestamp", ""),
                 runtime_provider=arguments.get("runtimeProvider", "fake"),
+                guide_context=arguments.get("guideContext", ""),
+                source_graph_id=arguments.get("sourceGraphId", ""),
+                source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerOperatorWorkflow":
+            result = tools.scheduler_operator_workflow(
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                admit=arguments.get("admit", False),
+                run_loop=arguments.get("runLoop", False),
+                refresh_projection=arguments.get("refreshProjection", False),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                merge_gate_event_log_path=arguments.get("mergeGateEventLogPath", ""),
+                projection_output_path=arguments.get("projectionOutputPath", ""),
+                evidence_id=arguments.get("evidenceId", ""),
+                evidence_path=arguments.get("evidencePath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                max_ticks=arguments.get("maxTicks", 3),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
+                allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
+                replace_existing=arguments.get("replaceExisting", False),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
