@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Electron smoke release checklist pre-provisioned gate",
-  "recorded_at": "2026-06-19T18:21:49.632101+00:00",
+  "title": "Full release evidence readiness check",
+  "recorded_at": "2026-06-19T18:47:56.024877+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "design_docs/electron-smoke-release-validation-promotion-direction-analysis.md",
@@ -13,17 +13,17 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Electron smoke release checklist pre-provisioned gate",
+    "title": "Full release evidence readiness check",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 6,
+    "relation_count": 5,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "release-smoke",
+      "label": "release evidence",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
@@ -36,30 +36,93 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Define pre-provisioned release gate scope",
-      "kind": "start",
+      "title": "Inspect release gate state and define next narrow slice",
+      "kind": "review",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T18:10:38.784939+00:00",
-        "activated_at": "2026-06-19T18:10:38.784939+00:00",
+        "created_at": "2026-06-19T18:27:23.410705+00:00",
+        "activated_at": "2026-06-19T18:27:23.410705+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T18:12:09.825628+00:00"
+        "completed_at": "2026-06-19T18:28:46.482341+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement preflight and release hook",
+      "title": "Create full release run evidence planning gate",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Add release.py preflight/runner and focused tests for pre-provisioned Electron smoke release validation.",
+      "summary": "Resume full release evidence run after identifying stale official instance pack lock as the blocker.",
       "metadata": {
-        "created_at": "2026-06-19T18:12:18.591449+00:00",
+        "created_at": "2026-06-19T18:28:51.305691+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T18:21:49.632101+00:00"
+        "activated_at": "2026-06-19T18:29:22.198444+00:00",
+        "blocked_at": "2026-06-19T18:34:29.460283+00:00",
+        "blocked_reason": "Full release run failed during full pytest because doc-loop-vibe-coding pack integrity lock hash is stale versus current content; need inspect/update lock before rerun.",
+        "resumed_at": "2026-06-19T18:35:26.063020+00:00",
+        "completed_at": "2026-06-19T18:36:14.163054+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Run full release with pre-provisioned Electron smoke",
+      "kind": "validation",
+      "status": "completed",
+      "order": 3,
+      "summary": "Execute scripts/release.py --no-isolation and inspect artifacts plus smoke summary.",
+      "metadata": {
+        "created_at": "2026-06-19T18:29:28.242319+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-19T18:36:14.163054+00:00",
+        "completed_at": "2026-06-19T18:39:28.337924+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Refresh stale official instance pack lock",
+      "kind": "task",
+      "status": "completed",
+      "order": 4,
+      "summary": "Use pack integrity API to update doc-loop-vibe-coding lock hash so release full pytest can start from a valid official instance lock.",
+      "metadata": {
+        "created_at": "2026-06-19T18:35:33.179330+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-19T18:39:28.337924+00:00",
+        "completed_at": "2026-06-19T18:45:30.303439+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Repackage release after release-note evidence update",
+      "kind": "validation",
+      "status": "completed",
+      "order": 5,
+      "summary": "Rerun release packaging with --skip-tests so the regenerated release zip includes updated release notes while still exercising packaging and Electron smoke gate.",
+      "metadata": {
+        "created_at": "2026-06-19T18:44:43.778749+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-19T18:45:30.303439+00:00",
+        "completed_at": "2026-06-19T18:47:02.932319+00:00"
+      }
+    },
+    "event:006": {
+      "id": "event:006",
+      "lane_id": "lane:main",
+      "title": "Close full release Electron smoke evidence run",
+      "kind": "close",
+      "status": "completed",
+      "order": 6,
+      "summary": "Close the evidence run after full release validation, repackaging, review/status writeback, and zip content verification.",
+      "metadata": {
+        "created_at": "2026-06-19T18:47:27.184639+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-19T18:47:56.024877+00:00"
       }
     }
   },
@@ -67,6 +130,42 @@
     {
       "source_event_id": "event:001",
       "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:005",
+      "target_event_id": "event:006",
       "kind": "sequence",
       "summary": "",
       "metadata": {

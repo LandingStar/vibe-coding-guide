@@ -10,6 +10,8 @@ release-time secret hygiene checks.
 This is a same-version rebuild and does not bump runtime, instance, or VSIX
 versions. It also includes the askQuestions-specific contract cleanup, replacing
 that obsolete host binding with host-neutral analysis-first forward questions.
+The release checklist now also proves the VS Code webview path through a
+pre-provisioned Electron smoke gate.
 
 ## Changes
 
@@ -20,6 +22,7 @@ that obsolete host binding with host-neutral analysis-first forward questions.
 - Add secret scanning and the Secret Hygiene / Log Redaction standard
 - Keep the VSIX graph runtime self-contained with the pinned graph engine tarball
 - Refresh package versions, release docs, and official instance pack lock
+- Run the pre-provisioned VS Code 1.93.1 Electron smoke gate during release packaging
 
 ## Verified
 
@@ -27,5 +30,5 @@ that obsolete host binding with host-neutral analysis-first forward questions.
 - `python scripts/scan_secrets.py --scope worktree`: passed
 - `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: 3 passed
 - `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`: 100 passed
-- `python scripts/release.py --no-isolation`: built wheels, ran full pytest (`1432 passed, 3 skipped`), packaged `doc-based-coding-0.2.1.vsix`, and generated `release/doc-based-coding-v0.9.8.zip`
+- `python scripts/release.py --no-isolation`: built wheels, ran full pytest (`1754 passed, 3 skipped`), packaged `doc-based-coding-0.2.1.vsix`, ran Electron smoke (`ok=true`, `lanes=4`, `events=6`, `relations=12`), and generated `release/doc-based-coding-v0.9.8.zip`
 ```

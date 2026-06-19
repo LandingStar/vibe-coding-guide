@@ -10,6 +10,9 @@ This package is a same-version rebuild of the `v0.9.8` batch. It does not bump
 runtime, instance, or VSIX versions. The rebuild adds the conversation-progression
 rule cleanup that removes the obsolete `askQuestions`-specific requirement from
 active rules, generated prompts, bootstrap assets, and MCP interaction metadata.
+It also promotes the Electron webview smoke into the release checklist through a
+pre-provisioned VS Code `1.93.1` gate and verifies that gate in a full release
+run.
 
 ## Package Contents
 
@@ -62,6 +65,16 @@ active rules, generated prompts, bootstrap assets, and MCP interaction metadata.
 - The VSIX remains self-contained for graph webview renderer / worker runtime;
   users do not need a separate graph engine workspace or npm install.
 
+### 5. Electron Smoke Release Gate
+
+- Added the default release checklist gate that runs Electron smoke after VSIX
+  packaging when a repo-local VS Code `1.93.1` executable and manifest have
+  already been provisioned.
+- Kept VS Code provisioning explicit; release validation does not download VS
+  Code automatically.
+- Added `--skip-electron-smoke` as an explicit operator escape hatch.
+- Proved the gate through a full `scripts/release.py --no-isolation` run.
+
 ## Verification
 
 - `python release/verify_version_consistency.py`: passed
@@ -70,8 +83,10 @@ active rules, generated prompts, bootstrap assets, and MCP interaction metadata.
 - `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`: `100 passed`
 - `python scripts/release.py --no-isolation`: passed
   - built both wheels
-  - ran full Python test suite: `1432 passed, 3 skipped`
+  - ran full Python test suite: `1754 passed, 3 skipped`
   - packaged VSIX `doc-based-coding-0.2.1.vsix`
+  - ran Electron smoke release gate: `ok=true`, `panelVisible=true`, scheduler
+    root/payload present, `lanes=4`, `events=6`, `relations=12`
   - generated `release/doc-based-coding-v0.9.8.zip`
 
 ## Install Order

@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-20T02:21:00+08:00
+# Checkpoint - 2026-06-20T02:45:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Electron smoke release checklist pre-provisioned gate close
+Post-v1.0 - Agent orchestration / Full release Electron smoke evidence run close
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -37,6 +37,16 @@ Post-v1.0 - Agent orchestration / Electron smoke release checklist pre-provision
 - [x] Add explicit `--skip-electron-smoke` release escape hatch.
 - [x] Validate release dry-run, skip dry-run, preflight helper, and smoke summary helper.
 - [x] Record review evidence in `review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md`.
+- [x] Complete `design_docs/stages/planning-gate/2026-06-20-full-release-electron-smoke-evidence-run.md`.
+- [x] Refresh stale `doc-loop-vibe-coding` official instance pack lock through MCP `pack_lock`.
+- [x] Validate `pack_verify(pack_name="doc-loop-vibe-coding")`: `ok=1`.
+- [x] Validate focused stale-lock regression: `1 passed`.
+- [x] Run full release: `.\.venv\Scripts\python.exe scripts/release.py --no-isolation`.
+- [x] Confirm full pytest: `1754 passed, 3 skipped`.
+- [x] Confirm release Electron smoke gate: `PASSED`, summary `ok=true`, `panelVisible=true`, `lanes=4`, `events=6`, `relations=12`.
+- [x] Regenerate `release/doc-based-coding-v0.9.8.zip`.
+- [x] Record review evidence in `review/full-release-electron-smoke-evidence-run-2026-06-20.md`.
+- [x] Update release notes and commit message drafts with Electron smoke release gate evidence.
 ## Pending User Decision
 (none)
 ## Direction Candidates
@@ -44,17 +54,20 @@ Post-v1.0 - Agent orchestration / Electron smoke release checklist pre-provision
 - Completed Line: Electron Smoke VS Code Provisioning Automation - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
 - Completed Evidence Line: VS Code `1.93.1` provisioned, Electron smoke passed, rendered evidence produced - source: design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
 - Completed Promotion Line: `Electron Smoke Release Checklist Pre-Provisioned Gate` - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md
+- Completed Evidence Line: `Full Release Electron Smoke Evidence Run` - source: design_docs/stages/planning-gate/2026-06-20-full-release-electron-smoke-evidence-run.md
 - Deferred Promotion Line: CI-managed pinned VS Code cache/offline provenance - source: design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
-- Possible Evidence Line: run a full `scripts/release.py --no-isolation` only when ready to refresh release artifacts - source: scripts/release.py
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
 - design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md
+- design_docs/stages/planning-gate/2026-06-20-full-release-electron-smoke-evidence-run.md
 - review/electron-smoke-vscode-provisioning-automation-2026-06-20.md
 - review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md
+- review/full-release-electron-smoke-evidence-run-2026-06-20.md
 - design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
 - design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
+- .codex/pack-lock.json
 - output/electron/webview-runner-smoke/electron-webview-smoke-summary.json
 - output/electron/webview-runner-smoke/rendered-progress-graph-preview.html
 - output/playwright/electron-webview-smoke/rendered-progress-graph-preview.png
