@@ -369,6 +369,16 @@ _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
+_SCHEDULER_LIFECYCLE_USAGE = (
+    "Usage: doc-based-coding scheduler lifecycle "
+    "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once> "
+    "--control-path PATH [--snapshot-path PATH] [--event-log-path PATH] "
+    "[--daemon-id ID] [--run-id ID] [--timestamp TIMESTAMP] "
+    "[--stale-after-seconds N] [--now-epoch-seconds N] "
+    "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
+    "[--max-runtime-failures N]"
+)
+
 
 def _resolve_project_path(root: Path, value: str | Path) -> Path:
     """Resolve CLI paths relative to the detected project root."""
@@ -390,6 +400,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
             "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
+            "  lifecycle                Read or mutate scheduler daemon lifecycle control state\n"
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
             "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n",
@@ -407,6 +418,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_tick(args[1:])
     if sub == "daemon-loop":
         return cmd_scheduler_daemon_loop(args[1:])
+    if sub == "lifecycle":
+        return cmd_scheduler_lifecycle(args[1:])
     if sub == "project":
         return cmd_scheduler_project(args[1:])
     if sub == "seed-dogfood-fixture":
@@ -416,7 +429,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project|seed-dogfood-fixture|operator-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -1309,6 +1322,220 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
             "Error running scheduler daemon loop",
             e,
             category="scheduler_daemon_loop_failed",
+        )
+
+    _print_json(payload)
+    return 0
+
+
+def cmd_scheduler_lifecycle(args: list[str]) -> int:
+    """Read or mutate scheduler daemon lifecycle control state."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LIFECYCLE_USAGE + "\n\n"
+            "This reads or writes only the scheduler daemon lifecycle control file, "
+            "except run-once, which may mutate scheduler snapshot/event-log state "
+            "through the bounded fake-runtime daemon loop. It does not refresh "
+            "scheduler projection, run real providers, mutate exchange artifacts, "
+            "or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    lifecycle_action = args[0]
+    allowed_actions = {
+        "inspect",
+        "start",
+        "heartbeat",
+        "pause",
+        "resume",
+        "cancel",
+        "shutdown",
+        "run-once",
+    }
+    if lifecycle_action not in allowed_actions:
+        print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+        print(f"Unknown scheduler lifecycle action: {lifecycle_action}", file=sys.stderr)
+        return 1
+
+    control_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    daemon_id = ""
+    run_id = ""
+    timestamp = ""
+    runtime_provider = "fake"
+    stale_after_seconds: int | None = None
+    now_epoch_seconds: int | None = None
+    max_ticks = 1
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+
+    i = 1
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--control-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--daemon-id",
+            "--run-id",
+            "--timestamp",
+            "--runtime-provider",
+            "--stale-after-seconds",
+            "--now-epoch-seconds",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--control-path":
+                control_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--daemon-id":
+                daemon_id = value
+            elif arg == "--run-id":
+                run_id = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--stale-after-seconds":
+                try:
+                    stale_after_seconds = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--stale-after-seconds must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--now-epoch-seconds":
+                try:
+                    now_epoch_seconds = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--now-epoch-seconds must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-ticks":
+                try:
+                    max_ticks = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-ticks must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runs-per-tick":
+                try:
+                    max_runs_per_tick = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-runs-per-tick must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runtime-failures":
+                try:
+                    max_runtime_failures = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-runtime-failures must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler lifecycle option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+        return 1
+
+    if not control_path:
+        print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+        print("Missing required option(s): --control-path", file=sys.stderr)
+        return 1
+    if lifecycle_action == "start":
+        missing = [
+            name
+            for name, value in (
+                ("--snapshot-path", snapshot_path),
+                ("--event-log-path", event_log_path),
+                ("--daemon-id", daemon_id),
+            )
+            if not value
+        ]
+        if missing:
+            print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+            print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+            return 1
+    if lifecycle_action == "run-once" and runtime_provider != "fake":
+        print(
+            "scheduler lifecycle run-once currently supports only --runtime-provider fake; "
+            "real providers require host-owned injected runtime wiring",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    control = _resolve_project_path(root, control_path)
+
+    try:
+        from .runtime.orchestration import (
+            SchedulerDaemonLifecycleRequest,
+            SchedulerDaemonLifecycleRunOnceRequest,
+            SchedulerDaemonLoopStopPolicy,
+            apply_scheduler_daemon_lifecycle_action,
+            inspect_scheduler_daemon_lifecycle_control,
+            run_scheduler_daemon_lifecycle_once,
+        )
+
+        if lifecycle_action == "inspect":
+            result = inspect_scheduler_daemon_lifecycle_control(
+                control,
+                now_epoch_seconds=now_epoch_seconds,
+                stale_after_seconds=stale_after_seconds,
+            )
+        elif lifecycle_action == "run-once":
+            result = run_scheduler_daemon_lifecycle_once(
+                SchedulerDaemonLifecycleRunOnceRequest(
+                    control_path=control,
+                    stop_policy=SchedulerDaemonLoopStopPolicy(
+                        max_ticks=max_ticks,
+                        max_runs_per_tick=max_runs_per_tick,
+                        max_runtime_failures=max_runtime_failures,
+                    ),
+                    runtime_provider=runtime_provider,
+                    timestamp=timestamp,
+                    workspace_root=str(root),
+                )
+            )
+        else:
+            runtime_action = "cancel" if lifecycle_action == "cancel" else lifecycle_action
+            result = apply_scheduler_daemon_lifecycle_action(
+                SchedulerDaemonLifecycleRequest(
+                    control_path=control,
+                    action=runtime_action,  # type: ignore[arg-type]
+                    daemon_id=daemon_id,
+                    snapshot_path=(
+                        _resolve_project_path(root, snapshot_path)
+                        if snapshot_path
+                        else None
+                    ),
+                    event_log_path=(
+                        _resolve_project_path(root, event_log_path)
+                        if event_log_path
+                        else None
+                    ),
+                    run_id=run_id,
+                    timestamp=timestamp,
+                    stale_after_seconds=stale_after_seconds,
+                    now_epoch_seconds=now_epoch_seconds,
+                )
+            )
+        payload = result.to_json_dict()
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler lifecycle action",
+            e,
+            category="scheduler_lifecycle_failed",
         )
 
     _print_json(payload)

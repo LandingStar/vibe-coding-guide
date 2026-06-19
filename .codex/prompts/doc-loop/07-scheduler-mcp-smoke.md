@@ -78,7 +78,20 @@ Keep the lifecycle split:
    fake loop evidence, scheduler projection refresh, and Host Evidence
    presentation readback. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
-17. Controlled host-runtime dogfood uses
+17. Scheduler daemon lifecycle control uses
+   `doc-based-coding scheduler lifecycle <action>` or
+   `schedulerLifecycleControl` for deterministic control-file operations:
+   inspect, start, heartbeat, pause, resume, cancel, and shutdown. The MCP
+   control tool also accepts deterministic `mark_stale`. These actions write
+   only the lifecycle control file and do not run providers or refresh
+   projection.
+18. Scheduler lifecycle run-once uses
+   `doc-based-coding scheduler lifecycle run-once` or
+   `schedulerLifecycleRunOnce` to run one lifecycle-gated bounded fake-runtime
+   loop. It may mutate scheduler snapshot/event-log state only through the
+   bounded scheduler loop; paused/cancelled/stopped/stale controls skip
+   scheduler mutation, and cancellation is consumed before provider execution.
+19. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -91,6 +104,7 @@ Prefer explicit paths under `.codex/scheduler/` or a test temp directory:
 ```text
 .codex/scheduler/scheduler-state.json
 .codex/scheduler/scheduler-events.jsonl
+.codex/scheduler/scheduler-daemon-control.json
 .codex/scheduler/evidence/<evidence-id>.json
 .codex/orchestration/exchange-artifacts.json
 .codex/orchestration/exchange-artifact-admissions.json

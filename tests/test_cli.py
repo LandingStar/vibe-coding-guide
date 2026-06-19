@@ -912,6 +912,188 @@ def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> 
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
+def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    control_path = project / ".codex" / "scheduler" / "scheduler-daemon-control.json"
+
+    start = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "start",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--daemon-id",
+            "daemon-cli",
+            "--run-id",
+            "run-cli",
+            "--timestamp",
+            "2026-06-20T00:00:00+00:00",
+            "--stale-after-seconds",
+            "60",
+        ],
+        cwd=project,
+    )
+    pause = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "pause",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--timestamp",
+            "2026-06-20T00:00:10+00:00",
+        ],
+        cwd=project,
+    )
+    resume = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "resume",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--timestamp",
+            "2026-06-20T00:00:20+00:00",
+        ],
+        cwd=project,
+    )
+    cancel = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "cancel",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--timestamp",
+            "2026-06-20T00:00:30+00:00",
+        ],
+        cwd=project,
+    )
+    shutdown = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "shutdown",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--timestamp",
+            "2026-06-20T00:00:40+00:00",
+        ],
+        cwd=project,
+    )
+
+    assert start.returncode == 0, start.stderr
+    assert pause.returncode == 0, pause.stderr
+    assert resume.returncode == 0, resume.stderr
+    assert cancel.returncode == 0, cancel.stderr
+    assert shutdown.returncode == 0, shutdown.stderr
+    started = json.loads(start.stdout)
+    stopped = json.loads(shutdown.stdout)
+    assert started["control"]["state"] == "running"
+    assert started["control"]["daemon_id"] == "daemon-cli"
+    assert started["control"]["run_id"] == "run-cli"
+    assert stopped["state"] == "stopped"
+    assert stopped["authority_split"]["scheduler_state_mutated"] is False
+    assert control_path.exists()
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        SchedulerState,
+        SchedulerTaskSubmission,
+        scheduler_task_submission_to_artifact,
+        submit_scheduler_task_with_persistence,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-lifecycle-cli",
+                title="Lifecycle CLI task",
+                instruction="Complete through lifecycle run-once.",
+                agent=AgentSpec(agent_id="agent:lifecycle-cli", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:lifecycle-cli"),
+                output_artifact_id="task-lifecycle-cli:result",
+            ),
+            artifact_id="submission:lifecycle-cli",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-20T00:10:00+00:00",
+    )
+    start = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "start",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--daemon-id",
+            "daemon-cli",
+        ],
+        cwd=project,
+    )
+    run = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "run-once",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--max-ticks",
+            "2",
+            "--max-runs-per-tick",
+            "1",
+            "--timestamp",
+            "2026-06-20T00:11:00+00:00",
+        ],
+        cwd=project,
+    )
+    rejected = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "run-once",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--runtime-provider",
+            "qoder",
+        ],
+        cwd=project,
+    )
+
+    assert start.returncode == 0, start.stderr
+    assert run.returncode == 0, run.stderr
+    payload = json.loads(run.stdout)
+    assert payload["skipped"] is False
+    assert payload["loop"]["total_run_count"] == 1
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert rejected.returncode == 1
+    assert "only --runtime-provider fake" in rejected.stderr
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)

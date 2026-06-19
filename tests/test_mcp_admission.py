@@ -15,10 +15,12 @@ from src.runtime.orchestration import (
     JsonExchangeArtifactAdmissionLedger,
     JsonlSchedulerEventLog,
     SchedulerTaskSubmission,
+    SchedulerState,
     read_scheduler_state_snapshot,
     scheduler_task_submission_to_artifact,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
+    submit_scheduler_task_with_persistence,
 )
 
 
@@ -181,5 +183,163 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         assert payload["projection_result"]["event_count"] == 6
         assert payload["host_evidence_presentation"]["card_count"] == 1
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    asyncio.run(exercise_server())
+
+
+def test_governance_tools_scheduler_lifecycle_control_and_run_once(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-lifecycle-mcp",
+                title="Lifecycle MCP task",
+                instruction="Complete through lifecycle MCP run-once.",
+                agent=AgentSpec(agent_id="agent:lifecycle-mcp", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:lifecycle-mcp"),
+                output_artifact_id="task-lifecycle-mcp:result",
+            ),
+            artifact_id="submission:lifecycle-mcp",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-20T00:20:00+00:00",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    start = tools.scheduler_lifecycle_control(
+        action="start",
+        control_path=str(control_path),
+        snapshot_path=str(snapshot_path),
+        event_log_path=str(event_log_path),
+        daemon_id="daemon-mcp",
+        run_id="run-mcp",
+        timestamp="2026-06-20T00:21:00+00:00",
+    )
+    paused = tools.scheduler_lifecycle_control(
+        action="pause",
+        control_path=str(control_path),
+        timestamp="2026-06-20T00:22:00+00:00",
+    )
+    skipped = tools.scheduler_lifecycle_run_once(
+        control_path=str(control_path),
+        max_ticks=2,
+        timestamp="2026-06-20T00:23:00+00:00",
+    )
+    resumed = tools.scheduler_lifecycle_control(
+        action="resume",
+        control_path=str(control_path),
+        timestamp="2026-06-20T00:24:00+00:00",
+    )
+    ran = tools.scheduler_lifecycle_run_once(
+        control_path=str(control_path),
+        max_ticks=2,
+        timestamp="2026-06-20T00:25:00+00:00",
+    )
+    rejected = tools.scheduler_lifecycle_run_once(
+        control_path=str(control_path),
+        runtime_provider="qoder",
+    )
+
+    assert start["ok"] is True
+    assert start["control"]["daemon_id"] == "daemon-mcp"
+    assert start["control"]["run_id"] == "run-mcp"
+    assert paused["state"] == "paused"
+    assert skipped["ok"] is True
+    assert skipped["skipped"] is True
+    assert skipped["authority_split"]["scheduler_state_mutated"] is False
+    assert resumed["state"] == "running"
+    assert ran["ok"] is True
+    assert ran["skipped"] is False
+    assert ran["loop"]["total_run_count"] == 1
+    assert ran["authority_split"]["provider_executed"] is True
+    assert ran["authority_split"]["scheduler_projection_refreshed"] is False
+    assert rejected["ok"] is False
+    assert rejected["runtime_provider"] == "qoder"
+    assert "runtimeProvider='fake' only" in rejected["error"]
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-server-lifecycle",
+                title="Server lifecycle task",
+                instruction="Complete through server lifecycle tool.",
+                agent=AgentSpec(agent_id="agent:server-lifecycle", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:server-lifecycle"),
+                output_artifact_id="task-server-lifecycle:result",
+            ),
+            artifact_id="submission:server-lifecycle",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-20T00:30:00+00:00",
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerLifecycleControl" in names
+        assert "schedulerLifecycleRunOnce" in names
+        control_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleControl")
+        run_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleRunOnce")
+        assert control_tool.inputSchema["required"] == ["action", "controlPath"]
+        assert "daemonId" in control_tool.inputSchema["properties"]
+        assert "local-work-trajectory.json" in control_tool.description
+        assert run_tool.inputSchema["required"] == ["controlPath"]
+        assert (
+            "only 'fake' is accepted"
+            in run_tool.inputSchema["properties"]["runtimeProvider"]["description"]
+        )
+        assert "cancellation is consumed before provider execution" in run_tool.description
+
+        start_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerLifecycleControl",
+                    arguments={
+                        "action": "start",
+                        "controlPath": str(control_path),
+                        "snapshotPath": str(snapshot_path),
+                        "eventLogPath": str(event_log_path),
+                        "daemonId": "daemon-server",
+                    },
+                )
+            )
+        )
+        start_payload = json.loads(start_result.root.content[0].text)
+        assert start_payload["ok"] is True
+        assert start_payload["control"]["state"] == "running"
+
+        run_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerLifecycleRunOnce",
+                    arguments={
+                        "controlPath": str(control_path),
+                        "runtimeProvider": "fake",
+                        "maxTicks": 2,
+                        "timestamp": "2026-06-20T00:31:00+00:00",
+                    },
+                )
+            )
+        )
+        run_payload = json.loads(run_result.root.content[0].text)
+        assert run_payload["ok"] is True
+        assert run_payload["skipped"] is False
+        assert run_payload["loop"]["total_run_count"] == 1
+        assert run_payload["runtime_provider"] == "fake"
 
     asyncio.run(exercise_server())

@@ -1137,6 +1137,100 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     },
                 },
             ),
+            Tool(
+                name="schedulerLifecycleControl",
+                description=(
+                    "Read or mutate the scheduler daemon lifecycle control file. "
+                    "Actions are deterministic control-file operations only: inspect, "
+                    "start, heartbeat, pause, resume, cancel, shutdown, and mark_stale. "
+                    "This does not run providers, refresh scheduler projection, mutate "
+                    "ExchangeArtifact/admission ledger state, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "Lifecycle action: inspect, start, heartbeat, pause, resume, cancel, shutdown, or mark_stale.",
+                        },
+                        "controlPath": {
+                            "type": "string",
+                            "description": "Scheduler daemon lifecycle control JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Required for action=start.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler task event JSONL path. Required for action=start.",
+                        },
+                        "daemonId": {
+                            "type": "string",
+                            "description": "Daemon owner id. Required for action=start.",
+                        },
+                        "runId": {
+                            "type": "string",
+                            "description": "Optional lifecycle run id stored in the control file.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for lifecycle transitions.",
+                        },
+                        "staleAfterSeconds": {
+                            "type": "integer",
+                            "description": "Optional heartbeat stale threshold in seconds.",
+                        },
+                        "nowEpochSeconds": {
+                            "type": "integer",
+                            "description": "Optional deterministic current epoch seconds for stale inspection.",
+                        },
+                    },
+                    "required": ["action", "controlPath"],
+                },
+            ),
+            Tool(
+                name="schedulerLifecycleRunOnce",
+                description=(
+                    "Run one lifecycle-gated bounded scheduler daemon loop using the "
+                    "built-in fake runtime only. The lifecycle control must already be "
+                    "running; paused/cancelled/stopped/stale controls skip scheduler "
+                    "mutation, and cancellation is consumed before provider execution. "
+                    "This does not refresh scheduler projection, mutate ExchangeArtifact/"
+                    "admission ledger state, or mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "controlPath": {
+                            "type": "string",
+                            "description": "Scheduler daemon lifecycle control JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Defaults to 'fake'; only 'fake' is accepted in this MCP surface.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for the lifecycle-gated run.",
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "Bounded loop max ticks. Default 1.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "Bounded loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "Runtime failure stop threshold. Default 1.",
+                        },
+                    },
+                    "required": ["controlPath"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -1351,6 +1445,27 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerLifecycleControl":
+            result = tools.scheduler_lifecycle_control(
+                action=arguments.get("action", ""),
+                control_path=arguments.get("controlPath", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                daemon_id=arguments.get("daemonId", ""),
+                run_id=arguments.get("runId", ""),
+                timestamp=arguments.get("timestamp", ""),
+                stale_after_seconds=arguments.get("staleAfterSeconds"),
+                now_epoch_seconds=arguments.get("nowEpochSeconds"),
+            )
+        elif name == "schedulerLifecycleRunOnce":
+            result = tools.scheduler_lifecycle_run_once(
+                control_path=arguments.get("controlPath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                timestamp=arguments.get("timestamp", ""),
+                max_ticks=arguments.get("maxTicks", 1),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
             )
         else:
             result = {"error": f"Unknown tool: {name}"}

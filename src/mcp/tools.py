@@ -1122,6 +1122,216 @@ class GovernanceTools:
             "metadata": dict(result.projection.metadata),
         }
 
+    def scheduler_lifecycle_control(
+        self,
+        *,
+        action: str,
+        control_path: str,
+        snapshot_path: str = "",
+        event_log_path: str = "",
+        daemon_id: str = "",
+        run_id: str = "",
+        timestamp: str = "",
+        stale_after_seconds: int | None = None,
+        now_epoch_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Read or mutate scheduler daemon lifecycle control state."""
+
+        if not action:
+            return {
+                "ok": False,
+                "error": "schedulerLifecycleControl requires action.",
+            }
+        normalized_action = action.strip()
+        if normalized_action not in {
+            "inspect",
+            "start",
+            "heartbeat",
+            "pause",
+            "resume",
+            "cancel",
+            "shutdown",
+            "mark_stale",
+        }:
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerLifecycleControl action must be one of: "
+                    "inspect, start, heartbeat, pause, resume, cancel, shutdown, mark_stale."
+                ),
+                "action": normalized_action,
+            }
+        if not control_path:
+            return {
+                "ok": False,
+                "error": "schedulerLifecycleControl requires controlPath.",
+                "action": normalized_action,
+            }
+        if normalized_action == "start":
+            missing = [
+                name
+                for name, value in (
+                    ("snapshotPath", snapshot_path),
+                    ("eventLogPath", event_log_path),
+                    ("daemonId", daemon_id),
+                )
+                if not value
+            ]
+            if missing:
+                return {
+                    "ok": False,
+                    "error": (
+                        "schedulerLifecycleControl start requires "
+                        + ", ".join(missing)
+                        + "."
+                    ),
+                    "action": normalized_action,
+                }
+
+        from ..runtime.orchestration import (
+            SchedulerDaemonLifecycleRequest,
+            apply_scheduler_daemon_lifecycle_action,
+            inspect_scheduler_daemon_lifecycle_control,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        control = resolve_path(control_path)
+        try:
+            if normalized_action == "inspect":
+                result = inspect_scheduler_daemon_lifecycle_control(
+                    control,
+                    now_epoch_seconds=now_epoch_seconds,
+                    stale_after_seconds=stale_after_seconds,
+                )
+            else:
+                result = apply_scheduler_daemon_lifecycle_action(
+                    SchedulerDaemonLifecycleRequest(
+                        control_path=control,
+                        action=normalized_action,  # type: ignore[arg-type]
+                        daemon_id=daemon_id,
+                        snapshot_path=resolve_path(snapshot_path) if snapshot_path else None,
+                        event_log_path=resolve_path(event_log_path) if event_log_path else None,
+                        run_id=run_id,
+                        timestamp=timestamp,
+                        stale_after_seconds=stale_after_seconds,
+                        now_epoch_seconds=now_epoch_seconds,
+                    )
+                )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "action": normalized_action,
+                "control_path": str(control),
+                "authority_split": {
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+
+        return result.to_json_dict()
+
+    def scheduler_lifecycle_run_once(
+        self,
+        *,
+        control_path: str,
+        runtime_provider: str = "fake",
+        timestamp: str = "",
+        max_ticks: int = 1,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+    ) -> dict[str, Any]:
+        """Run one lifecycle-gated bounded scheduler loop."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerLifecycleRunOnce currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "explicit host permission and adapter registry configuration."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+        if not control_path:
+            return {
+                "ok": False,
+                "error": "schedulerLifecycleRunOnce requires controlPath.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from ..runtime.orchestration import (
+            SchedulerDaemonLifecycleRunOnceRequest,
+            SchedulerDaemonLoopStopPolicy,
+            run_scheduler_daemon_lifecycle_once,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        control = resolve_path(control_path)
+        try:
+            result = run_scheduler_daemon_lifecycle_once(
+                SchedulerDaemonLifecycleRunOnceRequest(
+                    control_path=control,
+                    stop_policy=SchedulerDaemonLoopStopPolicy(
+                        max_ticks=max_ticks,
+                        max_runs_per_tick=max_runs_per_tick,
+                        max_runtime_failures=max_runtime_failures,
+                    ),
+                    runtime_provider=normalized_runtime_provider,
+                    timestamp=timestamp,
+                    workspace_root=str(self._project_root),
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "control_path": str(control),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+
+        payload = result.to_json_dict()
+        payload["runtime_provider"] = normalized_runtime_provider
+        return payload
+
     def scheduler_operator_workflow(
         self,
         *,

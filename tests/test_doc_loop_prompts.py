@@ -134,7 +134,11 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerProjection" in text
         assert "schedulerRunOnceAndProject" in text
         assert "schedulerOperatorWorkflow" in text
+        assert "schedulerLifecycleControl" in text
+        assert "schedulerLifecycleRunOnce" in text
         assert "doc-based-coding scheduler operator-workflow" in text
+        assert "doc-based-coding scheduler lifecycle <action>" in text
+        assert "doc-based-coding scheduler lifecycle run-once" in text
         assert "admit` / `runLoop` / `refreshProjection`" in text
         assert "localTrajectory" in text
         assert ".codex/progress-graph/local-work-trajectory.json" in text
@@ -154,6 +158,7 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "scheduler_loop_evidence" in text
         assert ".codex/scheduler/evidence/<evidence-id>.json" in text
         assert ".codex/scheduler/evidence/<safe-id>.json" in text
+        assert ".codex/scheduler/scheduler-daemon-control.json" in text
         assert "host-authorized-adapter" in text
         assert "host_runtime_wiring" in text
         assert "CLI or MCP tool" in text
