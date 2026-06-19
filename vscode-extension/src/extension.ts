@@ -240,15 +240,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return { workspaceRoot, pythonPath, sourceRoot };
     }
 
-    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(context.extensionUri, outputChannel, async (workspaceFolder) => {
-        const { workspaceRoot, pythonPath, sourceRoot } = await resolveProgressGraphRuntime(workspaceFolder);
-        await regenerateProgressGraphArtifacts({
-            projectRoot: workspaceRoot,
-            sourceRoot,
-            pythonPath,
-            outputChannel,
-        });
-    });
+    progressGraphPreviewPanel = new ProgressGraphPreviewPanel(
+        context.extensionUri,
+        outputChannel,
+        async (workspaceFolder) => {
+            const { workspaceRoot, pythonPath, sourceRoot } = await resolveProgressGraphRuntime(workspaceFolder);
+            await regenerateProgressGraphArtifacts({
+                projectRoot: workspaceRoot,
+                sourceRoot,
+                pythonPath,
+                outputChannel,
+            });
+        },
+        resolveProgressGraphRuntime,
+    );
     context.subscriptions.push(progressGraphPreviewPanel);
 
     // Register commands

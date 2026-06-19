@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Host loop workflow evidence metadata close`
-- Active Slice: `Host Loop Workflow Evidence Metadata (COMPLETED; composed host workflow evidence now carries compact scheduler projection metadata)`
-- Latest Completed Slice: `Host Loop Workflow Evidence Metadata`
+- Current Phase: `Post-v1.0 — Agent orchestration / Host evidence UI binding close`
+- Active Slice: `Host Evidence UI Binding (COMPLETED; VS Code progress preview consumes dbc://host-evidence/presentation as a read-only operator panel)`
+- Latest Completed Slice: `Host Evidence UI Binding`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `288 passed, 1 skipped` (tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite)
+- Test Baseline: VS Code extension build passed; focused preview tests `21 passed`; backend host evidence presentation smoke returned `status=empty`; screenshot artifact captured at `output/playwright/host-evidence-ui/host-evidence-panel.png`
 
 ## 当前 Handoff Footprint
 
@@ -58,6 +58,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-host-loop-projection-workflow-polish.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-evidence-presentation-polish.md`
 - `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`
+- `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -85,6 +86,7 @@
 - `review/host-loop-projection-workflow-polish-2026-06-19.md`
 - `review/scheduler-loop-evidence-presentation-polish-2026-06-19.md`
 - `review/host-loop-workflow-evidence-metadata-2026-06-19.md`
+- `review/host-evidence-ui-binding-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -98,6 +100,7 @@
 - `design_docs/host-loop-projection-workflow-polish-followup-direction-analysis.md`
 - `design_docs/scheduler-loop-evidence-presentation-polish-followup-direction-analysis.md`
 - `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`
+- `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -893,6 +896,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-loop-projection-workflow-polish.md`。本轮新增 host-owned daemon-loop projection workflow：`HostSchedulerDaemonLoopProjectionRefreshResult` / `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()`，在 `tools.progress_graph` 层复用既有 host daemon-loop helper，保留 fake/mock-Qoder runtime injection 与 optional `scheduler_loop_evidence` 写入，然后显式刷新 scheduler-derived trajectory projection 并返回 `scheduler_projection_path` / `projection_summary` / authority split。该 workflow 不新增 CLI/MCP real-provider surface、不运行 live provider、不启动后台 daemon、不突变 ExchangeArtifact/admission ledger、不从 scheduler code 突变 Local Work Trajectory；review evidence 位于 `review/host-loop-projection-workflow-polish-2026-06-19.md`；后续方向分析位于 `design_docs/host-loop-projection-workflow-polish-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `285 passed, 1 skipped`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-evidence-presentation-polish.md`。本轮改善只读 `dbc://host-evidence/presentation` 中的 `scheduler_loop_evidence` card：稳定呈现 runtime provider、host surface、host invocation id、tick/run/event counts、completed/ready/blocked/failed queue counts，并在 evidence metadata 或 authority split 提供线索时呈现 `scheduler_projection_path`、projection role/refreshed state 与 Local Work Trajectory mutation authority clue。旧 evidence 无 projection metadata 时仍可渲染；`metadata.surface` 保留为 evidence generation metadata，不覆盖 card host surface，只有 `metadata.runtime_host_surface` 可覆盖。该切片不变更 evidence schema、不执行 provider、不刷新 scheduler projection、不突变 scheduler state / ExchangeArtifact / admission ledger / Local Work Trajectory、不绑定 VS Code/UI、不启动后台 daemon；review evidence 位于 `review/scheduler-loop-evidence-presentation-polish-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-loop-evidence-presentation-polish-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `287 passed, 1 skipped`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`。本轮让 composed host loop projection workflow 在 projection refresh 后，把 compact projection clues 补写回其刚生成的 `scheduler_loop_evidence` metadata：`workflow_surface="host-loop-projection-workflow"`、`scheduler_projection_path`、`scheduler_projection_role="read-only-view"`、`scheduler_projection_refreshed=true` 与 compact `scheduler_projection_summary`。`dbc://host-evidence/presentation` 现可优先使用该 workflow metadata 显示 projection refreshed state；底层 host daemon-loop evidence 保持兼容并保留 lower-level surface metadata。该切片不改 evidence schema、不新增 provider execution/real-provider CLI/MCP surface、不绑定 UI、不启动后台 daemon、不突变 ExchangeArtifact/admission ledger、不突变 agent-owned Local Work Trajectory、不嵌入完整 trajectory JSON；review evidence 位于 `review/host-loop-workflow-evidence-metadata-2026-06-19.md`；后续方向分析位于 `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `288 passed, 1 skipped`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`。本轮把 VS Code progress graph preview 接到只读 `dbc://host-evidence/presentation` resource：新增 host evidence presentation reader，复用 progress graph runtime/source-root resolution；预览状态携带 presentation-only Host Evidence model，并在浮动控制区呈现 status/card/error counts、scheduler-loop evidence card、runtime providers、host surface、invocation id、stop reason/detail、run/output/permission review counts、key facts、refs、authority clues、malformed evidence rows 与 backend read-error state。UI 不解析 raw evidence artifacts、不执行 provider、不启动 daemon、不从 UI 突变 scheduler / ExchangeArtifact admission / Local Work Trajectory，也不改 backend presentation schema；review evidence 位于 `review/host-evidence-ui-binding-2026-06-19.md`；后续方向分析位于 `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`；验证结果：VS Code extension build passed，focused preview tests `21 passed`，backend resource smoke `status=empty/card_count=0/error_count=0`，截图 artifact 位于 `output/playwright/host-evidence-ui/host-evidence-panel.png`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

@@ -12,10 +12,17 @@ export type ProgressGraphPreviewArtifactState = {
   historyArtifactExists: boolean;
   trajectoryArtifactPath: string;
   trajectoryArtifactExists: boolean;
+  schedulerTrajectoryArtifactPath: string;
+  schedulerTrajectoryArtifactExists: boolean;
   previewExists: boolean;
   previewHtml: string | null;
   localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
   localWorkTrajectoryError: string | null;
+  schedulerWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
+  schedulerWorkTrajectoryError: string | null;
+  hostEvidencePresentationResourceUri: string;
+  hostEvidencePresentation: ProgressGraphPreviewHostEvidencePresentation | null;
+  hostEvidencePresentationError: string | null;
   v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null;
   v2GraphPayloadError: string | null;
 };
@@ -89,6 +96,8 @@ export type ProgressGraphPreviewV2PoCNode = {
   summary: string;
   tags: string[];
   hasRuntimeBinding: boolean;
+  hasLocalTrajectory: boolean;
+  localTrajectoryId: string | null;
   workItemIds: string[];
   groupItemIds: string[];
 };
@@ -157,6 +166,61 @@ export type ProgressGraphPreviewLocalWorkTrajectory = {
   lanes: ProgressGraphPreviewTrajectoryLane[];
   events: ProgressGraphPreviewTrajectoryEvent[];
   relations: ProgressGraphPreviewTrajectoryRelation[];
+  childTrajectories: ProgressGraphPreviewLocalWorkTrajectory[];
+};
+
+export type ProgressGraphPreviewHostEvidenceFact = {
+  label: string;
+  value: string;
+};
+
+export type ProgressGraphPreviewHostEvidenceRef = {
+  label: string;
+  target: string;
+  refKind: string;
+};
+
+export type ProgressGraphPreviewHostEvidenceCard = {
+  id: string;
+  title: string;
+  subtitle: string;
+  status: string;
+  severity: string;
+  timestamp: string;
+  runtimeProviders: string[];
+  hostSurface: string;
+  invocationId: string;
+  requestedBy: string;
+  stopReason: string;
+  stopDetail: string;
+  runCount: number;
+  outputCount: number;
+  permissionReviewCount: number;
+  keyFacts: ProgressGraphPreviewHostEvidenceFact[];
+  refs: ProgressGraphPreviewHostEvidenceRef[];
+  authorityClues: ProgressGraphPreviewHostEvidenceFact[];
+  metadata: Record<string, unknown>;
+};
+
+export type ProgressGraphPreviewHostEvidenceErrorRow = {
+  id: string;
+  status: string;
+  severity: string;
+  evidencePath: string;
+  errorKind: string;
+  message: string;
+};
+
+export type ProgressGraphPreviewHostEvidencePresentation = {
+  generatedAt: string | null;
+  projectRoot: string;
+  evidenceDir: string;
+  status: string;
+  cardCount: number;
+  errorCount: number;
+  cards: ProgressGraphPreviewHostEvidenceCard[];
+  errorRows: ProgressGraphPreviewHostEvidenceErrorRow[];
+  emptyMessage: string;
 };
 
 export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
@@ -543,6 +607,52 @@ export function coerceLocalWorkTrajectory(value: unknown): ProgressGraphPreviewL
     lanes,
     events,
     relations,
+    childTrajectories: readObjectCollection(value.child_trajectories).map((item) => coerceLocalWorkTrajectory(item)),
+  };
+}
+
+export function coerceHostEvidencePresentation(value: unknown): ProgressGraphPreviewHostEvidencePresentation {
+  if (!isRecord(value)) {
+    throw new Error('host evidence presentation must be an object');
+  }
+
+  return {
+    generatedAt: readNullableString(value.generated_at) ?? readNullableString(value.generatedAt),
+    projectRoot: readString(value.project_root, readString(value.projectRoot, '')),
+    evidenceDir: readString(value.evidence_dir, readString(value.evidenceDir, '')),
+    status: readString(value.status, 'unknown'),
+    cardCount: readNumber(value.card_count),
+    errorCount: readNumber(value.error_count),
+    cards: readObjectArray(value.cards).map((card) => ({
+      id: readString(card.id, 'unknown-host-evidence'),
+      title: readString(card.title, 'Host evidence'),
+      subtitle: readString(card.subtitle, ''),
+      status: readString(card.status, 'unknown'),
+      severity: readString(card.severity, 'info'),
+      timestamp: readString(card.timestamp, ''),
+      runtimeProviders: readStringArray(card.runtime_providers),
+      hostSurface: readString(card.host_surface, ''),
+      invocationId: readString(card.invocation_id, ''),
+      requestedBy: readString(card.requested_by, ''),
+      stopReason: readString(card.stop_reason, ''),
+      stopDetail: readString(card.stop_detail, ''),
+      runCount: readNumber(card.run_count),
+      outputCount: readNumber(card.output_count),
+      permissionReviewCount: readNumber(card.permission_review_count),
+      keyFacts: readHostEvidenceFacts(card.key_facts),
+      refs: readHostEvidenceRefs(card.refs),
+      authorityClues: readHostEvidenceFacts(card.authority_clues),
+      metadata: isRecord(card.metadata) ? card.metadata : {},
+    })),
+    errorRows: readObjectArray(value.error_rows).map((row, index) => ({
+      id: readString(row.id, `host-evidence-error:${index + 1}`),
+      status: readString(row.status, 'read-error'),
+      severity: readString(row.severity, 'error'),
+      evidencePath: readString(row.evidence_path, ''),
+      errorKind: readString(row.error_kind, 'unknown'),
+      message: readString(row.message, ''),
+    })),
+    emptyMessage: readString(value.empty_message, ''),
   };
 }
 
@@ -552,7 +662,8 @@ function buildParallelPreviewHtml(
 ): string {
   const controlOverlay = buildControlOverlay(state);
   const v2GraphPoC = buildV2GraphPoCSection(state);
-  const localTrajectory = buildLocalWorkTrajectoryMountSection(state);
+  const trajectoryPanel = buildTrajectoryPanelSection(state);
+  const previewPanels = buildPreviewTabPanels(v2GraphPoC, trajectoryPanel);
   const localWorkTrajectoryStyle = state.localWorkTrajectoryStyleUri
     ? `<link rel="stylesheet" href="${escapeHtml(state.localWorkTrajectoryStyleUri)}">`
     : '';
@@ -581,6 +692,85 @@ function buildParallelPreviewHtml(
     z-index: 1000;
     overflow: visible;
   }
+  .pg-host-floating-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    height: 52px;
+    pointer-events: none;
+  }
+  .pg-host-floating-zone::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 96px;
+    height: 3px;
+    border-radius: 0 0 999px 999px;
+    background: rgba(248, 244, 239, 0.38);
+    transform: translateX(-50%);
+    opacity: 0.72;
+  }
+  .pg-host-floating-bar {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100vw - 28px);
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 999px;
+    background: rgba(17, 26, 34, 0.9);
+    color: rgba(248, 244, 239, 0.86);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate(-50%, -10px);
+    transition: opacity 140ms ease, visibility 140ms ease, transform 140ms ease;
+  }
+  .pg-host-floating-zone[data-pg-floating-visible="true"] .pg-host-floating-bar,
+  .pg-host-floating-bar:focus-within {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+  }
+  .pg-host-tab-button,
+  .pg-host-floating-action {
+    min-height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(248, 244, 239, 0.82);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .pg-host-tab-button[aria-selected="true"] {
+    background: rgba(95, 164, 220, 0.24);
+    border-color: rgba(163, 218, 255, 0.36);
+    color: #f8f4ef;
+  }
+  .pg-host-floating-action:hover,
+  .pg-host-tab-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  .pg-host-floating-action:disabled {
+    cursor: default;
+    opacity: 0.62;
+  }
+  .pg-host-floating-action[data-pg-panel-show="true"][data-pg-visible="false"] {
+    display: none;
+  }
   .pg-host-chrome-content {
     display: grid;
     overflow: hidden;
@@ -597,33 +787,7 @@ function buildParallelPreviewHtml(
     pointer-events: none;
   }
   .pg-host-chrome-peek {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translate(-50%, -10px);
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 999px;
-    background: rgba(17, 26, 34, 0.92);
-    color: rgba(248, 244, 239, 0.82);
-    padding: 6px 12px;
-    font: inherit;
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
-    transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
-  }
-  .pg-host-chrome-dock[data-pg-host-shell="collapsed"][data-pg-host-shell-peek="visible"] .pg-host-chrome-peek,
-  .pg-host-chrome-peek:focus-visible {
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-    transform: translate(-50%, 0);
+    display: none;
   }
   .pg-host-shell {
     display: grid;
@@ -805,12 +969,52 @@ function buildParallelPreviewHtml(
     grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
     gap: 12px;
   }
+  .pg-host-preview-tabs {
+    --pg-host-preview-panel-height: clamp(640px, calc(100vh - 220px), 920px);
+    display: grid;
+    gap: 0;
+    padding-bottom: 18px;
+  }
+  .pg-host-tab-panel {
+    min-height: calc(var(--pg-host-preview-panel-height) + 36px);
+  }
+  .pg-host-preview-height-handle {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 20px;
+    margin: -8px 18px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(64, 80, 94, 0.62);
+    cursor: row-resize;
+  }
+  .pg-host-preview-height-handle::before {
+    content: "";
+    width: min(220px, 42vw);
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(64, 100, 132, 0.2);
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  .pg-host-preview-height-handle:hover::before,
+  .pg-host-preview-height-handle:focus-visible::before,
+  .pg-host-preview-height-handle[data-pg-dragging="true"]::before {
+    background: rgba(64, 100, 132, 0.42);
+    transform: scaleX(1.08);
+  }
+  .pg-host-preview-height-handle:focus-visible {
+    outline: 2px solid rgba(86, 144, 191, 0.45);
+    outline-offset: 2px;
+  }
   .pg-host-v2-poc {
     margin: 18px;
     padding: 18px;
     display: flex;
     flex-direction: column;
-    min-height: max(620px, calc(100vh - 220px));
+    height: var(--pg-host-preview-panel-height);
+    min-height: 520px;
     border-radius: 22px;
     border: 1px solid rgba(86, 122, 154, 0.16);
     background:
@@ -824,9 +1028,19 @@ function buildParallelPreviewHtml(
     border-color: rgba(255, 255, 255, 0.08);
     box-shadow: 0 18px 34px rgba(0, 0, 0, 0.12);
   }
-  .pg-host-lwt-mount-section {
+  .pg-host-trajectory-stack {
     margin: 18px;
+    display: grid;
+    gap: 16px;
+  }
+  .pg-host-lwt-mount-section {
+    height: var(--pg-host-preview-panel-height);
     min-height: 420px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .pg-host-tab-panel[hidden] {
+    display: none;
   }
   .pg-host-lwt-toolbar {
     display: flex;
@@ -855,8 +1069,75 @@ function buildParallelPreviewHtml(
     line-height: 1.4;
     word-break: break-all;
   }
+  .pg-host-lwt-locate-parent {
+    flex: 0 0 auto;
+    min-height: 30px;
+    padding: 6px 11px;
+    border: 1px solid rgba(95, 83, 149, 0.24);
+    border-radius: 999px;
+    background: rgba(246, 243, 255, 0.92);
+    color: #5f5395;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .pg-host-lwt-locate-parent:hover:not(:disabled),
+  .pg-host-lwt-locate-parent:focus-visible:not(:disabled) {
+    border-color: rgba(95, 83, 149, 0.42);
+    background: #f7f4ff;
+    color: #45358f;
+  }
+  .pg-host-lwt-locate-parent:disabled {
+    cursor: default;
+    opacity: 0.42;
+  }
   .pg-host-lwt-mount {
-    min-height: 420px;
+    min-height: 0;
+    height: 100%;
+  }
+  .pg-host-lwt-mount .pg-lwt-shell {
+    height: 100%;
+    min-height: 0;
+  }
+  .pg-host-lwt-history {
+    margin: 0 0 10px;
+    border: 1px solid rgba(84, 129, 171, 0.14);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.62);
+    overflow: hidden;
+  }
+  .pg-host-lwt-history-summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    color: #315f7e;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+  .pg-host-lwt-history-lines {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0 14px 12px;
+    list-style: none;
+  }
+  .pg-host-lwt-history-line {
+    padding: 7px 9px;
+    border-left: 3px solid rgba(72, 111, 146, 0.34);
+    border-radius: 6px;
+    background: rgba(247, 250, 252, 0.74);
+    color: rgba(38, 55, 70, 0.82);
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-lwt-history-more {
+    margin: 0;
+    padding: 0 14px 12px;
+    color: rgba(71, 87, 101, 0.72);
+    font-size: 0.74rem;
   }
   .pg-host-v2-head {
     display: flex;
@@ -972,7 +1253,8 @@ function buildParallelPreviewHtml(
   }
   .pg-host-v2-canvas-shell {
     position: relative;
-    min-height: max(560px, 100%);
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
     border-radius: 18px;
     border: 1px solid rgba(84, 129, 171, 0.14);
@@ -1074,7 +1356,10 @@ function buildParallelPreviewHtml(
     min-height: 0;
     display: grid;
     gap: 12px;
-    overflow: visible;
+    overflow: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
   .pg-host-v2-side[data-pg-config-collapsed="false"] .pg-host-v2-config-card {
     opacity: 1;
@@ -1460,6 +1745,25 @@ function buildParallelPreviewHtml(
     cursor: default;
     opacity: 0.42;
   }
+  .pg-host-v2-detail-action {
+    justify-self: start;
+    min-height: 30px;
+    padding: 6px 11px;
+    border: 1px solid rgba(95, 83, 149, 0.24);
+    border-radius: 999px;
+    background: rgba(246, 243, 255, 0.92);
+    color: #5f5395;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .pg-host-v2-detail-action:hover,
+  .pg-host-v2-detail-action:focus-visible {
+    border-color: rgba(95, 83, 149, 0.42);
+    background: #f7f4ff;
+    color: #45358f;
+  }
   .pg-host-v2-detail-empty,
   .pg-host-v2-detail-copy {
     margin: 0;
@@ -1513,6 +1817,166 @@ function buildParallelPreviewHtml(
     color: rgba(248, 244, 239, 0.68);
     font-size: 0.78rem;
     line-height: 1.45;
+  }
+  .pg-host-evidence-card {
+    display: grid;
+    gap: 12px;
+  }
+  .pg-host-evidence-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pg-host-evidence-title-wrap {
+    min-width: 0;
+  }
+  .pg-host-evidence-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .pg-host-evidence-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(248, 244, 239, 0.76);
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .pg-host-evidence-badge[data-pg-evidence-status="ok"],
+  .pg-host-evidence-badge[data-pg-evidence-status="completed"] {
+    color: #87e1b5;
+    background: rgba(95, 224, 170, 0.13);
+    border-color: rgba(95, 224, 170, 0.22);
+  }
+  .pg-host-evidence-badge[data-pg-evidence-status="degraded"],
+  .pg-host-evidence-badge[data-pg-evidence-status="partial"],
+  .pg-host-evidence-badge[data-pg-evidence-status="permission-review"],
+  .pg-host-evidence-badge[data-pg-evidence-status="unknown"] {
+    color: #ffdc91;
+    background: rgba(255, 217, 138, 0.13);
+    border-color: rgba(255, 217, 138, 0.24);
+  }
+  .pg-host-evidence-badge[data-pg-evidence-status="failed"],
+  .pg-host-evidence-badge[data-pg-evidence-status="read-error"] {
+    color: #ffb5aa;
+    background: rgba(255, 178, 166, 0.13);
+    border-color: rgba(255, 178, 166, 0.24);
+  }
+  .pg-host-evidence-list {
+    display: grid;
+    gap: 10px;
+  }
+  .pg-host-evidence-run {
+    display: grid;
+    gap: 10px;
+    padding: 12px 0 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    background: transparent;
+  }
+  .pg-host-evidence-run[data-pg-evidence-severity="warning"] {
+    border-top-color: rgba(255, 217, 138, 0.2);
+  }
+  .pg-host-evidence-run[data-pg-evidence-severity="error"] {
+    border-top-color: rgba(255, 178, 166, 0.2);
+  }
+  .pg-host-evidence-run-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pg-host-evidence-run-title {
+    margin: 0;
+    color: #f8f4ef;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .pg-host-evidence-run-subtitle {
+    margin: 3px 0 0;
+    color: rgba(248, 244, 239, 0.66);
+    font-size: 0.76rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-evidence-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+    gap: 8px;
+  }
+  .pg-host-evidence-fact {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.055);
+  }
+  .pg-host-evidence-label {
+    color: rgba(248, 244, 239, 0.58);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pg-host-evidence-value {
+    color: rgba(248, 244, 239, 0.84);
+    font-size: 0.76rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-evidence-group {
+    display: grid;
+    gap: 6px;
+  }
+  .pg-host-evidence-group-title {
+    margin: 0;
+    color: rgba(248, 244, 239, 0.72);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .pg-host-evidence-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .pg-host-evidence-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(248, 244, 239, 0.72);
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-evidence-chip span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-evidence-error-list {
+    display: grid;
+    gap: 8px;
+  }
+  .pg-host-evidence-error-row {
+    display: grid;
+    gap: 4px;
+    padding: 9px 0 10px;
+    border-top: 1px solid rgba(255, 178, 166, 0.22);
+    background: transparent;
   }
   .graph-section {
     position: relative;
@@ -1647,12 +2111,15 @@ function buildParallelPreviewHtml(
     .pg-host-actions {
       justify-content: flex-start;
     }
-    .pg-host-chrome-peek {
-      left: 16px;
+    .pg-host-floating-bar {
+      left: 10px;
+      right: 10px;
+      justify-content: flex-start;
+      overflow-x: auto;
       transform: translateY(-10px);
     }
-    .pg-host-chrome-dock[data-pg-host-shell="collapsed"][data-pg-host-shell-peek="visible"] .pg-host-chrome-peek,
-    .pg-host-chrome-peek:focus-visible {
+    .pg-host-floating-zone[data-pg-floating-visible="true"] .pg-host-floating-bar,
+    .pg-host-floating-bar:focus-within {
       transform: translateY(0);
     }
     .pg-host-control-grid {
@@ -1663,8 +2130,15 @@ function buildParallelPreviewHtml(
       display: grid;
       grid-template-columns: 1fr;
     }
+    .pg-host-preview-tabs {
+      --pg-host-preview-panel-height: clamp(520px, 68vh, 760px);
+    }
+    .pg-host-tab-panel {
+      min-height: calc(var(--pg-host-preview-panel-height) + 30px);
+    }
     .pg-host-v2-poc {
-      min-height: auto;
+      height: var(--pg-host-preview-panel-height);
+      min-height: 0;
     }
     .pg-host-v2-head-actions,
     .pg-host-v2-meta {
@@ -1672,7 +2146,7 @@ function buildParallelPreviewHtml(
       justify-content: flex-start;
     }
     .pg-host-v2-canvas-shell {
-      min-height: clamp(420px, 56vh, 760px);
+      min-height: 0;
     }
     .pg-host-v2-config-collapsed-bar {
       top: 10px;
@@ -1702,11 +2176,6 @@ function buildParallelPreviewHtml(
       <div class="pg-host-subtitle">artifact: ${escapedPath}</div>
       <div class="pg-host-meta-row">${freshnessMeta}</div>
     </div>
-    <div class="pg-host-actions">
-      <button id="pgHostRefreshButton" class="pg-host-button" ${state.isRefreshRunning ? 'disabled' : ''}>${state.isRefreshRunning ? 'Refreshing...' : 'Refresh Preview'}</button>
-      <button id="pgHostRevealButton" class="pg-host-button secondary">Reveal Artifact</button>
-      <button id="pgHostCollapsePanel" type="button" class="pg-host-button collapse">Collapse Panel</button>
-    </div>
   </div>
   <div class="pg-host-status-strip">
     <p class="pg-host-status-message">${escapedFreshnessMessage}</p>
@@ -1714,7 +2183,16 @@ function buildParallelPreviewHtml(
   </div>
 </section>`;
   const hostChrome = `<div id="pgHostChromeDock" class="pg-host-chrome-dock" data-pg-host-shell="expanded" data-pg-host-shell-peek="hidden">
-  <button id="pgHostChromePeek" type="button" class="pg-host-chrome-peek" aria-controls="pgHostChromeContent" aria-expanded="true">Show Progress Graph Panel</button>
+  <div id="pgHostFloatingZone" class="pg-host-floating-zone" data-pg-floating-visible="false">
+    <nav class="pg-host-floating-bar" aria-label="Progress preview views">
+      <button id="pgHostTabChecklist" type="button" class="pg-host-tab-button" role="tab" aria-selected="true" aria-controls="pgHostChecklistPanel" data-pg-tab-target="checklist">Checklist</button>
+      <button id="pgHostTabTrajectory" type="button" class="pg-host-tab-button" role="tab" aria-selected="false" aria-controls="pgHostTrajectoryPanel" data-pg-tab-target="trajectory">Trajectory</button>
+      <button id="pgHostRefreshButton" type="button" class="pg-host-floating-action" ${state.isRefreshRunning ? 'disabled' : ''}>${state.isRefreshRunning ? 'Refreshing...' : 'Refresh'}</button>
+      <button id="pgHostRevealButton" type="button" class="pg-host-floating-action">Reveal</button>
+      <button id="pgHostCollapsePanel" type="button" class="pg-host-floating-action" aria-expanded="true">hide panel</button>
+      <button id="pgHostChromePeek" type="button" class="pg-host-floating-action" data-pg-panel-show="true" data-pg-visible="true" aria-controls="pgHostChromeContent" aria-expanded="true">show panal</button>
+    </nav>
+  </div>
   <div id="pgHostChromeContent" class="pg-host-chrome-content">
     ${hostShell}
     ${controlOverlay}
@@ -1729,9 +2207,11 @@ function buildParallelPreviewHtml(
   const hostScript = `<script>
   const vscode = acquireVsCodeApi();
   globalThis.__pgHostVsCodeApi = vscode;
+  const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
   const hostChromeDock = document.getElementById('pgHostChromeDock');
   const hostChromeContent = document.getElementById('pgHostChromeContent');
   const hostChromePeek = document.getElementById('pgHostChromePeek');
+  const hostFloatingZone = document.getElementById('pgHostFloatingZone');
   const collapsePanelButton = document.getElementById('pgHostCollapsePanel');
   document.getElementById('pgHostRefreshButton')?.addEventListener('click', (event) => {
     const button = event.currentTarget;
@@ -1757,6 +2237,13 @@ function buildParallelPreviewHtml(
       hostChromePeek.setAttribute('aria-hidden', collapsed && visible ? 'false' : 'true');
     };
 
+    const setFloatingVisible = (visible) => {
+      if (hostFloatingZone instanceof HTMLDivElement) {
+        hostFloatingZone.dataset.pgFloatingVisible = visible ? 'true' : 'false';
+      }
+      setPeekVisible(visible);
+    };
+
     const persistHostChromeState = () => {
       const currentState = vscode.getState?.() ?? {};
       vscode.setState?.({ ...currentState, [stateKey]: collapsed });
@@ -1767,7 +2254,13 @@ function buildParallelPreviewHtml(
       hostChromeDock.dataset.pgHostShell = collapsed ? 'collapsed' : 'expanded';
       hostChromePeek.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       collapsePanelButton?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      setPeekVisible(false);
+      if (collapsePanelButton instanceof HTMLButtonElement) {
+        collapsePanelButton.textContent = collapsed ? 'panel hidden' : 'hide panel';
+      }
+      if (hostChromePeek instanceof HTMLButtonElement) {
+        hostChromePeek.dataset.pgVisible = collapsed ? 'true' : 'false';
+      }
+      setFloatingVisible(false);
     };
 
     const setHostChromeCollapsed = (nextCollapsed) => {
@@ -1783,16 +2276,10 @@ function buildParallelPreviewHtml(
       setHostChromeCollapsed(false);
     });
     document.addEventListener('pointermove', (event) => {
-      if (!collapsed) {
-        return;
-      }
-      setPeekVisible(event.clientY <= 42);
+      setFloatingVisible(event.clientY <= 56);
     });
     document.addEventListener('pointerleave', () => {
-      if (!collapsed) {
-        return;
-      }
-      setPeekVisible(false);
+      setFloatingVisible(false);
     });
     window.addEventListener('resize', applyHostChromeState);
     if (typeof ResizeObserver === 'function') {
@@ -1803,14 +2290,208 @@ function buildParallelPreviewHtml(
     }
     applyHostChromeState();
   }
+  (() => {
+    const tabs = Array.from(document.querySelectorAll('[data-pg-tab-target]'));
+    const tabsRoot = document.getElementById('pgHostPreviewTabs');
+    const heightHandle = document.getElementById('pgHostPreviewHeightHandle');
+    const locateTrajectoryParentButton = document.getElementById('pgHostLocateTrajectoryParent');
+    const panels = {
+      checklist: document.getElementById('pgHostChecklistPanel'),
+      trajectory: document.getElementById('pgHostTrajectoryPanel'),
+    };
+    const stateKey = 'pgHostActivePreviewTab';
+    const heightStateKey = 'pgHostPreviewPanelHeight';
+    const minPanelHeight = 520;
+    const maxPanelHeight = 1200;
+
+    const persistPreviewState = (patch) => {
+      const currentState = vscode.getState?.() ?? {};
+      vscode.setState?.({ ...currentState, ...patch });
+    };
+
+    const panelHeightFromState = () => {
+      const rawHeight = Number(vscode.getState?.()?.[heightStateKey]);
+      return Number.isFinite(rawHeight) ? clampNumber(rawHeight, minPanelHeight, maxPanelHeight) : null;
+    };
+
+    const applyPanelHeight = (height) => {
+      if (!(tabsRoot instanceof HTMLElement)) {
+        return;
+      }
+      const nextHeight = clampNumber(Math.round(height), minPanelHeight, maxPanelHeight);
+      tabsRoot.style.setProperty('--pg-host-preview-panel-height', String(nextHeight) + 'px');
+      if (heightHandle instanceof HTMLElement) {
+        heightHandle.setAttribute('aria-valuenow', String(nextHeight));
+      }
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+
+    const readAppliedPanelHeight = () => {
+      const handleHeight = Number(heightHandle?.getAttribute('aria-valuenow'));
+      if (Number.isFinite(handleHeight)) {
+        return clampNumber(handleHeight, minPanelHeight, maxPanelHeight);
+      }
+      const stateHeight = panelHeightFromState();
+      if (stateHeight !== null) {
+        return stateHeight;
+      }
+      if (tabsRoot instanceof HTMLElement) {
+        const cssHeight = Number.parseFloat(getComputedStyle(tabsRoot).getPropertyValue('--pg-host-preview-panel-height'));
+        if (Number.isFinite(cssHeight)) {
+          return clampNumber(cssHeight, minPanelHeight, maxPanelHeight);
+        }
+        const activePanel = Object.values(panels).find((panel) => panel instanceof HTMLElement && !panel.hidden);
+        if (activePanel instanceof HTMLElement) {
+          const activeBody = activePanel.querySelector('.pg-host-v2-poc, .pg-host-lwt-mount-section');
+          const rectHeight = activeBody instanceof HTMLElement ? activeBody.getBoundingClientRect().height : activePanel.getBoundingClientRect().height;
+          if (Number.isFinite(rectHeight) && rectHeight > 0) {
+            return clampNumber(rectHeight, minPanelHeight, maxPanelHeight);
+          }
+        }
+      }
+      return 760;
+    };
+
+    const initialPanelHeight = panelHeightFromState();
+    if (initialPanelHeight !== null) {
+      applyPanelHeight(initialPanelHeight);
+    }
+
+    const setActiveTab = (nextTab) => {
+      const activeTab = nextTab === 'trajectory' ? 'trajectory' : 'checklist';
+      for (const tab of tabs) {
+        const selected = tab.getAttribute('data-pg-tab-target') === activeTab;
+        tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+      }
+      for (const [panelName, panel] of Object.entries(panels)) {
+        if (panel instanceof HTMLElement) {
+          panel.hidden = panelName !== activeTab;
+        }
+      }
+      persistPreviewState({ [stateKey]: activeTab });
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => {
+        setActiveTab(tab.getAttribute('data-pg-tab-target') || 'checklist');
+      });
+    }
+    window.addEventListener('pg-host-open-trajectory', () => {
+      setActiveTab('trajectory');
+    });
+    window.addEventListener('pg-host-locate-trajectory-parent', (event) => {
+      const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object'
+        ? event.detail
+        : {};
+      const nodeId = typeof detail.nodeId === 'string' ? detail.nodeId : '';
+      const graphId = typeof detail.graphId === 'string' ? detail.graphId : '';
+      if (!nodeId) {
+        return;
+      }
+      setActiveTab('checklist');
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('pg-host-select-graph-node', {
+          detail: { graphId, nodeId },
+        }));
+      });
+    });
+    locateTrajectoryParentButton?.addEventListener('click', () => {
+      if (!(locateTrajectoryParentButton instanceof HTMLElement)) {
+        return;
+      }
+      const graphId = locateTrajectoryParentButton.getAttribute('data-pg-source-graph-id') || '';
+      const nodeId = locateTrajectoryParentButton.getAttribute('data-pg-source-node-id') || '';
+      if (!nodeId) {
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('pg-host-locate-trajectory-parent', {
+        detail: { graphId, nodeId },
+      }));
+    });
+    if (heightHandle instanceof HTMLElement) {
+      heightHandle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        const startY = event.clientY;
+        const startHeight = readAppliedPanelHeight();
+        heightHandle.dataset.pgDragging = 'true';
+        heightHandle.setPointerCapture?.(event.pointerId);
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+
+        const handlePointerMove = (moveEvent) => {
+          const nextHeight = clampNumber(startHeight + moveEvent.clientY - startY, minPanelHeight, maxPanelHeight);
+          applyPanelHeight(nextHeight);
+        };
+
+        const stopDragging = () => {
+          heightHandle.dataset.pgDragging = 'false';
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          const currentHeight = Number(heightHandle.getAttribute('aria-valuenow'));
+          if (Number.isFinite(currentHeight)) {
+            persistPreviewState({ [heightStateKey]: currentHeight });
+          }
+          window.removeEventListener('pointermove', handlePointerMove);
+          window.removeEventListener('pointerup', stopDragging);
+          window.removeEventListener('pointercancel', stopDragging);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', stopDragging);
+        window.addEventListener('pointercancel', stopDragging);
+      });
+      heightHandle.addEventListener('keydown', (event) => {
+        const currentHeight = readAppliedPanelHeight();
+        let nextHeight = currentHeight;
+        if (event.key === 'ArrowDown') {
+          nextHeight += 20;
+        } else if (event.key === 'ArrowUp') {
+          nextHeight -= 20;
+        } else if (event.key === 'PageDown') {
+          nextHeight += 80;
+        } else if (event.key === 'PageUp') {
+          nextHeight -= 80;
+        } else if (event.key === 'Home') {
+          nextHeight = minPanelHeight;
+        } else if (event.key === 'End') {
+          nextHeight = maxPanelHeight;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        applyPanelHeight(nextHeight);
+        const appliedHeight = Number(heightHandle.getAttribute('aria-valuenow'));
+        if (Number.isFinite(appliedHeight)) {
+          persistPreviewState({ [heightStateKey]: appliedHeight });
+        }
+      });
+    }
+    setActiveTab(vscode.getState?.()?.[stateKey] || 'checklist');
+  })();
   ${buildControlOverlayEnhancementScript()}
 </script>`;
 
   return injectIntoHtmlDocument(previewHtml, {
     beforeHeadClose: `${hostStyle}\n${localWorkTrajectoryStyle}`,
-    afterBodyOpen: `${hostChrome}\n${v2GraphPoC}\n${localTrajectory}`,
+    afterBodyOpen: `${hostChrome}\n${previewPanels}`,
     beforeBodyClose: `${hostScript}\n${v2GraphScript}\n${localWorkTrajectoryScript}`,
   });
+}
+
+function buildPreviewTabPanels(v2GraphPoC: string, trajectoryPanel: string): string {
+  return `<main id="pgHostPreviewTabs" class="pg-host-preview-tabs">
+  <section id="pgHostChecklistPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabChecklist">
+    ${v2GraphPoC}
+  </section>
+  <section id="pgHostTrajectoryPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabTrajectory" hidden>
+    ${trajectoryPanel}
+  </section>
+  <div id="pgHostPreviewHeightHandle" class="pg-host-preview-height-handle" role="slider" aria-label="Resize Checklist and Trajectory panel height" aria-orientation="vertical" aria-valuemin="520" aria-valuemax="1200" aria-valuenow="760" tabindex="0" data-pg-dragging="false"></div>
+</main>`;
 }
 
 function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
@@ -1894,42 +2575,152 @@ function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
 </section>`;
 }
 
+function buildTrajectoryPanelSection(state: ProgressGraphPreviewState): string {
+  return `<div class="pg-host-trajectory-stack">
+    ${buildLocalWorkTrajectoryMountSection(state)}
+    ${buildSchedulerWorkTrajectoryMountSection(state)}
+  </div>`;
+}
+
 function buildLocalWorkTrajectoryMountSection(state: ProgressGraphPreviewState): string {
-  const payloadScript = state.localWorkTrajectory
-    ? `<script type="application/json" id="pgHostLocalWorkTrajectoryPayload">${serializeJsonForHtml(state.localWorkTrajectory)}</script>`
+  return buildTrajectoryMountSection({
+    title: 'Local Work Trajectory',
+    authority: 'Agent managed',
+    mountId: 'pgHostLocalWorkTrajectoryRoot',
+    payloadId: 'pgHostLocalWorkTrajectoryPayload',
+    artifactPath: state.trajectoryArtifactPath,
+    artifactExists: state.trajectoryArtifactExists,
+    trajectory: state.localWorkTrajectory,
+    error: state.localWorkTrajectoryError,
+    locateParent: true,
+  });
+}
+
+function buildSchedulerWorkTrajectoryMountSection(state: ProgressGraphPreviewState): string {
+  return buildTrajectoryMountSection({
+    title: 'Scheduler Trajectory Projection',
+    authority: 'Scheduler projection',
+    mountId: 'pgHostSchedulerWorkTrajectoryRoot',
+    payloadId: 'pgHostSchedulerWorkTrajectoryPayload',
+    artifactPath: state.schedulerTrajectoryArtifactPath,
+    artifactExists: state.schedulerTrajectoryArtifactExists,
+    trajectory: state.schedulerWorkTrajectory,
+    error: state.schedulerWorkTrajectoryError,
+    locateParent: false,
+    showHistoryTimeline: true,
+  });
+}
+
+function buildTrajectoryMountSection(options: {
+  title: string;
+  authority: string;
+  mountId: string;
+  payloadId: string;
+  artifactPath: string;
+  artifactExists: boolean;
+  trajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
+  error: string | null;
+  locateParent: boolean;
+  showHistoryTimeline?: boolean;
+}): string {
+  const payloadScript = options.trajectory
+    ? `<script type="application/json" id="${escapeHtml(options.payloadId)}">${serializeJsonForHtml(options.trajectory)}</script>`
     : '';
-  const status = state.localWorkTrajectoryError
+  const status = options.error
     ? 'failed'
-    : state.localWorkTrajectory
+    : options.trajectory
       ? 'available'
       : 'unavailable';
-  const error = state.localWorkTrajectoryError
-    ?? (!state.localWorkTrajectory && state.trajectoryArtifactExists
-      ? 'local-work-trajectory artifact is not usable'
+  const error = options.error
+    ?? (!options.trajectory && options.artifactExists
+      ? `${options.title} artifact is not usable`
       : '');
-  const activeEvent = state.localWorkTrajectory?.events.find((event) => event.status === 'in_progress') ?? null;
+  const activeEvent = options.trajectory?.events.find((event) => event.status === 'in_progress') ?? null;
   const toolbarMeta = [
-    'Agent managed',
-    `artifact=${state.trajectoryArtifactPath}`,
-    state.localWorkTrajectory ? `events=${state.localWorkTrajectory.events.length}` : '',
+    options.authority,
+    `artifact=${options.artifactPath}`,
+    options.trajectory ? `events=${options.trajectory.events.length}` : '',
     activeEvent ? `active=${activeEvent.id}` : '',
   ].filter(Boolean).join(' · ');
+
+  const anchorGraphId = options.trajectory?.sourceGraphId ?? '';
+  const anchorNodeId = options.trajectory?.sourceNodeId ?? '';
+  const hasAnchor = Boolean(anchorGraphId && anchorNodeId);
+  const anchorStateText = hasAnchor
+    ? `anchor=${anchorGraphId}/${anchorNodeId}`
+    : options.trajectory && options.locateParent
+      ? 'anchor=not set'
+      : '';
+  const locateTitle = hasAnchor
+    ? `Locate ${anchorGraphId}/${anchorNodeId} in the global map`
+    : 'No global progress-map anchor has been set. Agents should call localTrajectory setAnchor with sourceGraphId and sourceNodeId.';
+  const locateParentButton = options.locateParent
+    ? `<button
+      id="pgHostLocateTrajectoryParent"
+      class="pg-host-lwt-locate-parent"
+      type="button"
+      data-pg-source-graph-id="${escapeHtml(anchorGraphId)}"
+      data-pg-source-node-id="${escapeHtml(anchorNodeId)}"
+      title="${escapeHtml(locateTitle)}"
+      ${hasAnchor ? '' : 'disabled'}
+    >Locate parent</button>`
+    : '';
+  const historyTimeline = options.showHistoryTimeline
+    ? buildSchedulerHistoryTimeline(options.trajectory)
+    : '';
 
   return `<section class="pg-host-lwt-mount-section" data-pg-lwt-status="${status}">
   <div class="pg-host-lwt-toolbar">
     <div class="pg-host-lwt-toolbar-copy">
-      <p class="pg-host-lwt-toolbar-title">Local Work Trajectory</p>
-      <p class="pg-host-lwt-toolbar-meta">${escapeHtml(toolbarMeta)}</p>
+      <p class="pg-host-lwt-toolbar-title">${escapeHtml(options.title)}</p>
+      <p class="pg-host-lwt-toolbar-meta">${escapeHtml([toolbarMeta, anchorStateText].filter(Boolean).join(' · '))}</p>
     </div>
+    ${locateParentButton}
   </div>
+  ${historyTimeline}
   <div
-    id="pgHostLocalWorkTrajectoryRoot"
+    id="${escapeHtml(options.mountId)}"
     class="pg-host-lwt-mount"
-    data-pg-trajectory-path="${escapeHtml(state.trajectoryArtifactPath)}"
+    data-pg-trajectory-path="${escapeHtml(options.artifactPath)}"
     data-pg-trajectory-error="${escapeHtml(error)}"
+    data-pg-trajectory-payload-id="${escapeHtml(options.payloadId)}"
   ></div>
   ${payloadScript}
 </section>`;
+}
+
+function buildSchedulerHistoryTimeline(
+  trajectory: ProgressGraphPreviewLocalWorkTrajectory | null,
+): string {
+  const metadata = trajectory?.metadata ?? {};
+  const timeline = readTimelineLines(metadata.scheduler_history_timeline);
+  if (timeline.length === 0) {
+    return '';
+  }
+  const count = metadata.scheduler_history_timeline_count || String(timeline.length);
+  const limit = metadata.scheduler_history_timeline_limit || String(timeline.length);
+  const truncated = metadata.scheduler_history_timeline_truncated === 'true';
+  const suffix = truncated
+    ? ` · showing ${escapeHtml(String(timeline.length))}/${escapeHtml(count)}`
+    : ` · ${escapeHtml(count)} entries`;
+  const lines = timeline.map((line) => (
+    `<li class="pg-host-lwt-history-line">${escapeHtml(line)}</li>`
+  )).join('');
+  const more = truncated
+    ? `<p class="pg-host-lwt-history-more">Timeline truncated by projection limit ${escapeHtml(limit)}; inspect JSONL history for complete records.</p>`
+    : '';
+  return `<details class="pg-host-lwt-history">
+    <summary class="pg-host-lwt-history-summary">Scheduler history timeline${suffix}</summary>
+    <ol class="pg-host-lwt-history-lines">${lines}</ol>
+    ${more}
+  </details>`;
+}
+
+function readTimelineLines(value: string | undefined): string[] {
+  return (value ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function buildV2GraphConfigCard(): string {
@@ -2032,6 +2823,7 @@ function buildControlOverlay(state: ProgressGraphPreviewState): string {
 
   return `<section class="pg-host-control-overlay" data-control-snapshot-status="${snapshotStatus}" data-control-snapshot-path="${escapeHtml(state.controlSnapshotPath)}" data-control-snapshot-error="${escapeHtml(state.controlSnapshotError ?? '')}">
   ${buildControlSummaryRail(state)}
+  ${buildHostEvidenceSection(state)}
   <div class="pg-host-control-grid">
     ${buildCompanionCard(state)}
     ${buildUnboundRuntimePanel(state)}
@@ -2088,6 +2880,152 @@ function buildUnboundRuntimePanel(state: ProgressGraphPreviewState): string {
       : controlSnapshotStatusMessage(state),
   )}</p></div>
 </section>`;
+}
+
+function buildHostEvidenceSection(state: ProgressGraphPreviewState): string {
+  const presentation = state.hostEvidencePresentation;
+  if (state.hostEvidencePresentationError) {
+    return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="failed">
+  <div class="pg-host-evidence-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Host Evidence</h2>
+      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)}</p>
+    </div>
+    <div class="pg-host-evidence-badge-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">read failed</span>
+    </div>
+  </div>
+  <p class="pg-host-control-card-subtitle">${escapeHtml(state.hostEvidencePresentationError)}</p>
+</section>`;
+  }
+
+  if (!presentation) {
+    return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="unavailable">
+  <div class="pg-host-evidence-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Host Evidence</h2>
+      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)}</p>
+    </div>
+    <div class="pg-host-evidence-badge-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="unknown">unavailable</span>
+    </div>
+  </div>
+  <p class="pg-host-control-card-subtitle">host evidence presentation resource has not been loaded.</p>
+</section>`;
+  }
+
+  const statusBadge = `<span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(presentation.status)}">${escapeHtml(presentation.status)}</span>`;
+  const countBadges = [
+    `<span class="pg-host-evidence-badge">cards ${escapeHtml(String(presentation.cardCount))}</span>`,
+    `<span class="pg-host-evidence-badge">errors ${escapeHtml(String(presentation.errorCount))}</span>`,
+  ].join('');
+  const emptyMessage = !presentation.cards.length && !presentation.errorRows.length
+    ? `<p class="pg-host-control-card-subtitle">${escapeHtml(presentation.emptyMessage || 'No host scheduler run evidence has been recorded.')}</p>`
+    : '';
+  const cards = presentation.cards.length
+    ? `<div class="pg-host-evidence-list">${presentation.cards.map((card) => buildHostEvidenceCard(card)).join('')}</div>`
+    : '';
+  const errorRows = presentation.errorRows.length
+    ? `<div class="pg-host-evidence-error-list">
+      <p class="pg-host-evidence-group-title">Malformed evidence rows</p>
+      ${presentation.errorRows.map((row) => buildHostEvidenceErrorRow(row)).join('')}
+    </div>`
+    : '';
+
+  return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="${escapeHtml(presentation.status)}">
+  <div class="pg-host-evidence-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Host Evidence</h2>
+      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)} · evidence_dir=${escapeHtml(presentation.evidenceDir || 'unknown')}</p>
+    </div>
+    <div class="pg-host-evidence-badge-row">${statusBadge}${countBadges}</div>
+  </div>
+  ${emptyMessage}
+  ${cards}
+  ${errorRows}
+</section>`;
+}
+
+function buildHostEvidenceCard(card: ProgressGraphPreviewHostEvidenceCard): string {
+  const facts = [
+    ['Runtime providers', card.runtimeProviders.join(', ') || 'unknown'],
+    ['Host surface', card.hostSurface || 'unknown'],
+    ['Invocation', card.invocationId || 'unknown'],
+    ['Stop reason', card.stopReason || 'unknown'],
+    ['Runs', String(card.runCount)],
+    ['Outputs', String(card.outputCount)],
+    ['Permission reviews', String(card.permissionReviewCount)],
+    ...card.keyFacts.map((fact) => [fact.label, fact.value] as [string, string]),
+  ];
+  const dedupedFacts = dedupeHostEvidenceFacts(facts);
+  const factHtml = dedupedFacts.map(([label, value]) => (
+    `<div class="pg-host-evidence-fact">
+      <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+      <div class="pg-host-evidence-value">${escapeHtml(value || 'unknown')}</div>
+    </div>`
+  )).join('');
+  const refs = card.refs.length
+    ? buildHostEvidenceChipGroup('Refs', card.refs.map((ref) => `${ref.label}: ${ref.target}`))
+    : '';
+  const authorityClues = card.authorityClues.length
+    ? buildHostEvidenceChipGroup('Authority clues', card.authorityClues.map((fact) => `${fact.label}: ${fact.value}`))
+    : '';
+  const stopDetail = card.stopDetail
+    ? buildHostEvidenceChipGroup('Stop detail', [card.stopDetail])
+    : '';
+
+  return `<article class="pg-host-evidence-run" data-pg-evidence-severity="${escapeHtml(card.severity)}">
+    <div class="pg-host-evidence-run-head">
+      <div>
+        <h3 class="pg-host-evidence-run-title">${escapeHtml(card.title)}</h3>
+        <p class="pg-host-evidence-run-subtitle">${escapeHtml([card.subtitle, formatTimestamp(card.timestamp)].filter(Boolean).join(' · '))}</p>
+      </div>
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(card.status)}">${escapeHtml(card.status)}</span>
+    </div>
+    <div class="pg-host-evidence-facts">${factHtml}</div>
+    ${stopDetail}
+    ${refs}
+    ${authorityClues}
+  </article>`;
+}
+
+function buildHostEvidenceChipGroup(title: string, values: string[]): string {
+  const chips = values
+    .filter((value) => value.trim().length > 0)
+    .map((value) => `<span class="pg-host-evidence-chip"><span>${escapeHtml(value)}</span></span>`)
+    .join('');
+  if (!chips) {
+    return '';
+  }
+  return `<div class="pg-host-evidence-group">
+    <p class="pg-host-evidence-group-title">${escapeHtml(title)}</p>
+    <div class="pg-host-evidence-chip-row">${chips}</div>
+  </div>`;
+}
+
+function buildHostEvidenceErrorRow(row: ProgressGraphPreviewHostEvidenceErrorRow): string {
+  return `<div class="pg-host-evidence-error-row">
+    <div class="pg-host-evidence-chip-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(row.status)}">${escapeHtml(row.status)}</span>
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(row.severity)}">${escapeHtml(row.errorKind)}</span>
+    </div>
+    <div class="pg-host-evidence-value">${escapeHtml(row.evidencePath || row.id)}</div>
+    <div class="pg-host-evidence-value">${escapeHtml(row.message)}</div>
+  </div>`;
+}
+
+function dedupeHostEvidenceFacts(facts: [string, string][]): [string, string][] {
+  const seen = new Set<string>();
+  const result: [string, string][] = [];
+  for (const [label, value] of facts) {
+    const key = `${label}\u0000${value}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push([label, value]);
+  }
+  return result;
 }
 
 function controlSnapshotStatusMessage(state: ProgressGraphPreviewState): string {
@@ -2506,6 +3444,21 @@ function readStringRecord(value: unknown): Record<string, string> {
     Object.entries(value)
       .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
   );
+}
+
+function readHostEvidenceFacts(value: unknown): ProgressGraphPreviewHostEvidenceFact[] {
+  return readObjectArray(value).map((item) => ({
+    label: readString(item.label, 'unknown'),
+    value: readString(item.value, ''),
+  }));
+}
+
+function readHostEvidenceRefs(value: unknown): ProgressGraphPreviewHostEvidenceRef[] {
+  return readObjectArray(value).map((item) => ({
+    label: readString(item.label, 'unknown'),
+    target: readString(item.target, ''),
+    refKind: readString(item.ref_kind, readString(item.refKind, 'path')),
+  }));
 }
 
 function readStringArray(value: unknown): string[] {

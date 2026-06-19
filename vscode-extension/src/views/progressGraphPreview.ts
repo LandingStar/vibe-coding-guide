@@ -3,14 +3,20 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import {
   buildProgressGraphPreviewHtml,
   coerceControlSnapshot,
+  coerceHostEvidencePresentation,
   coerceLocalWorkTrajectory,
   type ProgressGraphPreviewArtifactState,
   type ProgressGraphPreviewControlSnapshot,
   type ProgressGraphPreviewFreshness,
+  type ProgressGraphPreviewHostEvidencePresentation,
   type ProgressGraphPreviewLocalWorkTrajectory,
   type ProgressGraphPreviewState,
   type ProgressGraphPreviewV2PoCPayload,
 } from './progressGraphPreviewHtml';
+import {
+  HOST_EVIDENCE_PRESENTATION_RESOURCE_URI,
+  readHostEvidencePresentation,
+} from './hostEvidencePresentation';
 type ProgressGraphPreviewMessage = {
     command:
       | 'refresh'
@@ -25,6 +31,11 @@ type ProgressGraphPreviewRefreshLifecycle = {
 };
 
 type ProgressGraphArtifactRegenerator = (workspaceFolder: vscode.WorkspaceFolder) => Promise<void>;
+type ProgressGraphRuntimeResolver = (workspaceFolder: vscode.WorkspaceFolder) => Promise<{
+  workspaceRoot: string;
+  pythonPath: string;
+  sourceRoot: string | null;
+}>;
 
 const DEFAULT_PROGRESS_GRAPH_VIEW_COLUMN = vscode.ViewColumn.One;
 
@@ -35,6 +46,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     private readonly _extensionDistUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
     private readonly _regenerateArtifacts: ProgressGraphArtifactRegenerator;
+    private readonly _resolveRuntime: ProgressGraphRuntimeResolver;
     private readonly _disposables: vscode.Disposable[] = [];
     private _lastLoadedAt: string | null = null;
     private _lastLoadedArtifactModifiedTimeMs: number | null = null;
@@ -51,11 +63,13 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       extensionUri: vscode.Uri,
       outputChannel: vscode.OutputChannel,
       regenerateArtifacts: ProgressGraphArtifactRegenerator,
+      resolveRuntime: ProgressGraphRuntimeResolver,
     ) {
       this._extensionUri = extensionUri;
       this._extensionDistUri = vscode.Uri.joinPath(extensionUri, 'dist');
         this._outputChannel = outputChannel;
         this._regenerateArtifacts = regenerateArtifacts;
+        this._resolveRuntime = resolveRuntime;
     }
 
     async open(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
@@ -149,7 +163,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       return;
     }
 
-    const artifactState = this._readArtifactState(this._workspaceFolder);
+    const artifactState = await this._readArtifactState(this._workspaceFolder);
     this._lastRenderedPreviewHtml = artifactState.previewHtml;
     this._lastLoadedAt = new Date().toISOString();
     this._lastLoadedArtifactModifiedTimeMs = artifactState.artifactModifiedTimeMs;
@@ -228,21 +242,31 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     return vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'progress-graph', 'local-work-trajectory.json');
   }
 
-  private _readArtifactState(workspaceFolder: vscode.WorkspaceFolder): ProgressGraphPreviewArtifactState {
+  private _schedulerTrajectoryArtifactUri(workspaceFolder: vscode.WorkspaceFolder): vscode.Uri {
+    return vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'progress-graph', 'scheduler-work-trajectory.json');
+  }
+
+  private async _readArtifactState(workspaceFolder: vscode.WorkspaceFolder): Promise<ProgressGraphPreviewArtifactState> {
         const previewUri = this._previewUri(workspaceFolder);
         const controlSnapshotUri = this._controlSnapshotUri(workspaceFolder);
         const historyArtifactUri = this._historyArtifactUri(workspaceFolder);
         const trajectoryArtifactUri = this._trajectoryArtifactUri(workspaceFolder);
+        const schedulerTrajectoryArtifactUri = this._schedulerTrajectoryArtifactUri(workspaceFolder);
         const previewExists = existsSync(previewUri.fsPath);
     const controlSnapshotExists = existsSync(controlSnapshotUri.fsPath);
     const historyArtifactExists = existsSync(historyArtifactUri.fsPath);
     const trajectoryArtifactExists = existsSync(trajectoryArtifactUri.fsPath);
+    const schedulerTrajectoryArtifactExists = existsSync(schedulerTrajectoryArtifactUri.fsPath);
     const previewStat = previewExists ? statSync(previewUri.fsPath) : null;
         const previewHtml = previewExists ? readFileSync(previewUri.fsPath, 'utf-8') : null;
     let controlSnapshot: ProgressGraphPreviewControlSnapshot | null = null;
     let controlSnapshotError: string | null = null;
     let localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null = null;
     let localWorkTrajectoryError: string | null = null;
+    let schedulerWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null = null;
+    let schedulerWorkTrajectoryError: string | null = null;
+    let hostEvidencePresentation: ProgressGraphPreviewHostEvidencePresentation | null = null;
+    let hostEvidencePresentationError: string | null = null;
     let v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null = null;
     let v2GraphPayloadError: string | null = null;
 
@@ -256,17 +280,6 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       }
     }
 
-    if (historyArtifactExists) {
-      try {
-        v2GraphPayload = buildProgressGraphV2PoCPayload(
-          JSON.parse(readFileSync(historyArtifactUri.fsPath, 'utf-8')),
-          controlSnapshot,
-        );
-      } catch (error) {
-        v2GraphPayloadError = error instanceof Error ? error.message : String(error);
-      }
-    }
-
     if (trajectoryArtifactExists) {
       try {
         localWorkTrajectory = coerceLocalWorkTrajectory(
@@ -275,6 +288,51 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       } catch (error) {
         localWorkTrajectoryError = error instanceof Error ? error.message : String(error);
       }
+    }
+
+    if (schedulerTrajectoryArtifactExists) {
+      try {
+        schedulerWorkTrajectory = coerceLocalWorkTrajectory(
+          JSON.parse(readFileSync(schedulerTrajectoryArtifactUri.fsPath, 'utf-8')),
+        );
+      } catch (error) {
+        schedulerWorkTrajectoryError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    if (historyArtifactExists) {
+      try {
+        v2GraphPayload = buildProgressGraphV2PoCPayload(
+          JSON.parse(readFileSync(historyArtifactUri.fsPath, 'utf-8')),
+          controlSnapshot,
+          localWorkTrajectory,
+        );
+      } catch (error) {
+        v2GraphPayloadError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    try {
+      const runtime = await this._resolveRuntime(workspaceFolder);
+      hostEvidencePresentation = await readHostEvidencePresentation({
+        projectRoot: runtime.workspaceRoot,
+        sourceRoot: runtime.sourceRoot,
+        pythonPath: runtime.pythonPath,
+        outputChannel: this._outputChannel,
+      });
+    } catch (error) {
+      hostEvidencePresentationError = error instanceof Error ? error.message : String(error);
+      hostEvidencePresentation = coerceHostEvidencePresentation({
+        generated_at: null,
+        project_root: workspaceFolder.uri.fsPath,
+        evidence_dir: vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'scheduler', 'evidence').fsPath,
+        status: 'failed',
+        card_count: 0,
+        error_count: 0,
+        cards: [],
+        error_rows: [],
+        empty_message: '',
+      });
     }
 
         return {
@@ -289,10 +347,17 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
             historyArtifactExists,
             trajectoryArtifactPath: trajectoryArtifactUri.fsPath,
             trajectoryArtifactExists,
+            schedulerTrajectoryArtifactPath: schedulerTrajectoryArtifactUri.fsPath,
+            schedulerTrajectoryArtifactExists,
             previewExists,
             previewHtml,
             localWorkTrajectory,
             localWorkTrajectoryError,
+            schedulerWorkTrajectory,
+            schedulerWorkTrajectoryError,
+            hostEvidencePresentationResourceUri: HOST_EVIDENCE_PRESENTATION_RESOURCE_URI,
+            hostEvidencePresentation,
+            hostEvidencePresentationError,
             v2GraphPayload,
             v2GraphPayloadError,
         };
@@ -303,7 +368,18 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       return;
     }
 
-    const artifactState = this._readArtifactState(this._workspaceFolder);
+    void this._renderShellStateAsync(options).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      this._outputChannel.appendLine(`[ProgressGraphPreview] Failed to render shell state: ${message}`);
+    });
+  }
+
+  private async _renderShellStateAsync(options: { preserveCurrentPreview: boolean }): Promise<void> {
+    if (!this._panel || !this._workspaceFolder) {
+      return;
+    }
+
+    const artifactState = await this._readArtifactState(this._workspaceFolder);
     const previewHtml = options.preserveCurrentPreview
       ? (this._lastRenderedPreviewHtml ?? artifactState.previewHtml)
       : artifactState.previewHtml;
@@ -448,6 +524,15 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       trajectoryArtifactExists: state.trajectoryArtifactExists,
       trajectoryId: state.localWorkTrajectory?.trajectoryId ?? null,
       trajectoryError: state.localWorkTrajectoryError,
+      schedulerTrajectoryArtifactExists: state.schedulerTrajectoryArtifactExists,
+      schedulerTrajectoryId: state.schedulerWorkTrajectory?.trajectoryId ?? null,
+      schedulerTrajectoryError: state.schedulerWorkTrajectoryError,
+      hostEvidencePresentationStatus: state.hostEvidencePresentation?.status ?? null,
+      hostEvidencePresentationCardCount: state.hostEvidencePresentation?.cardCount ?? null,
+      hostEvidencePresentationErrorCount: state.hostEvidencePresentation?.errorCount ?? null,
+      hostEvidencePresentationCardIds: state.hostEvidencePresentation?.cards.map((card) => card.id) ?? [],
+      hostEvidencePresentationErrorIds: state.hostEvidencePresentation?.errorRows.map((row) => row.id) ?? [],
+      hostEvidencePresentationError: state.hostEvidencePresentationError,
       v2GraphId: state.v2GraphPayload?.graphId ?? null,
       v2GraphPayloadError: state.v2GraphPayloadError,
       v2GraphScriptUri: state.v2GraphScriptUri,
@@ -497,6 +582,7 @@ type RawSnapshotGraph = {
 function buildProgressGraphV2PoCPayload(
   rawHistory: unknown,
   controlSnapshot: ProgressGraphPreviewControlSnapshot | null,
+  localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null,
 ): ProgressGraphPreviewV2PoCPayload {
   const history = asRecord(rawHistory, 'history artifact');
   const snapshots = asRecord(history.snapshots, 'history.snapshots');
@@ -510,14 +596,20 @@ function buildProgressGraphV2PoCPayload(
     })
     .filter((graph) => graph.nodes.length > 0);
 
-  const selectedGraph = selectV2Graph(candidateGraphs);
+  const selectedGraph = selectV2Graph(candidateGraphs, localWorkTrajectory);
   if (!selectedGraph) {
     throw new Error('latest.json does not contain a usable graph snapshot for the V2 PoC.');
   }
 
   const runtimeBindingIndex = buildRuntimeBindingIndex(controlSnapshot, selectedGraph.graphId);
+  const trajectoryAnchorMatchesGraph = localWorkTrajectory?.sourceGraphId === selectedGraph.graphId;
   const nodes = selectedGraph.nodes.map((node) => {
     const binding = runtimeBindingIndex.get(node.id);
+    const hasLocalTrajectory = Boolean(
+      trajectoryAnchorMatchesGraph
+      && localWorkTrajectory?.sourceNodeId
+      && localWorkTrajectory.sourceNodeId === node.id,
+    );
     return {
       id: node.id,
       label: node.title,
@@ -526,6 +618,8 @@ function buildProgressGraphV2PoCPayload(
       summary: node.summary,
       tags: node.tags,
       hasRuntimeBinding: Boolean(binding),
+      hasLocalTrajectory,
+      localTrajectoryId: hasLocalTrajectory ? localWorkTrajectory?.trajectoryId ?? null : null,
       workItemIds: binding ? [...binding.workItemIds] : [],
       groupItemIds: binding ? [...binding.groupItemIds] : [],
     };
@@ -556,9 +650,24 @@ function buildProgressGraphV2PoCPayload(
   };
 }
 
-function selectV2Graph(graphs: RawSnapshotGraph[]): RawSnapshotGraph | null {
+function selectV2Graph(
+  graphs: RawSnapshotGraph[],
+  localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null = null,
+): RawSnapshotGraph | null {
   if (graphs.length === 0) {
     return null;
+  }
+
+  const anchoredGraphId = localWorkTrajectory?.sourceGraphId;
+  const anchoredNodeId = localWorkTrajectory?.sourceNodeId;
+  if (anchoredGraphId && anchoredNodeId) {
+    const anchoredGraph = graphs.find(
+      (graph) => graph.graphId === anchoredGraphId
+        && graph.nodes.some((node) => node.id === anchoredNodeId),
+    );
+    if (anchoredGraph) {
+      return anchoredGraph;
+    }
   }
 
   const preferredOrder = ['project-checklist-current', 'planning-gates-index', 'checkpoint-current'];

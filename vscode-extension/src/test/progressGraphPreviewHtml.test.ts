@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildProgressGraphPreviewHtml,
   coerceControlSnapshot,
+  coerceHostEvidencePresentation,
   type ProgressGraphPreviewState,
   type ProgressGraphPreviewV2PoCPayload,
 } from '../views/progressGraphPreviewHtml.js';
@@ -25,8 +26,25 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
     v2GraphPayloadError: null,
     trajectoryArtifactPath: '.codex/progress-graph/local-work-trajectory.json',
     trajectoryArtifactExists: false,
+    schedulerTrajectoryArtifactPath: '.codex/progress-graph/scheduler-work-trajectory.json',
+    schedulerTrajectoryArtifactExists: false,
     localWorkTrajectory: null,
     localWorkTrajectoryError: null,
+    schedulerWorkTrajectory: null,
+    schedulerWorkTrajectoryError: null,
+    hostEvidencePresentationResourceUri: 'dbc://host-evidence/presentation',
+    hostEvidencePresentation: {
+      generatedAt: null,
+      projectRoot: 'E:/workspace/example',
+      evidenceDir: 'E:/workspace/example/.codex/scheduler/evidence',
+      status: 'empty',
+      cardCount: 0,
+      errorCount: 0,
+      cards: [],
+      errorRows: [],
+      emptyMessage: 'No host scheduler run evidence has been recorded.',
+    },
+    hostEvidencePresentationError: null,
     v2GraphScriptUri: null,
     v2GraphWorkerUri: null,
     v2GraphAutoShake: true,
@@ -143,6 +161,130 @@ test('buildProgressGraphPreviewHtml embeds available control snapshot overlay fo
   assert.match(html, /renderUnboundPanel\(\);/);
 });
 
+test('buildProgressGraphPreviewHtml renders empty host evidence presentation state', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState());
+
+  assert.match(html, /id="pgHostEvidencePanel"/);
+  assert.match(html, /Host Evidence/);
+  assert.match(html, /dbc:\/\/host-evidence\/presentation/);
+  assert.match(html, /data-pg-host-evidence-status="empty"/);
+  assert.match(html, /cards 0/);
+  assert.match(html, /errors 0/);
+  assert.match(html, /No host scheduler run evidence has been recorded/);
+});
+
+test('buildProgressGraphPreviewHtml renders host evidence cards from presentation payload', () => {
+  const presentation = coerceHostEvidencePresentation({
+    generated_at: '2026-06-19T09:00:00.000Z',
+    project_root: 'E:/workspace/example',
+    evidence_dir: 'E:/workspace/example/.codex/scheduler/evidence',
+    status: 'ok',
+    card_count: 1,
+    error_count: 0,
+    empty_message: '',
+    cards: [
+      {
+        id: 'host-loop-projection-workflow',
+        title: 'Scheduler loop evidence host-loop-projection-workflow',
+        subtitle: 'host-loop-projection-workflow · no_ready_tasks · 3 run(s)',
+        status: 'completed',
+        severity: 'info',
+        timestamp: '2026-06-19T09:00:00.000Z',
+        runtime_providers: ['fake'],
+        host_surface: 'host-loop-projection-workflow',
+        invocation_id: 'invocation-001',
+        requested_by: 'operator-or-host',
+        stop_reason: 'no_ready_tasks',
+        stop_detail: 'queue drained',
+        run_count: 3,
+        output_count: 0,
+        permission_review_count: 0,
+        key_facts: [
+          { label: 'Scheduler projection path', value: '.codex/progress-graph/scheduler-work-trajectory.json' },
+          { label: 'Scheduler projection role', value: 'read-only-view' },
+        ],
+        refs: [
+          { label: 'Evidence', target: '.codex/scheduler/evidence/host-loop-projection-workflow.json', ref_kind: 'path' },
+          { label: 'Scheduler projection', target: '.codex/progress-graph/scheduler-work-trajectory.json', ref_kind: 'path' },
+        ],
+        authority_clues: [
+          { label: 'Scheduler projection refreshed', value: 'true' },
+          { label: 'Local trajectory mutated', value: 'false' },
+        ],
+        metadata: {
+          evidence_product_type: 'scheduler_loop_evidence',
+        },
+      },
+    ],
+    error_rows: [],
+  });
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: presentation,
+  }));
+
+  assert.match(html, /data-pg-host-evidence-status="ok"/);
+  assert.match(html, /cards 1/);
+  assert.match(html, /Scheduler loop evidence host-loop-projection-workflow/);
+  assert.match(html, /host-loop-projection-workflow/);
+  assert.match(html, /Runtime providers/);
+  assert.match(html, /fake/);
+  assert.match(html, /Host surface/);
+  assert.match(html, /invocation-001/);
+  assert.match(html, /no_ready_tasks/);
+  assert.match(html, /queue drained/);
+  assert.match(html, /Scheduler projection path/);
+  assert.match(html, /scheduler-work-trajectory\.json/);
+  assert.match(html, /Authority clues/);
+  assert.match(html, /Scheduler projection refreshed: true/);
+  assert.match(html, /Local trajectory mutated: false/);
+});
+
+test('buildProgressGraphPreviewHtml renders isolated malformed host evidence rows', () => {
+  const presentation = coerceHostEvidencePresentation({
+    generated_at: '2026-06-19T09:00:00.000Z',
+    project_root: 'E:/workspace/example',
+    evidence_dir: 'E:/workspace/example/.codex/scheduler/evidence',
+    status: 'degraded',
+    card_count: 0,
+    error_count: 1,
+    empty_message: '',
+    cards: [],
+    error_rows: [
+      {
+        id: 'host-evidence-error:1',
+        status: 'read-error',
+        severity: 'error',
+        evidence_path: 'E:/workspace/example/.codex/scheduler/evidence/malformed.json',
+        error_kind: 'invalid_evidence',
+        message: 'host scheduler evidence artifact is not valid JSON',
+      },
+    ],
+  });
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: presentation,
+  }));
+
+  assert.match(html, /data-pg-host-evidence-status="degraded"/);
+  assert.match(html, /errors 1/);
+  assert.match(html, /Malformed evidence rows/);
+  assert.match(html, /invalid_evidence/);
+  assert.match(html, /malformed\.json/);
+  assert.match(html, /host scheduler evidence artifact is not valid JSON/);
+});
+
+test('buildProgressGraphPreviewHtml renders host evidence backend read errors', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: null,
+    hostEvidencePresentationError: 'MCP resource read failed',
+  }));
+
+  assert.match(html, /data-pg-host-evidence-status="failed"/);
+  assert.match(html, /read failed/);
+  assert.match(html, /MCP resource read failed/);
+});
+
 test('buildProgressGraphPreviewHtml exposes failed control snapshot status when snapshot parsing failed', () => {
   const html = buildProgressGraphPreviewHtml(buildBaseState({
     controlSnapshotExists: true,
@@ -171,6 +313,8 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
         summary: 'First gate',
         tags: ['active'],
         hasRuntimeBinding: true,
+        hasLocalTrajectory: false,
+        localTrajectoryId: null,
         workItemIds: ['work:1'],
         groupItemIds: ['group:1'],
       },
@@ -182,6 +326,8 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
         summary: '',
         tags: [],
         hasRuntimeBinding: false,
+        hasLocalTrajectory: false,
+        localTrajectoryId: null,
         workItemIds: [],
         groupItemIds: [],
       },
@@ -215,10 +361,42 @@ test('buildProgressGraphPreviewHtml injects Knowledge Graph Engine shell when V2
   assert.match(html, /Planning Gates Index/);
   assert.match(html, /graph_id=planning-gates-index/);
   assert.match(html, /id="pgHostChromeDock"/);
+  assert.match(html, /id="pgHostFloatingZone"/);
+  assert.match(html, /class="pg-host-floating-bar"/);
+  assert.match(html, /id="pgHostTabChecklist"/);
+  assert.match(html, /id="pgHostTabTrajectory"/);
+  assert.match(html, /id="pgHostPreviewTabs"/);
+  assert.match(html, /id="pgHostChecklistPanel"/);
+  assert.match(html, /id="pgHostTrajectoryPanel"/);
+  assert.match(html, /id="pgHostPreviewHeightHandle"/);
+  assert.match(html, /class="pg-host-preview-height-handle"/);
+  assert.match(html, /role="slider"/);
+  assert.match(html, /aria-label="Resize Checklist and Trajectory panel height"/);
+  assert.match(html, /aria-orientation="vertical"/);
+  assert.match(html, /aria-valuemin="520"/);
+  assert.match(html, /aria-valuemax="1200"/);
   assert.match(html, /id="pgHostChromePeek"/);
   assert.match(html, /id="pgHostCollapsePanel"/);
-  assert.match(html, /Show Progress Graph Panel/);
-  assert.match(html, /Collapse Panel/);
+  assert.match(html, /Checklist/);
+  assert.match(html, /Trajectory/);
+  assert.match(html, /show panal/);
+  assert.match(html, /hide panel/);
+  assert.match(html, /data-pg-tab-target="checklist"/);
+  assert.match(html, /data-pg-tab-target="trajectory"/);
+  assert.match(html, /pgHostActivePreviewTab/);
+  assert.match(html, /pgHostPreviewPanelHeight/);
+  assert.match(html, /--pg-host-preview-panel-height/);
+  assert.match(html, /readAppliedPanelHeight/);
+  assert.match(html, /heightHandle\.addEventListener\('pointerdown'/);
+  assert.match(html, /heightHandle\.addEventListener\('keydown'/);
+  assert.match(html, /setPointerCapture/);
+  assert.match(html, /row-resize/);
+  assert.match(html, /ArrowDown/);
+  assert.match(html, /PageDown/);
+  assert.match(html, /tabsRoot\.style\.setProperty\('--pg-host-preview-panel-height'/);
+  assert.match(html, /window\.dispatchEvent\(new Event\('resize'\)\)/);
+  assert.doesNotMatch(html, /Show Progress Graph Panel/);
+  assert.doesNotMatch(html, /Collapse Panel/);
   assert.match(html, /id="pgHostV2GraphCanvas"/);
   assert.match(html, /id="pgHostV2GraphPayload"/);
   assert.match(html, /Graph Config/);
@@ -277,6 +455,8 @@ test('buildProgressGraphPreviewHtml disables V2 auto shake during refreshing she
         summary: '',
         tags: [],
         hasRuntimeBinding: false,
+        hasLocalTrajectory: false,
+        localTrajectoryId: null,
         workItemIds: [],
         groupItemIds: [],
       },
@@ -341,6 +521,12 @@ test('buildProgressGraphPreviewHtml injects local work trajectory payload for Re
   }));
 
   assert.match(html, /id="pgHostLocalWorkTrajectoryRoot"/);
+  assert.match(html, /id="pgHostLocateTrajectoryParent"/);
+  assert.match(html, /data-pg-source-graph-id="checkpoint-current"/);
+  assert.match(html, /data-pg-source-node-id="milestone:current-phase"/);
+  assert.match(html, /pg-host-locate-trajectory-parent/);
+  assert.match(html, /pg-host-select-graph-node/);
+  assert.match(html, /pg-host-open-trajectory/);
   assert.match(html, /Agent managed/);
   assert.doesNotMatch(html, /id="pgHostLwtStart"/);
   assert.doesNotMatch(html, /id="pgHostLwtAppend"/);
@@ -352,4 +538,134 @@ test('buildProgressGraphPreviewHtml injects local work trajectory payload for Re
   assert.match(html, /Checkpoint Local Work Trajectory/);
   assert.match(html, /localWorkTrajectory\.js/);
   assert.match(html, /localWorkTrajectory\.css/);
+});
+
+test('buildProgressGraphPreviewHtml injects scheduler trajectory payload separately', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    localWorkTrajectoryScriptUri: 'vscode-webview-resource://test/localWorkTrajectory.js',
+    localWorkTrajectoryStyleUri: 'vscode-webview-resource://test/localWorkTrajectory.css',
+    schedulerTrajectoryArtifactExists: true,
+    schedulerWorkTrajectory: {
+      trajectoryId: 'local-work:scheduler-projection',
+      title: 'Scheduler Local Work Trajectory',
+      recordedAt: '2026-06-17T00:00:00.000Z',
+      sourceGraphId: null,
+      sourceNodeId: null,
+      guideContext: 'schedulerProjection',
+      metadata: {
+        authority: 'scheduler',
+        scheduler_history_timeline: [
+          'timestamp=2026-06-17T01:40:01+08:00 | kind=task_running | id=scheduler-event-1 | task=api-task',
+          'timestamp=2026-06-17T01:40:02+08:00 | kind=task_completed | id=scheduler-event-2 | task=api-task',
+        ].join('\n'),
+        scheduler_history_timeline_count: '2',
+        scheduler_history_timeline_limit: '40',
+        scheduler_history_timeline_truncated: 'false',
+      },
+      lanes: [
+        {
+          id: 'lane:scheduler',
+          label: 'scheduler',
+          status: 'done',
+          summary: '',
+          metadata: {},
+        },
+      ],
+      events: [
+        {
+          id: 'scheduler-task:api-task',
+          laneId: 'lane:scheduler',
+          title: 'api/task',
+          kind: 'task',
+          status: 'completed',
+          order: 1,
+          summary: '',
+          metadata: {},
+        },
+      ],
+      relations: [],
+    },
+  }));
+
+  assert.match(html, /id="pgHostSchedulerWorkTrajectoryRoot"/);
+  assert.match(html, /id="pgHostSchedulerWorkTrajectoryPayload"/);
+  assert.match(html, /data-pg-trajectory-payload-id="pgHostSchedulerWorkTrajectoryPayload"/);
+  assert.match(html, /Scheduler Trajectory Projection/);
+  assert.match(html, /Scheduler projection/);
+  assert.match(html, /scheduler-work-trajectory\.json/);
+  assert.match(html, /Scheduler Local Work Trajectory/);
+  assert.match(html, /Scheduler history timeline/);
+  assert.match(html, /2 entries/);
+  assert.match(html, /scheduler-event-1/);
+  assert.match(html, /scheduler-event-2/);
+  assert.doesNotMatch(html, /Timeline truncated by projection limit/);
+  assert.match(html, /localWorkTrajectory\.js/);
+});
+
+test('buildProgressGraphPreviewHtml marks truncated scheduler history timeline', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerTrajectoryArtifactExists: true,
+    schedulerWorkTrajectory: {
+      trajectoryId: 'local-work:scheduler-projection',
+      title: 'Scheduler Local Work Trajectory',
+      recordedAt: '2026-06-17T00:00:00.000Z',
+      sourceGraphId: null,
+      sourceNodeId: null,
+      guideContext: 'schedulerProjection',
+      metadata: {
+        scheduler_history_timeline: 'timestamp=2026-06-17T01:40:01+08:00 | kind=task_running | id=scheduler-event-1 | task=api-task',
+        scheduler_history_timeline_count: '45',
+        scheduler_history_timeline_limit: '40',
+        scheduler_history_timeline_truncated: 'true',
+      },
+      lanes: [
+        {
+          id: 'lane:scheduler',
+          label: 'scheduler',
+          status: 'done',
+          summary: '',
+          metadata: {},
+        },
+      ],
+      events: [
+        {
+          id: 'scheduler-task:api-task',
+          laneId: 'lane:scheduler',
+          title: 'api/task',
+          kind: 'task',
+          status: 'completed',
+          order: 1,
+          summary: '',
+          metadata: {},
+        },
+      ],
+      relations: [],
+    },
+  }));
+
+  assert.match(html, /Scheduler history timeline/);
+  assert.match(html, /showing 1\/45/);
+  assert.match(html, /Timeline truncated by projection limit 40/);
+});
+
+test('buildProgressGraphPreviewHtml explains missing local trajectory anchor', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    localWorkTrajectory: {
+      trajectoryId: 'local-work:single-line-current',
+      title: 'Unanchored Local Work Trajectory',
+      recordedAt: '2026-06-13T00:00:00.000Z',
+      sourceGraphId: null,
+      sourceNodeId: null,
+      guideContext: 'codex-mcp-agent',
+      metadata: {},
+      lanes: [],
+      events: [],
+      relations: [],
+    },
+  }));
+
+  assert.match(html, /anchor=not set/);
+  assert.match(html, /No global progress-map anchor has been set/);
+  assert.match(html, /localTrajectory setAnchor/);
+  assert.match(html, /id="pgHostLocateTrajectoryParent"[\s\S]*disabled/);
 });

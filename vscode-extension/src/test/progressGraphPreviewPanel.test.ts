@@ -60,6 +60,46 @@ test('preview panel is display-only for local work trajectory mutation', () => {
   assert.doesNotMatch(source, /case 'advanceLocalWorkTrajectoryEvent'/);
 });
 
+test('progress graph payload projects local trajectory anchor onto global nodes', () => {
+  const source = readFileSync(sourcePath, 'utf-8');
+
+  assert.match(source, /localWorkTrajectory = coerceLocalWorkTrajectory/);
+  assert.match(source, /buildProgressGraphV2PoCPayload\([\s\S]*controlSnapshot,[\s\S]*localWorkTrajectory,/);
+  assert.match(source, /localWorkTrajectory:\s*ProgressGraphPreviewLocalWorkTrajectory \| null/);
+  assert.match(source, /const selectedGraph = selectV2Graph\(candidateGraphs, localWorkTrajectory\);/);
+  assert.match(source, /const anchoredGraphId = localWorkTrajectory\?\.sourceGraphId;/);
+  assert.match(source, /const anchoredNodeId = localWorkTrajectory\?\.sourceNodeId;/);
+  assert.match(source, /const anchoredGraph = graphs\.find/);
+  assert.match(source, /const trajectoryAnchorMatchesGraph = localWorkTrajectory\?\.sourceGraphId === selectedGraph\.graphId/);
+  assert.match(source, /hasLocalTrajectory,\s*localTrajectoryId:/);
+});
+
+test('preview panel reads scheduler trajectory projection separately from local trajectory', () => {
+  const source = readFileSync(sourcePath, 'utf-8');
+
+  assert.match(source, /_schedulerTrajectoryArtifactUri/);
+  assert.match(source, /scheduler-work-trajectory\.json/);
+  assert.match(source, /schedulerWorkTrajectory = coerceLocalWorkTrajectory/);
+  assert.match(source, /schedulerTrajectoryArtifactExists/);
+  assert.match(source, /schedulerWorkTrajectoryError/);
+  assert.match(source, /schedulerTrajectoryId: state\.schedulerWorkTrajectory\?\.trajectoryId/);
+});
+
+test('preview panel reads host evidence presentation as a read-only resource', () => {
+  const source = readFileSync(sourcePath, 'utf-8');
+  const hostEvidenceSource = readFileSync(
+    join(__dirname, '..', '..', 'src', 'views', 'hostEvidencePresentation.ts'),
+    'utf-8',
+  );
+
+  assert.match(source, /readHostEvidencePresentation/);
+  assert.match(source, /hostEvidencePresentationResourceUri:\s*HOST_EVIDENCE_PRESENTATION_RESOURCE_URI/);
+  assert.match(source, /hostEvidencePresentationStatus: state\.hostEvidencePresentation\?\.status/);
+  assert.match(hostEvidenceSource, /dbc:\/\/host-evidence\/presentation/);
+  assert.match(hostEvidenceSource, /tools\.read_resource/);
+  assert.doesNotMatch(hostEvidenceSource, /write_resource|callTool|localTrajectory|scheduler daemon-loop/);
+});
+
 test('progress graph refresh does not treat a target project tools directory as platform source root', () => {
   const previewSource = readFileSync(sourcePath, 'utf-8');
   const artifactsSource = readFileSync(artifactsSourcePath, 'utf-8');
