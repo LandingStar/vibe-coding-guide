@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler operator extension-host click sequence smoke close`
-- Active Slice: `Scheduler Operator Extension-Host Click Sequence Smoke (COMPLETED; webview-shaped Scheduler Operator messages now share a tested Host UX click/message contract with scheduler operator-workflow CLI args)`
-- Latest Completed Slice: `Scheduler Operator Extension-Host Click Sequence Smoke`
+- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler projection readability review close`
+- Active Slice: `Scheduler Projection Readability Review (COMPLETED; deterministic multi-lane scheduler projection now has ordered fan-in merge events and stable full-fit React Flow rendering)`
+- Latest Completed Slice: `Scheduler Projection Readability Review`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; Scheduler Operator click/message contract smoke `3 passed`; Scheduler Operator panel test `10 passed`; Scheduler Operator HTML test `13 passed`; screenshot artifact refreshed at `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`
+- Test Baseline: VS Code extension build passed; Local Work Trajectory renderer test `2 passed`; Progress Graph Preview HTML test `13 passed`; focused scheduler projection/runtime pytest `4 passed, 243 deselected`; screenshot artifact refreshed at `output/playwright/scheduler-trajectory-preview/readability-review.png`
 
 ## 当前 Handoff Footprint
 
@@ -65,6 +65,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-multilane-dogfood-fixture.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-host-ux-unified-workflow-binding.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-extension-host-click-sequence-smoke.md`
+- `design_docs/stages/planning-gate/2026-06-19-scheduler-projection-readability-review.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -99,6 +100,7 @@
 - `review/scheduler-operator-multilane-dogfood-fixture-2026-06-19.md`
 - `review/scheduler-operator-host-ux-unified-workflow-binding-2026-06-19.md`
 - `review/scheduler-operator-extension-host-click-sequence-smoke-2026-06-19.md`
+- `review/scheduler-projection-readability-review-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -119,6 +121,7 @@
 - `design_docs/scheduler-operator-multilane-dogfood-fixture-followup-direction-analysis.md`
 - `design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md`
 - `design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md`
+- `design_docs/scheduler-projection-readability-review-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -920,6 +923,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-multilane-dogfood-fixture.md`。本轮新增第二个 Scheduler Operator dogfood fixture：`build_scheduler_operator_multilane_dogfood_batch()` / `seed_scheduler_operator_multilane_dogfood_fixture()` 生成 deterministic fake-runtime 四任务、四 lane、四依赖的多线 scheduler admission candidate；CLI `doc-based-coding scheduler seed-dogfood-fixture --fixture multilane` 可写入该 candidate，默认仍保持 simple fixture。新 fixture 已通过 shared `schedulerOperatorWorkflow` backend/CLI/MCP 路径完成 exact admission、bounded fake loop、scheduler projection refresh 与 Host Evidence presentation readback；fixture seed 仍只突变 ExchangeArtifact store，不自动 admission、不运行 provider、不刷新 projection、不写 Host Evidence、不标记 consumed、不突变 Local Work Trajectory。review evidence 位于 `review/scheduler-operator-multilane-dogfood-fixture-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-multilane-dogfood-fixture-followup-direction-analysis.md`；验证结果：focused runtime tests `5 passed`，focused CLI workflow tests `5 passed`，focused MCP workflow test `1 passed`，scheduler / ExchangeArtifact / Host Evidence / operator workflow focused regression `137 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-host-ux-unified-workflow-binding.md`。本轮把 VS Code Scheduler Operator Host UX 的 `Admit`、`Run bounded loop`、`Refresh projection` 三个按钮统一改为调用共享 CLI surface `doc-based-coding scheduler operator-workflow`，分别只携带 `--admit`、`--run-loop`、`--refresh-projection` 显式 action flag；artifact store、admission ledger、scheduler snapshot/event log、projection output、evidence id/path、actor 与 guide context 继续在 Host UX invocation 中显式传入。last-action summary 现兼容 shared workflow 的 nested `admission_result` / `loop_result` / `projection_result` payload，并保留旧直连命令 payload 兼容。该切片不改 UI 视觉模型、不改 backend scheduler/admission/evidence schema、不运行 live provider、不启动 background daemon、不标记 ExchangeArtifact consumed、不从 UI 或 scheduler workflow 突变 agent-owned Local Work Trajectory；review evidence 位于 `review/scheduler-operator-host-ux-unified-workflow-binding-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md`；验证结果：VS Code extension build passed，panel test `10 passed`，HTML test `13 passed`，focused backend/CLI/MCP workflow regression `10 passed`，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-extension-host-click-sequence-smoke.md`。本轮新增 Scheduler Operator Host UX click/message contract helper：webview-shaped `schedulerOperatorAction` messages 与 shared `doc-based-coding scheduler operator-workflow` CLI args 共用 `vscode-extension/src/views/schedulerOperatorContracts.ts`；Progress Graph Preview panel 的 message coercion 与 workflow runner 的 args 构造均复用该 helper。新增 executable smoke 覆盖 `Admit -> Run bounded loop -> Refresh projection`，确认每一步只携带一个显式 action flag，bounded loop 保持 fake runtime 与 deterministic evidence id/path 测试能力，缺参 admission 在 UI mutation 前被拒绝。该切片不新增 full Electron extension-host runner、不运行 live provider、不启动 background daemon、不改 backend scheduler/admission/evidence schema、不从 UI 或 scheduler workflow 突变 agent-owned Local Work Trajectory、不改视觉模型；review evidence 位于 `review/scheduler-operator-extension-host-click-sequence-smoke-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md`；验证结果：VS Code extension build passed，click/message contract smoke `3 passed`，panel test `10 passed`，HTML test `13 passed`，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-projection-readability-review.md`。本轮使用 deterministic multi-lane Scheduler Operator fixture 生成 scheduler-derived Local Work Trajectory projection，记录 `4 lanes / 6 events / 12 relations / 19 scheduler history lines`，并修复两个窄可读性问题：backend fan-in / scheduler-owned merge projection event 现在排在目标 task 前，不再产生反向 lane-order sequence；frontend scheduler-state projection 现在按最早 projected task order 排 lane，使用 full-fit mode、分离宽高 fit 预算、绑定初始 viewport，并对 full-fit 后续定位禁用动画以避免截图或首帧裁切。该切片不新增 live provider、不启动 background daemon、不新增 full Electron runner、不改 scheduler/admission/evidence schema、不突变 agent-owned Local Work Trajectory、不替换 React Flow renderer；review evidence 位于 `review/scheduler-projection-readability-review-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-projection-readability-review-followup-direction-analysis.md`；验证结果：VS Code extension build passed，Local Work Trajectory renderer test `2 passed`，Progress Graph Preview HTML test `13 passed`，focused scheduler projection/runtime pytest `4 passed, 243 deselected`，截图 artifact 位于 `output/playwright/scheduler-trajectory-preview/readability-review.png`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

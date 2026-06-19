@@ -2063,6 +2063,7 @@ def test_build_scheduler_work_trajectory_projects_fan_in_dependencies_as_merge_e
     assert merge_event.kind == "merge"
     assert merge_event.lane_id == "lane:client"
     assert merge_event.status == "waiting"
+    assert merge_event.order < trajectory.events["scheduler-task:client-integration"].order
     assert merge_event.metadata["scheduler_projection_role"] == "fan-in-merge"
     assert merge_event.metadata["scheduler_target_task_id"] == "client-integration"
     assert merge_event.metadata["scheduler_dependency_ids"] == "dep-api-client\ndep-db-client"
@@ -2091,6 +2092,12 @@ def test_build_scheduler_work_trajectory_projects_fan_in_dependencies_as_merge_e
     assert merge_target_relations[0].source_event_id == merge_event_id
     assert merge_target_relations[0].target_event_id == "scheduler-task:client-integration"
     assert merge_target_relations[0].kind == "merges_into"
+    assert not any(
+        relation.source_event_id == "scheduler-task:client-integration"
+        and relation.target_event_id == merge_event_id
+        and relation.kind == "sequence"
+        for relation in trajectory.relations
+    )
 
     original_depends = [
         relation for relation in trajectory.relations
@@ -2168,6 +2175,7 @@ def test_build_scheduler_work_trajectory_projects_scheduler_owned_merge_gate() -
     gate_event = trajectory.events[gate_event_id]
     assert gate_event.kind == "merge"
     assert gate_event.status == "in_progress"
+    assert gate_event.order < trajectory.events["scheduler-task:client-integration"].order
     assert gate_event.summary == "waiting for guide review"
     assert gate_event.metadata["scheduler_projection_role"] == "scheduler-owned-merge-gate"
     assert gate_event.metadata["scheduler_merge_gate_id"] == "merge-client-inputs"
@@ -2201,6 +2209,12 @@ def test_build_scheduler_work_trajectory_projects_scheduler_owned_merge_gate() -
     assert gate_target_relations[0].source_event_id == gate_event_id
     assert gate_target_relations[0].target_event_id == "scheduler-task:client-integration"
     assert gate_target_relations[0].kind == "merges_into"
+    assert not any(
+        relation.source_event_id == "scheduler-task:client-integration"
+        and relation.target_event_id == gate_event_id
+        and relation.kind == "sequence"
+        for relation in trajectory.relations
+    )
     assert trajectory.check_invariants() == []
 
 

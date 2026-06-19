@@ -205,7 +205,7 @@ def build_scheduler_work_trajectory(
                 title=task.title or task.task_id,
                 kind=_event_kind(task),
                 status=_event_status(task.state),
-                order=order,
+                order=_task_event_order(order),
                 summary=task.blocked_reason or task.instruction,
                 metadata=_event_metadata(
                     task,
@@ -752,11 +752,15 @@ def _merge_gate_event_id(gate: SchedulerMergeGate, event_ids: dict[str, str]) ->
     return f"{target}:merge-gate:{safe or 'gate'}"
 
 
+def _task_event_order(index: int) -> int:
+    return index * 100
+
+
 def _merge_event_order(task: ScheduledTask, state: SchedulerState) -> int:
     ordered = _ordered_tasks(state)
     for index, item in enumerate(ordered, start=1):
         if item.task_id == task.task_id:
-            return index * 100 - 1
+            return _task_event_order(index) - 1
     return len(ordered) * 100 + 99
 
 
