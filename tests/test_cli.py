@@ -689,6 +689,50 @@ def test_scheduler_daemon_loop_rejects_non_fake_provider_without_mutation(tmp_pa
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
+def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> None:
+    from src.runtime.orchestration import SchedulerState, write_scheduler_state_snapshot
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    evidence_path = project / ".codex" / "scheduler" / "evidence" / "loop-smoke.json"
+    write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "daemon-loop",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--max-ticks",
+            "0",
+            "--evidence-id",
+            "loop:smoke",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["tick_count"] == 0
+    assert payload["stop_reason"] == "max_ticks_reached"
+    assert payload["evidence_written"] is True
+    assert payload["evidence_path"] == str(evidence_path)
+    assert payload["authority_split"]["evidence_written"] is True
+    assert evidence_path.exists()
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert evidence["product_type"] == "scheduler_loop_evidence"
+    assert evidence["evidence_id"] == "loop:smoke"
+    assert evidence["tick_count"] == 0
+    assert evidence["total_run_count"] == 0
+    assert evidence["metadata"] == {"surface": "cli:scheduler daemon-loop"}
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)

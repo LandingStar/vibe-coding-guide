@@ -263,6 +263,17 @@ from .scheduler_dogfood import (
     read_host_scheduler_run_evidence_summary,
     write_host_scheduler_run_evidence,
 )
+from .scheduler_loop_evidence import (
+    SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE,
+    SCHEDULER_LOOP_EVIDENCE_SCHEMA_VERSION,
+    SchedulerLoopEvidence,
+    SchedulerLoopEvidenceSummary,
+    SchedulerLoopEvidenceWriteResult,
+    build_scheduler_loop_evidence,
+    default_scheduler_loop_evidence_path,
+    read_scheduler_loop_evidence_summary,
+    write_scheduler_loop_evidence,
+)
 from .rollup import roll_up_work_item
 from .stop_conditions import evaluate_stop_condition
 
@@ -423,6 +434,11 @@ __all__ = [
     "HostSchedulerRunEvidenceWriteResult",
     "HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE",
     "HOST_SCHEDULER_RUN_EVIDENCE_SCHEMA_VERSION",
+    "SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE",
+    "SCHEDULER_LOOP_EVIDENCE_SCHEMA_VERSION",
+    "SchedulerLoopEvidence",
+    "SchedulerLoopEvidenceSummary",
+    "SchedulerLoopEvidenceWriteResult",
     "SchedulerTaskBatchSubmission",
     "SchedulerTaskBatchSubmissionResult",
     "SchedulerTaskSubmission",
@@ -434,6 +450,7 @@ __all__ = [
     "build_landing_consumer_payload",
     "build_orchestration_preflight_bundle",
     "build_runtime_registry_from_config",
+    "build_scheduler_loop_evidence",
     "cleanup_receipt_to_artifact",
     "dispatch_landing_consumer_payload",
     "default_exchange_artifact_store_path",
@@ -473,9 +490,12 @@ __all__ = [
     "run_host_authorized_scheduler_once",
     "build_host_scheduler_run_evidence",
     "default_host_scheduler_run_evidence_path",
+    "default_scheduler_loop_evidence_path",
     "read_host_scheduler_run_evidence_summaries",
     "read_host_scheduler_run_evidence_summary",
+    "read_scheduler_loop_evidence_summary",
     "write_host_scheduler_run_evidence",
+    "write_scheduler_loop_evidence",
     "run_scheduled_task_with_registry",
     "admit_exchange_artifact_version_to_scheduler",
     "admit_exchange_artifact_version_with_ledger",

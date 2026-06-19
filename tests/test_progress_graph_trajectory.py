@@ -22,6 +22,7 @@ from src.runtime.orchestration import (
     RuntimeHostInvocation,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
+    SchedulerLoopEvidenceSummary,
     QoderSDKQueryClient,
     QoderQueryRequest,
     QoderQueryResult,
@@ -1021,6 +1022,89 @@ def test_host_evidence_bundle_reads_compact_summaries(tmp_path: Path) -> None:
         }
     ]
     assert "host_result" not in payload["summaries"][0]
+
+
+def test_host_evidence_bundle_reads_scheduler_loop_evidence_summary(tmp_path: Path) -> None:
+    evidence_dir = tmp_path / ".codex/scheduler/evidence"
+    evidence_path = evidence_dir / "loop-run.json"
+    evidence_dir.mkdir(parents=True)
+    evidence_path.write_text(
+        """{
+  "authority_split": {
+    "local_work_trajectory_mutated": false,
+    "provider_executed": true,
+    "scheduler_projection_refreshed": false,
+    "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+    "scheduler_state_mutated": true
+  },
+  "event_log_path": "scheduler-events.jsonl",
+  "evidence_id": "loop-run",
+  "final_queue_summary": {
+    "blocked_task_ids": [],
+    "completed_task_ids": ["task-a"],
+    "failed_task_ids": [],
+    "ready_task_ids": []
+  },
+  "iterations": [
+    {
+      "queue_summary": {
+        "blocked_task_ids": [],
+        "completed_task_ids": ["task-a"],
+        "failed_task_ids": [],
+        "ready_task_ids": []
+      },
+      "run_count": 1,
+      "scheduler_event_count": 4,
+      "tick_index": 1,
+      "tick_stop_reason": "no_ready_tasks"
+    }
+  ],
+  "metadata": {"surface": "test"},
+  "product_type": "scheduler_loop_evidence",
+  "runtime_provider": "fake",
+  "schema_version": "1",
+  "scheduler_event_count": 4,
+  "snapshot_path": "scheduler-state.json",
+  "stop_detail": "no ready tasks remain",
+  "stop_policy": {
+    "cancelled": false,
+    "max_runs_per_tick": 1,
+    "max_runtime_failures": 1,
+    "max_ticks": 2
+  },
+  "stop_reason": "no_ready_tasks",
+  "tick_count": 1,
+  "timestamp": "2026-06-19T12:00:00+08:00",
+  "total_run_count": 1
+}
+""",
+        encoding="utf-8",
+    )
+
+    bundle = read_host_evidence_bundle(tmp_path)
+    payload = bundle.to_json_dict()
+
+    assert payload["evidence_count"] == 1
+    assert payload["summaries"][0]["product_type"] == "scheduler_loop_evidence"
+    assert payload["summaries"][0]["evidence_id"] == "loop-run"
+    assert payload["summaries"][0]["tick_count"] == 1
+    assert payload["summaries"][0]["total_run_count"] == 1
+    assert "loop_result" not in payload["summaries"][0]
+
+    presentation = build_host_evidence_presentation(bundle)
+    presentation_payload = presentation.to_json_dict()
+    card = presentation_payload["cards"][0]
+
+    assert presentation_payload["status"] == "ok"
+    assert card["id"] == "loop-run"
+    assert card["title"] == "Scheduler loop evidence loop-run"
+    assert card["status"] == "completed"
+    assert card["host_surface"] == "scheduler-daemon-loop"
+    assert card["runtime_providers"] == ["fake"]
+    assert card["run_count"] == 1
+    assert {"label": "Ticks", "value": "1"} in card["key_facts"]
+    assert {"label": "Provider executed", "value": "true"} in card["authority_clues"]
+    assert card["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
 
 
 def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None:

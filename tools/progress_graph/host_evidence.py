@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from src.runtime.orchestration import (
+    HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE,
+    SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE,
     HostSchedulerRunEvidenceSummary,
+    SchedulerLoopEvidenceSummary,
     read_host_scheduler_run_evidence_summary,
-    read_host_scheduler_run_evidence_summaries,
+    read_scheduler_loop_evidence_summary,
 )
 
 HostEvidenceCardStatus = Literal[
@@ -21,6 +25,7 @@ HostEvidenceCardStatus = Literal[
 ]
 HostEvidenceBundleStatus = Literal["empty", "ok", "degraded", "failed"]
 HostEvidenceSeverity = Literal["info", "warning", "error"]
+HostEvidenceSummary: TypeAlias = HostSchedulerRunEvidenceSummary | SchedulerLoopEvidenceSummary
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +52,7 @@ class HostEvidenceBundle:
 
     project_root: Path
     evidence_dir: Path
-    summaries: tuple[HostSchedulerRunEvidenceSummary, ...]
+    summaries: tuple[HostEvidenceSummary, ...]
     errors: tuple[HostEvidenceReadError, ...] = ()
 
     def to_json_dict(self) -> dict[str, object]:
@@ -220,6 +225,14 @@ def host_scheduler_evidence_dir(project_root: str | Path) -> Path:
 
 
 def _host_evidence_presentation_card(
+    summary: HostEvidenceSummary,
+) -> HostEvidencePresentationCard:
+    if isinstance(summary, SchedulerLoopEvidenceSummary):
+        return _scheduler_loop_evidence_presentation_card(summary)
+    return _host_scheduler_run_evidence_presentation_card(summary)
+
+
+def _host_scheduler_run_evidence_presentation_card(
     summary: HostSchedulerRunEvidenceSummary,
 ) -> HostEvidencePresentationCard:
     status = _host_evidence_card_status(summary)
@@ -305,6 +318,83 @@ def _host_evidence_presentation_card(
     )
 
 
+def _scheduler_loop_evidence_presentation_card(
+    summary: SchedulerLoopEvidenceSummary,
+) -> HostEvidencePresentationCard:
+    status = _scheduler_loop_evidence_card_status(summary)
+    authority_split = dict(summary.authority_split)
+    final_queue = dict(summary.final_queue_summary)
+    ready_task_ids = tuple(str(item) for item in final_queue.get("ready_task_ids", ()) or ())
+    blocked_task_ids = tuple(str(item) for item in final_queue.get("blocked_task_ids", ()) or ())
+    failed_task_ids = tuple(str(item) for item in final_queue.get("failed_task_ids", ()) or ())
+    completed_task_ids = tuple(str(item) for item in final_queue.get("completed_task_ids", ()) or ())
+    subtitle_parts = [
+        part for part in (
+            "scheduler-loop",
+            summary.stop_reason,
+            f"{summary.total_run_count} run(s)",
+        )
+        if part
+    ]
+    key_facts = (
+        HostEvidencePresentationFact("Stop reason", summary.stop_reason),
+        HostEvidencePresentationFact("Ticks", str(summary.tick_count)),
+        HostEvidencePresentationFact("Runs", str(summary.total_run_count)),
+        HostEvidencePresentationFact("Scheduler events", str(summary.scheduler_event_count)),
+        HostEvidencePresentationFact("Completed tasks", str(len(completed_task_ids))),
+        HostEvidencePresentationFact("Ready tasks", str(len(ready_task_ids))),
+        HostEvidencePresentationFact("Blocked tasks", str(len(blocked_task_ids))),
+        HostEvidencePresentationFact("Failed tasks", str(len(failed_task_ids))),
+    )
+    refs = (
+        HostEvidencePresentationRef("Evidence", str(summary.evidence_path)),
+        HostEvidencePresentationRef("Snapshot", summary.snapshot_path),
+        HostEvidencePresentationRef("Event log", summary.event_log_path),
+    )
+    authority_clues = tuple(
+        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
+        for label, key in (
+            ("Scheduler state", "scheduler_state_authority"),
+            ("Scheduler state mutated", "scheduler_state_mutated"),
+            ("Provider executed", "provider_executed"),
+            ("Scheduler projection refreshed", "scheduler_projection_refreshed"),
+            ("Local trajectory mutated", "local_work_trajectory_mutated"),
+        )
+        if key in authority_split
+    )
+    return HostEvidencePresentationCard(
+        id=summary.evidence_id,
+        title=f"Scheduler loop evidence {summary.evidence_id}",
+        subtitle=" · ".join(subtitle_parts),
+        status=status,
+        severity=_host_evidence_card_severity(status),
+        timestamp=summary.timestamp,
+        runtime_providers=(summary.runtime_provider,),
+        host_surface="scheduler-daemon-loop",
+        invocation_id=summary.evidence_id,
+        requested_by="operator-or-host",
+        stop_reason=summary.stop_reason,
+        stop_detail=summary.stop_detail,
+        run_count=summary.total_run_count,
+        output_count=0,
+        permission_review_count=0,
+        key_facts=key_facts,
+        refs=refs,
+        authority_clues=authority_clues,
+        metadata={
+            "evidence_product_type": summary.product_type,
+            "tick_count": summary.tick_count,
+            "scheduler_event_count": summary.scheduler_event_count,
+            "stop_policy": dict(summary.stop_policy),
+            "ready_task_ids": list(ready_task_ids),
+            "blocked_task_ids": list(blocked_task_ids),
+            "failed_task_ids": list(failed_task_ids),
+            "completed_task_ids": list(completed_task_ids),
+            "evidence_metadata": dict(summary.metadata),
+        },
+    )
+
+
 def _host_evidence_presentation_error_row(
     error: HostEvidenceReadError,
     *,
@@ -334,6 +424,23 @@ def _host_evidence_card_status(
         return "partial"
     if summary.stop_reason == "no_ready_tasks":
         return "completed"
+    return "unknown"
+
+
+def _scheduler_loop_evidence_card_status(
+    summary: SchedulerLoopEvidenceSummary,
+) -> HostEvidenceCardStatus:
+    final_queue = dict(summary.final_queue_summary)
+    failed_task_ids = tuple(final_queue.get("failed_task_ids", ()) or ())
+    blocked_task_ids = tuple(final_queue.get("blocked_task_ids", ()) or ())
+    if failed_task_ids or summary.stop_reason == "runtime_failure_limit_reached":
+        return "failed"
+    if blocked_task_ids or summary.stop_reason in {"max_ticks_reached", "blocked_tasks"}:
+        return "partial"
+    if summary.stop_reason == "no_ready_tasks":
+        return "completed"
+    if summary.stop_reason == "cancelled":
+        return "partial"
     return "unknown"
 
 
@@ -390,7 +497,7 @@ def read_host_evidence_bundle(
         return HostEvidenceBundle(
             project_root=root,
             evidence_dir=target_dir,
-            summaries=read_host_scheduler_run_evidence_summaries(target_dir),
+            summaries=_read_host_evidence_summaries_strict(target_dir),
         )
     summaries, errors = _read_host_evidence_bundle_isolated(target_dir)
     return HostEvidenceBundle(
@@ -403,7 +510,7 @@ def read_host_evidence_bundle(
 
 def _read_host_evidence_bundle_isolated(
     evidence_dir: Path,
-) -> tuple[tuple[HostSchedulerRunEvidenceSummary, ...], tuple[HostEvidenceReadError, ...]]:
+) -> tuple[tuple[HostEvidenceSummary, ...], tuple[HostEvidenceReadError, ...]]:
     if not evidence_dir.exists():
         return (), ()
     if not evidence_dir.is_dir():
@@ -415,11 +522,11 @@ def _read_host_evidence_bundle_isolated(
             ),
         )
 
-    summaries: list[HostSchedulerRunEvidenceSummary] = []
+    summaries: list[HostEvidenceSummary] = []
     errors: list[HostEvidenceReadError] = []
     for path in sorted(evidence_dir.glob("*.json")):
         try:
-            summaries.append(read_host_scheduler_run_evidence_summary(path))
+            summaries.append(_read_host_evidence_summary(path))
         except FileNotFoundError as exc:
             errors.append(_host_evidence_read_error(path, "not_found", exc))
         except ValueError as exc:
@@ -427,6 +534,43 @@ def _read_host_evidence_bundle_isolated(
         except OSError as exc:
             errors.append(_host_evidence_read_error(path, "read_failed", exc))
     return tuple(summaries), tuple(errors)
+
+
+def _read_host_evidence_summaries_strict(
+    evidence_dir: Path,
+) -> tuple[HostEvidenceSummary, ...]:
+    if not evidence_dir.exists():
+        return ()
+    if not evidence_dir.is_dir():
+        raise ValueError(f"host scheduler evidence path is not a directory: {evidence_dir}")
+    return tuple(_read_host_evidence_summary(path) for path in sorted(evidence_dir.glob("*.json")))
+
+
+def _read_host_evidence_summary(path: Path) -> HostEvidenceSummary:
+    product_type = _peek_evidence_product_type(path)
+    if product_type == HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE:
+        return read_host_scheduler_run_evidence_summary(path)
+    if product_type == SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE:
+        return read_scheduler_loop_evidence_summary(path)
+    raise ValueError(
+        "host scheduler evidence artifact has unsupported product_type "
+        f"{product_type!r}: {path}"
+    )
+
+
+def _peek_evidence_product_type(path: Path) -> str:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"host scheduler evidence artifact not found: {path}") from None
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"host scheduler evidence artifact is not valid JSON: {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"host scheduler evidence artifact must be a JSON object: {path}")
+    product_type = payload.get("product_type")
+    if not isinstance(product_type, str):
+        raise ValueError(f"host scheduler evidence artifact field 'product_type' must be a string: {path}")
+    return product_type
 
 
 def _host_evidence_read_error(

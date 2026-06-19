@@ -304,7 +304,8 @@ doc-based-coding scheduler daemon-loop \
   --event-log-path .codex/scheduler/scheduler-events.jsonl \
   --max-ticks 3 \
   --max-runs-per-tick 1 \
-  --max-runtime-failures 1
+  --max-runtime-failures 1 \
+  --evidence-id scheduler-loop-smoke
 
 doc-based-coding scheduler project \
   --snapshot-path .codex/scheduler/scheduler-state.json \
@@ -340,6 +341,10 @@ Expected tick behavior:
 5. Do not run real providers, refresh scheduler projection, mutate exchange
    artifacts, mutate admission ledger, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
+6. Evidence writing is explicit: `--evidence-id <id>` writes
+   `product_type="scheduler_loop_evidence"` under
+   `.codex/scheduler/evidence/<safe-id>.json`; without `--evidence-id`, no
+   evidence artifact is written.
 
 Expected daemon-loop behavior:
 
@@ -518,13 +523,14 @@ event log.
 ### Host Evidence Consumer
 
 Use the read-only host evidence consumer when the task asks to inspect or
-surface existing host-run evidence:
+surface existing scheduler evidence:
 
 ```text
 dbc://host-evidence/bundle
 dbc://host-evidence/presentation
 read_host_scheduler_run_evidence_summary()
 read_host_scheduler_run_evidence_summaries()
+read_scheduler_loop_evidence_summary()
 read_host_evidence_bundle()
 build_host_evidence_presentation()
 host_scheduler_evidence_dir()
@@ -532,13 +538,13 @@ host_scheduler_evidence_dir()
 
 Expected consumer behavior:
 
-1. Read existing `host_scheduler_run_evidence` JSON under
-   `.codex/scheduler/evidence/`.
+1. Read existing `host_scheduler_run_evidence` and `scheduler_loop_evidence`
+   JSON under `.codex/scheduler/evidence/`.
 2. Validate `product_type` and `schema_version`.
 3. Return compact summaries for UI, MCP resources, review docs, or release
    tooling.
-4. Exclude embedded `host_result` from the summary payload; downstream
-   consumers should not bind to the raw writer artifact.
+4. Exclude embedded `host_result` / `loop_result` from the summary payload;
+   downstream consumers should not bind to the raw writer artifact.
 5. Return an empty bundle when the evidence directory is missing.
 6. Do not execute providers, initialize scheduler snapshots, refresh scheduler
    projections, mutate Local Work Trajectory, or synthesize evidence.

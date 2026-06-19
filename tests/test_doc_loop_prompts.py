@@ -145,13 +145,16 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "run_host_authorized_scheduler_once_and_refresh_projection" in text
         assert "run_host_runtime_dogfood_harness" in text
         assert "host_scheduler_run_evidence" in text
+        assert "scheduler_loop_evidence" in text
         assert ".codex/scheduler/evidence/<evidence-id>.json" in text
+        assert ".codex/scheduler/evidence/<safe-id>.json" in text
         assert "host-authorized-adapter" in text
         assert "history_summary" in text
         assert "MCP remains" in text
         assert "must not mutate" in text
         assert "dbc://host-evidence/bundle" in text
         assert "dbc://host-evidence/presentation" in text
+        assert "read_scheduler_loop_evidence_summary" in text
         assert "read_host_evidence_bundle" in text
         assert "build_host_evidence_presentation" in text
         assert "error_count" in text
@@ -181,12 +184,15 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding scheduler inspect-state" in text
         assert "doc-based-coding scheduler tick" in text
         assert "doc-based-coding scheduler daemon-loop" in text
+        assert "--evidence-id scheduler-loop-smoke" in text
+        assert "--evidence-id <id>" in text
         assert "doc-based-coding scheduler project" in text
         assert "daemon-ready bounded advancement" in text
         assert "bounded repeated daemon" in text
         assert "max_ticks_reached" in text
         assert "runtime_failure_limit_reached" in text
         assert "final_queue_summary" in text
+        assert "loop_result" in text
         assert "queue_summary" in text
         assert "--artifact-id <artifact-id>" in text
         assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
@@ -246,6 +252,78 @@ def test_host_evidence_presentation_resource_is_listed_and_read_only_when_empty(
     assert payload["error_count"] == 0
     assert payload["cards"] == []
     assert payload["error_rows"] == []
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_host_evidence_resources_read_scheduler_loop_evidence(tmp_path: Path) -> None:
+    _write_minimal_project_state(tmp_path)
+    evidence_dir = tmp_path / ".codex" / "scheduler" / "evidence"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "loop-smoke.json").write_text(
+        json.dumps(
+            {
+                "product_type": "scheduler_loop_evidence",
+                "schema_version": "1",
+                "evidence_id": "loop-smoke",
+                "timestamp": "2026-06-19T12:20:00+08:00",
+                "snapshot_path": "state.json",
+                "event_log_path": "events.jsonl",
+                "runtime_provider": "fake",
+                "stop_policy": {
+                    "max_ticks": 2,
+                    "max_runs_per_tick": 1,
+                    "max_runtime_failures": 1,
+                    "cancelled": False,
+                },
+                "tick_count": 1,
+                "total_run_count": 1,
+                "stop_reason": "no_ready_tasks",
+                "stop_detail": "no ready tasks remain",
+                "scheduler_event_count": 4,
+                "iterations": [
+                    {
+                        "tick_index": 1,
+                        "run_count": 1,
+                        "tick_stop_reason": "no_ready_tasks",
+                        "queue_summary": {},
+                    }
+                ],
+                "final_queue_summary": {
+                    "completed_task_ids": ["task-a"],
+                    "ready_task_ids": [],
+                    "blocked_task_ids": [],
+                    "failed_task_ids": [],
+                },
+                "authority_split": {
+                    "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+                    "scheduler_state_mutated": True,
+                    "provider_executed": True,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                },
+                "metadata": {"surface": "test"},
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    bundle = json.loads(tools.read_resource("dbc://host-evidence/bundle"))
+    presentation = json.loads(tools.read_resource("dbc://host-evidence/presentation"))
+
+    assert bundle["evidence_count"] == 1
+    assert bundle["summaries"][0]["product_type"] == "scheduler_loop_evidence"
+    assert bundle["summaries"][0]["evidence_id"] == "loop-smoke"
+    assert bundle["summaries"][0]["tick_count"] == 1
+    assert "loop_result" not in bundle["summaries"][0]
+    assert presentation["status"] == "ok"
+    assert presentation["cards"][0]["title"] == "Scheduler loop evidence loop-smoke"
+    assert presentation["cards"][0]["host_surface"] == "scheduler-daemon-loop"
+    assert presentation["cards"][0]["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 

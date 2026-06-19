@@ -340,7 +340,8 @@ _SCHEDULER_TICK_USAGE = (
 _SCHEDULER_DAEMON_LOOP_USAGE = (
     "Usage: doc-based-coding scheduler daemon-loop --snapshot-path PATH --event-log-path PATH "
     "[--max-ticks N] [--max-runs-per-tick N] [--max-runtime-failures N] "
-    "[--runtime-provider fake] [--timestamp TIMESTAMP]"
+    "[--runtime-provider fake] [--timestamp TIMESTAMP] "
+    "[--evidence-id ID] [--evidence-path PATH]"
 )
 
 _SCHEDULER_PROJECT_USAGE = (
@@ -848,6 +849,8 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
     max_ticks = 1
     max_runs_per_tick: int | None = 1
     max_runtime_failures: int | None = 1
+    evidence_id = ""
+    evidence_path = ""
 
     i = 0
     while i < len(args):
@@ -860,6 +863,8 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
             "--max-ticks",
             "--max-runs-per-tick",
             "--max-runtime-failures",
+            "--evidence-id",
+            "--evidence-path",
         }:
             if i + 1 >= len(args):
                 print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
@@ -895,6 +900,10 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
                     print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
                     print("--max-runtime-failures must be an integer", file=sys.stderr)
                     return 1
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
             i += 2
             continue
         print(f"Unknown scheduler daemon-loop option: {arg}", file=sys.stderr)
@@ -929,7 +938,10 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
         from .runtime.orchestration import (
             SchedulerDaemonLoopRequest,
             SchedulerDaemonLoopStopPolicy,
+            build_scheduler_loop_evidence,
+            default_scheduler_loop_evidence_path,
             run_scheduler_daemon_loop,
+            write_scheduler_loop_evidence,
         )
 
         result = run_scheduler_daemon_loop(
@@ -946,6 +958,29 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
                 workspace_root=str(root),
             )
         )
+        payload = result.to_json_dict()
+        payload["evidence_written"] = False
+        payload["evidence_path"] = ""
+        if evidence_id:
+            target = (
+                _resolve_project_path(root, evidence_path)
+                if evidence_path
+                else default_scheduler_loop_evidence_path(root, evidence_id)
+            )
+            written = write_scheduler_loop_evidence(
+                build_scheduler_loop_evidence(
+                    result,
+                    evidence_id=evidence_id,
+                    timestamp=timestamp,
+                    evidence_path=target,
+                    metadata={"surface": "cli:scheduler daemon-loop"},
+                ),
+                target,
+            )
+            payload["evidence_written"] = True
+            payload["evidence_path"] = str(written.evidence_path)
+            payload["authority_split"]["evidence_written"] = True
+            payload["authority_split"]["evidence_path"] = str(written.evidence_path)
     except Exception as e:
         return _handle_error(
             "Error running scheduler daemon loop",
@@ -953,7 +988,7 @@ def cmd_scheduler_daemon_loop(args: list[str]) -> int:
             category="scheduler_daemon_loop_failed",
         )
 
-    _print_json(result.to_json_dict())
+    _print_json(payload)
     return 0
 
 

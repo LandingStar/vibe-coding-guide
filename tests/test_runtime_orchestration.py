@@ -75,6 +75,8 @@ from src.runtime.orchestration import (
     SchedulerDaemonLoopRequest,
     SchedulerDaemonLoopStopPolicy,
     SchedulerDaemonTickRequest,
+    SchedulerLoopEvidence,
+    SchedulerLoopEvidenceSummary,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
@@ -82,6 +84,7 @@ from src.runtime.orchestration import (
     build_orchestration_preflight_bundle,
     build_host_scheduler_run_evidence,
     build_runtime_registry_from_config,
+    build_scheduler_loop_evidence,
     drain_preflighted_ready_tasks,
     drain_ready_tasks,
     evaluate_stop_condition,
@@ -127,7 +130,9 @@ from src.runtime.orchestration import (
     read_scheduler_state_snapshot,
     read_host_scheduler_run_evidence_summaries,
     read_host_scheduler_run_evidence_summary,
+    read_scheduler_loop_evidence_summary,
     write_scheduler_state_snapshot,
+    write_scheduler_loop_evidence,
 )
 
 
@@ -3961,6 +3966,69 @@ def test_scheduler_daemon_loop_zero_max_ticks_is_read_only(tmp_path) -> None:
     assert payload["final_queue_summary"]["task_state_counts"] == {"proposed": 1}
     assert written.tasks["task-a"].state == "proposed"
     assert not event_log_path.exists()
+
+
+def test_scheduler_loop_evidence_writes_and_reads_summary(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / "evidence" / "scheduler-loop.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+            },
+        ),
+        snapshot_path,
+    )
+    loop_result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="2026-06-19T11:40:00+08:00",
+        )
+    )
+
+    evidence = build_scheduler_loop_evidence(
+        loop_result,
+        evidence_id="loop-evidence",
+        timestamp="2026-06-19T11:40:00+08:00",
+        metadata={"surface": "test"},
+    )
+    written = write_scheduler_loop_evidence(evidence, evidence_path)
+    summary = read_scheduler_loop_evidence_summary(evidence_path)
+    payload = summary.to_json_dict()
+
+    assert isinstance(evidence, SchedulerLoopEvidence)
+    assert isinstance(summary, SchedulerLoopEvidenceSummary)
+    assert written.evidence_path == evidence_path
+    assert payload["product_type"] == "scheduler_loop_evidence"
+    assert payload["schema_version"] == "1"
+    assert payload["evidence_id"] == "loop-evidence"
+    assert payload["runtime_provider"] == "fake"
+    assert payload["tick_count"] == 1
+    assert payload["total_run_count"] == 1
+    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["scheduler_event_count"] == 3
+    assert payload["final_queue_summary"]["completed_task_ids"] == ["task-a"]
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert "loop_result" not in payload
+
+    loaded = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert loaded["loop_result"]["iterations"][0]["run_count"] == 1
+    assert loaded["metadata"] == {"surface": "test"}
+
+
+def test_scheduler_loop_evidence_summary_rejects_wrong_product_type(tmp_path) -> None:
+    evidence_path = tmp_path / "loop-evidence.json"
+    evidence_path.write_text(
+        '{"product_type": "host_scheduler_run_evidence", "schema_version": "1"}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="product_type"):
+        read_scheduler_loop_evidence_summary(evidence_path)
 
 
 def test_host_scheduler_runner_fake_result_is_json_serializable(tmp_path) -> None:
