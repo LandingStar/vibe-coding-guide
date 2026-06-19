@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Scheduler Daemon Durable Queue Readiness",
-  "recorded_at": "2026-06-19T02:40:22.583048+00:00",
+  "title": "Scheduler Durable Daemon Loop Policy",
+  "recorded_at": "2026-06-19T03:04:26.280569+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md",
+  "guide_context": "design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Scheduler Daemon Durable Queue Readiness",
+    "title": "Scheduler Durable Daemon Loop Policy",
     "lane_count": 1,
     "event_count": 4,
     "relation_count": 3,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "daemon readiness",
+      "label": "daemon loop",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md"
+        "context": "design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md"
       }
     }
   },
@@ -36,58 +36,58 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create narrow planning gate for scheduler daemon readiness",
+      "title": "Create narrow planning gate for scheduler durable daemon loop policy",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T02:21:28.765013+00:00",
-        "activated_at": "2026-06-19T02:21:28.765013+00:00",
+        "created_at": "2026-06-19T02:45:43.175474+00:00",
+        "activated_at": "2026-06-19T02:45:43.175474+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:22:12.948906+00:00"
+        "completed_at": "2026-06-19T02:46:48.214392+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement daemon-ready bounded scheduler tick contract",
+      "title": "Implement repeated bounded scheduler daemon loop contract",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Add a thin runtime wrapper over persisted scheduler run primitives with queue summary/readback and fake-runtime guard.",
+      "summary": "Add loop request/result/iteration/stop policy over run_scheduler_daemon_tick, export runtime APIs, and add CLI scheduler daemon-loop.",
       "metadata": {
-        "created_at": "2026-06-19T02:22:21.145507+00:00",
+        "created_at": "2026-06-19T02:46:58.029850+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:32:14.119461+00:00"
+        "completed_at": "2026-06-19T03:02:06.435920+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate scheduler daemon readiness slice",
+      "title": "Validate scheduler durable daemon loop policy",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Run focused and tracked validation over runtime, CLI, MCP admission, and doc-loop prompt surfaces.",
+      "summary": "Run focused runtime/CLI/MCP admission/doc-loop prompt suite and scoped change analysis before committing the loop policy slice.",
       "metadata": {
-        "created_at": "2026-06-19T02:32:25.793208+00:00",
+        "created_at": "2026-06-19T03:02:12.897146+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:33:16.174555+00:00"
+        "completed_at": "2026-06-19T03:03:18.296849+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Close scheduler daemon readiness writeback",
+      "title": "Commit scheduler durable daemon loop policy slice",
       "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Update checkpoint/status docs, run final focused validation and scoped change analysis, then commit the daemon-ready scheduler tick slice.",
+      "summary": "Commit runtime, CLI, prompt, test, planning, review, status, checkpoint, and trajectory updates for the bounded scheduler daemon loop policy.",
       "metadata": {
-        "created_at": "2026-06-19T02:37:33.245772+00:00",
+        "created_at": "2026-06-19T03:03:27.101531+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T02:40:22.583048+00:00"
+        "completed_at": "2026-06-19T03:04:26.280569+00:00"
       }
     }
   },

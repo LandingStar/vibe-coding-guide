@@ -46,15 +46,19 @@ Keep the lifecycle split:
 10. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
    surface. It runs one fake-runtime tick over scheduler snapshot/event-log
    state and does not refresh scheduler projection automatically.
-11. `doc-based-coding scheduler project` is the CLI projection refresh surface
+11. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
+   loop policy surface. It repeatedly calls the fake-runtime tick contract
+   until max ticks, no-ready, blocked-task, or runtime-failure stop policy
+   fires. It does not refresh scheduler projection automatically.
+12. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-12. Host-authorized runners use Python/host wiring through
+13. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-13. Controlled host-runtime dogfood uses
+14. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -295,6 +299,13 @@ doc-based-coding scheduler tick \
   --event-log-path .codex/scheduler/scheduler-events.jsonl \
   --max-runs 1
 
+doc-based-coding scheduler daemon-loop \
+  --snapshot-path .codex/scheduler/scheduler-state.json \
+  --event-log-path .codex/scheduler/scheduler-events.jsonl \
+  --max-ticks 3 \
+  --max-runs-per-tick 1 \
+  --max-runtime-failures 1
+
 doc-based-coding scheduler project \
   --snapshot-path .codex/scheduler/scheduler-state.json \
   --event-log-path .codex/scheduler/scheduler-events.jsonl
@@ -330,6 +341,21 @@ Expected tick behavior:
    artifacts, mutate admission ledger, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
 
+Expected daemon-loop behavior:
+
+1. Repeatedly call the bounded tick contract over explicit scheduler snapshot
+   and event-log paths.
+2. Stop on `max_ticks_reached`, `no_ready_tasks`, `blocked_tasks`,
+   `runtime_failure_limit_reached`, or `cancelled`.
+3. Return `tick_count`, `total_run_count`, `stop_reason`,
+   `final_queue_summary`, per-iteration summaries, scheduler event count, and
+   `authority_split`.
+4. Write scheduler snapshot/event-log state only through tick/scheduler
+   primitives.
+5. Do not run real providers, refresh scheduler projection, mutate exchange
+   artifacts, mutate admission ledger, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
+
 Expected projection CLI behavior:
 
 1. Read scheduler snapshot and optional scheduler / merge-gate JSONL logs.
@@ -350,6 +376,7 @@ doc-based-coding scheduler admit-exchange-artifact ...
 doc-based-coding scheduler inspect-admissions ...
 doc-based-coding scheduler inspect-state ...
 doc-based-coding scheduler tick ...
+doc-based-coding scheduler daemon-loop ...
 doc-based-coding scheduler project ...
 ```
 

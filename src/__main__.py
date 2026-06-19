@@ -337,6 +337,12 @@ _SCHEDULER_TICK_USAGE = (
     "[--max-runs N] [--runtime-provider fake] [--timestamp TIMESTAMP]"
 )
 
+_SCHEDULER_DAEMON_LOOP_USAGE = (
+    "Usage: doc-based-coding scheduler daemon-loop --snapshot-path PATH --event-log-path PATH "
+    "[--max-ticks N] [--max-runs-per-tick N] [--max-runtime-failures N] "
+    "[--runtime-provider fake] [--timestamp TIMESTAMP]"
+)
+
 _SCHEDULER_PROJECT_USAGE = (
     "Usage: doc-based-coding scheduler project --snapshot-path PATH "
     "[--event-log-path PATH] [--merge-gate-event-log-path PATH] [--output-path PATH] "
@@ -364,6 +370,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  inspect-admissions       Read ExchangeArtifact admission ledger summary without mutation\n"
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
+            "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n",
         )
         return 0
@@ -377,12 +384,14 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_state(args[1:])
     if sub == "tick":
         return cmd_scheduler_tick(args[1:])
+    if sub == "daemon-loop":
+        return cmd_scheduler_daemon_loop(args[1:])
     if sub == "project":
         return cmd_scheduler_project(args[1:])
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|project> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project> [args]",
         file=sys.stderr,
     )
     return 1
@@ -814,6 +823,134 @@ def cmd_scheduler_tick(args: list[str]) -> int:
             "Error running scheduler tick",
             e,
             category="scheduler_tick_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_daemon_loop(args: list[str]) -> int:
+    """Run a bounded daemon loop over fake-runtime scheduler ticks."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_DAEMON_LOOP_USAGE + "\n\n"
+            "This writes scheduler snapshot/event-log state through a repeated bounded "
+            "fake-runtime loop. It does not refresh scheduler projection, run real providers, "
+            "mutate exchange artifacts, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    snapshot_path = ""
+    event_log_path = ""
+    runtime_provider = "fake"
+    timestamp = ""
+    max_ticks = 1
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--snapshot-path",
+            "--event-log-path",
+            "--runtime-provider",
+            "--timestamp",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--max-ticks":
+                try:
+                    max_ticks = int(value)
+                except ValueError:
+                    print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+                    print("--max-ticks must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runs-per-tick":
+                try:
+                    max_runs_per_tick = int(value)
+                except ValueError:
+                    print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+                    print("--max-runs-per-tick must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runtime-failures":
+                try:
+                    max_runtime_failures = int(value)
+                except ValueError:
+                    print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+                    print("--max-runtime-failures must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler daemon-loop option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--snapshot-path", snapshot_path),
+            ("--event-log-path", event_log_path),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_DAEMON_LOOP_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if runtime_provider != "fake":
+        print(
+            "scheduler daemon-loop currently supports only --runtime-provider fake; "
+            "real providers require host-owned injected runtime wiring",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    snapshot = _resolve_project_path(root, snapshot_path)
+    event_log = _resolve_project_path(root, event_log_path)
+
+    try:
+        from .runtime.orchestration import (
+            SchedulerDaemonLoopRequest,
+            SchedulerDaemonLoopStopPolicy,
+            run_scheduler_daemon_loop,
+        )
+
+        result = run_scheduler_daemon_loop(
+            SchedulerDaemonLoopRequest(
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                stop_policy=SchedulerDaemonLoopStopPolicy(
+                    max_ticks=max_ticks,
+                    max_runs_per_tick=max_runs_per_tick,
+                    max_runtime_failures=max_runtime_failures,
+                ),
+                runtime_provider=runtime_provider,
+                timestamp=timestamp,
+                workspace_root=str(root),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler daemon loop",
+            e,
+            category="scheduler_daemon_loop_failed",
         )
 
     _print_json(result.to_json_dict())

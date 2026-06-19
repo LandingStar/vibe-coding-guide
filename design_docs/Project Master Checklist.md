@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler daemon durable queue readiness close`
-- Active Slice: `Scheduler Daemon Durable Queue Readiness (COMPLETED; doc-based-coding scheduler tick now exposes one bounded fake-runtime scheduler advancement contract)`
-- Latest Completed Slice: `Scheduler Daemon Durable Queue Readiness`
+- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler durable daemon loop policy close`
+- Active Slice: `Scheduler Durable Daemon Loop Policy (COMPLETED; doc-based-coding scheduler daemon-loop now exposes a bounded repeated fake-runtime scheduler loop policy)`
+- Latest Completed Slice: `Scheduler Durable Daemon Loop Policy`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `207 passed` (tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite)
+- Test Baseline: `214 passed` (tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -52,6 +52,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`
 - `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`
+- `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -73,6 +74,7 @@
 - `review/stored-artifact-mcp-admission-tool-2026-06-19.md`
 - `review/exchange-artifact-admission-state-projection-2026-06-19.md`
 - `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`
+- `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -80,6 +82,7 @@
 - `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`
 - `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`
+- `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -869,6 +872,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`。本轮新增 MCP 写工具 `admitExchangeArtifact`，由 `GovernanceTools.admit_exchange_artifact()` 接入并复用 `admit_exchange_artifact_version_with_ledger()`，使 MCP 与 CLI 共用 exact-version ExchangeArtifact scheduler admission、durable admission ledger、duplicate rejection 与 explicit duplicate override policy；重复 exact artifact/version admission 默认在 scheduler mutation 前拒绝并记录 `rejected_duplicate`，`allowDuplicateAdmission=true` 才允许重放，且继续与 scheduler `replaceExisting` 语义分离。该工具不运行 provider、不自动刷新 scheduler projection、不标记 exchange artifact consumed、不突变 Local Work Trajectory；review evidence 位于 `review/stored-artifact-mcp-admission-tool-2026-06-19.md`；后续方向分析位于 `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `198 passed`，本地 ignored MCP harness 扩展验证 `279 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`。本轮新增 `ExchangeArtifactAdmissionStateProjection`，并把 ledger-derived `admission_state` 投影到 `ExchangeArtifactVersionSummary` / `dbc://exchange-artifacts/bundle` / `doc-based-coding resources read dbc://exchange-artifacts/bundle`；默认读取 `.codex/orchestration/exchange-artifact-admissions.json`，缺 ledger 时返回 `not_admitted`， malformed ledger 隔离进 bundle `errors[]` 而不隐藏有效 store summaries。该投影只读，不标记 exchange artifact consumed、不突变 exchange store lifecycle、不运行 provider、不刷新 scheduler projection、不突变 Local Work Trajectory；review evidence 位于 `review/exchange-artifact-admission-state-projection-2026-06-19.md`；后续方向分析位于 `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `201 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`。本轮新增 daemon-ready bounded tick 合同：`SchedulerDaemonTickRequest` / `SchedulerDaemonTickResult` / `SchedulerDaemonQueueSummary` / `run_scheduler_daemon_tick()` / `summarize_scheduler_queue()`，并暴露 CLI `doc-based-coding scheduler tick`；该命令要求显式 scheduler snapshot/event-log path，默认 `--max-runs 1`，仅支持 fake runtime，执行后返回 queue summary、run_count、stop_reason、scheduler event count 与 authority_split。该切片不启动后台 daemon、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `207 passed`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`。本轮新增 bounded repeated daemon loop policy：`SchedulerDaemonLoopStopPolicy` / `SchedulerDaemonLoopRequest` / `SchedulerDaemonLoopIteration` / `SchedulerDaemonLoopResult` / `run_scheduler_daemon_loop()`，并暴露 CLI `doc-based-coding scheduler daemon-loop`；该命令要求显式 scheduler snapshot/event-log path，支持 `--max-ticks`、`--max-runs-per-tick`、`--max-runtime-failures`，仅支持 fake runtime，执行后返回 tick_count、total_run_count、stop_reason、iterations、final_queue_summary、scheduler event count 与 authority_split。该切片不启动后台 daemon service、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `214 passed`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

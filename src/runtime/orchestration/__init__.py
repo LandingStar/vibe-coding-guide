@@ -235,9 +235,14 @@ from .scheduler_runner import (
     run_persisted_scheduler_once_with_wiring,
 )
 from .scheduler_daemon import (
+    SchedulerDaemonLoopIteration,
+    SchedulerDaemonLoopRequest,
+    SchedulerDaemonLoopResult,
+    SchedulerDaemonLoopStopPolicy,
     SchedulerDaemonQueueSummary,
     SchedulerDaemonTickRequest,
     SchedulerDaemonTickResult,
+    run_scheduler_daemon_loop,
     run_scheduler_daemon_tick,
     summarize_scheduler_queue,
 )
@@ -404,6 +409,10 @@ __all__ = [
     "PersistedSchedulerTaskSubmissionResult",
     "PersistedExchangeArtifactAdmissionResult",
     "PersistedSchedulerRunOnceResult",
+    "SchedulerDaemonLoopIteration",
+    "SchedulerDaemonLoopRequest",
+    "SchedulerDaemonLoopResult",
+    "SchedulerDaemonLoopStopPolicy",
     "SchedulerDaemonQueueSummary",
     "SchedulerDaemonTickRequest",
     "SchedulerDaemonTickResult",
@@ -457,6 +466,7 @@ __all__ = [
     "resolve_task_permission_review",
     "run_ready_task",
     "run_preflighted_task",
+    "run_scheduler_daemon_loop",
     "run_scheduler_daemon_tick",
     "run_persisted_scheduler_once",
     "run_persisted_scheduler_once_with_wiring",

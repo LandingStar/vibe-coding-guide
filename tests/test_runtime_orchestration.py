@@ -72,6 +72,8 @@ from src.runtime.orchestration import (
     ScratchManifestEntry,
     SchedulerTaskBatchSubmission,
     SchedulerTaskSubmission,
+    SchedulerDaemonLoopRequest,
+    SchedulerDaemonLoopStopPolicy,
     SchedulerDaemonTickRequest,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
@@ -105,6 +107,7 @@ from src.runtime.orchestration import (
     run_host_authorized_scheduler_once,
     run_ready_task,
     run_scheduled_task_with_registry,
+    run_scheduler_daemon_loop,
     run_scheduler_daemon_tick,
     roll_up_work_item,
     sandbox_capability_placeholder,
@@ -3750,6 +3753,214 @@ def test_summarize_scheduler_queue_groups_task_states() -> None:
     assert payload["ready_task_ids"] == ["task-b"]
     assert payload["waiting_task_ids"] == ["task-c"]
     assert payload["dependency_ids"] == ["dep-a-c"]
+
+
+def test_scheduler_daemon_loop_runs_dependent_tasks_until_no_ready(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+                "task-b": _scheduled_task("task-b", output_artifact_id="task-b:result"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-b",
+                    source_task_id="task-a",
+                    target_task_id="task-b",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(
+                max_ticks=3,
+                max_runs_per_tick=1,
+            ),
+            timestamp="2026-06-19T11:10:00+08:00",
+        )
+    )
+    payload = result.to_json_dict()
+    written = read_scheduler_state_snapshot(snapshot_path)
+
+    assert payload["ok"] is True
+    assert payload["tick_count"] == 2
+    assert payload["total_run_count"] == 2
+    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["ran_tasks"] is True
+    assert payload["refreshed_projection"] is False
+    assert [item["run_count"] for item in payload["iterations"]] == [1, 1]
+    assert payload["final_queue_summary"]["completed_task_ids"] == ["task-a", "task-b"]
+    assert payload["final_queue_summary"]["ready_task_ids"] == []
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert written.tasks["task-a"].state == "complete"
+    assert written.tasks["task-b"].state == "complete"
+
+
+def test_scheduler_daemon_loop_stops_at_max_ticks_with_ready_work(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+                "task-b": _scheduled_task("task-b", output_artifact_id="task-b:result"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-b",
+                    source_task_id="task-a",
+                    target_task_id="task-b",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(
+                max_ticks=1,
+                max_runs_per_tick=1,
+            ),
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["tick_count"] == 1
+    assert payload["total_run_count"] == 1
+    assert payload["stop_reason"] == "max_ticks_reached"
+    assert payload["final_queue_summary"]["completed_task_ids"] == ["task-a"]
+    assert payload["final_queue_summary"]["ready_task_ids"] == ["task-b"]
+
+
+def test_scheduler_daemon_loop_reports_blocked_tasks_without_running(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-blocked": _scheduled_task(
+                    "task-blocked",
+                    edit_lease=EditScopeLease(
+                        lease_id="lease-blocked",
+                        task_id="task-blocked",
+                        allowed_artifacts=("src/app.py",),
+                    ),
+                    sandbox_profile=SandboxProfile(
+                        profile_id="none",
+                        profile_kind="none",
+                    ),
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=3),
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["tick_count"] == 1
+    assert payload["total_run_count"] == 0
+    assert payload["stop_reason"] == "blocked_tasks"
+    assert payload["final_queue_summary"]["blocked_task_ids"] == ["task-blocked"]
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_scheduler_daemon_loop_stops_at_runtime_failure_limit(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+                "task-b": _scheduled_task("task-b", output_artifact_id="task-b:result"),
+            },
+        ),
+        snapshot_path,
+    )
+    runtime_registry = AgentRuntimeAdapterRegistry()
+    runtime_registry.register(
+        _SelectiveFailingRuntime(
+            failing_task_ids=("task-a",),
+            artifact_store=InMemoryArtifactVersionStore(),
+            timestamp="2026-06-19T11:20:00+08:00",
+        )
+    )
+    sandbox_registry = SandboxProviderRegistry()
+    sandbox_registry.register(SharedProcessSandboxProvider())
+
+    result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(
+                max_ticks=3,
+                max_runs_per_tick=2,
+                max_runtime_failures=1,
+            ),
+            continue_on_failure=True,
+        ),
+        runtime_registry=runtime_registry,
+        sandbox_registry=sandbox_registry,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["stop_reason"] == "runtime_failure_limit_reached"
+    assert payload["total_run_count"] == 1
+    assert payload["final_queue_summary"]["failed_task_ids"] == ["task-a"]
+    assert payload["final_queue_summary"]["completed_task_ids"] == ["task-b"]
+    assert "runtime failure count 1 reached limit 1" in payload["stop_detail"]
+
+
+def test_scheduler_daemon_loop_zero_max_ticks_is_read_only(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_scheduler_daemon_loop(
+        SchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=0),
+        )
+    )
+    payload = result.to_json_dict()
+    written = read_scheduler_state_snapshot(snapshot_path)
+
+    assert payload["tick_count"] == 0
+    assert payload["total_run_count"] == 0
+    assert payload["stop_reason"] == "max_ticks_reached"
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["final_queue_summary"]["task_state_counts"] == {"proposed": 1}
+    assert written.tasks["task-a"].state == "proposed"
+    assert not event_log_path.exists()
 
 
 def test_host_scheduler_runner_fake_result_is_json_serializable(tmp_path) -> None:
