@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler operator workflow UI close`
-- Active Slice: `Scheduler Admission And Host Evidence Operator Workflow UI (COMPLETED; VS Code progress preview exposes explicit admit / bounded fake loop / projection refresh operator actions over existing scheduler surfaces)`
-- Latest Completed Slice: `Scheduler Admission And Host Evidence Operator Workflow UI`
+- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler operator workflow dogfood fixture close`
+- Active Slice: `Scheduler Operator Workflow Dogfood Fixture (COMPLETED; CLI seed-dogfood-fixture writes one controlled ExchangeArtifact scheduler-admission candidate and validates seed/read/admit/run/project/readback over fake runtime)`
+- Latest Completed Slice: `Scheduler Operator Workflow Dogfood Fixture`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; focused preview tests `23 passed`; backend resource smokes returned ExchangeArtifact bundle `exists=false/admission_candidate_count=0/error_count=0`, Host Evidence presentation `status=empty/card_count=0/error_count=0`, admission ledger `ok=true/exists=false/record_count=0`; scheduler snapshot absence is expected in current workspace; screenshot artifact captured at `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`
+- Test Baseline: scheduler operator dogfood fixture focused runtime tests `2 passed`; focused CLI workflow tests `2 passed`; scheduler / ExchangeArtifact / Host Evidence focused regression `126 passed`; previous VS Code Scheduler Operator UI validation remains `23 passed` with screenshot artifact at `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`
 
 ## 当前 Handoff Footprint
 
@@ -60,6 +60,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`
 - `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-admission-host-evidence-operator-workflow-ui.md`
+- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-workflow-dogfood-fixture.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -89,6 +90,7 @@
 - `review/host-loop-workflow-evidence-metadata-2026-06-19.md`
 - `review/host-evidence-ui-binding-2026-06-19.md`
 - `review/scheduler-admission-host-evidence-operator-workflow-ui-2026-06-19.md`
+- `review/scheduler-operator-workflow-dogfood-fixture-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -104,6 +106,7 @@
 - `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`
 - `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`
 - `design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md`
+- `design_docs/scheduler-operator-workflow-dogfood-fixture-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -901,6 +904,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`。本轮让 composed host loop projection workflow 在 projection refresh 后，把 compact projection clues 补写回其刚生成的 `scheduler_loop_evidence` metadata：`workflow_surface="host-loop-projection-workflow"`、`scheduler_projection_path`、`scheduler_projection_role="read-only-view"`、`scheduler_projection_refreshed=true` 与 compact `scheduler_projection_summary`。`dbc://host-evidence/presentation` 现可优先使用该 workflow metadata 显示 projection refreshed state；底层 host daemon-loop evidence 保持兼容并保留 lower-level surface metadata。该切片不改 evidence schema、不新增 provider execution/real-provider CLI/MCP surface、不绑定 UI、不启动后台 daemon、不突变 ExchangeArtifact/admission ledger、不突变 agent-owned Local Work Trajectory、不嵌入完整 trajectory JSON；review evidence 位于 `review/host-loop-workflow-evidence-metadata-2026-06-19.md`；后续方向分析位于 `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `288 passed, 1 skipped`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`。本轮把 VS Code progress graph preview 接到只读 `dbc://host-evidence/presentation` resource：新增 host evidence presentation reader，复用 progress graph runtime/source-root resolution；预览状态携带 presentation-only Host Evidence model，并在浮动控制区呈现 status/card/error counts、scheduler-loop evidence card、runtime providers、host surface、invocation id、stop reason/detail、run/output/permission review counts、key facts、refs、authority clues、malformed evidence rows 与 backend read-error state。UI 不解析 raw evidence artifacts、不执行 provider、不启动 daemon、不从 UI 突变 scheduler / ExchangeArtifact admission / Local Work Trajectory，也不改 backend presentation schema；review evidence 位于 `review/host-evidence-ui-binding-2026-06-19.md`；后续方向分析位于 `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`；验证结果：VS Code extension build passed，focused preview tests `21 passed`，backend resource smoke `status=empty/card_count=0/error_count=0`，截图 artifact 位于 `output/playwright/host-evidence-ui/host-evidence-panel.png`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-admission-host-evidence-operator-workflow-ui.md`。本轮把 VS Code progress graph preview 扩展为 Scheduler Operator 工作流面：读取 `dbc://exchange-artifacts/bundle` 显示 scheduler-admission candidates，独立读取 `scheduler inspect-state` 摘要，展示默认 artifact store / admission ledger / scheduler snapshot / event log / projection 路径，并提供显式 `Admit`、`Run bounded loop`、`Refresh projection` 按钮，分别调用既有 `scheduler admit-exchange-artifact`、fake-only `scheduler daemon-loop`、`scheduler project` CLI surface；Host Evidence 仍作为 durable scheduler-loop evidence 的只读回读面。该切片不新增 live Qoder/real-provider execution、不启动 background daemon、不自动 admission、不标记 ExchangeArtifact consumed、不从 UI 突变 agent-owned Local Work Trajectory、不改 backend scheduler/admission/evidence schema、不替换 MCP/CLI 命令。review evidence 位于 `review/scheduler-admission-host-evidence-operator-workflow-ui-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md`；验证结果：VS Code extension build passed，focused preview tests `23 passed`，backend resource smoke 为空工作区预期状态，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-workflow-dogfood-fixture.md`。本轮新增 Scheduler Operator dogfood fixture：`build_scheduler_operator_dogfood_batch()` / `seed_scheduler_operator_dogfood_fixture()` 生成一条 deterministic fake-runtime 两任务链 `dogfood:prepare -> dogfood:verify`，并通过 `doc-based-coding scheduler seed-dogfood-fixture` 写入默认 `.codex/orchestration/exchange-artifacts.json` 或显式 artifact store path；`JsonArtifactVersionStore.put()` 新增 explicit `replace_existing=True`，默认仍拒绝 exact duplicate。完整 smoke 覆盖 `seed -> resources read -> admit -> inspect -> daemon-loop fake -> project -> host-evidence presentation`，但 fixture 自身只突变 ExchangeArtifact store，不自动 admission、不运行 provider、不刷新 projection、不写 Host Evidence、不标记 consumed、不突变 Local Work Trajectory。review evidence 位于 `review/scheduler-operator-workflow-dogfood-fixture-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-workflow-dogfood-fixture-followup-direction-analysis.md`；验证结果：runtime fixture focused tests `2 passed`，CLI workflow focused tests `2 passed`，scheduler / ExchangeArtifact / Host Evidence focused regression `126 passed`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。

@@ -330,17 +330,27 @@ class JsonArtifactVersionStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
 
-    def put(self, artifact: ExchangeArtifact) -> ArtifactVersionRecord:
+    def put(
+        self,
+        artifact: ExchangeArtifact,
+        *,
+        replace_existing: bool = False,
+    ) -> ArtifactVersionRecord:
         """Store one artifact version after validating scheduler-facing shape."""
 
         _validate_storable_exchange_artifact(artifact)
         records = list(self._read_records())
         key = (artifact.artifact_id, artifact.version)
-        if any((record.artifact_id, record.version) == key for record in records):
+        if any((record.artifact_id, record.version) == key for record in records) and not replace_existing:
             raise ValueError(
                 f"exchange artifact version already exists: "
                 f"{artifact.artifact_id!r}@{artifact.version!r}"
             )
+        records = [
+            record
+            for record in records
+            if replace_existing is False or (record.artifact_id, record.version) != key
+        ]
         record = ArtifactVersionRecord(
             artifact_id=artifact.artifact_id,
             version=artifact.version,

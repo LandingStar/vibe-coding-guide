@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Scheduler admission host evidence operator workflow product slice",
-  "recorded_at": "2026-06-19T11:18:36.851428+00:00",
+  "title": "Operator Workflow Dogfood Fixture",
+  "recorded_at": "2026-06-19T11:42:04.299135+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/host-evidence-ui-binding-followup-direction-analysis.md",
+  "guide_context": "design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Scheduler admission host evidence operator workflow product slice",
+    "title": "Operator Workflow Dogfood Fixture",
     "lane_count": 1,
     "event_count": 3,
     "relation_count": 2,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "product workflow",
+      "label": "dogfood fixture",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/host-evidence-ui-binding-followup-direction-analysis.md"
+        "context": "design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md"
       }
     }
   },
@@ -36,46 +36,45 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Recover state and define next contract-first gate",
+      "title": "Create operator workflow dogfood fixture planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
-      "summary": "恢复上下文：已通过 governance/check_constraints 确认当前 phase 为 Post-v1.0 / Host evidence UI binding close，当前无 active planning-gate；下一步重读 checklist、phase map、checkpoint 与 follow-up direction，定位 scheduler admission + host evidence operator workflow 的窄切片。",
+      "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T10:49:01.698524+00:00",
-        "activated_at": "2026-06-19T10:49:01.698524+00:00",
+        "created_at": "2026-06-19T11:23:05.784776+00:00",
+        "activated_at": "2026-06-19T11:23:05.784776+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-19T10:51:37.197748+00:00",
-        "completed_at": "2026-06-19T10:53:07.717470+00:00"
+        "completed_at": "2026-06-19T11:24:44.934305+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Write scheduler admission host evidence workflow planning gate",
+      "title": "Implement controlled scheduler operator dogfood fixture",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Contract-first 写入 scheduler admission + host evidence operator workflow UI 的窄 planning-gate，明确本轮交付、非目标、权限边界、UI/后端分工和验证门。",
+      "summary": "继续实现校验：核对 fixture helper、JsonArtifactVersionStore replace 语义、CLI seed-dogfood-fixture surface 与 seed/read/admit/run/project/readback workflow tests。",
       "metadata": {
-        "created_at": "2026-06-19T10:53:15.637598+00:00",
+        "created_at": "2026-06-19T11:24:52.263619+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T10:54:37.250050+00:00"
+        "updated_at": "2026-06-19T11:34:12.674926+00:00",
+        "completed_at": "2026-06-19T11:41:19.330896+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Implement scheduler operator workflow UI binding",
-      "kind": "task",
+      "title": "Write back dogfood fixture completion state",
+      "kind": "writeback",
       "status": "completed",
       "order": 3,
-      "summary": "已完成 Scheduler Operator UI/helper 接线、状态文档回写与验证：新增 VS Code Host UX helper、preview section、focused tests、planning/review/follow-up docs；Checklist / Phase Map / checkpoint 已推进到当前切片；VS Code build、focused preview tests 与 backend empty-state smokes 已通过。",
+      "summary": "关闭 planning gate，新增 review evidence 与 follow-up direction analysis，并同步 Checklist / Phase Map / checkpoint。",
       "metadata": {
-        "created_at": "2026-06-19T10:54:44.033067+00:00",
+        "created_at": "2026-06-19T11:41:25.557738+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-19T11:17:45.280780+00:00",
-        "completed_at": "2026-06-19T11:18:36.851428+00:00"
+        "completed_at": "2026-06-19T11:42:04.299135+00:00"
       }
     }
   },

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -79,6 +80,7 @@ from src.runtime.orchestration import (
     HostSchedulerDaemonLoopResult,
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
+    SchedulerOperatorDogfoodFixtureResult,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
@@ -87,6 +89,7 @@ from src.runtime.orchestration import (
     build_host_scheduler_run_evidence,
     build_runtime_registry_from_config,
     build_scheduler_loop_evidence,
+    seed_scheduler_operator_dogfood_fixture,
     drain_preflighted_ready_tasks,
     drain_ready_tasks,
     evaluate_stop_condition,
@@ -697,6 +700,34 @@ def test_json_artifact_version_store_persists_versions_and_reads_latest(tmp_path
 
     with pytest.raises(ValueError, match="already exists"):
         restored.put(first)
+
+
+def test_json_artifact_version_store_replaces_exact_version_only_when_explicit(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    first_v1 = replace(
+        _accepted_contract_artifact(version="v1"),
+        created_at="2026-06-18T01:00:00+08:00",
+    )
+    second_v1 = replace(
+        _accepted_contract_artifact(version="v1"),
+        created_at="2026-06-18T02:00:00+08:00",
+    )
+    v2 = replace(
+        _accepted_contract_artifact(version="v2"),
+        created_at="2026-06-18T03:00:00+08:00",
+    )
+
+    store.put(first_v1)
+    store.put(v2)
+    replaced = store.put(second_v1, replace_existing=True)
+    restored = JsonArtifactVersionStore(store_path)
+
+    assert replaced.artifact == second_v1
+    assert restored.get("server-api", "v1").artifact.created_at == "2026-06-18T02:00:00+08:00"
+    assert restored.get("server-api", "v2").artifact.created_at == "2026-06-18T03:00:00+08:00"
+    assert restored.list_versions("server-api") == ("v2", "v1")
+    assert [record.version for record in restored.list_records()] == ["v2", "v1"]
 
 
 def test_json_artifact_version_store_rejects_invalid_artifact_before_write(tmp_path) -> None:
@@ -3110,6 +3141,59 @@ def test_submit_scheduler_task_batch_with_persistence_recovers_and_drains(tmp_pa
     assert drain.stop_reason == "no_ready_tasks"
     assert tuple(run.run_handle.task_id for run in drain.run_results) == ("task-a", "task-b")
     assert drain.state.tasks["task-b"].state == "complete"
+
+
+def test_seed_scheduler_operator_dogfood_fixture_creates_candidate_only(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+
+    result = seed_scheduler_operator_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+    )
+    bundle = inspect_exchange_artifact_store(store_path)
+    payload = result.to_json_dict()
+
+    assert isinstance(result, SchedulerOperatorDogfoodFixtureResult)
+    assert payload["artifact_id"] == "fixture:scheduler-operator-dogfood"
+    assert payload["version"] == "v1"
+    assert payload["product_type"] == "scheduler_task_batch_submission"
+    assert payload["task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert payload["dependency_ids"] == ["dep:dogfood-prepare->dogfood-verify"]
+    assert payload["replaced_existing"] is False
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert store_path.exists()
+    assert not snapshot_path.exists()
+    assert not ledger_path.exists()
+    assert bundle.admission_candidate_count == 1
+    assert bundle.summaries[0].admission_candidates[0].task_ids == (
+        "dogfood:prepare",
+        "dogfood:verify",
+    )
+
+
+def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
+
+    with pytest.raises(ValueError, match="exchange artifact version already exists"):
+        seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
+
+    replaced = seed_scheduler_operator_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+        replace_existing=True,
+        created_at="2026-06-19T12:00:00+08:00",
+    )
+    records = JsonArtifactVersionStore(store_path).list_records()
+
+    assert replaced.replaced_existing is True
+    assert len(records) == 1
+    assert records[0].artifact.created_at == "2026-06-19T12:00:00+08:00"
 
 
 def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:

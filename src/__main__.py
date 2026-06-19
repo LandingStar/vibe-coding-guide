@@ -351,6 +351,12 @@ _SCHEDULER_PROJECT_USAGE = (
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
+_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE = (
+    "Usage: doc-based-coding scheduler seed-dogfood-fixture "
+    "[--artifact-store-path PATH] [--artifact-id ID] [--version VERSION] "
+    "[--replace-existing] [--created-at TIMESTAMP]"
+)
+
 
 def _resolve_project_path(root: Path, value: str | Path) -> Path:
     """Resolve CLI paths relative to the detected project root."""
@@ -372,7 +378,8 @@ def cmd_scheduler(args: list[str]) -> int:
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
             "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
-            "  project                  Refresh scheduler-derived trajectory projection without running providers\n",
+            "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
+            "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n",
         )
         return 0
 
@@ -389,10 +396,12 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_daemon_loop(args[1:])
     if sub == "project":
         return cmd_scheduler_project(args[1:])
+    if sub == "seed-dogfood-fixture":
+        return cmd_scheduler_seed_dogfood_fixture(args[1:])
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|project|seed-dogfood-fixture> [args]",
         file=sys.stderr,
     )
     return 1
@@ -528,6 +537,88 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
     if not payload.get("ok"):
         print(str(payload.get("error", "exchange artifact admission failed")), file=sys.stderr)
         return 1
+    return 0
+
+
+def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
+    """Seed one controlled ExchangeArtifact candidate for scheduler operator dogfood."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE + "\n\n"
+            "This writes only a controlled ExchangeArtifact scheduler-admission candidate. "
+            "It does not admit tasks, run providers, refresh scheduler projection, write "
+            "Host Evidence, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    artifact_id = ""
+    version = ""
+    created_at = ""
+    replace_existing = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--artifact-id",
+            "--version",
+            "--created-at",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--created-at":
+                created_at = value
+            i += 2
+            continue
+        print(f"Unknown scheduler seed-dogfood-fixture option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
+            DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
+            seed_scheduler_operator_dogfood_fixture,
+        )
+
+        target_store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else None
+        )
+        result = seed_scheduler_operator_dogfood_fixture(
+            root,
+            artifact_store_path=target_store,
+            artifact_id=artifact_id or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
+            version=version or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
+            replace_existing=replace_existing,
+            created_at=created_at or "2026-06-19T00:00:00+00:00",
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error seeding scheduler operator dogfood fixture",
+            e,
+            category="scheduler_fixture_failed",
+        )
+
+    _print_json(result.to_json_dict())
     return 0
 
 

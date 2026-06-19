@@ -76,6 +76,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "tick" in proc.stdout
     assert "daemon-loop" in proc.stdout
     assert "project" in proc.stdout
+    assert "seed-dogfood-fixture" in proc.stdout
 
 
 def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
@@ -86,6 +87,17 @@ def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
     assert "--admission-ledger-path PATH" in proc.stdout
     assert "--allow-duplicate-admission" in proc.stdout
     assert "does not run providers" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_seed_dogfood_fixture_help_describes_non_goals() -> None:
+    proc = _run_cli(["scheduler", "seed-dogfood-fixture", "--help"])
+
+    assert proc.returncode == 0
+    assert "--artifact-store-path PATH" in proc.stdout
+    assert "--replace-existing" in proc.stdout
+    assert "controlled ExchangeArtifact scheduler-admission candidate" in proc.stdout
+    assert "does not admit tasks" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -469,67 +481,55 @@ def test_scheduler_admit_exchange_artifact_cli_allows_explicit_duplicate_admissi
     assert ledger["records"][1]["actor"] == "agent:guide"
 
 
-def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_tasks(tmp_path) -> None:
-    from src.runtime.orchestration import (
-        AgentSpec,
-        ContextScope,
-        JsonArtifactVersionStore,
-        SchedulerTaskBatchSubmission,
-        SchedulerTaskSubmission,
-        TaskDependency,
-        scheduler_task_batch_submission_to_artifact,
-    )
-
+def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
     snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
     event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
     projection_path = project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
-    JsonArtifactVersionStore(store_path).put(
-        scheduler_task_batch_submission_to_artifact(
-            SchedulerTaskBatchSubmission(
-                batch_id="batch-cli-workflow",
-                title="CLI workflow batch",
-                tasks=(
-                    SchedulerTaskSubmission(
-                        task_id="task-a",
-                        title="Task A",
-                        instruction="Prepare A.",
-                        agent=AgentSpec(agent_id="agent:a", runtime_provider="fake"),
-                        context_scope=ContextScope(context_id="context:a", lane_id="lane:a"),
-                        output_artifact_id="task-a:result",
-                    ),
-                    SchedulerTaskSubmission(
-                        task_id="task-b",
-                        title="Task B",
-                        instruction="Prepare B after A.",
-                        agent=AgentSpec(agent_id="agent:b", runtime_provider="fake"),
-                        context_scope=ContextScope(context_id="context:b", lane_id="lane:b"),
-                        output_artifact_id="task-b:result",
-                        dependencies=(
-                            TaskDependency(
-                                dependency_id="dep-a-b",
-                                source_task_id="task-a",
-                                target_task_id="task-b",
-                                required_state="complete",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-            artifact_id="submission:workflow",
-            created_at="2026-06-19T03:00:00+08:00",
-            version="v1",
-        )
+    seed = _run_cli(
+        [
+            "scheduler",
+            "seed-dogfood-fixture",
+            "--created-at",
+            "2026-06-19T03:00:00+08:00",
+        ],
+        cwd=project,
     )
+    read_candidate = _run_cli(
+        ["resources", "read", "dbc://exchange-artifacts/bundle"],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    seeded = json.loads(seed.stdout)
+    assert seeded["artifact_store_path"] == str(store_path)
+    assert seeded["artifact_id"] == "fixture:scheduler-operator-dogfood"
+    assert seeded["version"] == "v1"
+    assert seeded["task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert seeded["authority_split"]["exchange_store_mutated"] is True
+    assert seeded["authority_split"]["scheduler_state_mutated"] is False
+    assert seeded["authority_split"]["provider_executed"] is False
+    assert not snapshot_path.exists()
+
+    assert read_candidate.returncode == 0, read_candidate.stderr
+    candidate_bundle = json.loads(read_candidate.stdout)
+    assert candidate_bundle["exists"] is True
+    assert candidate_bundle["admission_candidate_count"] == 1
+    candidate = candidate_bundle["summaries"][0]["admission_candidates"][0]
+    assert candidate["product_type"] == "scheduler_task_batch_submission"
+    assert candidate["artifact_id"] == "fixture:scheduler-operator-dogfood"
+    assert candidate["version"] == "v1"
+    assert candidate["task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert candidate_bundle["authority_split"]["scheduler_mutated"] is False
 
     admit = _run_cli(
         [
             "scheduler",
             "admit-exchange-artifact",
             "--artifact-id",
-            "submission:workflow",
+            "fixture:scheduler-operator-dogfood",
             "--version",
             "v1",
             "--snapshot-path",
@@ -562,6 +562,8 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
             "3",
             "--max-runs-per-tick",
             "1",
+            "--evidence-id",
+            "operator-fixture-loop",
             "--timestamp",
             "2026-06-19T10:50:00+08:00",
         ],
@@ -569,7 +571,7 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     )
     assert admit.returncode == 0, admit.stderr
     admitted = json.loads(admit.stdout)
-    assert admitted["submitted_task_ids"] == ["task-a", "task-b"]
+    assert admitted["submitted_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
     assert admitted["dependency_count"] == 1
     assert admitted["ran_tasks"] is False
     assert admitted["refreshed_projection"] is False
@@ -579,10 +581,10 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     assert inspected["task_count"] == 2
     assert inspected["dependency_count"] == 1
     assert inspected["task_state_counts"] == {"proposed": 2}
-    assert inspected["task_ids_by_state"] == {"proposed": ["task-a", "task-b"]}
+    assert inspected["task_ids_by_state"] == {"proposed": ["dogfood:prepare", "dogfood:verify"]}
     assert inspected["scheduler_event_count"] == 2
     assert inspected["scheduler_event_kind_counts"] == {"task_submitted": 2}
-    assert inspected["dependency_ids"] == ["dep-a-b"]
+    assert inspected["dependency_ids"] == ["dep:dogfood-prepare->dogfood-verify"]
     assert inspected["authority_split"]["scheduler_state_mutated"] is False
     assert inspected["authority_split"]["local_work_trajectory_mutated"] is False
 
@@ -593,7 +595,9 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     assert ticked["stop_reason"] == "no_ready_tasks"
     assert ticked["ran_tasks"] is True
     assert ticked["refreshed_projection"] is False
-    assert ticked["final_queue_summary"]["completed_task_ids"] == ["task-a", "task-b"]
+    assert ticked["evidence_written"] is True
+    assert ticked["evidence_path"] == str(project / ".codex" / "scheduler" / "evidence" / "operator-fixture-loop.json")
+    assert ticked["final_queue_summary"]["completed_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
     assert ticked["final_queue_summary"]["ready_task_ids"] == []
     assert ticked["authority_split"]["scheduler_state_mutated"] is True
     assert ticked["authority_split"]["provider_executed"] is True
@@ -619,13 +623,28 @@ def test_scheduler_operator_workflow_admit_inspect_and_project_without_running_t
     projected = json.loads(project_proc.stdout)
     assert projected["scheduler_projection_path"] == str(projection_path)
     assert projected["event_count"] == 2
-    assert projected["lane_count"] == 2
+    assert projected["lane_count"] == 1
     assert projected["metadata"]["scheduler_event_log_count"] == "9"
     assert projected["ran_tasks"] is False
     assert projected["refreshed_projection"] is True
     assert projected["authority_split"]["provider_executed"] is False
     assert projected["authority_split"]["local_work_trajectory_mutated"] is False
     assert projection_path.exists()
+    host_evidence = _run_cli(
+        ["resources", "read", "dbc://host-evidence/presentation"],
+        cwd=project,
+    )
+
+    assert host_evidence.returncode == 0, host_evidence.stderr
+    evidence = json.loads(host_evidence.stdout)
+    assert evidence["card_count"] == 1
+    assert evidence["cards"][0]["id"] == "operator-fixture-loop"
+    assert evidence["cards"][0]["status"] == "completed"
+    assert evidence["cards"][0]["run_count"] == 2
+    assert evidence["cards"][0]["metadata"]["completed_task_ids"] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

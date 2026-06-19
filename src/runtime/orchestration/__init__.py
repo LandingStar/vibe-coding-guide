@@ -279,6 +279,14 @@ from .scheduler_loop_evidence import (
     read_scheduler_loop_evidence_summary,
     write_scheduler_loop_evidence,
 )
+from .scheduler_operator_fixture import (
+    DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
+    DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_BATCH_ID,
+    DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
+    SchedulerOperatorDogfoodFixtureResult,
+    build_scheduler_operator_dogfood_batch,
+    seed_scheduler_operator_dogfood_fixture,
+)
 from .rollup import roll_up_work_item
 from .stop_conditions import evaluate_stop_condition
 
@@ -443,9 +451,13 @@ __all__ = [
     "HOST_SCHEDULER_RUN_EVIDENCE_SCHEMA_VERSION",
     "SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE",
     "SCHEDULER_LOOP_EVIDENCE_SCHEMA_VERSION",
+    "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID",
+    "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_BATCH_ID",
+    "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION",
     "SchedulerLoopEvidence",
     "SchedulerLoopEvidenceSummary",
     "SchedulerLoopEvidenceWriteResult",
+    "SchedulerOperatorDogfoodFixtureResult",
     "SchedulerTaskBatchSubmission",
     "SchedulerTaskBatchSubmissionResult",
     "SchedulerTaskSubmission",
@@ -458,6 +470,7 @@ __all__ = [
     "build_orchestration_preflight_bundle",
     "build_runtime_registry_from_config",
     "build_scheduler_loop_evidence",
+    "build_scheduler_operator_dogfood_batch",
     "cleanup_receipt_to_artifact",
     "dispatch_landing_consumer_payload",
     "default_exchange_artifact_store_path",
@@ -473,6 +486,7 @@ __all__ = [
     "qoder_query_result_from_response",
     "roll_up_work_item",
     "sandbox_capability_placeholder",
+    "seed_scheduler_operator_dogfood_fixture",
     "scratch_manifest_to_artifact",
     "evaluate_stop_condition",
     "exchange_artifact_from_json_dict",
