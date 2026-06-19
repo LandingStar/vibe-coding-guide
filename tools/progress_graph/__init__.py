@@ -39,10 +39,12 @@ from .query import (
     query_topological_layers,
 )
 from .scheduler_projection import (
+    HostSchedulerDaemonLoopProjectionRefreshResult,
     HostSchedulerRunProjectionRefreshResult,
     SchedulerRunProjectionRefreshResult,
     build_scheduler_work_trajectory,
     build_scheduler_work_trajectory_from_history,
+    run_host_authorized_scheduler_daemon_loop_and_refresh_projection,
     run_host_authorized_scheduler_once_and_refresh_projection,
     run_persisted_scheduler_once_and_refresh_projection,
     scheduler_work_trajectory_json_path,
@@ -109,6 +111,7 @@ __all__ = [
     "build_history_html",
     "build_scheduler_work_trajectory",
     "build_scheduler_work_trajectory_from_history",
+    "run_host_authorized_scheduler_daemon_loop_and_refresh_projection",
     "run_host_authorized_scheduler_once_and_refresh_projection",
     "run_host_runtime_dogfood_harness",
     "run_persisted_scheduler_once_and_refresh_projection",
@@ -120,6 +123,7 @@ __all__ = [
     "HostEvidencePresentationFact",
     "HostEvidencePresentationRef",
     "HostEvidenceReadError",
+    "HostSchedulerDaemonLoopProjectionRefreshResult",
     "HostSchedulerRunProjectionRefreshResult",
     "HostRuntimeDogfoodHarnessResult",
     "HostOwnedQoderSmokeRunConfig",

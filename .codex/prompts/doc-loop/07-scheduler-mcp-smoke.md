@@ -63,7 +63,15 @@ Keep the lifecycle split:
    `run_host_authorized_scheduler_daemon_loop()`. This is the path for
    repeated bounded mock-Qoder or future real-provider daemon-loop dogfood. It
    is not exposed as a real-provider CLI or MCP tool.
-15. Controlled host-runtime dogfood uses
+15. Host loop projection workflow uses
+   `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` when a
+   host-owned Python caller needs one compact workflow that runs the bounded
+   daemon loop, preserves optional `scheduler_loop_evidence`, refreshes
+   `.codex/progress-graph/scheduler-work-trajectory.json`, and reads back a
+   scheduler-derived trajectory summary. This is explicit host workflow
+   composition, not scheduler-owned Local Work Trajectory mutation and not
+   CLI/MCP real-provider exposure.
+16. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -484,6 +492,7 @@ run_host_authorized_scheduler_once()
 run_host_authorized_scheduler_once_and_refresh_projection()
 HostSchedulerDaemonLoopRequest
 run_host_authorized_scheduler_daemon_loop()
+run_host_authorized_scheduler_daemon_loop_and_refresh_projection()
 run_host_runtime_dogfood_harness()
 ```
 
@@ -518,6 +527,23 @@ Expected host-injected daemon-loop behavior:
 - `authority_split.local_work_trajectory_mutated=false`
 
 Do not add a CLI/MCP real-provider daemon loop. The CLI `doc-based-coding scheduler daemon-loop` remains fake-runtime-only.
+
+Expected host loop projection workflow behavior:
+
+- `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` calls the
+  host daemon-loop helper, then writes the read-only scheduler projection
+- `scheduler_projection_path` points at
+  `.codex/progress-graph/scheduler-work-trajectory.json` unless an explicit
+  projection path was supplied
+- `projection_summary` gives compact machine readback for the
+  scheduler-derived trajectory
+- explicit `evidence_id` still writes `scheduler_loop_evidence`
+- `authority_split.scheduler_projection_refreshed=true`
+- `authority_split.local_work_trajectory_mutated=false`
+
+This helper is for host-owned workflow polish. It must not be treated as a
+background daemon, a scheduler state mutation beyond the bounded loop, or a
+CLI/MCP real-provider surface.
 
 ## Controlled Host Runtime Dogfood Harness
 

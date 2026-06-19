@@ -145,6 +145,7 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "HostSchedulerDaemonLoopRequest" in text
         assert "run_host_authorized_scheduler_once_and_refresh_projection" in text
         assert "run_host_authorized_scheduler_daemon_loop" in text
+        assert "run_host_authorized_scheduler_daemon_loop_and_refresh_projection" in text
         assert "run_host_runtime_dogfood_harness" in text
         assert "host_scheduler_run_evidence" in text
         assert "scheduler_loop_evidence" in text
@@ -199,6 +200,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "final_queue_summary" in text
         assert "loop_result" in text
         assert "queue_summary" in text
+        assert "projection_summary" in text
+        assert "scheduler_projection_refreshed=true" in text
+        assert "host-owned workflow polish" in text
         assert "--artifact-id <artifact-id>" in text
         assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
         assert "--allow-duplicate-admission" in text

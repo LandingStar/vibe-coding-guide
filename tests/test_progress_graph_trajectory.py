@@ -22,6 +22,7 @@ from src.runtime.orchestration import (
     RuntimeHostInvocation,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
+    HostSchedulerDaemonLoopRequest,
     SchedulerLoopEvidenceSummary,
     QoderSDKQueryClient,
     QoderQueryRequest,
@@ -30,6 +31,7 @@ from src.runtime.orchestration import (
     SchedulerEvent,
     SchedulerMergeGate,
     SchedulerMergeGateEvent,
+    SchedulerDaemonLoopStopPolicy,
     SchedulerRunPolicy,
     SchedulerTaskBatchSubmission,
     SchedulerTaskSubmission,
@@ -82,6 +84,7 @@ from tools.progress_graph import (
     read_host_evidence_bundle,
     read_trajectory_artifacts_bundle,
     resume_single_line_event,
+    run_host_authorized_scheduler_daemon_loop_and_refresh_projection,
     run_host_authorized_scheduler_once_and_refresh_projection,
     run_host_owned_qoder_smoke,
     run_host_runtime_dogfood_harness,
@@ -906,6 +909,150 @@ def test_host_authorized_scheduler_run_and_refresh_projection_preserves_agent_tr
 
     local_trajectory = load_local_work_trajectory(tmp_path)
     assert [event.title for event in local_trajectory.events.values()] == ["agent-owned anchor"]
+
+
+def test_host_scheduler_daemon_loop_and_refresh_projection_preserves_agent_trajectory(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduler_projection_task(
+                    "task-a",
+                    lane_id="lane:host",
+                    output_artifact_id="task-a:result",
+                ),
+                "task-b": _scheduler_projection_task(
+                    "task-b",
+                    lane_id="lane:host",
+                    output_artifact_id="task-b:result",
+                ),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-b",
+                    source_task_id="task-a",
+                    target_task_id="task-b",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+    start_single_line_trajectory(
+        tmp_path,
+        first_event_title="agent-owned anchor",
+        lane_label="agent",
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop_and_refresh_projection(
+        tmp_path,
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=3, max_runs_per_tick=1),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-19T16:00:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-projection-fake",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                ),
+            ),
+            timestamp="2026-06-19T16:00:00+08:00",
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+        guide_context="host-loop-projection-test",
+    )
+    payload = result.to_json_dict()
+
+    assert result.host_loop.loop.total_run_count == 2
+    assert result.host_loop.scheduler_projection_refreshed is True
+    assert result.projection_path == scheduler_work_trajectory_json_path(tmp_path)
+    assert payload["scheduler_projection_path"] == str(result.projection_path)
+    assert payload["refreshed_projection"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["scheduler_projection_role"] == "read-only-view"
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["projection_summary"]["event_count"] == 2
+    assert result.projection.metadata["scheduler_event_log_count"] == "7"
+    assert result.projection.events["scheduler-task:task-a"].status == "completed"
+    assert result.projection.events["scheduler-task:task-b"].status == "completed"
+    assert result.projection.events["scheduler-task:task-a"].metadata["output_artifact_id"] == "task-a:result"
+
+    local_trajectory = load_local_work_trajectory(tmp_path)
+    assert [event.title for event in local_trajectory.events.values()] == ["agent-owned anchor"]
+
+
+def test_host_scheduler_daemon_loop_projection_mock_qoder_preserves_evidence(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/host-loop-qoder.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-q": _scheduler_projection_task(
+                    "task-q",
+                    lane_id="lane:qoder",
+                    agent=AgentSpec(agent_id="agent:qoder", runtime_provider="qoder"),
+                    output_artifact_id="task-q:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop_and_refresh_projection(
+        tmp_path,
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("qoder",),
+                timestamp="2026-06-19T16:05:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-projection-qoder",
+                    requested_providers=("qoder",),
+                    requested_by="host:test",
+                ),
+                qoder_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-qoder-projection",
+                    provider="qoder",
+                    approved_by="host:test",
+                    approved_at="2026-06-19T16:04:00+08:00",
+                    allow_sdk_client=True,
+                ),
+            ),
+            evidence_id="host-loop:projection-qoder",
+            evidence_path=evidence_path,
+            timestamp="2026-06-19T16:05:00+08:00",
+            metadata={"scenario": "mock-qoder-host-loop-projection"},
+        ),
+        qoder_query_client=_RecordingQoderClient(
+            QoderQueryResult(summary="Qoder daemon projection completed.", output_text="done")
+        ),
+        guide_context="host-loop-projection-qoder-test",
+    )
+    payload = result.to_json_dict()
+    bundle = read_host_evidence_bundle(tmp_path)
+
+    assert payload["runtime_registry_providers"] == ["qoder"]
+    assert payload["runtime_provider"] == "qoder"
+    assert payload["scheduler_projection_path"] == str(scheduler_work_trajectory_json_path(tmp_path))
+    assert payload["evidence_written"] is True
+    assert payload["evidence_path"] == str(evidence_path)
+    assert payload["authority_split"]["evidence_written"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert result.projection.events["scheduler-task:task-q"].status == "completed"
+    assert result.projection.events["scheduler-task:task-q"].metadata["runtime_provider"] == "qoder"
+    assert len(bundle.errors) == 0
+    assert len(bundle.summaries) == 1
+    assert bundle.summaries[0].evidence_id == "host-loop:projection-qoder"
+    assert bundle.summaries[0].product_type == "scheduler_loop_evidence"
 
 
 def test_host_runtime_dogfood_harness_fake_writes_evidence_and_projection(tmp_path: Path) -> None:

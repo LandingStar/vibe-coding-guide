@@ -34,6 +34,11 @@ from src.runtime.orchestration.scheduler_host_runner import (
     HostSchedulerRunResult,
     run_host_authorized_scheduler_once,
 )
+from src.runtime.orchestration.scheduler_host_daemon import (
+    HostSchedulerDaemonLoopRequest,
+    HostSchedulerDaemonLoopResult,
+    run_host_authorized_scheduler_daemon_loop,
+)
 from src.runtime.orchestration.scheduler_store import (
     JsonlSchedulerEventLog,
     JsonlSchedulerMergeGateEventLog,
@@ -84,6 +89,34 @@ class HostSchedulerRunProjectionRefreshResult:
     host_run: HostSchedulerRunResult
     projection_path: Path
     projection: LocalWorkTrajectory
+
+
+@dataclass(frozen=True, slots=True)
+class HostSchedulerDaemonLoopProjectionRefreshResult:
+    """Result of one host-authorized daemon loop plus projection refresh."""
+
+    host_loop: HostSchedulerDaemonLoopResult
+    projection_path: Path
+    projection: LocalWorkTrajectory
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible host workflow result."""
+
+        payload = self.host_loop.to_json_dict()
+        authority_payload = payload.get("authority_split", {})
+        authority_split = dict(authority_payload) if isinstance(authority_payload, dict) else {}
+        authority_split.update(
+            {
+                "scheduler_projection_refreshed": True,
+                "scheduler_projection_role": "read-only-view",
+                "scheduler_projection_path": str(self.projection_path),
+                "local_work_trajectory_mutated": False,
+            }
+        )
+        payload["scheduler_projection_path"] = str(self.projection_path)
+        payload["projection_summary"] = self.projection.summary()
+        payload["authority_split"] = authority_split
+        return payload
 
 
 def scheduler_work_trajectory_json_path(project_root: str | Path) -> Path:
@@ -516,6 +549,53 @@ def run_host_authorized_scheduler_once_and_refresh_projection(
     )
     return HostSchedulerRunProjectionRefreshResult(
         host_run=replace(host_run, scheduler_projection_path=projection_path),
+        projection_path=projection_path,
+        projection=LocalWorkTrajectory.from_json(projection_path.read_text(encoding="utf-8")),
+    )
+
+
+def run_host_authorized_scheduler_daemon_loop_and_refresh_projection(
+    project_root: str | Path,
+    request: HostSchedulerDaemonLoopRequest,
+    *,
+    artifact_store: InMemoryArtifactVersionStore | None = None,
+    coordination_event_log: JsonlCoordinationEventLog | None = None,
+    qoder_query_client: QoderQueryClient | None = None,
+    sandbox_registry: SandboxProviderRegistry | None = None,
+    merge_gate_event_log_path: str | Path | None = None,
+    projection_output_path: str | Path | None = None,
+    trajectory_id: str = "local-work:scheduler-projection",
+    title: str = "Scheduler Local Work Trajectory",
+    recorded_at: str = "",
+    guide_context: str = "",
+    source_graph_id: str = "",
+    source_node_id: str = "",
+) -> HostSchedulerDaemonLoopProjectionRefreshResult:
+    """Run a host-authorized daemon loop and refresh its read-only projection."""
+
+    host_loop = run_host_authorized_scheduler_daemon_loop(
+        request,
+        artifact_store=artifact_store,
+        coordination_event_log=coordination_event_log,
+        qoder_query_client=qoder_query_client,
+        sandbox_registry=sandbox_registry,
+    )
+    state = read_scheduler_state_snapshot(request.snapshot_path)
+    projection_path = write_scheduler_work_trajectory_artifact(
+        project_root,
+        state,
+        scheduler_event_log_path=request.event_log_path,
+        merge_gate_event_log_path=merge_gate_event_log_path,
+        output_path=projection_output_path,
+        trajectory_id=trajectory_id,
+        title=title,
+        recorded_at=recorded_at or request.timestamp,
+        guide_context=guide_context,
+        source_graph_id=source_graph_id,
+        source_node_id=source_node_id,
+    )
+    return HostSchedulerDaemonLoopProjectionRefreshResult(
+        host_loop=replace(host_loop, scheduler_projection_refreshed=True),
         projection_path=projection_path,
         projection=LocalWorkTrajectory.from_json(projection_path.read_text(encoding="utf-8")),
     )
