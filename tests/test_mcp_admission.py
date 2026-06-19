@@ -18,6 +18,7 @@ from src.runtime.orchestration import (
     read_scheduler_state_snapshot,
     scheduler_task_submission_to_artifact,
     seed_scheduler_operator_dogfood_fixture,
+    seed_scheduler_operator_multilane_dogfood_fixture,
 )
 
 
@@ -134,7 +135,7 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
 
 
 def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Path) -> None:
-    seed_scheduler_operator_dogfood_fixture(tmp_path)
+    seed_scheduler_operator_multilane_dogfood_fixture(tmp_path)
     server = create_server(tmp_path, dry_run=True)
 
     async def exercise_server() -> None:
@@ -152,11 +153,13 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
                 params=CallToolRequestParams(
                     name="schedulerOperatorWorkflow",
                     arguments={
-                        "artifactId": "fixture:scheduler-operator-dogfood",
+                        "artifactId": "fixture:scheduler-operator-multilane-dogfood",
                         "version": "v1",
                         "admit": True,
                         "runLoop": True,
                         "refreshProjection": True,
+                        "maxTicks": 4,
+                        "maxRunsPerTick": 2,
                         "evidenceId": "mcp-operator-workflow",
                         "timestamp": "2026-06-19T11:45:00+08:00",
                     },
@@ -166,11 +169,16 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         payload = json.loads(call_result.root.content[0].text)
         assert payload["ok"] is True
         assert payload["admission_result"]["submitted_task_ids"] == [
-            "dogfood:prepare",
-            "dogfood:verify",
+            "dogfood:api-design",
+            "dogfood:data-schema",
+            "dogfood:client-integration",
+            "dogfood:integration-verify",
         ]
-        assert payload["loop_result"]["total_run_count"] == 2
-        assert payload["projection_result"]["event_count"] == 2
+        assert payload["admission_result"]["dependency_count"] == 4
+        assert payload["loop_result"]["tick_count"] == 2
+        assert payload["loop_result"]["total_run_count"] == 4
+        assert payload["projection_result"]["lane_count"] == 4
+        assert payload["projection_result"]["event_count"] == 6
         assert payload["host_evidence_presentation"]["card_count"] == 1
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 

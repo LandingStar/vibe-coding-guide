@@ -353,7 +353,7 @@ _SCHEDULER_PROJECT_USAGE = (
 
 _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE = (
     "Usage: doc-based-coding scheduler seed-dogfood-fixture "
-    "[--artifact-store-path PATH] [--artifact-id ID] [--version VERSION] "
+    "[--fixture simple|multilane] [--artifact-store-path PATH] [--artifact-id ID] [--version VERSION] "
     "[--replace-existing] [--created-at TIMESTAMP]"
 )
 
@@ -562,11 +562,13 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
         print(
             _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE + "\n\n"
             "This writes only a controlled ExchangeArtifact scheduler-admission candidate. "
-            "It does not admit tasks, run providers, refresh scheduler projection, write "
-            "Host Evidence, or mutate Local Work Trajectory.",
+            "The default fixture is simple; --fixture multilane writes a richer fake-runtime "
+            "cross-lane candidate. It does not admit tasks, run providers, refresh scheduler "
+            "projection, write Host Evidence, or mutate Local Work Trajectory.",
         )
         return 0
 
+    fixture = "simple"
     artifact_store_path = ""
     artifact_id = ""
     version = ""
@@ -585,6 +587,7 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
             "--artifact-id",
             "--version",
             "--created-at",
+            "--fixture",
         }:
             if i + 1 >= len(args):
                 print(_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE, file=sys.stderr)
@@ -599,6 +602,8 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
                 version = value
             elif arg == "--created-at":
                 created_at = value
+            elif arg == "--fixture":
+                fixture = value
             i += 2
             continue
         print(f"Unknown scheduler seed-dogfood-fixture option: {arg}", file=sys.stderr)
@@ -610,22 +615,40 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
         from .runtime.orchestration import (
             DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
             DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
+            DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID,
+            DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION,
             seed_scheduler_operator_dogfood_fixture,
+            seed_scheduler_operator_multilane_dogfood_fixture,
         )
 
+        if fixture not in {"simple", "multilane"}:
+            print(_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE, file=sys.stderr)
+            print("--fixture must be simple or multilane", file=sys.stderr)
+            return 1
         target_store = (
             _resolve_project_path(root, artifact_store_path)
             if artifact_store_path
             else None
         )
-        result = seed_scheduler_operator_dogfood_fixture(
-            root,
-            artifact_store_path=target_store,
-            artifact_id=artifact_id or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
-            version=version or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
-            replace_existing=replace_existing,
-            created_at=created_at or "2026-06-19T00:00:00+00:00",
-        )
+        if fixture == "multilane":
+            result = seed_scheduler_operator_multilane_dogfood_fixture(
+                root,
+                artifact_store_path=target_store,
+                artifact_id=artifact_id
+                or DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID,
+                version=version or DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION,
+                replace_existing=replace_existing,
+                created_at=created_at or "2026-06-19T00:00:00+00:00",
+            )
+        else:
+            result = seed_scheduler_operator_dogfood_fixture(
+                root,
+                artifact_store_path=target_store,
+                artifact_id=artifact_id or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
+                version=version or DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
+                replace_existing=replace_existing,
+                created_at=created_at or "2026-06-19T00:00:00+00:00",
+            )
     except Exception as e:
         return _handle_error(
             "Error seeding scheduler operator dogfood fixture",

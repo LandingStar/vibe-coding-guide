@@ -90,6 +90,7 @@ from src.runtime.orchestration import (
     build_runtime_registry_from_config,
     build_scheduler_loop_evidence,
     seed_scheduler_operator_dogfood_fixture,
+    seed_scheduler_operator_multilane_dogfood_fixture,
     drain_preflighted_ready_tasks,
     drain_ready_tasks,
     evaluate_stop_condition,
@@ -3180,6 +3181,56 @@ def test_seed_scheduler_operator_dogfood_fixture_creates_candidate_only(tmp_path
     )
 
 
+def test_seed_scheduler_operator_multilane_dogfood_fixture_creates_candidate_only(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+
+    result = seed_scheduler_operator_multilane_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+    )
+    bundle = inspect_exchange_artifact_store(store_path)
+    payload = result.to_json_dict()
+
+    assert isinstance(result, SchedulerOperatorDogfoodFixtureResult)
+    assert payload["artifact_id"] == "fixture:scheduler-operator-multilane-dogfood"
+    assert payload["version"] == "v1"
+    assert payload["product_type"] == "scheduler_task_batch_submission"
+    assert payload["batch_id"] == "batch:scheduler-operator-multilane-dogfood"
+    assert payload["task_ids"] == [
+        "dogfood:api-design",
+        "dogfood:data-schema",
+        "dogfood:client-integration",
+        "dogfood:integration-verify",
+    ]
+    assert payload["lane_ids"] == ["lane:api", "lane:data", "lane:client", "lane:qa"]
+    assert payload["dependency_ids"] == [
+        "dep:dogfood-api->dogfood-client",
+        "dep:dogfood-data->dogfood-client",
+        "dep:dogfood-client->dogfood-integration",
+        "dep:dogfood-data->dogfood-integration",
+    ]
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert store_path.exists()
+    assert not snapshot_path.exists()
+    assert not ledger_path.exists()
+    assert bundle.admission_candidate_count == 1
+    candidate = bundle.summaries[0].admission_candidates[0]
+    assert candidate.artifact_id == "fixture:scheduler-operator-multilane-dogfood"
+    assert candidate.batch_id == "batch:scheduler-operator-multilane-dogfood"
+    assert candidate.task_count == 4
+    assert candidate.task_ids == (
+        "dogfood:api-design",
+        "dogfood:data-schema",
+        "dogfood:client-integration",
+        "dogfood:integration-verify",
+    )
+
+
 def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_path) -> None:
     store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
     seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
@@ -3284,6 +3335,70 @@ def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
     assert (tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-loop.json").exists()
+    assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_full_multilane_dogfood_flow(tmp_path) -> None:
+    seed_scheduler_operator_multilane_dogfood_fixture(tmp_path)
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="fixture:scheduler-operator-multilane-dogfood",
+            version="v1",
+            admit=True,
+            run_loop=True,
+            refresh_projection=True,
+            max_ticks=4,
+            max_runs_per_tick=2,
+            evidence_id="workflow-helper-multilane-loop",
+            timestamp="2026-06-19T12:30:00+08:00",
+            guide_context="workflow-helper-multilane-test",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:api-design",
+        "dogfood:data-schema",
+        "dogfood:client-integration",
+        "dogfood:integration-verify",
+    ]
+    assert payload["admission_result"]["dependency_count"] == 4
+    assert payload["loop_result"]["tick_count"] == 2
+    assert payload["loop_result"]["total_run_count"] == 4
+    assert payload["loop_result"]["stop_reason"] == "no_ready_tasks"
+    assert payload["loop_result"]["final_queue_summary"]["completed_task_ids"] == [
+        "dogfood:api-design",
+        "dogfood:client-integration",
+        "dogfood:data-schema",
+        "dogfood:integration-verify",
+    ]
+    assert payload["projection_result"]["event_count"] == 6
+    assert payload["projection_result"]["lane_count"] == 4
+    assert payload["projection_result"]["relation_count"] >= 8
+    assert payload["projection_result"]["guide_context"] == "workflow-helper-multilane-test"
+    assert payload["host_evidence_presentation"]["card_count"] == 1
+    assert payload["host_evidence_presentation"]["cards"][0]["id"] == "workflow-helper-multilane-loop"
+    assert payload["host_evidence_presentation"]["cards"][0]["run_count"] == 4
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert (
+        tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-multilane-loop.json"
+    ).exists()
     assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 

@@ -96,8 +96,10 @@ def test_scheduler_seed_dogfood_fixture_help_describes_non_goals() -> None:
 
     assert proc.returncode == 0
     assert "--artifact-store-path PATH" in proc.stdout
+    assert "--fixture simple|multilane" in proc.stdout
     assert "--replace-existing" in proc.stdout
     assert "controlled ExchangeArtifact scheduler-admission candidate" in proc.stdout
+    assert "multilane" in proc.stdout
     assert "does not admit tasks" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
@@ -716,6 +718,93 @@ def test_scheduler_operator_workflow_cli_runs_shared_surface(tmp_path) -> None:
     assert payload["authority_split"]["scheduler_projection_refreshed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (project / ".codex" / "scheduler" / "evidence" / "operator-workflow-cli.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_multilane_dogfood_fixture_cli_runs_shared_surface(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    seed = _run_cli(
+        [
+            "scheduler",
+            "seed-dogfood-fixture",
+            "--fixture",
+            "multilane",
+            "--created-at",
+            "2026-06-19T12:00:00+08:00",
+        ],
+        cwd=project,
+    )
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "fixture:scheduler-operator-multilane-dogfood",
+            "--version",
+            "v1",
+            "--admit",
+            "--run-loop",
+            "--refresh-projection",
+            "--max-ticks",
+            "4",
+            "--max-runs-per-tick",
+            "2",
+            "--evidence-id",
+            "operator-workflow-multilane-cli",
+            "--timestamp",
+            "2026-06-19T12:40:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    seeded = json.loads(seed.stdout)
+    assert seeded["artifact_id"] == "fixture:scheduler-operator-multilane-dogfood"
+    assert seeded["batch_id"] == "batch:scheduler-operator-multilane-dogfood"
+    assert seeded["task_ids"] == [
+        "dogfood:api-design",
+        "dogfood:data-schema",
+        "dogfood:client-integration",
+        "dogfood:integration-verify",
+    ]
+    assert seeded["lane_ids"] == ["lane:api", "lane:data", "lane:client", "lane:qa"]
+    assert seeded["dependency_ids"] == [
+        "dep:dogfood-api->dogfood-client",
+        "dep:dogfood-data->dogfood-client",
+        "dep:dogfood-client->dogfood-integration",
+        "dep:dogfood-data->dogfood-integration",
+    ]
+    assert seeded["authority_split"]["scheduler_state_mutated"] is False
+
+    assert workflow.returncode == 0, workflow.stderr
+    payload = json.loads(workflow.stdout)
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "scheduler-operator-workflow"
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:api-design",
+        "dogfood:data-schema",
+        "dogfood:client-integration",
+        "dogfood:integration-verify",
+    ]
+    assert payload["admission_result"]["dependency_count"] == 4
+    assert payload["loop_result"]["tick_count"] == 2
+    assert payload["loop_result"]["total_run_count"] == 4
+    assert payload["projection_result"]["lane_count"] == 4
+    assert payload["projection_result"]["event_count"] == 6
+    assert payload["host_evidence_presentation"]["card_count"] == 1
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (
+        project / ".codex" / "scheduler" / "evidence" / "operator-workflow-multilane-cli.json"
+    ).exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

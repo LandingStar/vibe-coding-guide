@@ -18,6 +18,13 @@ from .scheduler_submission import (
 DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID = "fixture:scheduler-operator-dogfood"
 DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION = "v1"
 DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_BATCH_ID = "batch:scheduler-operator-dogfood"
+DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID = (
+    "fixture:scheduler-operator-multilane-dogfood"
+)
+DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION = "v1"
+DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_BATCH_ID = (
+    "batch:scheduler-operator-multilane-dogfood"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +37,7 @@ class SchedulerOperatorDogfoodFixtureResult:
     batch_id: str
     task_ids: tuple[str, ...]
     dependency_ids: tuple[str, ...]
+    lane_ids: tuple[str, ...] = ()
     replaced_existing: bool = False
 
     def to_json_dict(self) -> dict[str, object]:
@@ -44,6 +52,7 @@ class SchedulerOperatorDogfoodFixtureResult:
             "batch_id": self.batch_id,
             "task_ids": list(self.task_ids),
             "dependency_ids": list(self.dependency_ids),
+            "lane_ids": list(self.lane_ids),
             "candidate_created": True,
             "replaced_existing": self.replaced_existing,
             "authority_split": {
@@ -119,6 +128,132 @@ def build_scheduler_operator_dogfood_batch() -> SchedulerTaskBatchSubmission:
     )
 
 
+def build_scheduler_operator_multilane_dogfood_batch() -> SchedulerTaskBatchSubmission:
+    """Build the deterministic multi-lane scheduler operator dogfood batch."""
+
+    api_design = SchedulerTaskSubmission(
+        task_id="dogfood:api-design",
+        title="Design dogfood API contract",
+        instruction=(
+            "Use the fake runtime to complete the API contract lane. "
+            "This is one independent start point for the multi-lane fixture."
+        ),
+        agent=AgentSpec(
+            agent_id="agent:dogfood-api",
+            runtime_provider="fake",
+            display_name="Dogfood API Agent",
+            tools=("read",),
+            max_turns=1,
+        ),
+        context_scope=ContextScope(
+            context_id="context:dogfood-api",
+            lane_id="lane:api",
+        ),
+        acceptance=("fake runtime completes dogfood:api-design",),
+        output_artifact_id="dogfood:api-design:result",
+    )
+    data_schema = SchedulerTaskSubmission(
+        task_id="dogfood:data-schema",
+        title="Prepare dogfood data schema",
+        instruction=(
+            "Use the fake runtime to complete the data lane. "
+            "This is the second independent start point for the multi-lane fixture."
+        ),
+        agent=AgentSpec(
+            agent_id="agent:dogfood-data",
+            runtime_provider="fake",
+            display_name="Dogfood Data Agent",
+            tools=("read",),
+            max_turns=1,
+        ),
+        context_scope=ContextScope(
+            context_id="context:dogfood-data",
+            lane_id="lane:data",
+        ),
+        acceptance=("fake runtime completes dogfood:data-schema",),
+        output_artifact_id="dogfood:data-schema:result",
+    )
+    client_integration = SchedulerTaskSubmission(
+        task_id="dogfood:client-integration",
+        title="Integrate dogfood client",
+        instruction=(
+            "Use the fake runtime to complete the client lane after the API and "
+            "data lanes have both completed."
+        ),
+        agent=AgentSpec(
+            agent_id="agent:dogfood-client",
+            runtime_provider="fake",
+            display_name="Dogfood Client Agent",
+            tools=("read",),
+            max_turns=1,
+        ),
+        context_scope=ContextScope(
+            context_id="context:dogfood-client",
+            lane_id="lane:client",
+        ),
+        acceptance=("fake runtime completes dogfood:client-integration after fan-in",),
+        output_artifact_id="dogfood:client-integration:result",
+        dependencies=(
+            TaskDependency(
+                dependency_id="dep:dogfood-api->dogfood-client",
+                source_task_id="dogfood:api-design",
+                target_task_id="dogfood:client-integration",
+                required_state="complete",
+            ),
+            TaskDependency(
+                dependency_id="dep:dogfood-data->dogfood-client",
+                source_task_id="dogfood:data-schema",
+                target_task_id="dogfood:client-integration",
+                required_state="complete",
+            ),
+        ),
+    )
+    integration_verify = SchedulerTaskSubmission(
+        task_id="dogfood:integration-verify",
+        title="Verify dogfood integration",
+        instruction=(
+            "Use the fake runtime to complete the QA lane after client integration "
+            "and the data schema are available."
+        ),
+        agent=AgentSpec(
+            agent_id="agent:dogfood-qa",
+            runtime_provider="fake",
+            display_name="Dogfood QA Agent",
+            tools=("read",),
+            max_turns=1,
+        ),
+        context_scope=ContextScope(
+            context_id="context:dogfood-qa",
+            lane_id="lane:qa",
+        ),
+        acceptance=("fake runtime completes dogfood:integration-verify after fan-in",),
+        output_artifact_id="dogfood:integration-verify:result",
+        dependencies=(
+            TaskDependency(
+                dependency_id="dep:dogfood-client->dogfood-integration",
+                source_task_id="dogfood:client-integration",
+                target_task_id="dogfood:integration-verify",
+                required_state="complete",
+            ),
+            TaskDependency(
+                dependency_id="dep:dogfood-data->dogfood-integration",
+                source_task_id="dogfood:data-schema",
+                target_task_id="dogfood:integration-verify",
+                required_state="complete",
+            ),
+        ),
+    )
+    return SchedulerTaskBatchSubmission(
+        batch_id=DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_BATCH_ID,
+        title="Scheduler operator multi-lane dogfood fixture",
+        summary=(
+            "Four fake-runtime tasks across api, data, client, and qa lanes used "
+            "to validate cross-lane scheduler operator workflow behavior."
+        ),
+        tasks=(api_design, data_schema, client_integration, integration_verify),
+    )
+
+
 def seed_scheduler_operator_dogfood_fixture(
     project_root: str | Path,
     *,
@@ -130,6 +265,52 @@ def seed_scheduler_operator_dogfood_fixture(
 ) -> SchedulerOperatorDogfoodFixtureResult:
     """Seed one deterministic scheduler admission candidate into the local store."""
 
+    return _seed_scheduler_operator_fixture(
+        project_root,
+        batch=build_scheduler_operator_dogfood_batch(),
+        artifact_store_path=artifact_store_path,
+        artifact_id=artifact_id,
+        version=version,
+        producer="scheduler-operator-dogfood-fixture",
+        replace_existing=replace_existing,
+        created_at=created_at,
+    )
+
+
+def seed_scheduler_operator_multilane_dogfood_fixture(
+    project_root: str | Path,
+    *,
+    artifact_store_path: str | Path | None = None,
+    artifact_id: str = DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID,
+    version: str = DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION,
+    replace_existing: bool = False,
+    created_at: str = "2026-06-19T00:00:00+00:00",
+) -> SchedulerOperatorDogfoodFixtureResult:
+    """Seed one deterministic multi-lane scheduler admission candidate."""
+
+    return _seed_scheduler_operator_fixture(
+        project_root,
+        batch=build_scheduler_operator_multilane_dogfood_batch(),
+        artifact_store_path=artifact_store_path,
+        artifact_id=artifact_id,
+        version=version,
+        producer="scheduler-operator-multilane-dogfood-fixture",
+        replace_existing=replace_existing,
+        created_at=created_at,
+    )
+
+
+def _seed_scheduler_operator_fixture(
+    project_root: str | Path,
+    *,
+    batch: SchedulerTaskBatchSubmission,
+    artifact_store_path: str | Path | None,
+    artifact_id: str,
+    version: str,
+    producer: str,
+    replace_existing: bool,
+    created_at: str,
+) -> SchedulerOperatorDogfoodFixtureResult:
     if not artifact_id:
         raise ValueError("scheduler operator dogfood fixture requires a non-empty artifact_id")
     if not version:
@@ -142,11 +323,10 @@ def seed_scheduler_operator_dogfood_fixture(
         if artifact_store_path is not None
         else default_exchange_artifact_store_path(project_root)
     )
-    batch = build_scheduler_operator_dogfood_batch()
     artifact = scheduler_task_batch_submission_to_artifact(
         batch,
         artifact_id=artifact_id,
-        producer="scheduler-operator-dogfood-fixture",
+        producer=producer,
         created_at=created_at,
         version=version,
     )
@@ -165,6 +345,13 @@ def seed_scheduler_operator_dogfood_fixture(
             dependency.dependency_id
             for task in batch.tasks
             for dependency in task.dependencies
+        ),
+        lane_ids=tuple(
+            dict.fromkeys(
+                task.context_scope.lane_id
+                for task in batch.tasks
+                if task.context_scope.lane_id
+            )
         ),
         replaced_existing=replaced_existing,
     )
