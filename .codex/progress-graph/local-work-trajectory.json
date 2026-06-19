@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Host-Injected Runtime Daemon Loop",
-  "recorded_at": "2026-06-19T07:26:14.318469+00:00",
+  "title": "Scheduler admission host evidence operator workflow product slice",
+  "recorded_at": "2026-06-19T11:18:36.851428+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md",
+  "guide_context": "design_docs/host-evidence-ui-binding-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Host-Injected Runtime Daemon Loop",
+    "title": "Scheduler admission host evidence operator workflow product slice",
     "lane_count": 1,
-    "event_count": 5,
-    "relation_count": 4,
+    "event_count": 3,
+    "relation_count": 2,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "host loop",
+      "label": "product workflow",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md"
+        "context": "design_docs/host-evidence-ui-binding-followup-direction-analysis.md"
       }
     }
   },
@@ -36,72 +36,46 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Create host-injected scheduler daemon loop planning gate",
+      "title": "Recover state and define next contract-first gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
-      "summary": "",
+      "summary": "恢复上下文：已通过 governance/check_constraints 确认当前 phase 为 Post-v1.0 / Host evidence UI binding close，当前无 active planning-gate；下一步重读 checklist、phase map、checkpoint 与 follow-up direction，定位 scheduler admission + host evidence operator workflow 的窄切片。",
       "metadata": {
-        "created_at": "2026-06-19T07:15:04.373292+00:00",
-        "activated_at": "2026-06-19T07:15:04.373292+00:00",
+        "created_at": "2026-06-19T10:49:01.698524+00:00",
+        "activated_at": "2026-06-19T10:49:01.698524+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T07:16:40.214563+00:00"
+        "updated_at": "2026-06-19T10:51:37.197748+00:00",
+        "completed_at": "2026-06-19T10:53:07.717470+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement host-injected scheduler daemon loop helper",
+      "title": "Write scheduler admission host evidence workflow planning gate",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Add host-owned daemon-loop request/result/helper using RuntimeRegistryWiringConfig, injected runtime clients, bounded scheduler loop, and optional scheduler_loop_evidence write.",
+      "summary": "Contract-first 写入 scheduler admission + host evidence operator workflow UI 的窄 planning-gate，明确本轮交付、非目标、权限边界、UI/后端分工和验证门。",
       "metadata": {
-        "created_at": "2026-06-19T07:16:47.579985+00:00",
+        "created_at": "2026-06-19T10:53:15.637598+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T07:23:03.160830+00:00"
+        "completed_at": "2026-06-19T10:54:37.250050+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate host-injected scheduler daemon loop",
-      "kind": "validation",
+      "title": "Implement scheduler operator workflow UI binding",
+      "kind": "task",
       "status": "completed",
       "order": 3,
-      "summary": "Run focused CLI/runtime/progress graph evidence/MCP admission/doc-loop prompt suite and record validation evidence.",
+      "summary": "已完成 Scheduler Operator UI/helper 接线、状态文档回写与验证：新增 VS Code Host UX helper、preview section、focused tests、planning/review/follow-up docs；Checklist / Phase Map / checkpoint 已推进到当前切片；VS Code build、focused preview tests 与 backend empty-state smokes 已通过。",
       "metadata": {
-        "created_at": "2026-06-19T07:23:16.187998+00:00",
+        "created_at": "2026-06-19T10:54:44.033067+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T07:23:27.245773+00:00"
-      }
-    },
-    "event:004": {
-      "id": "event:004",
-      "lane_id": "lane:main",
-      "title": "Write back host-injected scheduler daemon loop status",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 4,
-      "summary": "Update planning gate, review, follow-up analysis, Checklist, Phase Map, checkpoint, run change analysis, and commit the host-injected scheduler daemon loop slice.",
-      "metadata": {
-        "created_at": "2026-06-19T07:25:54.922504+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T07:26:01.470950+00:00"
-      }
-    },
-    "event:005": {
-      "id": "event:005",
-      "lane_id": "lane:main",
-      "title": "Close host-injected scheduler daemon loop",
-      "kind": "close",
-      "status": "completed",
-      "order": 5,
-      "summary": "Close the local trajectory after host daemon-loop implementation, validation, status writeback, and commit preparation.",
-      "metadata": {
-        "created_at": "2026-06-19T07:26:07.932307+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T07:26:14.318469+00:00"
+        "updated_at": "2026-06-19T11:17:45.280780+00:00",
+        "completed_at": "2026-06-19T11:18:36.851428+00:00"
       }
     }
   },
@@ -118,24 +92,6 @@
     {
       "source_event_id": "event:002",
       "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:003",
-      "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:004",
-      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

@@ -1,3 +1,8 @@
+import type {
+  SchedulerOperatorExchangeCandidate,
+  SchedulerOperatorWorkflowState,
+} from './schedulerOperatorWorkflow';
+
 export type ProgressGraphPreviewFreshness = 'missing' | 'fresh' | 'stale' | 'refreshing' | 'failed';
 
 export type ProgressGraphPreviewArtifactState = {
@@ -23,6 +28,7 @@ export type ProgressGraphPreviewArtifactState = {
   hostEvidencePresentationResourceUri: string;
   hostEvidencePresentation: ProgressGraphPreviewHostEvidencePresentation | null;
   hostEvidencePresentationError: string | null;
+  schedulerOperatorWorkflow: SchedulerOperatorWorkflowState;
   v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null;
   v2GraphPayloadError: string | null;
 };
@@ -1978,6 +1984,107 @@ function buildParallelPreviewHtml(
     border-top: 1px solid rgba(255, 178, 166, 0.22);
     background: transparent;
   }
+  .pg-host-scheduler-operator-card {
+    display: grid;
+    gap: 12px;
+  }
+  .pg-host-scheduler-operator-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pg-host-scheduler-operator-actions,
+  .pg-host-scheduler-candidate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .pg-host-scheduler-operator-button {
+    min-height: 28px;
+    border: 1px solid rgba(163, 218, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(95, 164, 220, 0.18);
+    color: #f8f4ef;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .pg-host-scheduler-operator-button:hover:not(:disabled) {
+    background: rgba(95, 164, 220, 0.28);
+    border-color: rgba(163, 218, 255, 0.34);
+  }
+  .pg-host-scheduler-operator-button:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .pg-host-scheduler-operator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+    gap: 8px;
+  }
+  .pg-host-scheduler-candidates {
+    display: grid;
+    gap: 9px;
+  }
+  .pg-host-scheduler-candidate {
+    display: grid;
+    gap: 8px;
+    padding: 10px 0 11px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .pg-host-scheduler-candidate-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pg-host-scheduler-candidate-title {
+    margin: 0;
+    color: #f8f4ef;
+    font-size: 0.84rem;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-scheduler-candidate-meta {
+    margin: 3px 0 0;
+    color: rgba(248, 244, 239, 0.66);
+    font-size: 0.74rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-scheduler-action-result {
+    display: grid;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .pg-host-scheduler-action-result[data-pg-action-status="succeeded"] {
+    border-color: rgba(95, 224, 170, 0.18);
+  }
+  .pg-host-scheduler-action-result[data-pg-action-status="failed"] {
+    border-color: rgba(255, 178, 166, 0.22);
+  }
+  .pg-host-scheduler-output {
+    max-height: 140px;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: auto;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+    color: rgba(248, 244, 239, 0.78);
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
   .graph-section {
     position: relative;
     border-radius: 18px;
@@ -2224,6 +2331,23 @@ function buildParallelPreviewHtml(
   document.getElementById('pgHostRevealButton')?.addEventListener('click', () => {
     vscode.postMessage({ command: 'revealArtifact' });
   });
+  for (const button of document.querySelectorAll('[data-pg-scheduler-action]')) {
+    button.addEventListener('click', (event) => {
+      const target = event.currentTarget;
+      if (!(target instanceof HTMLButtonElement)) {
+        return;
+      }
+      const action = target.dataset.pgSchedulerAction || '';
+      target.disabled = true;
+      target.textContent = action === 'admit' ? 'Admitting...' : action === 'runLoop' ? 'Running...' : 'Refreshing...';
+      vscode.postMessage({
+        command: 'schedulerOperatorAction',
+        action,
+        artifactId: target.dataset.pgArtifactId || '',
+        version: target.dataset.pgVersion || '',
+      });
+    });
+  }
   if (hostChromeDock instanceof HTMLDivElement && hostChromeContent instanceof HTMLDivElement && hostChromePeek instanceof HTMLButtonElement) {
     const stateKey = 'pgHostChromeCollapsed';
     let collapsed = Boolean(vscode.getState()?.[stateKey]);
@@ -2823,6 +2947,7 @@ function buildControlOverlay(state: ProgressGraphPreviewState): string {
 
   return `<section class="pg-host-control-overlay" data-control-snapshot-status="${snapshotStatus}" data-control-snapshot-path="${escapeHtml(state.controlSnapshotPath)}" data-control-snapshot-error="${escapeHtml(state.controlSnapshotError ?? '')}">
   ${buildControlSummaryRail(state)}
+  ${buildSchedulerOperatorSection(state)}
   ${buildHostEvidenceSection(state)}
   <div class="pg-host-control-grid">
     ${buildCompanionCard(state)}
@@ -2855,6 +2980,135 @@ function buildControlSummaryRail(state: ProgressGraphPreviewState): string {
   <p class="pg-host-control-card-subtitle">runtime snapshot generated at ${escapeHtml(formatTimestamp(snapshot.generated_at))}</p>
   <div class="pg-host-summary-rail">${metrics}</div>
 </section>`;
+}
+
+function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string {
+  const workflow = state.schedulerOperatorWorkflow;
+  const exchange = workflow.exchange;
+  const lastAction = workflow.lastAction;
+  const pathFacts = [
+    ['Store', workflow.paths.artifactStorePath],
+    ['Ledger', workflow.paths.admissionLedgerPath],
+    ['Snapshot', workflow.paths.schedulerSnapshotPath],
+    ['Event log', workflow.paths.schedulerEventLogPath],
+    ['Projection', workflow.paths.schedulerProjectionPath],
+  ].map(([label, value]) => (
+    `<div class="pg-host-evidence-fact">
+      <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+      <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
+    </div>`
+  )).join('');
+  const exchangeFacts = exchange
+    ? [
+      ['Store exists', String(exchange.exists)],
+      ['Artifacts', String(exchange.artifactCount)],
+      ['Versions', String(exchange.versionCount)],
+      ['Admission candidates', String(exchange.admissionCandidateCount)],
+      ['Ledger exists', String(exchange.admissionLedgerExists)],
+    ].map(([label, value]) => (
+      `<div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+        <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
+      </div>`
+    )).join('')
+    : '';
+  const scheduler = workflow.scheduler;
+  const schedulerFacts = scheduler
+    ? [
+      ['Snapshot exists', String(scheduler.snapshotExists)],
+      ['Tasks', String(scheduler.taskCount)],
+      ['Dependencies', String(scheduler.dependencyCount)],
+      ['Run records', String(scheduler.runRecordCount)],
+      ['Scheduler events', String(scheduler.schedulerEventCount)],
+    ].map(([label, value]) => (
+      `<div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+        <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
+      </div>`
+    )).join('')
+    : '';
+  const candidateList = exchange?.candidates.length
+    ? `<div class="pg-host-scheduler-candidates">
+      <p class="pg-host-evidence-group-title">Admission candidates</p>
+      ${exchange.candidates.map((candidate) => buildSchedulerOperatorCandidate(candidate, lastAction.status === 'running')).join('')}
+    </div>`
+    : `<p class="pg-host-control-card-subtitle">No scheduler-admission candidates are currently present in the ExchangeArtifact store.</p>`;
+  const readError = workflow.exchangeReadError
+    ? `<div class="pg-host-scheduler-action-result" data-pg-action-status="failed">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">exchange read failed</span>
+      <p class="pg-host-control-card-subtitle">${escapeHtml(workflow.exchangeReadError)}</p>
+    </div>`
+    : '';
+  const schedulerReadError = workflow.schedulerReadError
+    ? `<p class="pg-host-control-card-subtitle">Scheduler state readback unavailable: ${escapeHtml(workflow.schedulerReadError)}</p>`
+    : '';
+  const errors = exchange?.errors.length
+    ? buildHostEvidenceChipGroup('Exchange read errors', exchange.errors)
+    : '';
+  const lastActionHtml = lastAction.status === 'idle'
+    ? ''
+    : `<div class="pg-host-scheduler-action-result" data-pg-action-status="${escapeHtml(lastAction.status)}">
+      <div class="pg-host-evidence-chip-row">
+        <span class="pg-host-evidence-badge" data-pg-evidence-status="${lastAction.status === 'failed' ? 'failed' : lastAction.status === 'succeeded' ? 'completed' : 'unknown'}">${escapeHtml(lastAction.status)}</span>
+        <span class="pg-host-evidence-badge">${escapeHtml(lastAction.action || 'scheduler action')}</span>
+      </div>
+      <p class="pg-host-control-card-subtitle">${escapeHtml(lastAction.summary || 'action completed')}</p>
+      ${lastAction.stderr ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stderr)}</pre>` : ''}
+      ${lastAction.stdout ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stdout)}</pre>` : ''}
+    </div>`;
+
+  return `<section id="pgHostSchedulerOperatorPanel" class="pg-host-control-card pg-host-scheduler-operator-card">
+  <div class="pg-host-scheduler-operator-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Scheduler Operator</h2>
+      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(workflow.exchangeResourceUri)} · explicit admit / bounded run / projection refresh</p>
+    </div>
+    <div class="pg-host-scheduler-operator-actions">
+      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="runLoop" ${lastAction.status === 'running' ? 'disabled' : ''}>Run bounded loop</button>
+      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="project" ${lastAction.status === 'running' ? 'disabled' : ''}>Refresh projection</button>
+    </div>
+  </div>
+  <div class="pg-host-scheduler-operator-grid">${exchangeFacts || pathFacts}${schedulerFacts}</div>
+  ${schedulerReadError}
+  ${readError}
+  ${candidateList}
+  ${errors}
+  ${lastActionHtml}
+</section>`;
+}
+
+function buildSchedulerOperatorCandidate(
+  candidate: SchedulerOperatorExchangeCandidate,
+  actionRunning: boolean,
+): string {
+  const taskLabel = candidate.taskIds.length
+    ? candidate.taskIds.join(', ')
+    : `${candidate.taskCount} task(s)`;
+  const alreadyAdmitted = candidate.admissionStatus === 'admitted';
+  const statusLabel = [
+    `admission=${candidate.admissionStatus || 'unknown'}`,
+    candidate.latestAdmissionStatus ? `latest=${candidate.latestAdmissionStatus}` : '',
+    candidate.batchId ? `batch=${candidate.batchId}` : '',
+  ].filter(Boolean).join(' · ');
+  return `<article class="pg-host-scheduler-candidate">
+    <div class="pg-host-scheduler-candidate-head">
+      <div>
+        <h3 class="pg-host-scheduler-candidate-title">${escapeHtml(candidate.artifactId)}@${escapeHtml(candidate.version)}</h3>
+        <p class="pg-host-scheduler-candidate-meta">${escapeHtml(candidate.productType)} · ${escapeHtml(taskLabel)}</p>
+        <p class="pg-host-scheduler-candidate-meta">${escapeHtml(statusLabel)}</p>
+      </div>
+      <div class="pg-host-scheduler-candidate-actions">
+        <button
+          class="pg-host-scheduler-operator-button"
+          type="button"
+          data-pg-scheduler-action="admit"
+          data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
+          data-pg-version="${escapeHtml(candidate.version)}"
+          ${actionRunning || alreadyAdmitted ? 'disabled' : ''}
+        >${alreadyAdmitted ? 'Admitted' : 'Admit'}</button>
+      </div>
+    </div>
+  </article>`;
 }
 
 function buildCompanionCard(state: ProgressGraphPreviewState): string {

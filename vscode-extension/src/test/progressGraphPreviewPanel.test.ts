@@ -100,6 +100,31 @@ test('preview panel reads host evidence presentation as a read-only resource', (
   assert.doesNotMatch(hostEvidenceSource, /write_resource|callTool|localTrajectory|scheduler daemon-loop/);
 });
 
+test('preview panel wires scheduler operator workflow through explicit existing CLI surfaces', () => {
+  const source = readFileSync(sourcePath, 'utf-8');
+  const schedulerOperatorSource = readFileSync(
+    join(__dirname, '..', '..', 'src', 'views', 'schedulerOperatorWorkflow.ts'),
+    'utf-8',
+  );
+
+  assert.match(source, /readSchedulerOperatorWorkflowState/);
+  assert.match(source, /runSchedulerOperatorAction/);
+  assert.match(source, /case 'schedulerOperatorAction'/);
+  assert.match(source, /_coerceSchedulerOperatorAction/);
+  assert.match(source, /schedulerOperatorWorkflow: schedulerOperatorWorkflow/);
+  assert.match(schedulerOperatorSource, /dbc:\/\/exchange-artifacts\/bundle/);
+  assert.match(schedulerOperatorSource, /'scheduler',\s*'admit-exchange-artifact'/);
+  assert.match(schedulerOperatorSource, /'scheduler',\s*'daemon-loop'/);
+  assert.match(schedulerOperatorSource, /'scheduler',\s*'project'/);
+  assert.match(schedulerOperatorSource, /'--runtime-provider',\s*'fake'/);
+  assert.match(schedulerOperatorSource, /'--max-ticks',\s*'3'/);
+  assert.match(schedulerOperatorSource, /importlib\.metadata\.distribution\("doc-based-coding-runtime"\)/);
+  assert.match(schedulerOperatorSource, /from src\.__main__ import main/);
+  assert.match(schedulerOperatorSource, /sys\.argv = \["doc-based-coding"/);
+  assert.match(schedulerOperatorSource, /tools\.read_resource/);
+  assert.doesNotMatch(schedulerOperatorSource, /localTrajectory|write_resource|callTool/);
+});
+
 test('progress graph refresh does not treat a target project tools directory as platform source root', () => {
   const previewSource = readFileSync(sourcePath, 'utf-8');
   const artifactsSource = readFileSync(artifactsSourcePath, 'utf-8');

@@ -17,10 +17,24 @@ import {
   HOST_EVIDENCE_PRESENTATION_RESOURCE_URI,
   readHostEvidencePresentation,
 } from './hostEvidencePresentation';
+import {
+  EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI,
+  buildIdleSchedulerOperatorLastAction,
+  buildSchedulerOperatorPaths,
+  readSchedulerOperatorWorkflowState,
+  runSchedulerOperatorAction,
+  type SchedulerOperatorAction,
+  type SchedulerOperatorLastAction,
+  type SchedulerOperatorWorkflowState,
+} from './schedulerOperatorWorkflow';
 type ProgressGraphPreviewMessage = {
     command:
       | 'refresh'
-      | 'revealArtifact';
+      | 'revealArtifact'
+      | 'schedulerOperatorAction';
+    action?: string;
+    artifactId?: string;
+    version?: string;
 };
 
 type ProgressGraphPreviewRefreshLifecycle = {
@@ -52,6 +66,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     private _lastLoadedArtifactModifiedTimeMs: number | null = null;
     private _lastRenderedPreviewHtml: string | null = null;
     private _lastRenderedShellSignature: string | null = null;
+    private _lastSchedulerOperatorAction: SchedulerOperatorLastAction = buildIdleSchedulerOperatorLastAction();
     private _refreshLifecycle: ProgressGraphPreviewRefreshLifecycle = {
         status: 'idle',
         startedAt: null,
@@ -219,12 +234,97 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
           case 'revealArtifact':
             await this.revealArtifact();
             break;
+          case 'schedulerOperatorAction':
+            await this._runSchedulerOperatorAction(message);
+            break;
         }
       },
       null,
       this._disposables,
     );
     }
+
+  private async _runSchedulerOperatorAction(message: ProgressGraphPreviewMessage): Promise<void> {
+    if (!this._workspaceFolder) {
+      return;
+    }
+    const action = this._coerceSchedulerOperatorAction(message);
+    if (!action) {
+      vscode.window.showWarningMessage('Scheduler operator action is missing required input.');
+      return;
+    }
+
+    const startedAt = new Date().toISOString();
+    this._lastSchedulerOperatorAction = {
+      action: action.kind,
+      status: 'running',
+      startedAt,
+      completedAt: null,
+      summary: 'running scheduler operator action',
+      stdout: '',
+      stderr: '',
+      payload: null,
+    };
+    this._renderShellState({ preserveCurrentPreview: true });
+
+    try {
+      const runtime = await this._resolveRuntime(this._workspaceFolder);
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Scheduler operator: ${action.kind}`,
+        },
+        async () => runSchedulerOperatorAction({
+          projectRoot: runtime.workspaceRoot,
+          sourceRoot: runtime.sourceRoot,
+          pythonPath: runtime.pythonPath,
+          outputChannel: this._outputChannel,
+          action,
+        }),
+      );
+      this._lastSchedulerOperatorAction = result;
+      if (result.status === 'succeeded') {
+        vscode.window.showInformationMessage(`Scheduler operator action completed: ${result.summary}`);
+      } else {
+        vscode.window.showErrorMessage(`Scheduler operator action failed: ${result.summary}`);
+      }
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error);
+      this._lastSchedulerOperatorAction = {
+        action: action.kind,
+        status: 'failed',
+        startedAt,
+        completedAt: new Date().toISOString(),
+        summary: messageText,
+        stdout: '',
+        stderr: '',
+        payload: null,
+      };
+      vscode.window.showErrorMessage(`Scheduler operator action failed: ${messageText}`);
+    }
+
+    await this._reload();
+  }
+
+  private _coerceSchedulerOperatorAction(message: ProgressGraphPreviewMessage): SchedulerOperatorAction | null {
+    if (message.action === 'admit') {
+      if (!message.artifactId || !message.version) {
+        return null;
+      }
+      return {
+        kind: 'admit',
+        artifactId: message.artifactId,
+        version: message.version,
+      };
+    }
+    if (message.action === 'runLoop') {
+      return { kind: 'runLoop' };
+    }
+    if (message.action === 'project') {
+      return { kind: 'project' };
+    }
+    return null;
+  }
 
     private _previewUri(workspaceFolder: vscode.WorkspaceFolder): vscode.Uri {
         return vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'progress-graph', 'latest.html');
@@ -267,6 +367,7 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
     let schedulerWorkTrajectoryError: string | null = null;
     let hostEvidencePresentation: ProgressGraphPreviewHostEvidencePresentation | null = null;
     let hostEvidencePresentationError: string | null = null;
+    let schedulerOperatorWorkflow: SchedulerOperatorWorkflowState | null = null;
     let v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null = null;
     let v2GraphPayloadError: string | null = null;
 
@@ -314,15 +415,38 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
 
     try {
       const runtime = await this._resolveRuntime(workspaceFolder);
+      try {
       hostEvidencePresentation = await readHostEvidencePresentation({
         projectRoot: runtime.workspaceRoot,
         sourceRoot: runtime.sourceRoot,
         pythonPath: runtime.pythonPath,
         outputChannel: this._outputChannel,
       });
+      } catch (error) {
+        hostEvidencePresentationError = error instanceof Error ? error.message : String(error);
+        hostEvidencePresentation = coerceHostEvidencePresentation({
+          generated_at: null,
+          project_root: workspaceFolder.uri.fsPath,
+          evidence_dir: vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'scheduler', 'evidence').fsPath,
+          status: 'failed',
+          card_count: 0,
+          error_count: 0,
+          cards: [],
+          error_rows: [],
+          empty_message: '',
+        });
+      }
+      schedulerOperatorWorkflow = await readSchedulerOperatorWorkflowState({
+        projectRoot: runtime.workspaceRoot,
+        sourceRoot: runtime.sourceRoot,
+        pythonPath: runtime.pythonPath,
+        outputChannel: this._outputChannel,
+        lastAction: this._lastSchedulerOperatorAction,
+      });
     } catch (error) {
-      hostEvidencePresentationError = error instanceof Error ? error.message : String(error);
-      hostEvidencePresentation = coerceHostEvidencePresentation({
+      const message = error instanceof Error ? error.message : String(error);
+      hostEvidencePresentationError = hostEvidencePresentationError ?? message;
+      hostEvidencePresentation = hostEvidencePresentation ?? coerceHostEvidencePresentation({
         generated_at: null,
         project_root: workspaceFolder.uri.fsPath,
         evidence_dir: vscode.Uri.joinPath(workspaceFolder.uri, '.codex', 'scheduler', 'evidence').fsPath,
@@ -332,6 +456,13 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
         cards: [],
         error_rows: [],
         empty_message: '',
+      });
+      schedulerOperatorWorkflow = await readSchedulerOperatorWorkflowState({
+        projectRoot: workspaceFolder.uri.fsPath,
+        sourceRoot: null,
+        pythonPath: 'python',
+        outputChannel: this._outputChannel,
+        lastAction: this._lastSchedulerOperatorAction,
       });
     }
 
@@ -358,6 +489,15 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
             hostEvidencePresentationResourceUri: HOST_EVIDENCE_PRESENTATION_RESOURCE_URI,
             hostEvidencePresentation,
             hostEvidencePresentationError,
+            schedulerOperatorWorkflow: schedulerOperatorWorkflow ?? {
+              exchangeResourceUri: EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI,
+              exchange: null,
+              exchangeReadError: 'scheduler operator workflow state was not loaded',
+              scheduler: null,
+              schedulerReadError: 'scheduler operator workflow state was not loaded',
+              paths: buildSchedulerOperatorPaths(workspaceFolder.uri.fsPath),
+              lastAction: this._lastSchedulerOperatorAction,
+            },
             v2GraphPayload,
             v2GraphPayloadError,
         };
@@ -533,6 +673,12 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       hostEvidencePresentationCardIds: state.hostEvidencePresentation?.cards.map((card) => card.id) ?? [],
       hostEvidencePresentationErrorIds: state.hostEvidencePresentation?.errorRows.map((row) => row.id) ?? [],
       hostEvidencePresentationError: state.hostEvidencePresentationError,
+      schedulerOperatorExchangeCandidateCount: state.schedulerOperatorWorkflow.exchange?.admissionCandidateCount ?? null,
+      schedulerOperatorCandidateKeys: state.schedulerOperatorWorkflow.exchange?.candidates.map(
+        (candidate) => `${candidate.artifactId}@${candidate.version}:${candidate.admissionStatus}`,
+      ) ?? [],
+      schedulerOperatorExchangeReadError: state.schedulerOperatorWorkflow.exchangeReadError,
+      schedulerOperatorLastAction: state.schedulerOperatorWorkflow.lastAction,
       v2GraphId: state.v2GraphPayload?.graphId ?? null,
       v2GraphPayloadError: state.v2GraphPayloadError,
       v2GraphScriptUri: state.v2GraphScriptUri,

@@ -45,6 +45,40 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
       emptyMessage: 'No host scheduler run evidence has been recorded.',
     },
     hostEvidencePresentationError: null,
+    schedulerOperatorWorkflow: {
+      exchangeResourceUri: 'dbc://exchange-artifacts/bundle',
+      exchange: {
+        exists: false,
+        storePath: 'E:/workspace/example/.codex/orchestration/exchange-artifacts.json',
+        artifactCount: 0,
+        versionCount: 0,
+        admissionCandidateCount: 0,
+        admissionLedgerPath: 'E:/workspace/example/.codex/orchestration/exchange-artifact-admissions.json',
+        admissionLedgerExists: false,
+        candidates: [],
+        errors: [],
+      },
+      exchangeReadError: null,
+      scheduler: null,
+      schedulerReadError: 'scheduler snapshot is not available',
+      paths: {
+        artifactStorePath: 'E:/workspace/example/.codex/orchestration/exchange-artifacts.json',
+        admissionLedgerPath: 'E:/workspace/example/.codex/orchestration/exchange-artifact-admissions.json',
+        schedulerSnapshotPath: 'E:/workspace/example/.codex/scheduler/scheduler-state.json',
+        schedulerEventLogPath: 'E:/workspace/example/.codex/scheduler/scheduler-events.jsonl',
+        schedulerProjectionPath: 'E:/workspace/example/.codex/progress-graph/scheduler-work-trajectory.json',
+      },
+      lastAction: {
+        action: '',
+        status: 'idle',
+        startedAt: null,
+        completedAt: null,
+        summary: '',
+        stdout: '',
+        stderr: '',
+        payload: null,
+      },
+    },
     v2GraphScriptUri: null,
     v2GraphWorkerUri: null,
     v2GraphAutoShake: true,
@@ -164,6 +198,10 @@ test('buildProgressGraphPreviewHtml embeds available control snapshot overlay fo
 test('buildProgressGraphPreviewHtml renders empty host evidence presentation state', () => {
   const html = buildProgressGraphPreviewHtml(buildBaseState());
 
+  assert.match(html, /id="pgHostSchedulerOperatorPanel"/);
+  assert.match(html, /Scheduler Operator/);
+  assert.match(html, /dbc:\/\/exchange-artifacts\/bundle/);
+  assert.match(html, /No scheduler-admission candidates are currently present/);
   assert.match(html, /id="pgHostEvidencePanel"/);
   assert.match(html, /Host Evidence/);
   assert.match(html, /dbc:\/\/host-evidence\/presentation/);
@@ -171,6 +209,71 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
   assert.match(html, /cards 0/);
   assert.match(html, /errors 0/);
   assert.match(html, /No host scheduler run evidence has been recorded/);
+});
+
+test('buildProgressGraphPreviewHtml renders scheduler operator candidates and explicit action buttons', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      exchange: {
+        exists: true,
+        storePath: 'E:/workspace/example/.codex/orchestration/exchange-artifacts.json',
+        artifactCount: 1,
+        versionCount: 1,
+        admissionCandidateCount: 1,
+        admissionLedgerPath: 'E:/workspace/example/.codex/orchestration/exchange-artifact-admissions.json',
+        admissionLedgerExists: true,
+        candidates: [
+          {
+            artifactId: 'submission:maze',
+            version: 'v1',
+            productType: 'scheduler_task_batch_submission',
+            taskIds: ['task-server', 'task-client'],
+            taskCount: 2,
+            batchId: 'batch-maze',
+            admissionStatus: 'not_admitted',
+            latestAdmissionStatus: '',
+          },
+        ],
+        errors: [],
+      },
+      scheduler: {
+        snapshotExists: true,
+        eventLogExists: true,
+        taskCount: 2,
+        dependencyCount: 1,
+        runRecordCount: 2,
+        schedulerEventCount: 9,
+        taskStateCounts: { complete: 2 },
+        schedulerEventKindCounts: { task_completed: 2 },
+      },
+      schedulerReadError: null,
+      lastAction: {
+        action: 'runLoop',
+        status: 'succeeded',
+        startedAt: '2026-06-19T10:00:00.000Z',
+        completedAt: '2026-06-19T10:00:01.000Z',
+        summary: 'loop ticks=2 · runs=2 · stop=no_ready_tasks',
+        stdout: '{"ok":true}',
+        stderr: '',
+        payload: { ok: true },
+      },
+    },
+  }));
+
+  assert.match(html, /Admission candidates/);
+  assert.match(html, /submission:maze@v1/);
+  assert.match(html, /scheduler_task_batch_submission/);
+  assert.match(html, /task-server, task-client/);
+  assert.match(html, /data-pg-scheduler-action="admit"/);
+  assert.match(html, /data-pg-artifact-id="submission:maze"/);
+  assert.match(html, /data-pg-version="v1"/);
+  assert.match(html, /data-pg-scheduler-action="runLoop"/);
+  assert.match(html, /data-pg-scheduler-action="project"/);
+  assert.match(html, /loop ticks=2/);
+  assert.match(html, /Scheduler events/);
+  assert.match(html, />9<\/div>/);
+  assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
 });
 
 test('buildProgressGraphPreviewHtml renders host evidence cards from presentation payload', () => {
