@@ -30,6 +30,7 @@ import {
   coerceSchedulerOperatorActionMessage,
   type SchedulerOperatorAction,
 } from './schedulerOperatorContracts';
+import { runSchedulerOperatorActionLifecycle } from './progressGraphSchedulerOperatorLifecycle';
 type ProgressGraphPreviewMessage = {
     command:
       | 'refresh'
@@ -252,61 +253,38 @@ export class ProgressGraphPreviewPanel implements vscode.Disposable {
       return;
     }
     const action = this._coerceSchedulerOperatorAction(message);
-    if (!action) {
-      vscode.window.showWarningMessage('Scheduler operator action is missing required input.');
-      return;
-    }
-
-    const startedAt = new Date().toISOString();
-    this._lastSchedulerOperatorAction = {
-      action: action.kind,
-      status: 'running',
-      startedAt,
-      completedAt: null,
-      summary: 'running scheduler operator action',
-      stdout: '',
-      stderr: '',
-      payload: null,
-    };
-    this._renderShellState({ preserveCurrentPreview: true });
-
-    try {
-      const runtime = await this._resolveRuntime(this._workspaceFolder);
-      const result = await vscode.window.withProgress(
+    await runSchedulerOperatorActionLifecycle(action, {
+      setLastAction: (lastAction) => {
+        this._lastSchedulerOperatorAction = lastAction;
+      },
+      renderRunningState: () => {
+        this._renderShellState({ preserveCurrentPreview: true });
+      },
+      resolveRuntime: () => this._resolveRuntime(this._workspaceFolder!),
+      runAction: async (runtime, schedulerAction) => vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Scheduler operator: ${action.kind}`,
+          title: `Scheduler operator: ${schedulerAction.kind}`,
         },
         async () => runSchedulerOperatorAction({
           projectRoot: runtime.workspaceRoot,
           sourceRoot: runtime.sourceRoot,
           pythonPath: runtime.pythonPath,
           outputChannel: this._outputChannel,
-          action,
+          action: schedulerAction,
         }),
-      );
-      this._lastSchedulerOperatorAction = result;
-      if (result.status === 'succeeded') {
-        vscode.window.showInformationMessage(`Scheduler operator action completed: ${result.summary}`);
-      } else {
-        vscode.window.showErrorMessage(`Scheduler operator action failed: ${result.summary}`);
-      }
-    } catch (error) {
-      const messageText = error instanceof Error ? error.message : String(error);
-      this._lastSchedulerOperatorAction = {
-        action: action.kind,
-        status: 'failed',
-        startedAt,
-        completedAt: new Date().toISOString(),
-        summary: messageText,
-        stdout: '',
-        stderr: '',
-        payload: null,
-      };
-      vscode.window.showErrorMessage(`Scheduler operator action failed: ${messageText}`);
-    }
-
-    await this._reload();
+      ),
+      notifyInvalidInput: () => {
+        vscode.window.showWarningMessage('Scheduler operator action is missing required input.');
+      },
+      notifySucceeded: (summary) => {
+        vscode.window.showInformationMessage(`Scheduler operator action completed: ${summary}`);
+      },
+      notifyFailed: (summary) => {
+        vscode.window.showErrorMessage(`Scheduler operator action failed: ${summary}`);
+      },
+      reload: () => this._reload(),
+    });
   }
 
   private _coerceSchedulerOperatorAction(message: ProgressGraphPreviewMessage): SchedulerOperatorAction | null {

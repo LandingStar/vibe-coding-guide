@@ -667,8 +667,29 @@ test('buildProgressGraphPreviewHtml injects scheduler trajectory payload separat
       },
       lanes: [
         {
-          id: 'lane:scheduler',
-          label: 'scheduler',
+          id: 'lane:api',
+          label: 'api',
+          status: 'done',
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'lane:data',
+          label: 'data',
+          status: 'done',
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'lane:client',
+          label: 'client',
+          status: 'done',
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'lane:qa',
+          label: 'qa',
           status: 'done',
           summary: '',
           metadata: {},
@@ -677,7 +698,7 @@ test('buildProgressGraphPreviewHtml injects scheduler trajectory payload separat
       events: [
         {
           id: 'scheduler-task:api-task',
-          laneId: 'lane:scheduler',
+          laneId: 'lane:api',
           title: 'api/task',
           kind: 'task',
           status: 'completed',
@@ -685,8 +706,143 @@ test('buildProgressGraphPreviewHtml injects scheduler trajectory payload separat
           summary: '',
           metadata: {},
         },
+        {
+          id: 'scheduler-task:data-task',
+          laneId: 'lane:data',
+          title: 'data/task',
+          kind: 'task',
+          status: 'completed',
+          order: 2,
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'scheduler-task:client-task',
+          laneId: 'lane:client',
+          title: 'client/task',
+          kind: 'task',
+          status: 'completed',
+          order: 3,
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'scheduler-merge:client-ready',
+          laneId: 'lane:client',
+          title: 'client ready',
+          kind: 'merge',
+          status: 'completed',
+          order: 4,
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'scheduler-task:integration-task',
+          laneId: 'lane:qa',
+          title: 'integration/task',
+          kind: 'task',
+          status: 'completed',
+          order: 5,
+          summary: '',
+          metadata: {},
+        },
+        {
+          id: 'scheduler-merge:integration-done',
+          laneId: 'lane:qa',
+          title: 'integration done',
+          kind: 'merge',
+          status: 'completed',
+          order: 6,
+          summary: '',
+          metadata: {},
+        },
       ],
-      relations: [],
+      relations: [
+        {
+          sourceEventId: 'scheduler-task:api-task',
+          targetEventId: 'scheduler-task:client-task',
+          kind: 'depends_on',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:data-task',
+          targetEventId: 'scheduler-task:client-task',
+          kind: 'depends_on',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:client-task',
+          targetEventId: 'scheduler-merge:client-ready',
+          kind: 'sequence',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:api-task',
+          targetEventId: 'scheduler-merge:client-ready',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:data-task',
+          targetEventId: 'scheduler-merge:client-ready',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-merge:client-ready',
+          targetEventId: 'scheduler-task:integration-task',
+          kind: 'depends_on',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:data-task',
+          targetEventId: 'scheduler-task:integration-task',
+          kind: 'depends_on',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:integration-task',
+          targetEventId: 'scheduler-merge:integration-done',
+          kind: 'sequence',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:api-task',
+          targetEventId: 'scheduler-merge:integration-done',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:data-task',
+          targetEventId: 'scheduler-merge:integration-done',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-task:client-task',
+          targetEventId: 'scheduler-merge:integration-done',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+        {
+          sourceEventId: 'scheduler-merge:client-ready',
+          targetEventId: 'scheduler-merge:integration-done',
+          kind: 'syncs_from',
+          summary: '',
+          metadata: {},
+        },
+      ],
     },
   }));
 
@@ -696,6 +852,9 @@ test('buildProgressGraphPreviewHtml injects scheduler trajectory payload separat
   assert.match(html, /Scheduler Trajectory Projection/);
   assert.match(html, /Scheduler projection/);
   assert.match(html, /scheduler-work-trajectory\.json/);
+  assert.match(html, /lanes=4/);
+  assert.match(html, /events=6/);
+  assert.match(html, /relations=12/);
   assert.match(html, /Scheduler Local Work Trajectory/);
   assert.match(html, /Scheduler history timeline/);
   assert.match(html, /2 entries/);

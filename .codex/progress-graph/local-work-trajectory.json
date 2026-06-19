@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Scheduler Projection Readability Review",
-  "recorded_at": "2026-06-19T13:47:17.476553+00:00",
+  "title": "Extension-Host Scheduler Projection Lifecycle Smoke",
+  "recorded_at": "2026-06-19T14:17:37.627727+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md",
+  "guide_context": "design_docs/scheduler-projection-readability-review-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Scheduler Projection Readability Review",
+    "title": "Extension-Host Scheduler Projection Lifecycle Smoke",
     "lane_count": 1,
-    "event_count": 6,
-    "relation_count": 5,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "projection readability",
+      "label": "extension lifecycle",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md"
+        "context": "design_docs/scheduler-projection-readability-review-followup-direction-analysis.md"
       }
     }
   },
@@ -36,88 +36,58 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Define scheduler projection readability review gate",
+      "title": "Define extension-host projection lifecycle smoke gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T13:08:19.390134+00:00",
-        "activated_at": "2026-06-19T13:08:19.390134+00:00",
+        "created_at": "2026-06-19T13:49:38.993510+00:00",
+        "activated_at": "2026-06-19T13:49:38.993510+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T13:11:00.721506+00:00"
+        "completed_at": "2026-06-19T13:50:20.574514+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Create scheduler projection readability review gate",
+      "title": "Inspect extension-host scheduler projection test seams",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Create a narrow planning gate from the completed click-sequence smoke follow-up direction, scoped to deterministic multi-lane projection readability evidence before any code changes.",
+      "summary": "Inspect VS Code extension tests and progress graph preview implementation to identify the narrowest existing host-facing seam for scheduler projection refresh/display lifecycle smoke.",
       "metadata": {
-        "created_at": "2026-06-19T13:10:14.753923+00:00",
+        "created_at": "2026-06-19T13:50:30.978037+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-19T13:11:00.721506+00:00",
-        "completed_at": "2026-06-19T13:12:39.523973+00:00"
+        "completed_at": "2026-06-19T13:53:10.449503+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Generate deterministic scheduler projection evidence",
+      "title": "Implement host-facing scheduler projection lifecycle smoke",
       "kind": "task",
       "status": "completed",
       "order": 3,
-      "summary": "Seed the multi-lane scheduler fixture in an isolated temporary workspace, run the shared fake operator workflow through projection refresh, and inspect the resulting scheduler trajectory JSON.",
+      "summary": "Add focused tests/evidence for schedulerOperatorAction -> shared workflow -> reload/display seam and generated webview scheduler trajectory projection counts for the deterministic multi-lane fixture.",
       "metadata": {
-        "created_at": "2026-06-19T13:12:53.799616+00:00",
+        "created_at": "2026-06-19T13:53:10.508480+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T13:42:08.962246+00:00"
+        "completed_at": "2026-06-19T14:17:02.856044+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Fix scheduler projection initial full-fit viewport",
-      "kind": "task",
+      "title": "Validate lifecycle smoke and close documentation",
+      "kind": "validation",
       "status": "completed",
       "order": 4,
-      "summary": "Screenshot validation showed scheduler projection render is nonblank but initial viewport is clipped at top/bottom, likely because the screenshot captures React Flow before the animated setViewport finishes. Narrowing the fix to initial/default full-fit viewport binding and focused layout tests.",
+      "summary": "Run focused frontend/backend validation, record screenshot evidence, update planning gate/review/checkpoint/status docs, and close the trajectory.",
       "metadata": {
-        "created_at": "2026-06-19T13:29:53.385032+00:00",
+        "created_at": "2026-06-19T14:17:02.915995+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-19T13:42:08.962246+00:00",
-        "completed_at": "2026-06-19T13:42:16.802896+00:00"
-      }
-    },
-    "event:005": {
-      "id": "event:005",
-      "lane_id": "lane:main",
-      "title": "Close scheduler projection readability review write-back",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 5,
-      "summary": "Write back completed planning gate, review evidence, follow-up direction analysis, Checklist, Phase Map, checkpoint, and validation evidence for the scheduler projection readability review.",
-      "metadata": {
-        "created_at": "2026-06-19T13:42:25.631807+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T13:42:43.150391+00:00"
-      }
-    },
-    "event:006": {
-      "id": "event:006",
-      "lane_id": "lane:main",
-      "title": "Close scheduler projection readability review trajectory",
-      "kind": "close",
-      "status": "completed",
-      "order": 6,
-      "summary": "Commit a470e87 completed the scheduler projection readability review slice; this event records the final close after code, validation, review evidence, and state write-back.",
-      "metadata": {
-        "created_at": "2026-06-19T13:46:53.415994+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T13:47:17.476553+00:00"
+        "completed_at": "2026-06-19T14:17:37.627727+00:00"
       }
     }
   },
@@ -143,24 +113,6 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:004",
-      "target_event_id": "event:005",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:005",
-      "target_event_id": "event:006",
       "kind": "sequence",
       "summary": "",
       "metadata": {

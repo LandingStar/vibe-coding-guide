@@ -1,697 +1,4 @@
-import type {
-  SchedulerOperatorExchangeCandidate,
-  SchedulerOperatorWorkflowState,
-} from './schedulerOperatorWorkflow';
-
-export type ProgressGraphPreviewFreshness = 'missing' | 'fresh' | 'stale' | 'refreshing' | 'failed';
-
-export type ProgressGraphPreviewArtifactState = {
-  artifactPath: string;
-  artifactModifiedAt: string | null;
-  artifactModifiedTimeMs: number | null;
-  controlSnapshotPath: string;
-  controlSnapshotExists: boolean;
-  controlSnapshot: ProgressGraphPreviewControlSnapshot | null;
-  controlSnapshotError: string | null;
-  historyArtifactPath: string;
-  historyArtifactExists: boolean;
-  trajectoryArtifactPath: string;
-  trajectoryArtifactExists: boolean;
-  schedulerTrajectoryArtifactPath: string;
-  schedulerTrajectoryArtifactExists: boolean;
-  previewExists: boolean;
-  previewHtml: string | null;
-  localWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
-  localWorkTrajectoryError: string | null;
-  schedulerWorkTrajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
-  schedulerWorkTrajectoryError: string | null;
-  hostEvidencePresentationResourceUri: string;
-  hostEvidencePresentation: ProgressGraphPreviewHostEvidencePresentation | null;
-  hostEvidencePresentationError: string | null;
-  schedulerOperatorWorkflow: SchedulerOperatorWorkflowState;
-  v2GraphPayload: ProgressGraphPreviewV2PoCPayload | null;
-  v2GraphPayloadError: string | null;
-};
-
-export type ProgressGraphPreviewControlSnapshotSummary = {
-  open_work_item_count: number;
-  blocked_work_item_count: number;
-  waiting_external_resolution_count: number;
-  active_group_item_count: number;
-  unbound_group_item_count: number;
-};
-
-export type ProgressGraphPreviewControlWorkItem = {
-  work_item_id: string;
-  lifecycle_state: string;
-  rollup_surface_kind: string;
-  rollup_surface_state: string;
-  rollup_blocked_reason: string | null;
-  rollup_writeback_disposition: string;
-  dominant_group_item_ids: string[];
-  open_group_item_count: number;
-  source_trace_id: string;
-};
-
-export type ProgressGraphPreviewControlGroupItem = {
-  group_item_id: string;
-  work_item_id: string;
-  task_group_id: string | null;
-  child_task_ids: string[];
-  lifecycle_state: string;
-  governance_surface_kind: string;
-  governance_surface_state: string;
-  current_gate_state: string;
-  writeback_disposition: string;
-  delivery_surface_kind: string;
-  delivery_state: string;
-  blocked_reason: string | null;
-  open_items: string[];
-  authoritative_refs: string[];
-  latest_trace_id: string | null;
-  latest_envelope_id: string | null;
-  actor_label: string | null;
-};
-
-export type ProgressGraphPreviewControlBinding = {
-  binding_id: string;
-  binding_kind: string;
-  graph_id: string | null;
-  graph_target_id: string | null;
-  graph_target_key: string | null;
-  work_item_ids: string[];
-  group_item_ids: string[];
-  binding_reason: string;
-};
-
-export type ProgressGraphPreviewControlSnapshot = {
-  snapshot_version: string;
-  snapshot_kind: string;
-  generated_at: string;
-  summary: ProgressGraphPreviewControlSnapshotSummary;
-  work_items: ProgressGraphPreviewControlWorkItem[];
-  group_items: ProgressGraphPreviewControlGroupItem[];
-  bindings: ProgressGraphPreviewControlBinding[];
-};
-
-export type ProgressGraphPreviewV2PoCNode = {
-  id: string;
-  label: string;
-  kind: string;
-  status: string;
-  summary: string;
-  tags: string[];
-  hasRuntimeBinding: boolean;
-  hasLocalTrajectory: boolean;
-  localTrajectoryId: string | null;
-  workItemIds: string[];
-  groupItemIds: string[];
-};
-
-export type ProgressGraphPreviewV2PoCEdge = {
-  id: string;
-  source: string;
-  target: string;
-  kind: string;
-  directed: boolean;
-};
-
-export type ProgressGraphPreviewV2PoCPayload = {
-  graphId: string;
-  title: string;
-  snapshotId: string | null;
-  recordedAt: string | null;
-  sourcePath: string | null;
-  nodeCount: number;
-  edgeCount: number;
-  nodes: ProgressGraphPreviewV2PoCNode[];
-  edges: ProgressGraphPreviewV2PoCEdge[];
-  runtimeSummary: {
-    boundNodeCount: number;
-    openWorkItemCount: number;
-    activeGroupItemCount: number;
-    unboundGroupItemCount: number;
-  };
-};
-
-export type ProgressGraphPreviewTrajectoryLane = {
-  id: string;
-  label: string;
-  status: string;
-  summary: string;
-  metadata: Record<string, string>;
-};
-
-export type ProgressGraphPreviewTrajectoryEvent = {
-  id: string;
-  laneId: string;
-  title: string;
-  kind: string;
-  status: string;
-  order: number;
-  summary: string;
-  metadata: Record<string, string>;
-};
-
-export type ProgressGraphPreviewTrajectoryRelation = {
-  sourceEventId: string;
-  targetEventId: string;
-  kind: string;
-  summary: string;
-  metadata: Record<string, string>;
-};
-
-export type ProgressGraphPreviewLocalWorkTrajectory = {
-  trajectoryId: string;
-  title: string;
-  recordedAt: string | null;
-  sourceGraphId: string | null;
-  sourceNodeId: string | null;
-  guideContext: string | null;
-  metadata: Record<string, string>;
-  lanes: ProgressGraphPreviewTrajectoryLane[];
-  events: ProgressGraphPreviewTrajectoryEvent[];
-  relations: ProgressGraphPreviewTrajectoryRelation[];
-  childTrajectories: ProgressGraphPreviewLocalWorkTrajectory[];
-};
-
-export type ProgressGraphPreviewHostEvidenceFact = {
-  label: string;
-  value: string;
-};
-
-export type ProgressGraphPreviewHostEvidenceRef = {
-  label: string;
-  target: string;
-  refKind: string;
-};
-
-export type ProgressGraphPreviewHostEvidenceCard = {
-  id: string;
-  title: string;
-  subtitle: string;
-  status: string;
-  severity: string;
-  timestamp: string;
-  runtimeProviders: string[];
-  hostSurface: string;
-  invocationId: string;
-  requestedBy: string;
-  stopReason: string;
-  stopDetail: string;
-  runCount: number;
-  outputCount: number;
-  permissionReviewCount: number;
-  keyFacts: ProgressGraphPreviewHostEvidenceFact[];
-  refs: ProgressGraphPreviewHostEvidenceRef[];
-  authorityClues: ProgressGraphPreviewHostEvidenceFact[];
-  metadata: Record<string, unknown>;
-};
-
-export type ProgressGraphPreviewHostEvidenceErrorRow = {
-  id: string;
-  status: string;
-  severity: string;
-  evidencePath: string;
-  errorKind: string;
-  message: string;
-};
-
-export type ProgressGraphPreviewHostEvidencePresentation = {
-  generatedAt: string | null;
-  projectRoot: string;
-  evidenceDir: string;
-  status: string;
-  cardCount: number;
-  errorCount: number;
-  cards: ProgressGraphPreviewHostEvidenceCard[];
-  errorRows: ProgressGraphPreviewHostEvidenceErrorRow[];
-  emptyMessage: string;
-};
-
-export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
-  freshness: ProgressGraphPreviewFreshness;
-  freshnessLabel: string;
-  freshnessMessage: string;
-  isRefreshRunning: boolean;
-  lastLoadedAt: string | null;
-  lastRefreshStartedAt: string | null;
-  lastRefreshCompletedAt: string | null;
-  lastRefreshError: string | null;
-  v2GraphScriptUri: string | null;
-  v2GraphWorkerUri: string | null;
-  v2GraphAutoShake: boolean;
-  localWorkTrajectoryScriptUri: string | null;
-  localWorkTrajectoryStyleUri: string | null;
-};
-
-export function buildProgressGraphPreviewHtml(state: ProgressGraphPreviewState): string {
-  if (state.previewHtml) {
-    return buildParallelPreviewHtml(state, state.previewHtml);
-  }
-
-  const nonce = getNonce();
-  const escapedPath = escapeHtml(state.artifactPath);
-  const escapedLoadedAt = escapeHtml(formatTimestamp(state.lastLoadedAt));
-  const escapedArtifactUpdatedAt = escapeHtml(formatTimestamp(state.artifactModifiedAt));
-  const escapedRefreshStartedAt = escapeHtml(formatTimestamp(state.lastRefreshStartedAt));
-  const escapedRefreshCompletedAt = escapeHtml(formatTimestamp(state.lastRefreshCompletedAt));
-  const escapedRefreshError = escapeHtml(state.lastRefreshError ?? '');
-  const escapedFreshnessLabel = escapeHtml(state.freshnessLabel);
-  const escapedFreshnessMessage = escapeHtml(state.freshnessMessage);
-  const controlOverlay = buildControlOverlay(state);
-  const emptyState = !state.previewExists && !state.previewHtml
-    ? `<section class="empty-state">
-    <h2>Preview Artifact Missing</h2>
-    <p>当前宿主工作流已经成立，但 workspace 中还没有可加载的 <code>latest.html</code> artifact。</p>
-    <p>请先刷新 progress graph artifacts，然后点击顶部的 <strong>Refresh Preview</strong>。</p>
-  </section>`
-    : '';
-  const freshnessMeta = [
-    '<span class="meta-pill">Mode Parallel shell + original HTML</span>',
-    `<span class="meta-pill">Loaded ${escapedLoadedAt}</span>`,
-    `<span class="meta-pill">Artifact ${escapedArtifactUpdatedAt}</span>`,
-    state.lastRefreshStartedAt ? `<span class="meta-pill">Refresh Started ${escapedRefreshStartedAt}</span>` : '',
-    state.lastRefreshCompletedAt ? `<span class="meta-pill">Refresh Completed ${escapedRefreshCompletedAt}</span>` : '',
-  ].filter(Boolean).join('');
-  const refreshError = state.lastRefreshError
-    ? `<p class="status-detail">Last error: ${escapedRefreshError}</p>`
-    : '';
-
-  return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Progress Graph</title>
-  <style nonce="${nonce}">
-    :root {
-      color-scheme: light dark;
-    }
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      color: var(--vscode-editor-foreground);
-      background: var(--vscode-editor-background);
-      font-family: var(--vscode-font-family);
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      overflow: hidden;
-    }
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      background: color-mix(in srgb, var(--vscode-sideBar-background) 70%, transparent);
-    }
-    .title-group {
-      min-width: 0;
-    }
-    .title {
-      margin: 0;
-      font-size: 1.05rem;
-      font-weight: 700;
-    }
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      border: 1px solid transparent;
-    }
-    .status-badge.fresh {
-      color: var(--vscode-testing-iconPassed);
-      background: color-mix(in srgb, var(--vscode-testing-iconPassed) 18%, transparent);
-      border-color: color-mix(in srgb, var(--vscode-testing-iconPassed) 35%, transparent);
-    }
-    .status-badge.stale {
-      color: var(--vscode-testing-iconQueued);
-      background: color-mix(in srgb, var(--vscode-testing-iconQueued) 18%, transparent);
-      border-color: color-mix(in srgb, var(--vscode-testing-iconQueued) 35%, transparent);
-    }
-    .status-badge.refreshing {
-      color: var(--vscode-testing-iconQueued);
-      background: color-mix(in srgb, var(--vscode-progressBar-background) 18%, transparent);
-      border-color: color-mix(in srgb, var(--vscode-progressBar-background) 35%, transparent);
-    }
-    .status-badge.failed,
-    .status-badge.missing {
-      color: var(--vscode-testing-iconFailed);
-      background: color-mix(in srgb, var(--vscode-testing-iconFailed) 18%, transparent);
-      border-color: color-mix(in srgb, var(--vscode-testing-iconFailed) 35%, transparent);
-    }
-    .subtitle {
-      margin-top: 4px;
-      color: var(--vscode-descriptionForeground);
-      font-size: 0.86rem;
-      line-height: 1.4;
-      word-break: break-all;
-    }
-    .meta-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .meta-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 0.76rem;
-      color: var(--vscode-descriptionForeground);
-      background: color-mix(in srgb, var(--vscode-sideBar-background) 82%, transparent);
-      border: 1px solid var(--vscode-panel-border);
-    }
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    button {
-      border: 1px solid var(--vscode-button-border, transparent);
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border-radius: 8px;
-      padding: 7px 12px;
-      cursor: pointer;
-      font: inherit;
-      font-size: 0.9rem;
-    }
-    button.secondary {
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-    }
-    button:hover {
-      background: var(--vscode-button-hoverBackground);
-    }
-    button.secondary:hover {
-      background: var(--vscode-button-secondaryHoverBackground);
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    .status-strip {
-      display: grid;
-      gap: 6px;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      background: color-mix(in srgb, var(--vscode-editorWidget-background) 82%, transparent);
-    }
-    .status-message {
-      margin: 0;
-      line-height: 1.5;
-      color: var(--vscode-editor-foreground);
-    }
-    .status-detail {
-      margin: 0;
-      color: var(--vscode-descriptionForeground);
-      font-size: 0.82rem;
-      line-height: 1.5;
-    }
-    .body {
-      flex: 1;
-      min-height: 0;
-      padding: 14px 18px 18px;
-      overflow: auto;
-      background: var(--vscode-editor-background);
-    }
-    .empty-state {
-      max-width: 760px;
-      margin: 28px auto 0;
-      padding: 22px 24px;
-      border-radius: 14px;
-      border: 1px solid var(--vscode-panel-border);
-      background: var(--vscode-sideBar-background);
-      line-height: 1.65;
-    }
-    .empty-state h2 {
-      margin: 0 0 12px;
-      font-size: 1.1rem;
-    }
-    code {
-      font-family: var(--vscode-editor-font-family);
-      background: var(--vscode-textCodeBlock-background);
-      padding: 1px 4px;
-      border-radius: 4px;
-    }
-    @media (max-width: 760px) {
-      .topbar {
-        grid-auto-flow: row;
-        align-items: start;
-      }
-      .actions {
-        width: 100%;
-        justify-content: flex-start;
-      }
-    }
-  </style>
-</head>
-<body>
-  <header class="topbar">
-    <div class="title-group">
-      <div class="status-badge ${state.freshness}">${escapedFreshnessLabel}</div>
-      <h1 class="title">Progress Graph</h1>
-      <div class="subtitle">artifact: ${escapedPath}</div>
-      <div class="meta-row">${freshnessMeta}</div>
-    </div>
-    <div class="actions">
-      <button id="refreshButton" ${state.isRefreshRunning ? 'disabled' : ''}>${state.isRefreshRunning ? 'Refreshing...' : 'Refresh Preview'}</button>
-      <button id="revealButton" class="secondary">Reveal Artifact</button>
-    </div>
-  </header>
-  <section class="status-strip">
-    <p class="status-message">${escapedFreshnessMessage}</p>
-    ${refreshError}
-  </section>
-  ${controlOverlay}
-  <main class="body">
-    ${emptyState}
-  </main>
-  <script nonce="${nonce}">
-    const vscode = acquireVsCodeApi();
-    const refreshButton = document.getElementById('refreshButton');
-    const revealButton = document.getElementById('revealButton');
-
-    refreshButton?.addEventListener('click', () => {
-      refreshButton.disabled = true;
-      refreshButton.textContent = 'Refreshing...';
-      vscode.postMessage({ command: 'refresh' });
-    });
-
-    revealButton?.addEventListener('click', () => {
-      vscode.postMessage({ command: 'revealArtifact' });
-    });
-
-    ${buildControlOverlayEnhancementScript()}
-  </script>
-</body>
-</html>`;
-}
-
-export function coerceControlSnapshot(value: unknown): ProgressGraphPreviewControlSnapshot {
-  if (!isRecord(value)) {
-    throw new Error('control snapshot must be an object');
-  }
-
-  const summary = isRecord(value.summary) ? value.summary : {};
-  return {
-    snapshot_version: readString(value.snapshot_version, 'unknown'),
-    snapshot_kind: readString(value.snapshot_kind, 'unknown'),
-    generated_at: readString(value.generated_at, ''),
-    summary: {
-      open_work_item_count: readNumber(summary.open_work_item_count),
-      blocked_work_item_count: readNumber(summary.blocked_work_item_count),
-      waiting_external_resolution_count: readNumber(summary.waiting_external_resolution_count),
-      active_group_item_count: readNumber(summary.active_group_item_count),
-      unbound_group_item_count: readNumber(summary.unbound_group_item_count),
-    },
-    work_items: readObjectArray(value.work_items).map((item) => ({
-      work_item_id: readString(item.work_item_id, 'unknown-work-item'),
-      lifecycle_state: readString(item.lifecycle_state, 'unknown'),
-      rollup_surface_kind: readString(item.rollup_surface_kind, 'unknown'),
-      rollup_surface_state: readString(item.rollup_surface_state, 'unknown'),
-      rollup_blocked_reason: readNullableString(item.rollup_blocked_reason),
-      rollup_writeback_disposition: readString(item.rollup_writeback_disposition, 'unknown'),
-      dominant_group_item_ids: readStringArray(item.dominant_group_item_ids),
-      open_group_item_count: readNumber(item.open_group_item_count),
-      source_trace_id: readString(item.source_trace_id, ''),
-    })),
-    group_items: readObjectArray(value.group_items).map((item) => ({
-      group_item_id: readString(item.group_item_id, 'unknown-group-item'),
-      work_item_id: readString(item.work_item_id, 'unknown-work-item'),
-      task_group_id: readNullableString(item.task_group_id),
-      child_task_ids: readStringArray(item.child_task_ids),
-      lifecycle_state: readString(item.lifecycle_state, 'unknown'),
-      governance_surface_kind: readString(item.governance_surface_kind, 'unknown'),
-      governance_surface_state: readString(item.governance_surface_state, 'unknown'),
-      current_gate_state: readString(item.current_gate_state, 'unknown'),
-      writeback_disposition: readString(item.writeback_disposition, 'unknown'),
-      delivery_surface_kind: readString(item.delivery_surface_kind, 'unknown'),
-      delivery_state: readString(item.delivery_state, 'unknown'),
-      blocked_reason: readNullableString(item.blocked_reason),
-      open_items: readStringArray(item.open_items),
-      authoritative_refs: readStringArray(item.authoritative_refs),
-      latest_trace_id: readNullableString(item.latest_trace_id),
-      latest_envelope_id: readNullableString(item.latest_envelope_id),
-      actor_label: readNullableString(item.actor_label),
-    })),
-    bindings: readObjectArray(value.bindings).map((item) => ({
-      binding_id: readString(item.binding_id, 'unknown-binding'),
-      binding_kind: readString(item.binding_kind, 'unknown'),
-      graph_id: readNullableString(item.graph_id),
-      graph_target_id: readNullableString(item.graph_target_id),
-      graph_target_key: readNullableString(item.graph_target_key),
-      work_item_ids: readStringArray(item.work_item_ids),
-      group_item_ids: readStringArray(item.group_item_ids),
-      binding_reason: readString(item.binding_reason, ''),
-    })),
-  };
-}
-
-export function coerceLocalWorkTrajectory(value: unknown): ProgressGraphPreviewLocalWorkTrajectory {
-  if (!isRecord(value)) {
-    throw new Error('local work trajectory must be an object');
-  }
-
-  const lanes = readObjectCollection(value.lanes).map((item) => ({
-    id: readString(item.id, 'unknown-lane'),
-    label: readString(item.label, 'untitled lane'),
-    status: readString(item.status, 'pending'),
-    summary: readString(item.summary, ''),
-    metadata: readStringRecord(item.metadata),
-  }));
-  const events = readObjectCollection(value.events)
-    .map((item) => ({
-      id: readString(item.id, 'unknown-event'),
-      laneId: readString(item.lane_id, readString(item.laneId, 'unknown-lane')),
-      title: readString(item.title, 'untitled event'),
-      kind: readString(item.kind, 'task'),
-      status: readString(item.status, 'pending'),
-      order: readNumber(item.order),
-      summary: readString(item.summary, ''),
-      metadata: readStringRecord(item.metadata),
-    }))
-    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
-  const relations = readObjectArray(value.relations).map((item) => ({
-    sourceEventId: readString(
-      item.source_event_id,
-      readString(item.sourceEventId, 'unknown-source'),
-    ),
-    targetEventId: readString(
-      item.target_event_id,
-      readString(item.targetEventId, 'unknown-target'),
-    ),
-    kind: readString(item.kind, 'sequence'),
-    summary: readString(item.summary, ''),
-    metadata: readStringRecord(item.metadata),
-  }));
-
-  return {
-    trajectoryId: readString(value.trajectory_id, readString(value.trajectoryId, 'unknown-trajectory')),
-    title: readString(value.title, 'Local Work Trajectory'),
-    recordedAt: readNullableString(value.recorded_at) ?? readNullableString(value.recordedAt),
-    sourceGraphId: readNullableString(value.source_graph_id) ?? readNullableString(value.sourceGraphId),
-    sourceNodeId: readNullableString(value.source_node_id) ?? readNullableString(value.sourceNodeId),
-    guideContext: readNullableString(value.guide_context) ?? readNullableString(value.guideContext),
-    metadata: readStringRecord(value.metadata),
-    lanes,
-    events,
-    relations,
-    childTrajectories: readObjectCollection(value.child_trajectories).map((item) => coerceLocalWorkTrajectory(item)),
-  };
-}
-
-export function coerceHostEvidencePresentation(value: unknown): ProgressGraphPreviewHostEvidencePresentation {
-  if (!isRecord(value)) {
-    throw new Error('host evidence presentation must be an object');
-  }
-
-  return {
-    generatedAt: readNullableString(value.generated_at) ?? readNullableString(value.generatedAt),
-    projectRoot: readString(value.project_root, readString(value.projectRoot, '')),
-    evidenceDir: readString(value.evidence_dir, readString(value.evidenceDir, '')),
-    status: readString(value.status, 'unknown'),
-    cardCount: readNumber(value.card_count),
-    errorCount: readNumber(value.error_count),
-    cards: readObjectArray(value.cards).map((card) => ({
-      id: readString(card.id, 'unknown-host-evidence'),
-      title: readString(card.title, 'Host evidence'),
-      subtitle: readString(card.subtitle, ''),
-      status: readString(card.status, 'unknown'),
-      severity: readString(card.severity, 'info'),
-      timestamp: readString(card.timestamp, ''),
-      runtimeProviders: readStringArray(card.runtime_providers),
-      hostSurface: readString(card.host_surface, ''),
-      invocationId: readString(card.invocation_id, ''),
-      requestedBy: readString(card.requested_by, ''),
-      stopReason: readString(card.stop_reason, ''),
-      stopDetail: readString(card.stop_detail, ''),
-      runCount: readNumber(card.run_count),
-      outputCount: readNumber(card.output_count),
-      permissionReviewCount: readNumber(card.permission_review_count),
-      keyFacts: readHostEvidenceFacts(card.key_facts),
-      refs: readHostEvidenceRefs(card.refs),
-      authorityClues: readHostEvidenceFacts(card.authority_clues),
-      metadata: isRecord(card.metadata) ? card.metadata : {},
-    })),
-    errorRows: readObjectArray(value.error_rows).map((row, index) => ({
-      id: readString(row.id, `host-evidence-error:${index + 1}`),
-      status: readString(row.status, 'read-error'),
-      severity: readString(row.severity, 'error'),
-      evidencePath: readString(row.evidence_path, ''),
-      errorKind: readString(row.error_kind, 'unknown'),
-      message: readString(row.message, ''),
-    })),
-    emptyMessage: readString(value.empty_message, ''),
-  };
-}
-
-function buildParallelPreviewHtml(
-  state: ProgressGraphPreviewState,
-  previewHtml: string,
-): string {
-  const controlOverlay = buildControlOverlay(state);
-  const v2GraphPoC = buildV2GraphPoCSection(state);
-  const trajectoryPanel = buildTrajectoryPanelSection(state);
-  const previewPanels = buildPreviewTabPanels(v2GraphPoC, trajectoryPanel);
-  const localWorkTrajectoryStyle = state.localWorkTrajectoryStyleUri
-    ? `<link rel="stylesheet" href="${escapeHtml(state.localWorkTrajectoryStyleUri)}">`
-    : '';
-  const escapedPath = escapeHtml(state.artifactPath);
-  const escapedLoadedAt = escapeHtml(formatTimestamp(state.lastLoadedAt));
-  const escapedArtifactUpdatedAt = escapeHtml(formatTimestamp(state.artifactModifiedAt));
-  const escapedRefreshStartedAt = escapeHtml(formatTimestamp(state.lastRefreshStartedAt));
-  const escapedRefreshCompletedAt = escapeHtml(formatTimestamp(state.lastRefreshCompletedAt));
-  const escapedRefreshError = escapeHtml(state.lastRefreshError ?? '');
-  const escapedFreshnessLabel = escapeHtml(state.freshnessLabel);
-  const escapedFreshnessMessage = escapeHtml(state.freshnessMessage);
-  const refreshError = state.lastRefreshError
-    ? `<p class="pg-host-status-detail">Last error: ${escapedRefreshError}</p>`
-    : '';
-  const freshnessMeta = [
-    '<span class="pg-host-meta-pill">Mode Parallel shell + original HTML</span>',
-    `<span class="pg-host-meta-pill">Loaded ${escapedLoadedAt}</span>`,
-    `<span class="pg-host-meta-pill">Artifact ${escapedArtifactUpdatedAt}</span>`,
-    state.lastRefreshStartedAt ? `<span class="pg-host-meta-pill">Refresh Started ${escapedRefreshStartedAt}</span>` : '',
-    state.lastRefreshCompletedAt ? `<span class="pg-host-meta-pill">Refresh Completed ${escapedRefreshCompletedAt}</span>` : '',
-  ].filter(Boolean).join('');
-  const hostStyle = `<style>
+<style>
   .pg-host-chrome-dock {
     position: sticky;
     top: 0;
@@ -2274,44 +1581,194 @@ function buildParallelPreviewHtml(
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
   }
-</style>`;
-  const hostShell = `<section class="pg-host-shell">
-  <div class="pg-host-topbar">
-    <div class="pg-host-title-group">
-      <div class="pg-host-status-badge ${state.freshness}">${escapedFreshnessLabel}</div>
-      <h1 class="pg-host-title">Progress Graph</h1>
-      <div class="pg-host-subtitle">artifact: ${escapedPath}</div>
-      <div class="pg-host-meta-row">${freshnessMeta}</div>
-    </div>
-  </div>
-  <div class="pg-host-status-strip">
-    <p class="pg-host-status-message">${escapedFreshnessMessage}</p>
-    ${refreshError}
-  </div>
-</section>`;
-  const hostChrome = `<div id="pgHostChromeDock" class="pg-host-chrome-dock" data-pg-host-shell="expanded" data-pg-host-shell-peek="hidden">
+</style>
+<link rel="stylesheet" href="localWorkTrajectory.css">
+<!DOCTYPE html><html><body>
+<div id="pgHostChromeDock" class="pg-host-chrome-dock" data-pg-host-shell="expanded" data-pg-host-shell-peek="hidden">
   <div id="pgHostFloatingZone" class="pg-host-floating-zone" data-pg-floating-visible="false">
     <nav class="pg-host-floating-bar" aria-label="Progress preview views">
       <button id="pgHostTabChecklist" type="button" class="pg-host-tab-button" role="tab" aria-selected="true" aria-controls="pgHostChecklistPanel" data-pg-tab-target="checklist">Checklist</button>
       <button id="pgHostTabTrajectory" type="button" class="pg-host-tab-button" role="tab" aria-selected="false" aria-controls="pgHostTrajectoryPanel" data-pg-tab-target="trajectory">Trajectory</button>
-      <button id="pgHostRefreshButton" type="button" class="pg-host-floating-action" ${state.isRefreshRunning ? 'disabled' : ''}>${state.isRefreshRunning ? 'Refreshing...' : 'Refresh'}</button>
+      <button id="pgHostRefreshButton" type="button" class="pg-host-floating-action" >Refresh</button>
       <button id="pgHostRevealButton" type="button" class="pg-host-floating-action">Reveal</button>
       <button id="pgHostCollapsePanel" type="button" class="pg-host-floating-action" aria-expanded="true">hide panel</button>
       <button id="pgHostChromePeek" type="button" class="pg-host-floating-action" data-pg-panel-show="true" data-pg-visible="true" aria-controls="pgHostChromeContent" aria-expanded="true">show panal</button>
     </nav>
   </div>
   <div id="pgHostChromeContent" class="pg-host-chrome-content">
-    ${hostShell}
-    ${controlOverlay}
+    <section class="pg-host-shell">
+  <div class="pg-host-topbar">
+    <div class="pg-host-title-group">
+      <div class="pg-host-status-badge fresh">Fresh</div>
+      <h1 class="pg-host-title">Progress Graph</h1>
+      <div class="pg-host-subtitle">artifact: .codex/progress-graph/latest.html</div>
+      <div class="pg-host-meta-row"><span class="pg-host-meta-pill">Mode Parallel shell + original HTML</span><span class="pg-host-meta-pill">Loaded 2026/6/19 20:40:02</span><span class="pg-host-meta-pill">Artifact 2026/6/19 20:00:00</span></div>
+    </div>
   </div>
-</div>`;
-  const v2GraphScript = state.v2GraphPayload && state.v2GraphScriptUri
-    ? `<script src="${escapeHtml(state.v2GraphScriptUri)}"></script>`
-    : '';
-  const localWorkTrajectoryScript = state.localWorkTrajectoryScriptUri
-    ? `<script src="${escapeHtml(state.localWorkTrajectoryScriptUri)}"></script>`
-    : '';
-  const hostScript = `<script>
+  <div class="pg-host-status-strip">
+    <p class="pg-host-status-message">current</p>
+
+  </div>
+</section>
+    <section class="pg-host-control-overlay" data-control-snapshot-status="unavailable" data-control-snapshot-path=".codex/progress-graph/control-snapshot.json" data-control-snapshot-error="">
+  <section class="pg-host-control-card">
+  <h2 class="pg-host-control-card-title">Control Summary Rail</h2>
+  <p class="pg-host-control-card-subtitle">runtime snapshot unavailable；等待 .codex/progress-graph/control-snapshot.json 出现后再接入 summary/binding surface。</p>
+</section>
+  <section id="pgHostSchedulerOperatorPanel" class="pg-host-control-card pg-host-scheduler-operator-card">
+  <div class="pg-host-scheduler-operator-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Scheduler Operator</h2>
+      <p class="pg-host-control-card-subtitle">resource=dbc://exchange-artifacts/bundle · explicit admit / bounded run / projection refresh</p>
+    </div>
+    <div class="pg-host-scheduler-operator-actions">
+      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="runLoop" >Run bounded loop</button>
+      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="project" >Refresh projection</button>
+    </div>
+  </div>
+  <div class="pg-host-scheduler-operator-grid"><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Store exists</div>
+        <div class="pg-host-evidence-value">true</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Artifacts</div>
+        <div class="pg-host-evidence-value">1</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Versions</div>
+        <div class="pg-host-evidence-value">1</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Admission candidates</div>
+        <div class="pg-host-evidence-value">1</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Ledger exists</div>
+        <div class="pg-host-evidence-value">true</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Snapshot exists</div>
+        <div class="pg-host-evidence-value">true</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Tasks</div>
+        <div class="pg-host-evidence-value">4</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Dependencies</div>
+        <div class="pg-host-evidence-value">4</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Run records</div>
+        <div class="pg-host-evidence-value">4</div>
+      </div><div class="pg-host-evidence-fact">
+        <div class="pg-host-evidence-label">Scheduler events</div>
+        <div class="pg-host-evidence-value">19</div>
+      </div></div>
+
+
+  <p class="pg-host-control-card-subtitle">No scheduler-admission candidates are currently present in the ExchangeArtifact store.</p>
+
+  <div class="pg-host-scheduler-action-result" data-pg-action-status="succeeded">
+      <div class="pg-host-evidence-chip-row">
+        <span class="pg-host-evidence-badge" data-pg-evidence-status="completed">succeeded</span>
+        <span class="pg-host-evidence-badge">project</span>
+      </div>
+      <p class="pg-host-control-card-subtitle">projection refreshed · events=6 · lanes=4</p>
+
+      <pre class="pg-host-scheduler-output">{&quot;ok&quot;:true}</pre>
+    </div>
+</section>
+  <section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="ok">
+  <div class="pg-host-evidence-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h2 class="pg-host-control-card-title">Host Evidence</h2>
+      <p class="pg-host-control-card-subtitle">resource=dbc://host-evidence/presentation · evidence_dir=E:/workspace/example/.codex/scheduler/evidence</p>
+    </div>
+    <div class="pg-host-evidence-badge-row"><span class="pg-host-evidence-badge" data-pg-evidence-status="ok">ok</span><span class="pg-host-evidence-badge">cards 1</span><span class="pg-host-evidence-badge">errors 0</span></div>
+  </div>
+  <p class="pg-host-control-card-subtitle">No host scheduler run evidence has been recorded.</p>
+
+
+</section>
+  <div class="pg-host-control-grid">
+    <section class="pg-host-control-card">
+  <h2 class="pg-host-control-card-title">Bound Target Detail Companion</h2>
+  <p class="pg-host-control-card-subtitle">当前由宿主负责把 raw target binding 解析到 display target，并在这里显示最小 runtime 摘要。</p>
+  <p class="pg-host-control-card-subtitle" id="pgHostCompanionSummary">select a node</p>
+  <div id="pgHostCompanionBody"><p class="pg-host-control-card-subtitle">runtime snapshot unavailable；等待 .codex/progress-graph/control-snapshot.json 出现后再接入 summary/binding surface。</p></div>
+</section>
+    <section class="pg-host-control-card">
+  <h2 class="pg-host-control-card-title">Unbound Runtime Panel</h2>
+  <p class="pg-host-control-card-subtitle">显式保留当前仍没有稳定 graph target 的 runtime rows，避免错误绑定。</p>
+  <div id="pgHostUnboundBody"><p class="pg-host-control-card-subtitle">runtime snapshot unavailable；等待 .codex/progress-graph/control-snapshot.json 出现后再接入 summary/binding surface。</p></div>
+</section>
+  </div>
+
+</section>
+  </div>
+</div>
+<main id="pgHostPreviewTabs" class="pg-host-preview-tabs">
+  <section id="pgHostChecklistPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabChecklist">
+    <section class="pg-host-v2-poc" data-pg-v2-status="unavailable">
+  <div class="pg-host-v2-head">
+    <div class="pg-host-v2-title-wrap">
+      <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
+      <h2 class="pg-host-v2-title">V2 Graph View PoC 未就绪</h2>
+      <p class="pg-host-v2-subtitle">等待 .codex/progress-graph/latest.json 出现后再构建 V2 graph payload。</p>
+    </div>
+  </div>
+  <div class="pg-host-v2-unavailable">
+    <p class="pg-host-v2-subtitle">history artifact: .codex/progress-graph/latest.json</p>
+  </div>
+</section>
+  </section>
+  <section id="pgHostTrajectoryPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabTrajectory" hidden>
+    <div class="pg-host-trajectory-stack">
+    <section class="pg-host-lwt-mount-section" data-pg-lwt-status="unavailable">
+  <div class="pg-host-lwt-toolbar">
+    <div class="pg-host-lwt-toolbar-copy">
+      <p class="pg-host-lwt-toolbar-title">Local Work Trajectory</p>
+      <p class="pg-host-lwt-toolbar-meta">Agent managed · artifact=.codex/progress-graph/local-work-trajectory.json</p>
+    </div>
+    <button
+      id="pgHostLocateTrajectoryParent"
+      class="pg-host-lwt-locate-parent"
+      type="button"
+      data-pg-source-graph-id=""
+      data-pg-source-node-id=""
+      title="No global progress-map anchor has been set. Agents should call localTrajectory setAnchor with sourceGraphId and sourceNodeId."
+      disabled
+    >Locate parent</button>
+  </div>
+
+  <div
+    id="pgHostLocalWorkTrajectoryRoot"
+    class="pg-host-lwt-mount"
+    data-pg-trajectory-path=".codex/progress-graph/local-work-trajectory.json"
+    data-pg-trajectory-error=""
+    data-pg-trajectory-payload-id="pgHostLocalWorkTrajectoryPayload"
+  ></div>
+
+</section>
+    <section class="pg-host-lwt-mount-section" data-pg-lwt-status="available">
+  <div class="pg-host-lwt-toolbar">
+    <div class="pg-host-lwt-toolbar-copy">
+      <p class="pg-host-lwt-toolbar-title">Scheduler Trajectory Projection</p>
+      <p class="pg-host-lwt-toolbar-meta">Scheduler projection · artifact=.codex/progress-graph/scheduler-work-trajectory.json · lanes=4 · events=6 · relations=12</p>
+    </div>
+
+  </div>
+  <details class="pg-host-lwt-history">
+    <summary class="pg-host-lwt-history-summary">Scheduler history timeline · 19 entries</summary>
+    <ol class="pg-host-lwt-history-lines"><li class="pg-host-lwt-history-line">timestamp=2026-06-19T12:40:01+08:00 | kind=task_running | id=scheduler-event-1 | task=dogfood:api-design</li><li class="pg-host-lwt-history-line">timestamp=2026-06-19T12:40:02+08:00 | kind=task_completed | id=scheduler-event-2 | task=dogfood:api-design</li><li class="pg-host-lwt-history-line">timestamp=2026-06-19T12:40:03+08:00 | kind=task_completed | id=scheduler-event-3 | task=dogfood:data-schema</li></ol>
+
+  </details>
+  <div
+    id="pgHostSchedulerWorkTrajectoryRoot"
+    class="pg-host-lwt-mount"
+    data-pg-trajectory-path=".codex/progress-graph/scheduler-work-trajectory.json"
+    data-pg-trajectory-error=""
+    data-pg-trajectory-payload-id="pgHostSchedulerWorkTrajectoryPayload"
+  ></div>
+  <script type="application/json" id="pgHostSchedulerWorkTrajectoryPayload">{"trajectoryId":"local-work:scheduler-projection","title":"Scheduler Local Work Trajectory","recordedAt":"2026-06-19T12:40:00.000Z","sourceGraphId":null,"sourceNodeId":null,"guideContext":"vscode-scheduler-operator","metadata":{"authority":"scheduler","scheduler_history_timeline":"timestamp=2026-06-19T12:40:01+08:00 | kind=task_running | id=scheduler-event-1 | task=dogfood:api-design\ntimestamp=2026-06-19T12:40:02+08:00 | kind=task_completed | id=scheduler-event-2 | task=dogfood:api-design\ntimestamp=2026-06-19T12:40:03+08:00 | kind=task_completed | id=scheduler-event-3 | task=dogfood:data-schema","scheduler_history_timeline_count":"19","scheduler_history_timeline_limit":"40","scheduler_history_timeline_truncated":"false"},"lanes":[{"id":"lane:api","label":"api","status":"done","summary":"","metadata":{}},{"id":"lane:data","label":"data","status":"done","summary":"","metadata":{}},{"id":"lane:client","label":"client","status":"done","summary":"","metadata":{}},{"id":"lane:qa","label":"qa","status":"done","summary":"","metadata":{}}],"events":[{"id":"scheduler-task:api-design","laneId":"lane:api","title":"api design","kind":"task","status":"completed","order":100,"summary":"","metadata":{}},{"id":"scheduler-task:data-schema","laneId":"lane:data","title":"data schema","kind":"task","status":"completed","order":200,"summary":"","metadata":{}},{"id":"scheduler-merge:client-ready","laneId":"lane:client","title":"client prerequisites ready","kind":"merge","status":"completed","order":250,"summary":"","metadata":{}},{"id":"scheduler-task:client-integration","laneId":"lane:client","title":"client integration","kind":"task","status":"completed","order":300,"summary":"","metadata":{}},{"id":"scheduler-merge:integration-ready","laneId":"lane:qa","title":"integration prerequisites ready","kind":"merge","status":"completed","order":350,"summary":"","metadata":{}},{"id":"scheduler-task:integration-verify","laneId":"lane:qa","title":"integration verify","kind":"task","status":"completed","order":400,"summary":"","metadata":{}}],"relations":[{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"syncs_from","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"syncs_from","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:api-design","targetEventId":"scheduler-task:client-integration","kind":"syncs_from","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"syncs_from","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"syncs_from","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"depends_on","summary":"","metadata":{}},{"sourceEventId":"scheduler-task:data-schema","targetEventId":"scheduler-task:integration-verify","kind":"syncs_from","summary":"","metadata":{}}],"childTrajectories":[]}</script>
+</section>
+  </div>
+  </section>
+  <div id="pgHostPreviewHeightHandle" class="pg-host-preview-height-handle" role="slider" aria-label="Resize Checklist and Trajectory panel height" aria-orientation="vertical" aria-valuemin="520" aria-valuemax="1200" aria-valuenow="760" tabindex="0" data-pg-dragging="false"></div>
+</main><section class="graph-section"><svg></svg></section><script>
   const vscode = acquireVsCodeApi();
   globalThis.__pgHostVsCodeApi = vscode;
   const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -2596,755 +2053,7 @@ function buildParallelPreviewHtml(
     }
     setActiveTab(vscode.getState?.()?.[stateKey] || 'checklist');
   })();
-  ${buildControlOverlayEnhancementScript()}
-</script>`;
 
-  return injectIntoHtmlDocument(previewHtml, {
-    beforeHeadClose: `${hostStyle}\n${localWorkTrajectoryStyle}`,
-    afterBodyOpen: `${hostChrome}\n${previewPanels}`,
-    beforeBodyClose: `${hostScript}\n${v2GraphScript}\n${localWorkTrajectoryScript}`,
-  });
-}
-
-function buildPreviewTabPanels(v2GraphPoC: string, trajectoryPanel: string): string {
-  return `<main id="pgHostPreviewTabs" class="pg-host-preview-tabs">
-  <section id="pgHostChecklistPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabChecklist">
-    ${v2GraphPoC}
-  </section>
-  <section id="pgHostTrajectoryPanel" class="pg-host-tab-panel" role="tabpanel" aria-labelledby="pgHostTabTrajectory" hidden>
-    ${trajectoryPanel}
-  </section>
-  <div id="pgHostPreviewHeightHandle" class="pg-host-preview-height-handle" role="slider" aria-label="Resize Checklist and Trajectory panel height" aria-orientation="vertical" aria-valuemin="520" aria-valuemax="1200" aria-valuenow="760" tabindex="0" data-pg-dragging="false"></div>
-</main>`;
-}
-
-function buildV2GraphPoCSection(state: ProgressGraphPreviewState): string {
-  if (!state.v2GraphPayload || !state.v2GraphScriptUri) {
-    return `<section class="pg-host-v2-poc" data-pg-v2-status="unavailable">
-  <div class="pg-host-v2-head">
-    <div class="pg-host-v2-title-wrap">
-      <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
-      <h2 class="pg-host-v2-title">V2 Graph View PoC 未就绪</h2>
-      <p class="pg-host-v2-subtitle">${escapeHtml(v2GraphUnavailableMessage(state))}</p>
-    </div>
-  </div>
-  <div class="pg-host-v2-unavailable">
-    <p class="pg-host-v2-subtitle">history artifact: ${escapeHtml(state.historyArtifactPath)}</p>
-  </div>
-</section>`;
-  }
-
-  const payload = state.v2GraphPayload;
-  const runtimeSummary = payload.runtimeSummary;
-  const subtitleParts = [
-    `graph_id=${escapeHtml(payload.graphId)}`,
-    `source=${escapeHtml(payload.sourcePath ?? 'unknown')}`,
-    `recorded_at=${escapeHtml(formatTimestamp(payload.recordedAt))}`,
-  ];
-  const metrics = [
-    ['Nodes', String(payload.nodeCount)],
-    ['Edges', String(payload.edgeCount)],
-    ['Bound Nodes', String(runtimeSummary.boundNodeCount)],
-    ['Open Work', String(runtimeSummary.openWorkItemCount)],
-  ].map(([label, value]) => `<div class="pg-host-v2-metric"><div class="pg-host-v2-metric-label">${escapeHtml(label)}</div><div class="pg-host-v2-metric-value">${escapeHtml(value)}</div></div>`).join('');
-  const meta = [
-    '<span class="pg-host-v2-meta-pill">Mode Knowledge Graph Engine</span>',
-    `<span class="pg-host-v2-meta-pill">Bound ${escapeHtml(String(runtimeSummary.boundNodeCount))}</span>`,
-    `<span class="pg-host-v2-meta-pill">Runtime groups ${escapeHtml(String(runtimeSummary.activeGroupItemCount))}</span>`,
-  ].join('');
-
-  return `<section class="pg-host-v2-poc" data-pg-v2-status="available" data-pg-v2-worker-uri="${escapeHtml(state.v2GraphWorkerUri ?? '')}" data-pg-v2-auto-shake="${state.v2GraphAutoShake ? 'true' : 'false'}">
-  <div class="pg-host-v2-head">
-    <div class="pg-host-v2-title-wrap">
-      <div class="pg-host-v2-eyebrow">Knowledge Graph Engine</div>
-      <h2 class="pg-host-v2-title">${escapeHtml(payload.title)}</h2>
-      <p class="pg-host-v2-subtitle">${subtitleParts.join(' · ')}</p>
-    </div>
-    <div class="pg-host-v2-head-actions">
-      <div class="pg-host-v2-meta">${meta}</div>
-      <div class="pg-host-v2-action-buttons">
-        <button id="pgHostV2ShakeLayout" type="button" class="pg-host-v2-reset-button">Shake Layout</button>
-        <button id="pgHostV2ResetViewport" type="button" class="pg-host-v2-reset-button">Reset Zoom/Pan</button>
-      </div>
-    </div>
-  </div>
-  <div id="pgHostV2ConfigTitleGhost" class="pg-host-v2-config-title-ghost pg-host-v2-config-title-text" aria-hidden="true">Graph Config</div>
-  <div id="pgHostV2Layout" class="pg-host-v2-layout">
-    <div id="pgHostV2GraphMain" class="pg-host-v2-graph-main">
-      <div class="pg-host-v2-canvas-shell">
-        <div id="pgHostV2MetricsDock" class="pg-host-v2-metrics-dock">
-          <section id="pgHostV2MetricsInline" class="pg-host-v2-metrics pg-host-v2-metrics-inline" data-pg-metrics-collapsed="false">${metrics}</section>
-        </div>
-        <button id="pgHostV2ConfigCollapsedBar" type="button" class="pg-host-v2-config-collapsed-bar" data-pg-config-collapsed="false" aria-controls="pgHostV2ConfigCard" aria-expanded="true"><span id="pgHostV2ConfigCollapsedLabel" class="pg-host-v2-config-collapsed-label pg-host-v2-config-title-text">Graph Config</span></button>
-        <div id="pgHostV2GraphCanvas" class="pg-host-v2-graph-canvas"></div>
-        <div id="pgHostV2EngineStatus" class="pg-host-v2-engine-status" aria-live="polite"></div>
-      </div>
-    </div>
-    <div id="pgHostV2ResizeHandle" class="pg-host-v2-resize-handle" data-pg-dragging="false" role="separator" aria-orientation="vertical" aria-label="Resize graph and side panel"></div>
-    <div id="pgHostV2Side" class="pg-host-v2-side" data-pg-config-collapsed="false">
-      ${buildV2GraphConfigCard()}
-      <section id="pgHostV2MetricsSide" class="pg-host-v2-metrics pg-host-v2-metrics-side" data-pg-config-collapsed="false">${metrics}</section>
-      <section id="pgHostV2NodeDetailCard" class="pg-host-v2-card pg-host-v2-detail-card">
-        <div class="pg-host-v2-detail-head">
-          <h3 class="pg-host-v2-card-title">Node Detail</h3>
-          <button id="pgHostV2ClearSelection" type="button" class="pg-host-v2-detail-clear" disabled>Clear Selection</button>
-        </div>
-        <div id="pgHostV2GraphDetail" class="pg-host-v2-detail-body">
-          <p class="pg-host-v2-detail-empty">悬停或点击节点后，这里会显示 kind、status、summary 与 runtime binding 摘要。</p>
-        </div>
-      </section>
-    </div>
-  </div>
-  <script type="application/json" id="pgHostV2GraphPayload">${serializeJsonForHtml(payload)}</script>
-</section>`;
-}
-
-function buildTrajectoryPanelSection(state: ProgressGraphPreviewState): string {
-  return `<div class="pg-host-trajectory-stack">
-    ${buildLocalWorkTrajectoryMountSection(state)}
-    ${buildSchedulerWorkTrajectoryMountSection(state)}
-  </div>`;
-}
-
-function buildLocalWorkTrajectoryMountSection(state: ProgressGraphPreviewState): string {
-  return buildTrajectoryMountSection({
-    title: 'Local Work Trajectory',
-    authority: 'Agent managed',
-    mountId: 'pgHostLocalWorkTrajectoryRoot',
-    payloadId: 'pgHostLocalWorkTrajectoryPayload',
-    artifactPath: state.trajectoryArtifactPath,
-    artifactExists: state.trajectoryArtifactExists,
-    trajectory: state.localWorkTrajectory,
-    error: state.localWorkTrajectoryError,
-    locateParent: true,
-  });
-}
-
-function buildSchedulerWorkTrajectoryMountSection(state: ProgressGraphPreviewState): string {
-  return buildTrajectoryMountSection({
-    title: 'Scheduler Trajectory Projection',
-    authority: 'Scheduler projection',
-    mountId: 'pgHostSchedulerWorkTrajectoryRoot',
-    payloadId: 'pgHostSchedulerWorkTrajectoryPayload',
-    artifactPath: state.schedulerTrajectoryArtifactPath,
-    artifactExists: state.schedulerTrajectoryArtifactExists,
-    trajectory: state.schedulerWorkTrajectory,
-    error: state.schedulerWorkTrajectoryError,
-    locateParent: false,
-    showHistoryTimeline: true,
-  });
-}
-
-function buildTrajectoryMountSection(options: {
-  title: string;
-  authority: string;
-  mountId: string;
-  payloadId: string;
-  artifactPath: string;
-  artifactExists: boolean;
-  trajectory: ProgressGraphPreviewLocalWorkTrajectory | null;
-  error: string | null;
-  locateParent: boolean;
-  showHistoryTimeline?: boolean;
-}): string {
-  const payloadScript = options.trajectory
-    ? `<script type="application/json" id="${escapeHtml(options.payloadId)}">${serializeJsonForHtml(options.trajectory)}</script>`
-    : '';
-  const status = options.error
-    ? 'failed'
-    : options.trajectory
-      ? 'available'
-      : 'unavailable';
-  const error = options.error
-    ?? (!options.trajectory && options.artifactExists
-      ? `${options.title} artifact is not usable`
-      : '');
-  const activeEvent = options.trajectory?.events.find((event) => event.status === 'in_progress') ?? null;
-  const toolbarMeta = [
-    options.authority,
-    `artifact=${options.artifactPath}`,
-    options.trajectory ? `lanes=${options.trajectory.lanes.length}` : '',
-    options.trajectory ? `events=${options.trajectory.events.length}` : '',
-    options.trajectory ? `relations=${options.trajectory.relations.length}` : '',
-    activeEvent ? `active=${activeEvent.id}` : '',
-  ].filter(Boolean).join(' · ');
-
-  const anchorGraphId = options.trajectory?.sourceGraphId ?? '';
-  const anchorNodeId = options.trajectory?.sourceNodeId ?? '';
-  const hasAnchor = Boolean(anchorGraphId && anchorNodeId);
-  const anchorStateText = hasAnchor
-    ? `anchor=${anchorGraphId}/${anchorNodeId}`
-    : options.trajectory && options.locateParent
-      ? 'anchor=not set'
-      : '';
-  const locateTitle = hasAnchor
-    ? `Locate ${anchorGraphId}/${anchorNodeId} in the global map`
-    : 'No global progress-map anchor has been set. Agents should call localTrajectory setAnchor with sourceGraphId and sourceNodeId.';
-  const locateParentButton = options.locateParent
-    ? `<button
-      id="pgHostLocateTrajectoryParent"
-      class="pg-host-lwt-locate-parent"
-      type="button"
-      data-pg-source-graph-id="${escapeHtml(anchorGraphId)}"
-      data-pg-source-node-id="${escapeHtml(anchorNodeId)}"
-      title="${escapeHtml(locateTitle)}"
-      ${hasAnchor ? '' : 'disabled'}
-    >Locate parent</button>`
-    : '';
-  const historyTimeline = options.showHistoryTimeline
-    ? buildSchedulerHistoryTimeline(options.trajectory)
-    : '';
-
-  return `<section class="pg-host-lwt-mount-section" data-pg-lwt-status="${status}">
-  <div class="pg-host-lwt-toolbar">
-    <div class="pg-host-lwt-toolbar-copy">
-      <p class="pg-host-lwt-toolbar-title">${escapeHtml(options.title)}</p>
-      <p class="pg-host-lwt-toolbar-meta">${escapeHtml([toolbarMeta, anchorStateText].filter(Boolean).join(' · '))}</p>
-    </div>
-    ${locateParentButton}
-  </div>
-  ${historyTimeline}
-  <div
-    id="${escapeHtml(options.mountId)}"
-    class="pg-host-lwt-mount"
-    data-pg-trajectory-path="${escapeHtml(options.artifactPath)}"
-    data-pg-trajectory-error="${escapeHtml(error)}"
-    data-pg-trajectory-payload-id="${escapeHtml(options.payloadId)}"
-  ></div>
-  ${payloadScript}
-</section>`;
-}
-
-function buildSchedulerHistoryTimeline(
-  trajectory: ProgressGraphPreviewLocalWorkTrajectory | null,
-): string {
-  const metadata = trajectory?.metadata ?? {};
-  const timeline = readTimelineLines(metadata.scheduler_history_timeline);
-  if (timeline.length === 0) {
-    return '';
-  }
-  const count = metadata.scheduler_history_timeline_count || String(timeline.length);
-  const limit = metadata.scheduler_history_timeline_limit || String(timeline.length);
-  const truncated = metadata.scheduler_history_timeline_truncated === 'true';
-  const suffix = truncated
-    ? ` · showing ${escapeHtml(String(timeline.length))}/${escapeHtml(count)}`
-    : ` · ${escapeHtml(count)} entries`;
-  const lines = timeline.map((line) => (
-    `<li class="pg-host-lwt-history-line">${escapeHtml(line)}</li>`
-  )).join('');
-  const more = truncated
-    ? `<p class="pg-host-lwt-history-more">Timeline truncated by projection limit ${escapeHtml(limit)}; inspect JSONL history for complete records.</p>`
-    : '';
-  return `<details class="pg-host-lwt-history">
-    <summary class="pg-host-lwt-history-summary">Scheduler history timeline${suffix}</summary>
-    <ol class="pg-host-lwt-history-lines">${lines}</ol>
-    ${more}
-  </details>`;
-}
-
-function readTimelineLines(value: string | undefined): string[] {
-  return (value ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-function buildV2GraphConfigCard(): string {
-  return `<section id="pgHostV2ConfigCard" class="pg-host-v2-card pg-host-v2-config-card" data-pg-config-collapsed="false">
-  <div id="pgHostV2ConfigCardContent" class="pg-host-v2-config-card-content">
-  <div class="pg-host-v2-config-card-head">
-    <div class="pg-host-v2-config-card-copy">
-      <h3 id="pgHostV2ConfigCardTitle" class="pg-host-v2-card-title pg-host-v2-config-card-title pg-host-v2-config-title-text">Graph Config</h3>
-      <p class="pg-host-v2-card-subtitle">当前图面由外部 knowledge-graph-engine 渲染；宿主只保留 progress graph payload 适配、控制面板和详情面板。</p>
-    </div>
-    <button id="pgHostV2ConfigToggle" class="pg-host-v2-config-toggle" type="button" aria-expanded="true">Collapse</button>
-  </div>
-  <details class="pg-host-v2-config-section" open>
-    <summary class="pg-host-v2-config-summary">外观</summary>
-    <div class="pg-host-v2-config-body">
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2AppearanceLabelDensity">标签覆盖率</label>
-          <output id="pgHostV2AppearanceLabelDensityValue" class="pg-host-v2-config-value">14%</output>
-        </div>
-        <input id="pgHostV2AppearanceLabelDensity" class="pg-host-v2-config-range" type="range" min="0" max="1" step="0.01" value="0.14">
-      </div>
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2AppearanceLabelSize">标签大小</label>
-          <output id="pgHostV2AppearanceLabelSizeValue" class="pg-host-v2-config-value">13px</output>
-        </div>
-        <input id="pgHostV2AppearanceLabelSize" class="pg-host-v2-config-range" type="range" min="11" max="20" step="1" value="13">
-      </div>
-      <div class="pg-host-v2-config-row">
-          <div class="pg-host-v2-config-row-head">
-            <label class="pg-host-v2-config-label" for="pgHostV2AppearanceNodeScale">节点大小</label>
-            <output id="pgHostV2AppearanceNodeScaleValue" class="pg-host-v2-config-value">1.12x</output>
-          </div>
-        <input id="pgHostV2AppearanceNodeScale" class="pg-host-v2-config-range" type="range" min="0.75" max="1.8" step="0.05" value="1.12">
-        </div>
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2AppearanceEdgeScale">连线粗细</label>
-          <output id="pgHostV2AppearanceEdgeScaleValue" class="pg-host-v2-config-value">1.00x</output>
-        </div>
-        <input id="pgHostV2AppearanceEdgeScale" class="pg-host-v2-config-range" type="range" min="0.5" max="2.2" step="0.05" value="1">
-      </div>
-    </div>
-  </details>
-  <details class="pg-host-v2-config-section" open>
-    <summary class="pg-host-v2-config-summary">力度</summary>
-    <div class="pg-host-v2-config-body">
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2ForceGravity">图谱向心力</label>
-          <output id="pgHostV2ForceGravityValue" class="pg-host-v2-config-value">10</output>
-        </div>
-        <input id="pgHostV2ForceGravity" class="pg-host-v2-config-range" type="range" min="1" max="24" step="1" value="10">
-      </div>
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2ForceRepulsion">节点间的排斥力</label>
-          <output id="pgHostV2ForceRepulsionValue" class="pg-host-v2-config-value">1000</output>
-        </div>
-        <input id="pgHostV2ForceRepulsion" class="pg-host-v2-config-range" type="range" min="200" max="3000" step="50" value="1000">
-      </div>
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2ForceAttraction">相连节点间的吸引力</label>
-          <output id="pgHostV2ForceAttractionValue" class="pg-host-v2-config-value">50</output>
-        </div>
-        <input id="pgHostV2ForceAttraction" class="pg-host-v2-config-range" type="range" min="10" max="140" step="5" value="50">
-      </div>
-      <div class="pg-host-v2-config-row">
-        <div class="pg-host-v2-config-row-head">
-          <label class="pg-host-v2-config-label" for="pgHostV2ForceLinkLength">连线长度</label>
-          <output id="pgHostV2ForceLinkLengthValue" class="pg-host-v2-config-value">200px</output>
-        </div>
-        <input id="pgHostV2ForceLinkLength" class="pg-host-v2-config-range" type="range" min="80" max="280" step="5" value="200">
-      </div>
-    </div>
-  </details>
-  <details class="pg-host-v2-config-section" open>
-    <summary class="pg-host-v2-config-summary">颜色组</summary>
-    <div class="pg-host-v2-config-body">
-      <p class="pg-host-v2-config-hint">按列表顺序首个命中优先。当前支持 Search 风格核心语法，例如空格 AND、OR、-、括号、引号、regex，以及 file:/path:/content:/tag:/kind:/status:/match-case:/ignore-case:。</p>
-      <div id="pgHostV2ColorGroups" class="pg-host-v2-color-group-list"></div>
-      <button id="pgHostV2AddColorGroup" class="pg-host-v2-config-button" type="button">添加颜色组</button>
-    </div>
-  </details>
-</div>
-</section>`;
-}
-
-function buildControlOverlay(state: ProgressGraphPreviewState): string {
-  const payloadScript = state.controlSnapshot
-    ? `<script type="application/json" id="pgHostControlSnapshotPayload">${serializeJsonForHtml(state.controlSnapshot)}</script>`
-    : '';
-  const snapshotStatus = state.controlSnapshotError
-    ? 'failed'
-    : state.controlSnapshot
-      ? 'available'
-      : 'unavailable';
-
-  return `<section class="pg-host-control-overlay" data-control-snapshot-status="${snapshotStatus}" data-control-snapshot-path="${escapeHtml(state.controlSnapshotPath)}" data-control-snapshot-error="${escapeHtml(state.controlSnapshotError ?? '')}">
-  ${buildControlSummaryRail(state)}
-  ${buildSchedulerOperatorSection(state)}
-  ${buildHostEvidenceSection(state)}
-  <div class="pg-host-control-grid">
-    ${buildCompanionCard(state)}
-    ${buildUnboundRuntimePanel(state)}
-  </div>
-  ${payloadScript}
-</section>`;
-}
-
-function buildControlSummaryRail(state: ProgressGraphPreviewState): string {
-  const snapshot = state.controlSnapshot;
-  if (!snapshot) {
-    return `<section class="pg-host-control-card">
-  <h2 class="pg-host-control-card-title">Control Summary Rail</h2>
-  <p class="pg-host-control-card-subtitle">${escapeHtml(controlSnapshotStatusMessage(state))}</p>
-</section>`;
-  }
-
-  const summary = snapshot.summary;
-  const metrics = [
-    ['Open Work Items', String(summary.open_work_item_count)],
-    ['Blocked Work Items', String(summary.blocked_work_item_count)],
-    ['Waiting External', String(summary.waiting_external_resolution_count)],
-    ['Active Group Items', String(summary.active_group_item_count)],
-    ['Unbound Group Items', String(summary.unbound_group_item_count)],
-  ].map(([label, value]) => `<div class="pg-host-summary-metric"><div class="pg-host-summary-label">${escapeHtml(label)}</div><div class="pg-host-summary-value">${escapeHtml(value)}</div></div>`).join('');
-
-  return `<section class="pg-host-control-card">
-  <h2 class="pg-host-control-card-title">Control Summary Rail</h2>
-  <p class="pg-host-control-card-subtitle">runtime snapshot generated at ${escapeHtml(formatTimestamp(snapshot.generated_at))}</p>
-  <div class="pg-host-summary-rail">${metrics}</div>
-</section>`;
-}
-
-function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string {
-  const workflow = state.schedulerOperatorWorkflow;
-  const exchange = workflow.exchange;
-  const lastAction = workflow.lastAction;
-  const pathFacts = [
-    ['Store', workflow.paths.artifactStorePath],
-    ['Ledger', workflow.paths.admissionLedgerPath],
-    ['Snapshot', workflow.paths.schedulerSnapshotPath],
-    ['Event log', workflow.paths.schedulerEventLogPath],
-    ['Projection', workflow.paths.schedulerProjectionPath],
-  ].map(([label, value]) => (
-    `<div class="pg-host-evidence-fact">
-      <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
-      <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
-    </div>`
-  )).join('');
-  const exchangeFacts = exchange
-    ? [
-      ['Store exists', String(exchange.exists)],
-      ['Artifacts', String(exchange.artifactCount)],
-      ['Versions', String(exchange.versionCount)],
-      ['Admission candidates', String(exchange.admissionCandidateCount)],
-      ['Ledger exists', String(exchange.admissionLedgerExists)],
-    ].map(([label, value]) => (
-      `<div class="pg-host-evidence-fact">
-        <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
-        <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
-      </div>`
-    )).join('')
-    : '';
-  const scheduler = workflow.scheduler;
-  const schedulerFacts = scheduler
-    ? [
-      ['Snapshot exists', String(scheduler.snapshotExists)],
-      ['Tasks', String(scheduler.taskCount)],
-      ['Dependencies', String(scheduler.dependencyCount)],
-      ['Run records', String(scheduler.runRecordCount)],
-      ['Scheduler events', String(scheduler.schedulerEventCount)],
-    ].map(([label, value]) => (
-      `<div class="pg-host-evidence-fact">
-        <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
-        <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
-      </div>`
-    )).join('')
-    : '';
-  const candidateList = exchange?.candidates.length
-    ? `<div class="pg-host-scheduler-candidates">
-      <p class="pg-host-evidence-group-title">Admission candidates</p>
-      ${exchange.candidates.map((candidate) => buildSchedulerOperatorCandidate(candidate, lastAction.status === 'running')).join('')}
-    </div>`
-    : `<p class="pg-host-control-card-subtitle">No scheduler-admission candidates are currently present in the ExchangeArtifact store.</p>`;
-  const readError = workflow.exchangeReadError
-    ? `<div class="pg-host-scheduler-action-result" data-pg-action-status="failed">
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">exchange read failed</span>
-      <p class="pg-host-control-card-subtitle">${escapeHtml(workflow.exchangeReadError)}</p>
-    </div>`
-    : '';
-  const schedulerReadError = workflow.schedulerReadError
-    ? `<p class="pg-host-control-card-subtitle">Scheduler state readback unavailable: ${escapeHtml(workflow.schedulerReadError)}</p>`
-    : '';
-  const errors = exchange?.errors.length
-    ? buildHostEvidenceChipGroup('Exchange read errors', exchange.errors)
-    : '';
-  const lastActionHtml = lastAction.status === 'idle'
-    ? ''
-    : `<div class="pg-host-scheduler-action-result" data-pg-action-status="${escapeHtml(lastAction.status)}">
-      <div class="pg-host-evidence-chip-row">
-        <span class="pg-host-evidence-badge" data-pg-evidence-status="${lastAction.status === 'failed' ? 'failed' : lastAction.status === 'succeeded' ? 'completed' : 'unknown'}">${escapeHtml(lastAction.status)}</span>
-        <span class="pg-host-evidence-badge">${escapeHtml(lastAction.action || 'scheduler action')}</span>
-      </div>
-      <p class="pg-host-control-card-subtitle">${escapeHtml(lastAction.summary || 'action completed')}</p>
-      ${lastAction.stderr ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stderr)}</pre>` : ''}
-      ${lastAction.stdout ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stdout)}</pre>` : ''}
-    </div>`;
-
-  return `<section id="pgHostSchedulerOperatorPanel" class="pg-host-control-card pg-host-scheduler-operator-card">
-  <div class="pg-host-scheduler-operator-head">
-    <div class="pg-host-evidence-title-wrap">
-      <h2 class="pg-host-control-card-title">Scheduler Operator</h2>
-      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(workflow.exchangeResourceUri)} · explicit admit / bounded run / projection refresh</p>
-    </div>
-    <div class="pg-host-scheduler-operator-actions">
-      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="runLoop" ${lastAction.status === 'running' ? 'disabled' : ''}>Run bounded loop</button>
-      <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="project" ${lastAction.status === 'running' ? 'disabled' : ''}>Refresh projection</button>
-    </div>
-  </div>
-  <div class="pg-host-scheduler-operator-grid">${exchangeFacts || pathFacts}${schedulerFacts}</div>
-  ${schedulerReadError}
-  ${readError}
-  ${candidateList}
-  ${errors}
-  ${lastActionHtml}
-</section>`;
-}
-
-function buildSchedulerOperatorCandidate(
-  candidate: SchedulerOperatorExchangeCandidate,
-  actionRunning: boolean,
-): string {
-  const taskLabel = candidate.taskIds.length
-    ? candidate.taskIds.join(', ')
-    : `${candidate.taskCount} task(s)`;
-  const alreadyAdmitted = candidate.admissionStatus === 'admitted';
-  const statusLabel = [
-    `admission=${candidate.admissionStatus || 'unknown'}`,
-    candidate.latestAdmissionStatus ? `latest=${candidate.latestAdmissionStatus}` : '',
-    candidate.batchId ? `batch=${candidate.batchId}` : '',
-  ].filter(Boolean).join(' · ');
-  return `<article class="pg-host-scheduler-candidate">
-    <div class="pg-host-scheduler-candidate-head">
-      <div>
-        <h3 class="pg-host-scheduler-candidate-title">${escapeHtml(candidate.artifactId)}@${escapeHtml(candidate.version)}</h3>
-        <p class="pg-host-scheduler-candidate-meta">${escapeHtml(candidate.productType)} · ${escapeHtml(taskLabel)}</p>
-        <p class="pg-host-scheduler-candidate-meta">${escapeHtml(statusLabel)}</p>
-      </div>
-      <div class="pg-host-scheduler-candidate-actions">
-        <button
-          class="pg-host-scheduler-operator-button"
-          type="button"
-          data-pg-scheduler-action="admit"
-          data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
-          data-pg-version="${escapeHtml(candidate.version)}"
-          ${actionRunning || alreadyAdmitted ? 'disabled' : ''}
-        >${alreadyAdmitted ? 'Admitted' : 'Admit'}</button>
-      </div>
-    </div>
-  </article>`;
-}
-
-function buildCompanionCard(state: ProgressGraphPreviewState): string {
-  return `<section class="pg-host-control-card">
-  <h2 class="pg-host-control-card-title">Bound Target Detail Companion</h2>
-  <p class="pg-host-control-card-subtitle">当前由宿主负责把 raw target binding 解析到 display target，并在这里显示最小 runtime 摘要。</p>
-  <p class="pg-host-control-card-subtitle" id="pgHostCompanionSummary">select a node</p>
-  <div id="pgHostCompanionBody"><p class="pg-host-control-card-subtitle">${escapeHtml(
-    state.controlSnapshot
-      ? '选择图中的节点或 ready item 后，这里会显示对应的 runtime binding 摘要。'
-      : controlSnapshotStatusMessage(state),
-  )}</p></div>
-</section>`;
-}
-
-function buildUnboundRuntimePanel(state: ProgressGraphPreviewState): string {
-  return `<section class="pg-host-control-card">
-  <h2 class="pg-host-control-card-title">Unbound Runtime Panel</h2>
-  <p class="pg-host-control-card-subtitle">显式保留当前仍没有稳定 graph target 的 runtime rows，避免错误绑定。</p>
-  <div id="pgHostUnboundBody"><p class="pg-host-control-card-subtitle">${escapeHtml(
-    state.controlSnapshot
-      ? '正在根据 bindings 和当前 graph payload 计算 unbound runtime rows。'
-      : controlSnapshotStatusMessage(state),
-  )}</p></div>
-</section>`;
-}
-
-function buildHostEvidenceSection(state: ProgressGraphPreviewState): string {
-  const presentation = state.hostEvidencePresentation;
-  if (state.hostEvidencePresentationError) {
-    return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="failed">
-  <div class="pg-host-evidence-head">
-    <div class="pg-host-evidence-title-wrap">
-      <h2 class="pg-host-control-card-title">Host Evidence</h2>
-      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)}</p>
-    </div>
-    <div class="pg-host-evidence-badge-row">
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">read failed</span>
-    </div>
-  </div>
-  <p class="pg-host-control-card-subtitle">${escapeHtml(state.hostEvidencePresentationError)}</p>
-</section>`;
-  }
-
-  if (!presentation) {
-    return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="unavailable">
-  <div class="pg-host-evidence-head">
-    <div class="pg-host-evidence-title-wrap">
-      <h2 class="pg-host-control-card-title">Host Evidence</h2>
-      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)}</p>
-    </div>
-    <div class="pg-host-evidence-badge-row">
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="unknown">unavailable</span>
-    </div>
-  </div>
-  <p class="pg-host-control-card-subtitle">host evidence presentation resource has not been loaded.</p>
-</section>`;
-  }
-
-  const statusBadge = `<span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(presentation.status)}">${escapeHtml(presentation.status)}</span>`;
-  const countBadges = [
-    `<span class="pg-host-evidence-badge">cards ${escapeHtml(String(presentation.cardCount))}</span>`,
-    `<span class="pg-host-evidence-badge">errors ${escapeHtml(String(presentation.errorCount))}</span>`,
-  ].join('');
-  const emptyMessage = !presentation.cards.length && !presentation.errorRows.length
-    ? `<p class="pg-host-control-card-subtitle">${escapeHtml(presentation.emptyMessage || 'No host scheduler run evidence has been recorded.')}</p>`
-    : '';
-  const cards = presentation.cards.length
-    ? `<div class="pg-host-evidence-list">${presentation.cards.map((card) => buildHostEvidenceCard(card)).join('')}</div>`
-    : '';
-  const errorRows = presentation.errorRows.length
-    ? `<div class="pg-host-evidence-error-list">
-      <p class="pg-host-evidence-group-title">Malformed evidence rows</p>
-      ${presentation.errorRows.map((row) => buildHostEvidenceErrorRow(row)).join('')}
-    </div>`
-    : '';
-
-  return `<section id="pgHostEvidencePanel" class="pg-host-control-card pg-host-evidence-card" data-pg-host-evidence-status="${escapeHtml(presentation.status)}">
-  <div class="pg-host-evidence-head">
-    <div class="pg-host-evidence-title-wrap">
-      <h2 class="pg-host-control-card-title">Host Evidence</h2>
-      <p class="pg-host-control-card-subtitle">resource=${escapeHtml(state.hostEvidencePresentationResourceUri)} · evidence_dir=${escapeHtml(presentation.evidenceDir || 'unknown')}</p>
-    </div>
-    <div class="pg-host-evidence-badge-row">${statusBadge}${countBadges}</div>
-  </div>
-  ${emptyMessage}
-  ${cards}
-  ${errorRows}
-</section>`;
-}
-
-function buildHostEvidenceCard(card: ProgressGraphPreviewHostEvidenceCard): string {
-  const facts = [
-    ['Runtime providers', card.runtimeProviders.join(', ') || 'unknown'],
-    ['Host surface', card.hostSurface || 'unknown'],
-    ['Invocation', card.invocationId || 'unknown'],
-    ['Stop reason', card.stopReason || 'unknown'],
-    ['Runs', String(card.runCount)],
-    ['Outputs', String(card.outputCount)],
-    ['Permission reviews', String(card.permissionReviewCount)],
-    ...card.keyFacts.map((fact) => [fact.label, fact.value] as [string, string]),
-  ];
-  const dedupedFacts = dedupeHostEvidenceFacts(facts);
-  const factHtml = dedupedFacts.map(([label, value]) => (
-    `<div class="pg-host-evidence-fact">
-      <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
-      <div class="pg-host-evidence-value">${escapeHtml(value || 'unknown')}</div>
-    </div>`
-  )).join('');
-  const refs = card.refs.length
-    ? buildHostEvidenceChipGroup('Refs', card.refs.map((ref) => `${ref.label}: ${ref.target}`))
-    : '';
-  const authorityClues = card.authorityClues.length
-    ? buildHostEvidenceChipGroup('Authority clues', card.authorityClues.map((fact) => `${fact.label}: ${fact.value}`))
-    : '';
-  const stopDetail = card.stopDetail
-    ? buildHostEvidenceChipGroup('Stop detail', [card.stopDetail])
-    : '';
-
-  return `<article class="pg-host-evidence-run" data-pg-evidence-severity="${escapeHtml(card.severity)}">
-    <div class="pg-host-evidence-run-head">
-      <div>
-        <h3 class="pg-host-evidence-run-title">${escapeHtml(card.title)}</h3>
-        <p class="pg-host-evidence-run-subtitle">${escapeHtml([card.subtitle, formatTimestamp(card.timestamp)].filter(Boolean).join(' · '))}</p>
-      </div>
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(card.status)}">${escapeHtml(card.status)}</span>
-    </div>
-    <div class="pg-host-evidence-facts">${factHtml}</div>
-    ${stopDetail}
-    ${refs}
-    ${authorityClues}
-  </article>`;
-}
-
-function buildHostEvidenceChipGroup(title: string, values: string[]): string {
-  const chips = values
-    .filter((value) => value.trim().length > 0)
-    .map((value) => `<span class="pg-host-evidence-chip"><span>${escapeHtml(value)}</span></span>`)
-    .join('');
-  if (!chips) {
-    return '';
-  }
-  return `<div class="pg-host-evidence-group">
-    <p class="pg-host-evidence-group-title">${escapeHtml(title)}</p>
-    <div class="pg-host-evidence-chip-row">${chips}</div>
-  </div>`;
-}
-
-function buildHostEvidenceErrorRow(row: ProgressGraphPreviewHostEvidenceErrorRow): string {
-  return `<div class="pg-host-evidence-error-row">
-    <div class="pg-host-evidence-chip-row">
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(row.status)}">${escapeHtml(row.status)}</span>
-      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(row.severity)}">${escapeHtml(row.errorKind)}</span>
-    </div>
-    <div class="pg-host-evidence-value">${escapeHtml(row.evidencePath || row.id)}</div>
-    <div class="pg-host-evidence-value">${escapeHtml(row.message)}</div>
-  </div>`;
-}
-
-function dedupeHostEvidenceFacts(facts: [string, string][]): [string, string][] {
-  const seen = new Set<string>();
-  const result: [string, string][] = [];
-  for (const [label, value] of facts) {
-    const key = `${label}\u0000${value}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    result.push([label, value]);
-  }
-  return result;
-}
-
-function controlSnapshotStatusMessage(state: ProgressGraphPreviewState): string {
-  if (state.controlSnapshotError) {
-    return `runtime snapshot 加载失败：${state.controlSnapshotError}`;
-  }
-  if (state.controlSnapshotExists) {
-    return `runtime snapshot 当前不可用：${state.controlSnapshotPath}`;
-  }
-  return `runtime snapshot unavailable；等待 ${state.controlSnapshotPath} 出现后再接入 summary/binding surface。`;
-}
-
-function v2GraphUnavailableMessage(state: ProgressGraphPreviewState): string {
-  if (state.v2GraphPayloadError) {
-    return `V2 graph payload 加载失败：${state.v2GraphPayloadError}`;
-  }
-  if (!state.historyArtifactExists) {
-    return `等待 ${state.historyArtifactPath} 出现后再构建 V2 graph payload。`;
-  }
-  if (!state.v2GraphScriptUri) {
-    return '浏览器 bundle 尚未可用，当前无法挂载 Knowledge Graph Engine 图面。';
-  }
-  if (!state.v2GraphWorkerUri) {
-    return 'force worker bundle 尚未可用，当前无法启动 Knowledge Graph Engine 布局。';
-  }
-  return '当前没有可用的 V2 graph payload。';
-}
-
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function formatTimestamp(value: string | null): string {
-  if (!value) {
-    return 'unknown';
-  }
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf())
-    ? value
-    : parsed.toLocaleString('zh-CN', { hour12: false });
-}
-
-function serializeJsonForHtml(value: unknown): string {
-  return JSON.stringify(value).replace(/<\//g, '<\\/');
-}
-
-function buildControlOverlayEnhancementScript(): string {
-  return `
   (() => {
     const overlay = document.querySelector('.pg-host-control-overlay');
     const companionSummary = document.getElementById('pgHostCompanionSummary');
@@ -3356,7 +2065,7 @@ function buildControlOverlayEnhancementScript(): string {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/\"/g, '&quot;')
+      .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
     const toArray = (value) => Array.isArray(value) ? value : [];
 
@@ -3656,101 +2365,8 @@ function buildControlOverlayEnhancementScript(): string {
 
     applyGraphDecorations();
     renderUnboundPanel();
-  })();`;
-}
+  })();
+</script>
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function readObjectArray(value: unknown): Record<string, unknown>[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter(isRecord);
-}
-
-function readObjectCollection(value: unknown): Record<string, unknown>[] {
-  if (Array.isArray(value)) {
-    return value.filter(isRecord);
-  }
-  if (isRecord(value)) {
-    return Object.values(value).filter(isRecord);
-  }
-  return [];
-}
-
-function readString(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value : fallback;
-}
-
-function readNullableString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-function readNumber(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function readStringRecord(value: unknown): Record<string, string> {
-  if (!isRecord(value)) {
-    return {};
-  }
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-  );
-}
-
-function readHostEvidenceFacts(value: unknown): ProgressGraphPreviewHostEvidenceFact[] {
-  return readObjectArray(value).map((item) => ({
-    label: readString(item.label, 'unknown'),
-    value: readString(item.value, ''),
-  }));
-}
-
-function readHostEvidenceRefs(value: unknown): ProgressGraphPreviewHostEvidenceRef[] {
-  return readObjectArray(value).map((item) => ({
-    label: readString(item.label, 'unknown'),
-    target: readString(item.target, ''),
-    refKind: readString(item.ref_kind, readString(item.refKind, 'path')),
-  }));
-}
-
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((item): item is string => typeof item === 'string');
-}
-
-function injectIntoHtmlDocument(
-  html: string,
-  injections: {
-    beforeHeadClose?: string;
-    afterBodyOpen?: string;
-    beforeBodyClose?: string;
-  },
-): string {
-  let result = html;
-
-  if (injections.beforeHeadClose) {
-    result = result.match(/<\/head>/i)
-      ? result.replace(/<\/head>/i, `${injections.beforeHeadClose}\n</head>`)
-      : `${injections.beforeHeadClose}\n${result}`;
-  }
-
-  if (injections.afterBodyOpen) {
-    result = result.match(/<body[^>]*>/i)
-      ? result.replace(/<body([^>]*)>/i, `<body$1>\n${injections.afterBodyOpen}`)
-      : `${injections.afterBodyOpen}\n${result}`;
-  }
-
-  if (injections.beforeBodyClose) {
-    result = result.match(/<\/body>/i)
-      ? result.replace(/<\/body>/i, `${injections.beforeBodyClose}\n</body>`)
-      : `${result}\n${injections.beforeBodyClose}`;
-  }
-
-  return result;
-}
+<script src="localWorkTrajectory.js"></script>
+</body></html>
