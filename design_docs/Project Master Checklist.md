@@ -16,9 +16,9 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke rendered evidence follow-up close`
-- Active Slice: `Electron Smoke Rendered Evidence Follow-Up (COMPLETED; isolated VS Code 1.93.1 provisioned explicitly, real Electron smoke passed, rendered HTML and screenshot evidence produced)`
-- Latest Completed Slice: `Electron Smoke Rendered Evidence Follow-Up`
+- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke release validation promotion decision`
+- Active Slice: `Electron Smoke Release Validation Promotion Direction Analysis (COMPLETED; recommends a pre-provisioned release checklist gate while keeping VS Code download explicit)`
+- Latest Completed Slice: `Electron Smoke Release Validation Promotion Direction Analysis`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
 - Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download; explicit provisioning for VS Code `1.93.1` passed; Electron smoke passed with repo-local executable; rendered evidence summary confirmed `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`; screenshot sanity check passed (`1600x1000`, `sampled_unique_colors=38`). Electron smoke is still not promoted to release-grade validation until a separate checklist/cache policy decision.
 
@@ -137,6 +137,7 @@
 - `design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md`
 - `design_docs/electron-smoke-vscode-executable-provisioning-followup-direction-analysis.md`
 - `design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md`
+- `design_docs/electron-smoke-release-validation-promotion-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`

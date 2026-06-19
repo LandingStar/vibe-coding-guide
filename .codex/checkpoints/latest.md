@@ -1,6 +1,6 @@
 # Checkpoint - 2026-06-20T02:08:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Electron smoke rendered evidence follow-up close
+Post-v1.0 - Agent orchestration / Electron smoke release validation promotion decision
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -30,19 +30,21 @@ Post-v1.0 - Agent orchestration / Electron smoke rendered evidence follow-up clo
 - [x] Verify rendered evidence summary: `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`.
 - [x] Capture screenshot-style evidence and sanity-check it is non-blank.
 - [x] Update review/status/follow-up docs with rendered evidence result.
+- [x] Prepare release validation promotion direction analysis.
 ## Pending User Decision
-(none)
+Decide whether to open the recommended `Electron Smoke Release Checklist Pre-Provisioned Gate`.
 ## Direction Candidates
 - Completed Line: Electron Smoke VS Code Executable Provisioning Policy - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-executable-provisioning-policy.md
 - Completed Line: Electron Smoke VS Code Provisioning Automation - source: design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
 - Completed Evidence Line: VS Code `1.93.1` provisioned, Electron smoke passed, rendered evidence produced - source: design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
-- Recommended Promotion Decision Line: decide whether release-grade Electron smoke should own a pinned executable/cache/offline policy - source: design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
+- Recommended Promotion Decision Line: `Electron Smoke Release Checklist Pre-Provisioned Gate` - source: design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md
 - review/electron-smoke-vscode-provisioning-automation-2026-06-20.md
 - design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md
+- design_docs/electron-smoke-release-validation-promotion-direction-analysis.md
 - output/electron/webview-runner-smoke/electron-webview-smoke-summary.json
 - output/electron/webview-runner-smoke/rendered-progress-graph-preview.html
 - output/playwright/electron-webview-smoke/rendered-progress-graph-preview.png
