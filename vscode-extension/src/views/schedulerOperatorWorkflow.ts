@@ -296,30 +296,37 @@ function buildCliScriptInvocation(
 }
 
 function schedulerActionArgs(action: SchedulerOperatorAction): string[] {
+  const baseArgs = [
+    'scheduler',
+    'operator-workflow',
+    '--artifact-store-path',
+    '.codex/orchestration/exchange-artifacts.json',
+    '--admission-ledger-path',
+    '.codex/orchestration/exchange-artifact-admissions.json',
+    '--snapshot-path',
+    '.codex/scheduler/scheduler-state.json',
+    '--event-log-path',
+    '.codex/scheduler/scheduler-events.jsonl',
+    '--projection-output-path',
+    '.codex/progress-graph/scheduler-work-trajectory.json',
+    '--actor',
+    'vscode-scheduler-operator',
+  ];
   if (action.kind === 'admit') {
     return [
-      'scheduler',
-      'admit-exchange-artifact',
+      ...baseArgs,
       '--artifact-id',
       action.artifactId,
       '--version',
       action.version,
-      '--snapshot-path',
-      '.codex/scheduler/scheduler-state.json',
-      '--event-log-path',
-      '.codex/scheduler/scheduler-events.jsonl',
-      '--actor',
-      'vscode-scheduler-operator',
+      '--admit',
     ];
   }
   if (action.kind === 'runLoop') {
+    const evidenceId = `vscode-operator-${Date.now()}`;
     return [
-      'scheduler',
-      'daemon-loop',
-      '--snapshot-path',
-      '.codex/scheduler/scheduler-state.json',
-      '--event-log-path',
-      '.codex/scheduler/scheduler-events.jsonl',
+      ...baseArgs,
+      '--run-loop',
       '--runtime-provider',
       'fake',
       '--max-ticks',
@@ -327,16 +334,14 @@ function schedulerActionArgs(action: SchedulerOperatorAction): string[] {
       '--max-runs-per-tick',
       '1',
       '--evidence-id',
-      `vscode-operator-${Date.now()}`,
+      evidenceId,
+      '--evidence-path',
+      `.codex/scheduler/evidence/${evidenceId}.json`,
     ];
   }
   return [
-    'scheduler',
-    'project',
-    '--snapshot-path',
-    '.codex/scheduler/scheduler-state.json',
-    '--event-log-path',
-    '.codex/scheduler/scheduler-events.jsonl',
+    ...baseArgs,
+    '--refresh-projection',
     '--guide-context',
     'vscode-scheduler-operator',
   ];
@@ -375,22 +380,36 @@ function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperato
 
 function summarizeActionPayload(action: string, payload: Record<string, unknown>): string {
   if (action === 'admit') {
-    const taskIds = readStringArray(payload.submitted_task_ids);
-    const ledgerId = readString(payload.ledger_record_id, '');
+    const admissionResult = readNestedWorkflowResult(payload, 'admission_result');
+    const taskIds = readStringArray(admissionResult.submitted_task_ids);
+    const ledgerId = readString(
+      admissionResult.admission_ledger_record_id,
+      readString(admissionResult.ledger_record_id, ''),
+    );
     return `admitted ${taskIds.length} task(s)${ledgerId ? ` · ledger=${ledgerId}` : ''}`;
   }
   if (action === 'runLoop') {
-    const ticks = readNumber(payload.tick_count);
-    const runs = readNumber(payload.total_run_count);
-    const stopReason = readString(payload.stop_reason, 'unknown');
+    const loopResult = readNestedWorkflowResult(payload, 'loop_result');
+    const ticks = readNumber(loopResult.tick_count);
+    const runs = readNumber(loopResult.total_run_count);
+    const stopReason = readString(loopResult.stop_reason, 'unknown');
     return `loop ticks=${ticks} · runs=${runs} · stop=${stopReason}`;
   }
   if (action === 'project') {
-    const eventCount = readNumber(payload.event_count);
-    const laneCount = readNumber(payload.lane_count);
+    const projectionResult = readNestedWorkflowResult(payload, 'projection_result');
+    const eventCount = readNumber(projectionResult.event_count);
+    const laneCount = readNumber(projectionResult.lane_count);
     return `projection refreshed · events=${eventCount} · lanes=${laneCount}`;
   }
   return 'action completed';
+}
+
+function readNestedWorkflowResult(
+  payload: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
+  const nested = readRecord(payload[key]);
+  return Object.keys(nested).length > 0 ? nested : payload;
 }
 
 function parseJsonObject(stdout: string): Record<string, unknown> {

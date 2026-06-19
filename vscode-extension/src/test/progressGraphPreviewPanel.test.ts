@@ -100,7 +100,7 @@ test('preview panel reads host evidence presentation as a read-only resource', (
   assert.doesNotMatch(hostEvidenceSource, /write_resource|callTool|localTrajectory|scheduler daemon-loop/);
 });
 
-test('preview panel wires scheduler operator workflow through explicit existing CLI surfaces', () => {
+test('preview panel wires scheduler operator workflow through the shared CLI surface', () => {
   const source = readFileSync(sourcePath, 'utf-8');
   const schedulerOperatorSource = readFileSync(
     join(__dirname, '..', '..', 'src', 'views', 'schedulerOperatorWorkflow.ts'),
@@ -113,15 +113,25 @@ test('preview panel wires scheduler operator workflow through explicit existing 
   assert.match(source, /_coerceSchedulerOperatorAction/);
   assert.match(source, /schedulerOperatorWorkflow: schedulerOperatorWorkflow/);
   assert.match(schedulerOperatorSource, /dbc:\/\/exchange-artifacts\/bundle/);
-  assert.match(schedulerOperatorSource, /'scheduler',\s*'admit-exchange-artifact'/);
-  assert.match(schedulerOperatorSource, /'scheduler',\s*'daemon-loop'/);
-  assert.match(schedulerOperatorSource, /'scheduler',\s*'project'/);
+  assert.match(schedulerOperatorSource, /'scheduler',\s*'operator-workflow'/);
+  assert.match(schedulerOperatorSource, /'--admit'/);
+  assert.match(schedulerOperatorSource, /'--run-loop'/);
+  assert.match(schedulerOperatorSource, /'--refresh-projection'/);
+  assert.match(schedulerOperatorSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
+  assert.match(schedulerOperatorSource, /'--admission-ledger-path',\s*'\.codex\/orchestration\/exchange-artifact-admissions\.json'/);
+  assert.match(schedulerOperatorSource, /'--projection-output-path',\s*'\.codex\/progress-graph\/scheduler-work-trajectory\.json'/);
   assert.match(schedulerOperatorSource, /'--runtime-provider',\s*'fake'/);
   assert.match(schedulerOperatorSource, /'--max-ticks',\s*'3'/);
+  assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'admission_result'\)/);
+  assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'loop_result'\)/);
+  assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'projection_result'\)/);
   assert.match(schedulerOperatorSource, /importlib\.metadata\.distribution\("doc-based-coding-runtime"\)/);
   assert.match(schedulerOperatorSource, /from src\.__main__ import main/);
   assert.match(schedulerOperatorSource, /sys\.argv = \["doc-based-coding"/);
   assert.match(schedulerOperatorSource, /tools\.read_resource/);
+  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'admit-exchange-artifact'/);
+  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'daemon-loop'/);
+  assert.doesNotMatch(schedulerOperatorSource, /'scheduler',\s*'project'/);
   assert.doesNotMatch(schedulerOperatorSource, /localTrajectory|write_resource|callTool/);
 });
 
