@@ -58,7 +58,12 @@ Keep the lifecycle split:
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-14. Controlled host-runtime dogfood uses
+14. Host-injected daemon loops use Python/host wiring through
+   `HostSchedulerDaemonLoopRequest` plus
+   `run_host_authorized_scheduler_daemon_loop()`. This is the path for
+   repeated bounded mock-Qoder or future real-provider daemon-loop dogfood. It
+   is not exposed as a real-provider CLI or MCP tool.
+15. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -477,6 +482,8 @@ The host-facing Python adapter is:
 HostSchedulerRunRequest
 run_host_authorized_scheduler_once()
 run_host_authorized_scheduler_once_and_refresh_projection()
+HostSchedulerDaemonLoopRequest
+run_host_authorized_scheduler_daemon_loop()
 run_host_runtime_dogfood_harness()
 ```
 
@@ -495,6 +502,22 @@ Expected host-runner evidence:
 Do not route `qoder` through `schedulerRunOnceAndProject`. MCP remains
 fake-only; real providers require explicit host permission grants and injected
 runtime clients.
+
+Expected host-injected daemon-loop behavior:
+
+- `HostSchedulerDaemonLoopResult.to_json_dict()` is JSON-serializable
+- `runtime_registry_providers` records the registered providers
+- `runtime_host_surface` is `host-authorized-adapter` for mock-Qoder or later
+  real-provider runs
+- `tick_count`, `total_run_count`, `stop_reason`, and
+  `final_queue_summary` are visible
+- explicit `evidence_id` writes `product_type="scheduler_loop_evidence"`
+  through the same read-only host evidence bundle/presentation path
+- `authority_split.runtime_registry_authority="host_runtime_wiring"`
+- `authority_split.scheduler_projection_refreshed=false`
+- `authority_split.local_work_trajectory_mutated=false`
+
+Do not add a CLI/MCP real-provider daemon loop. The CLI `doc-based-coding scheduler daemon-loop` remains fake-runtime-only.
 
 ## Controlled Host Runtime Dogfood Harness
 

@@ -75,6 +75,8 @@ from src.runtime.orchestration import (
     SchedulerDaemonLoopRequest,
     SchedulerDaemonLoopStopPolicy,
     SchedulerDaemonTickRequest,
+    HostSchedulerDaemonLoopRequest,
+    HostSchedulerDaemonLoopResult,
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     admit_exchange_artifact_version_to_scheduler,
@@ -108,6 +110,7 @@ from src.runtime.orchestration import (
     run_persisted_scheduler_once,
     run_persisted_scheduler_once_with_wiring,
     run_host_authorized_scheduler_once,
+    run_host_authorized_scheduler_daemon_loop,
     run_ready_task,
     run_scheduled_task_with_registry,
     run_scheduler_daemon_loop,
@@ -4348,6 +4351,289 @@ def test_host_scheduler_runner_mock_qoder_requires_host_authorization(tmp_path) 
         }
     ]
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-q"].state == "complete"
+
+
+def test_host_scheduler_daemon_loop_fake_result_is_json_serializable(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduled_task("task-a", output_artifact_id="task-a:result"),
+                "task-b": _scheduled_task("task-b", output_artifact_id="task-b:result"),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep-a-b",
+                    source_task_id="task-a",
+                    target_task_id="task-b",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop(
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(
+                max_ticks=3,
+                max_runs_per_tick=1,
+            ),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-19T15:20:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-fake",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                ),
+            ),
+            timestamp="2026-06-19T15:20:00+08:00",
+            metadata={"scenario": "fake-host-loop"},
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    payload = result.to_json_dict()
+
+    assert isinstance(result, HostSchedulerDaemonLoopResult)
+    assert payload["ok"] is True
+    assert payload["runtime_registry_providers"] == ["fake"]
+    assert payload["runtime_host_surface"] == "host-authorized-adapter"
+    assert payload["host_invocation_id"] == "host-loop-fake"
+    assert payload["tick_count"] == 2
+    assert payload["total_run_count"] == 2
+    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["final_queue_summary"]["completed_task_ids"] == ["task-a", "task-b"]
+    assert payload["evidence_written"] is False
+    assert payload["authority_split"]["runtime_registry_authority"] == "host_runtime_wiring"
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    import json
+
+    json.dumps(payload, ensure_ascii=False)
+    written = read_scheduler_state_snapshot(snapshot_path)
+    assert written.tasks["task-a"].state == "complete"
+    assert written.tasks["task-b"].state == "complete"
+
+
+def test_host_scheduler_daemon_loop_mock_qoder_writes_scheduler_loop_evidence(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / "evidence" / "host-loop-qoder.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-q": _scheduled_task(
+                    "task-q",
+                    agent=AgentSpec(agent_id="agent:qoder", runtime_provider="qoder"),
+                    output_artifact_id="task-q:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop(
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("qoder",),
+                timestamp="2026-06-19T15:30:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-qoder",
+                    requested_providers=("qoder",),
+                    requested_by="host:test",
+                    reason="mock qoder daemon loop",
+                ),
+                qoder_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-qoder",
+                    provider="qoder",
+                    approved_by="host:test",
+                    approved_at="2026-06-19T15:29:00+08:00",
+                    allow_sdk_client=True,
+                ),
+            ),
+            evidence_id="host-loop:qoder",
+            evidence_path=evidence_path,
+            timestamp="2026-06-19T15:30:00+08:00",
+            metadata={"scenario": "mock-qoder-host-loop"},
+        ),
+        qoder_query_client=_RecordingQoderClient(
+            QoderQueryResult(summary="Qoder daemon loop completed.", output_text="done")
+        ),
+    )
+    payload = result.to_json_dict()
+    summary = read_scheduler_loop_evidence_summary(evidence_path)
+
+    assert payload["runtime_registry_providers"] == ["qoder"]
+    assert payload["runtime_provider"] == "qoder"
+    assert payload["runtime_host_surface"] == "host-authorized-adapter"
+    assert payload["host_invocation_id"] == "host-loop-qoder"
+    assert payload["tick_count"] == 1
+    assert payload["total_run_count"] == 1
+    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["evidence_written"] is True
+    assert payload["evidence_path"] == str(evidence_path)
+    assert payload["authority_split"]["evidence_written"] is True
+    assert evidence_path.exists()
+    assert summary.evidence_id == "host-loop:qoder"
+    assert summary.runtime_provider == "qoder"
+    assert summary.metadata["surface"] == "host-authorized-scheduler-daemon-loop"
+    assert summary.metadata["runtime_host_surface"] == "host-authorized-adapter"
+    assert summary.metadata["host_invocation_id"] == "host-loop-qoder"
+    assert summary.metadata["scenario"] == "mock-qoder-host-loop"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-q"].state == "complete"
+
+
+def test_host_scheduler_daemon_loop_default_evidence_path_uses_workspace_root(tmp_path) -> None:
+    project = tmp_path / "project"
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    evidence_path = project / ".codex" / "scheduler" / "evidence" / "host-loop-default.json"
+    write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
+
+    result = run_host_authorized_scheduler_daemon_loop(
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=0),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-default-path",
+                    requested_providers=("fake",),
+                ),
+            ),
+            evidence_id="host-loop:default",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["evidence_written"] is True
+    assert payload["evidence_path"] == str(evidence_path)
+    assert evidence_path.exists()
+
+
+def test_host_scheduler_daemon_loop_rejects_qoder_without_host_authorization(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-q": _scheduled_task(
+                    "task-q",
+                    agent=AgentSpec(agent_id="agent:qoder", runtime_provider="qoder"),
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    with pytest.raises(ValueError, match="fake-only"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("qoder",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="cli-scheduler-run-once",
+                        invocation_id="bad-loop-qoder",
+                        requested_providers=("qoder",),
+                    ),
+                    qoder_permission_grant=RuntimeProviderPermissionGrant(
+                        grant_id="grant-qoder",
+                        provider="qoder",
+                        approved_by="host:test",
+                        approved_at="2026-06-19T15:40:00+08:00",
+                        allow_sdk_client=True,
+                    ),
+                ),
+            ),
+            qoder_query_client=_RecordingQoderClient(QoderQueryResult(summary="unused")),
+        )
+
+    with pytest.raises(ValueError, match="RuntimeProviderPermissionGrant"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("qoder",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-loop-grant",
+                        requested_providers=("qoder",),
+                    ),
+                ),
+            ),
+            qoder_query_client=_RecordingQoderClient(QoderQueryResult(summary="unused")),
+        )
+
+    with pytest.raises(ValueError, match="injected QoderQueryClient"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("qoder",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-loop-client",
+                        requested_providers=("qoder",),
+                    ),
+                    qoder_permission_grant=RuntimeProviderPermissionGrant(
+                        grant_id="grant-qoder",
+                        provider="qoder",
+                        approved_by="host:test",
+                        approved_at="2026-06-19T15:41:00+08:00",
+                        allow_sdk_client=True,
+                    ),
+                ),
+            )
+        )
+
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-q"].state == "proposed"
+    assert not event_log_path.exists()
+
+
+def test_host_scheduler_daemon_loop_rejects_mixed_runtime_registry(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
+
+    with pytest.raises(ValueError, match="requires exactly one runtime provider"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake", "qoder"),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="mixed-loop",
+                        requested_providers=("fake", "qoder"),
+                    ),
+                    qoder_permission_grant=RuntimeProviderPermissionGrant(
+                        grant_id="grant-qoder",
+                        provider="qoder",
+                        approved_by="host:test",
+                        approved_at="2026-06-19T15:45:00+08:00",
+                        allow_sdk_client=True,
+                    ),
+                ),
+            ),
+            qoder_query_client=_RecordingQoderClient(QoderQueryResult(summary="unused")),
+        )
 
 
 def test_drain_preflighted_ready_tasks_runs_dependency_chain_to_completion(tmp_path) -> None:

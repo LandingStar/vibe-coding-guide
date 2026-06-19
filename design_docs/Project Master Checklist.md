@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Scheduler loop host evidence binding close`
-- Active Slice: `Scheduler Loop Host Evidence Binding (COMPLETED; scheduler daemon-loop can explicitly write scheduler_loop_evidence and existing host evidence resources can read it)`
-- Latest Completed Slice: `Scheduler Loop Host Evidence Binding`
+- Current Phase: `Post-v1.0 — Agent orchestration / Host-injected scheduler daemon loop close`
+- Active Slice: `Host-Injected Scheduler Daemon Loop (COMPLETED; host-owned Python wiring can run bounded daemon loop with fake/mock-Qoder and optional scheduler_loop_evidence)`
+- Latest Completed Slice: `Host-Injected Scheduler Daemon Loop`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: `278 passed, 1 skipped` (tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite)
+- Test Baseline: `283 passed, 1 skipped` (tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite)
 
 ## 当前 Handoff Footprint
 
@@ -54,6 +54,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`
 - `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-host-evidence-binding.md`
+- `design_docs/stages/planning-gate/2026-06-19-host-injected-scheduler-daemon-loop.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -77,6 +78,7 @@
 - `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`
 - `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`
 - `review/scheduler-loop-host-evidence-binding-2026-06-19.md`
+- `review/host-injected-scheduler-daemon-loop-2026-06-19.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -86,6 +88,7 @@
 - `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`
 - `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`
 - `design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md`
+- `design_docs/host-injected-scheduler-daemon-loop-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`
@@ -877,6 +880,7 @@
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`。本轮新增 daemon-ready bounded tick 合同：`SchedulerDaemonTickRequest` / `SchedulerDaemonTickResult` / `SchedulerDaemonQueueSummary` / `run_scheduler_daemon_tick()` / `summarize_scheduler_queue()`，并暴露 CLI `doc-based-coding scheduler tick`；该命令要求显式 scheduler snapshot/event-log path，默认 `--max-runs 1`，仅支持 fake runtime，执行后返回 queue summary、run_count、stop_reason、scheduler event count 与 authority_split。该切片不启动后台 daemon、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `207 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`。本轮新增 bounded repeated daemon loop policy：`SchedulerDaemonLoopStopPolicy` / `SchedulerDaemonLoopRequest` / `SchedulerDaemonLoopIteration` / `SchedulerDaemonLoopResult` / `run_scheduler_daemon_loop()`，并暴露 CLI `doc-based-coding scheduler daemon-loop`；该命令要求显式 scheduler snapshot/event-log path，支持 `--max-ticks`、`--max-runs-per-tick`、`--max-runtime-failures`，仅支持 fake runtime，执行后返回 tick_count、total_run_count、stop_reason、iterations、final_queue_summary、scheduler event count 与 authority_split。该切片不启动后台 daemon service、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `214 passed`。
 - `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-host-evidence-binding.md`。本轮新增 scheduler-loop evidence 产品：`SchedulerLoopEvidence` / `SchedulerLoopEvidenceSummary` / `SchedulerLoopEvidenceWriteResult` / `build_scheduler_loop_evidence()` / `write_scheduler_loop_evidence()` / `read_scheduler_loop_evidence_summary()` / `default_scheduler_loop_evidence_path()`；CLI `doc-based-coding scheduler daemon-loop` 新增显式 `--evidence-id` / `--evidence-path` 写入 `.codex/scheduler/evidence/<safe-id>.json`，既有 `dbc://host-evidence/bundle` / `dbc://host-evidence/presentation` 可只读识别 `host_scheduler_run_evidence` 与 `scheduler_loop_evidence` 混合目录。该切片不新增 MCP execution tool、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-loop-host-evidence-binding-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `278 passed, 1 skipped`。
+- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-injected-scheduler-daemon-loop.md`。本轮新增 host-owned daemon-loop adapter：`HostSchedulerDaemonLoopRequest` / `HostSchedulerDaemonLoopResult` / `run_host_authorized_scheduler_daemon_loop()`，复用 `RuntimeRegistryWiringConfig`、`build_runtime_registry_from_config()` 与 `run_scheduler_daemon_loop()`，可由 host Python 注入 fake 或 mock-Qoder runtime registry 并显式写入 `scheduler_loop_evidence`。非 fake provider 仍要求 `RuntimeHostInvocation(surface="host-authorized-adapter")`、`RuntimeProviderPermissionGrant` 与 injected `QoderQueryClient`；CLI/MCP daemon-loop 仍 fake-only。该切片不运行 live provider、不启动后台 daemon service、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不从 scheduler code 突变 Local Work Trajectory；review evidence 位于 `review/host-injected-scheduler-daemon-loop-2026-06-19.md`；后续方向分析位于 `design_docs/host-injected-scheduler-daemon-loop-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `283 passed, 1 skipped`。
 - `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
 - `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
 - `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。
@@ -913,3 +917,4 @@
 - `2026-04-11`: Phase 29 完成——Self-Hosting Workflow Rule Formalization：将“文档型成果立即自用、运行时入口在首个稳定 release 前只作为 pre-release dogfood”写入 Workflow Standard、官方实例定位、Checklist 与 doc-loop prompts。当前确认核心链条已可运行，但尚未达到可默认依赖的稳定版门槛；本 Phase 只做文档与提示词收口，不修改代码，也未新增自动化测试。
 - `2026-04-11`: Phase 30 完成——Dogfood Feedback Remediation Part 2 (F8 First)：按用户审核先只处理 F8。`src/__main__.py` 中 `check` 命令现默认只输出约束 / 状态信息，不再混入完整治理链；若提供文本输入，会明确提示改用 `process`。新增 `tests/test_cli.py`，针对 `check` 无输入、有输入、帮助文本 3 个场景做回归验证；`pytest tests/test_cli.py` 通过（3 passed）。F4 保留为下一条独立诊断切片。
 - `2026-04-11`: Phase 31 完成——F4 Validator Diagnostics Follow-up：`src/pack/registrar.py` 新增 `skipped_details` 诊断层，区分 `missing-path`、`unsupported-extension`、`load-failed`、`missing-validate` 四类 skipped 原因，并通过 `summary()` / `Pipeline.info()` 暴露。新增官方实例 real-pack 场景覆盖，确认当前两个 validator 脚本被 skipped 的原因是 `missing-validate`，不是路径 bug。`pytest tests/test_extension_bridging.py` 通过（15 passed）。
+

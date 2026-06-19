@@ -251,6 +251,11 @@ from .scheduler_host_runner import (
     HostSchedulerRunResult,
     run_host_authorized_scheduler_once,
 )
+from .scheduler_host_daemon import (
+    HostSchedulerDaemonLoopRequest,
+    HostSchedulerDaemonLoopResult,
+    run_host_authorized_scheduler_daemon_loop,
+)
 from .scheduler_dogfood import (
     HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE,
     HOST_SCHEDULER_RUN_EVIDENCE_SCHEMA_VERSION,
@@ -427,6 +432,8 @@ __all__ = [
     "SchedulerDaemonQueueSummary",
     "SchedulerDaemonTickRequest",
     "SchedulerDaemonTickResult",
+    "HostSchedulerDaemonLoopRequest",
+    "HostSchedulerDaemonLoopResult",
     "HostSchedulerRunRequest",
     "HostSchedulerRunResult",
     "HostSchedulerRunEvidence",
@@ -488,6 +495,7 @@ __all__ = [
     "run_persisted_scheduler_once",
     "run_persisted_scheduler_once_with_wiring",
     "run_host_authorized_scheduler_once",
+    "run_host_authorized_scheduler_daemon_loop",
     "build_host_scheduler_run_evidence",
     "default_host_scheduler_run_evidence_path",
     "default_scheduler_loop_evidence_path",

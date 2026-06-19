@@ -142,13 +142,18 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "runtimeProvider=\"fake\"" in text
         assert "qoder" in text
         assert "HostSchedulerRunRequest" in text
+        assert "HostSchedulerDaemonLoopRequest" in text
         assert "run_host_authorized_scheduler_once_and_refresh_projection" in text
+        assert "run_host_authorized_scheduler_daemon_loop" in text
         assert "run_host_runtime_dogfood_harness" in text
         assert "host_scheduler_run_evidence" in text
         assert "scheduler_loop_evidence" in text
         assert ".codex/scheduler/evidence/<evidence-id>.json" in text
         assert ".codex/scheduler/evidence/<safe-id>.json" in text
         assert "host-authorized-adapter" in text
+        assert "host_runtime_wiring" in text
+        assert "CLI or MCP tool" in text
+        assert "CLI `doc-based-coding scheduler daemon-loop` remains fake-runtime-only" in text
         assert "history_summary" in text
         assert "MCP remains" in text
         assert "must not mutate" in text
