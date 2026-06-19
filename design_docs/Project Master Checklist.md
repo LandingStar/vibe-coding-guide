@@ -16,11 +16,11 @@
 - Snapshot Date: `2026-06-19`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke executable provisioning policy close`
-- Active Slice: `Electron Smoke VS Code Executable Provisioning Policy (COMPLETED; manual isolated Code.exe placement, manifest, integrity, validation, and future automation boundary defined)`
-- Latest Completed Slice: `Electron Smoke VS Code Executable Provisioning Policy`
+- Current Phase: `Post-v1.0 — Agent orchestration / Electron smoke VS Code provisioning automation close`
+- Active Slice: `Electron Smoke VS Code Provisioning Automation (COMPLETED; explicit opt-in provisioning script with exact version pin, dry-run, manifest, and no implicit build/test/smoke download)`
+- Latest Completed Slice: `Electron Smoke VS Code Provisioning Automation`
 - Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: Docs grep validation passed for `output/electron/vscode-executable`, `VSCODE_ELECTRON_SMOKE_EXECUTABLE`, and `Code.exe`; Electron smoke provisioning policy now defines manual isolated executable placement and metadata. Rendered Electron evidence still requires a supplied isolated executable or cleared user-local update lock
+- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download. Rendered Electron evidence still requires executing provisioning for an exact VS Code version and then running Electron smoke
 
 ## 当前 Handoff Footprint
 
@@ -70,6 +70,7 @@
 - `design_docs/stages/planning-gate/2026-06-19-electron-webview-runner-spike.md`
 - `design_docs/stages/planning-gate/2026-06-20-electron-smoke-isolated-vscode-executable.md`
 - `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-executable-provisioning-policy.md`
+- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md`
 - `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
 - `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
 - `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
@@ -109,6 +110,7 @@
 - `review/electron-webview-runner-spike-2026-06-19.md`
 - `review/electron-smoke-isolated-vscode-executable-2026-06-20.md`
 - `review/electron-smoke-vscode-executable-provisioning-policy-2026-06-20.md`
+- `review/electron-smoke-vscode-provisioning-automation-2026-06-20.md`
 - `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
 - `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
 - `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
@@ -134,6 +136,7 @@
 - `design_docs/electron-webview-runner-spike-followup-direction-analysis.md`
 - `design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md`
 - `design_docs/electron-smoke-vscode-executable-provisioning-followup-direction-analysis.md`
+- `design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md`
 - `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
 - `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
 - `design_docs/host-evidence-consumer-followup-direction-analysis.md`

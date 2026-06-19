@@ -122,7 +122,28 @@ gate.
 
 ## Future Automation Boundary
 
-A later provisioning automation slice may:
+The first automation surface is explicit opt-in only:
+
+```powershell
+npm run provision:electron:vscode --prefix vscode-extension -- provision <exact-vscode-version>
+```
+
+Dry-run inspection:
+
+```powershell
+npm run provision:electron:vscode --prefix vscode-extension -- dry-run <exact-vscode-version>
+```
+
+Rules:
+
+- the version must be exact, for example `1.93.1`;
+- floating `stable` and `insiders` are not acceptable for release evidence;
+- the positional `provision <exact-version>` action is required before
+  download/cache mutation;
+- normal build, unit test, and Electron smoke commands must not implicitly
+  download VS Code.
+
+A later provisioning automation slice may further:
 
 - download a pinned VS Code archive;
 - verify checksum;

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Electron Smoke Isolated Executable Discovery",
-  "recorded_at": "2026-06-19T17:33:42.866226+00:00",
+  "title": "Electron Smoke VS Code Provisioning Automation",
+  "recorded_at": "2026-06-19T17:45:00.565772+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md",
+  "guide_context": "design_docs/electron-smoke-vscode-executable-provisioning-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Electron Smoke Isolated Executable Discovery",
+    "title": "Electron Smoke VS Code Provisioning Automation",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 1,
+    "relation_count": 0,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "electron evidence",
+      "label": "provisioning",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md"
+        "context": "design_docs/electron-smoke-vscode-executable-provisioning-followup-direction-analysis.md"
       }
     }
   },
@@ -36,42 +36,18 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Discover existing isolated VS Code executable candidate",
+      "title": "Define provisioning automation slice",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T17:29:07.250995+00:00",
-        "activated_at": "2026-06-19T17:29:07.250995+00:00",
+        "created_at": "2026-06-19T17:35:50.574559+00:00",
+        "activated_at": "2026-06-19T17:35:50.574559+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T17:29:32.625398+00:00"
-      }
-    },
-    "event:002": {
-      "id": "event:002",
-      "lane_id": "lane:main",
-      "title": "Define VS Code executable provisioning policy",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Create a review-gated policy slice for isolated VS Code executable sourcing, version pinning, cache layout, manual placement, validation, and future automation boundaries.",
-      "metadata": {
-        "created_at": "2026-06-19T17:30:19.218723+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-19T17:33:42.864744+00:00"
+        "completed_at": "2026-06-19T17:45:00.565772+00:00"
       }
     }
   },
-  "relations": [
-    {
-      "source_event_id": "event:001",
-      "target_event_id": "event:002",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    }
-  ]
+  "relations": []
 }
