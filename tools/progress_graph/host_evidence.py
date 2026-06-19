@@ -333,6 +333,10 @@ def _scheduler_loop_evidence_presentation_card(
     host_invocation_id = _metadata_str(evidence_metadata, "host_invocation_id")
     scheduler_projection_path = _metadata_str(evidence_metadata, "scheduler_projection_path")
     scheduler_projection_role = _metadata_str(evidence_metadata, "scheduler_projection_role")
+    scheduler_projection_refreshed = _metadata_bool_text(
+        evidence_metadata,
+        "scheduler_projection_refreshed",
+    )
     if not scheduler_projection_path:
         scheduler_projection_path = _object_to_text(authority_split.get("scheduler_projection_path"))
     if not scheduler_projection_role:
@@ -386,6 +390,7 @@ def _scheduler_loop_evidence_presentation_card(
         authority_split,
         scheduler_projection_path=scheduler_projection_path,
         scheduler_projection_role=scheduler_projection_role,
+        scheduler_projection_refreshed=scheduler_projection_refreshed,
     )
     return HostEvidencePresentationCard(
         id=summary.evidence_id,
@@ -419,6 +424,7 @@ def _scheduler_loop_evidence_presentation_card(
             "host_invocation_id": host_invocation_id,
             "scheduler_projection_path": scheduler_projection_path,
             "scheduler_projection_role": scheduler_projection_role,
+            "scheduler_projection_refreshed": scheduler_projection_refreshed,
             "evidence_metadata": evidence_metadata,
         },
     )
@@ -478,9 +484,16 @@ def _scheduler_loop_authority_clues(
     *,
     scheduler_projection_path: str,
     scheduler_projection_role: str,
+    scheduler_projection_refreshed: str = "",
 ) -> tuple[HostEvidencePresentationFact, ...]:
+    clue_values = {
+        "scheduler_projection_refreshed": scheduler_projection_refreshed,
+    }
     clues = [
-        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
+        HostEvidencePresentationFact(
+            label,
+            clue_values.get(key) or _object_to_text(authority_split.get(key)),
+        )
         for label, key in (
             ("Scheduler state", "scheduler_state_authority"),
             ("Scheduler state mutated", "scheduler_state_mutated"),
@@ -535,6 +548,11 @@ def _mapping_str(mapping: dict[str, object] | HostSchedulerRunEvidenceSummary | 
 def _metadata_str(metadata: dict[str, object], key: str) -> str:
     value = metadata.get(key)
     return value if isinstance(value, str) else ""
+
+
+def _metadata_bool_text(metadata: dict[str, object], key: str) -> str:
+    value = metadata.get(key)
+    return _object_to_text(value) if isinstance(value, bool) else ""
 
 
 def _object_to_text(value: object) -> str:

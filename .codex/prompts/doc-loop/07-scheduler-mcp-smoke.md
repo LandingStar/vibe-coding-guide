@@ -538,12 +538,19 @@ Expected host loop projection workflow behavior:
 - `projection_summary` gives compact machine readback for the
   scheduler-derived trajectory
 - explicit `evidence_id` still writes `scheduler_loop_evidence`
+- when explicit `evidence_id` is used, the composed host workflow enriches the
+  just-written evidence metadata after projection refresh with:
+  `workflow_surface="host-loop-projection-workflow"`,
+  `scheduler_projection_path`, `scheduler_projection_role`,
+  `scheduler_projection_refreshed=true`, and compact
+  `scheduler_projection_summary`
 - `authority_split.scheduler_projection_refreshed=true`
 - `authority_split.local_work_trajectory_mutated=false`
 
 This helper is for host-owned workflow polish. It must not be treated as a
 background daemon, a scheduler state mutation beyond the bounded loop, or a
-CLI/MCP real-provider surface.
+CLI/MCP real-provider surface. The evidence metadata must remain compact and
+must not embed full trajectory JSON.
 
 Expected scheduler-loop evidence presentation behavior:
 

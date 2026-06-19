@@ -201,6 +201,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "loop_result" in text
         assert "queue_summary" in text
         assert "projection_summary" in text
+        assert "workflow_surface=\"host-loop-projection-workflow\"" in text
+        assert "scheduler_projection_summary" in text
+        assert "must not embed full trajectory JSON" in text
         assert "scheduler_projection_refreshed=true" in text
         assert "host-owned workflow polish" in text
         assert "Expected scheduler-loop evidence presentation behavior" in text

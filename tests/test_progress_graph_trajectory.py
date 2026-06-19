@@ -986,6 +986,80 @@ def test_host_scheduler_daemon_loop_and_refresh_projection_preserves_agent_traje
     assert [event.title for event in local_trajectory.events.values()] == ["agent-owned anchor"]
 
 
+def test_host_scheduler_daemon_loop_projection_enriches_evidence_metadata(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/host-loop-fake.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-a": _scheduler_projection_task(
+                    "task-a",
+                    lane_id="lane:host",
+                    output_artifact_id="task-a:result",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop_and_refresh_projection(
+        tmp_path,
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-19T17:10:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-projection-fake-evidence",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                ),
+            ),
+            evidence_id="host-loop:projection-fake",
+            evidence_path=evidence_path,
+            timestamp="2026-06-19T17:10:00+08:00",
+            metadata={"scenario": "fake-host-loop-projection"},
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+        guide_context="host-loop-projection-fake-evidence-test",
+    )
+    bundle = read_host_evidence_bundle(tmp_path)
+    presentation = build_host_evidence_presentation(bundle).to_json_dict()
+    summary = bundle.summaries[0]
+    metadata = dict(summary.metadata)
+    card = presentation["cards"][0]
+
+    assert result.host_loop.evidence_write is not None
+    assert result.host_loop.evidence_write.evidence_path == evidence_path
+    assert metadata["surface"] == "host-loop-projection-workflow"
+    assert metadata["workflow_surface"] == "host-loop-projection-workflow"
+    assert metadata["runtime_host_surface"] == "host-authorized-adapter"
+    assert metadata["host_invocation_id"] == "host-loop-projection-fake-evidence"
+    assert metadata["scheduler_projection_path"] == str(result.projection_path)
+    assert metadata["scheduler_projection_role"] == "read-only-view"
+    assert metadata["scheduler_projection_refreshed"] is True
+    assert metadata["scheduler_projection_summary"]["event_count"] == 1
+    assert metadata["scheduler_projection_summary"]["relation_count"] == 0
+    assert metadata["scenario"] == "fake-host-loop-projection"
+    assert summary.authority_split["scheduler_projection_refreshed"] is False
+    assert card["metadata"]["scheduler_projection_path"] == str(result.projection_path)
+    assert card["metadata"]["scheduler_projection_refreshed"] == "true"
+    assert {
+        "label": "Scheduler projection refreshed",
+        "value": "true",
+    } in card["authority_clues"]
+    assert any(ref["label"] == "Scheduler projection" for ref in card["refs"])
+
+    payload = result.to_json_dict()
+    assert payload["projection_summary"]["event_count"] == 1
+    assert payload["evidence_written"] is True
+    assert payload["evidence_path"] == str(evidence_path)
+
+
 def test_host_scheduler_daemon_loop_projection_mock_qoder_preserves_evidence(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
@@ -1053,6 +1127,11 @@ def test_host_scheduler_daemon_loop_projection_mock_qoder_preserves_evidence(tmp
     assert len(bundle.summaries) == 1
     assert bundle.summaries[0].evidence_id == "host-loop:projection-qoder"
     assert bundle.summaries[0].product_type == "scheduler_loop_evidence"
+    assert bundle.summaries[0].metadata["surface"] == "host-loop-projection-workflow"
+    assert bundle.summaries[0].metadata["workflow_surface"] == "host-loop-projection-workflow"
+    assert bundle.summaries[0].metadata["scheduler_projection_path"] == str(result.projection_path)
+    assert bundle.summaries[0].metadata["scheduler_projection_refreshed"] is True
+    assert bundle.summaries[0].metadata["scheduler_projection_summary"]["event_count"] == 1
 
 
 def test_host_runtime_dogfood_harness_fake_writes_evidence_and_projection(tmp_path: Path) -> None:

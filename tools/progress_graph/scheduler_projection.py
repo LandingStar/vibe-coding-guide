@@ -39,6 +39,10 @@ from src.runtime.orchestration.scheduler_host_daemon import (
     HostSchedulerDaemonLoopResult,
     run_host_authorized_scheduler_daemon_loop,
 )
+from src.runtime.orchestration.scheduler_loop_evidence import (
+    SchedulerLoopEvidenceWriteResult,
+    write_scheduler_loop_evidence,
+)
 from src.runtime.orchestration.scheduler_store import (
     JsonlSchedulerEventLog,
     JsonlSchedulerMergeGateEventLog,
@@ -594,11 +598,44 @@ def run_host_authorized_scheduler_daemon_loop_and_refresh_projection(
         source_graph_id=source_graph_id,
         source_node_id=source_node_id,
     )
+    projection = LocalWorkTrajectory.from_json(projection_path.read_text(encoding="utf-8"))
+    enriched_evidence = _enrich_host_loop_evidence_with_projection_metadata(
+        host_loop.evidence_write,
+        projection_path=projection_path,
+        projection=projection,
+    )
+    if enriched_evidence is not None:
+        host_loop = replace(host_loop, evidence_write=enriched_evidence)
     return HostSchedulerDaemonLoopProjectionRefreshResult(
         host_loop=replace(host_loop, scheduler_projection_refreshed=True),
         projection_path=projection_path,
-        projection=LocalWorkTrajectory.from_json(projection_path.read_text(encoding="utf-8")),
+        projection=projection,
     )
+
+
+def _enrich_host_loop_evidence_with_projection_metadata(
+    evidence_write: SchedulerLoopEvidenceWriteResult | None,
+    *,
+    projection_path: Path,
+    projection: LocalWorkTrajectory,
+) -> SchedulerLoopEvidenceWriteResult | None:
+    """Add compact projection clues to workflow-owned scheduler-loop evidence."""
+
+    if evidence_write is None:
+        return None
+    metadata = dict(evidence_write.evidence.metadata)
+    metadata.update(
+        {
+            "surface": "host-loop-projection-workflow",
+            "workflow_surface": "host-loop-projection-workflow",
+            "scheduler_projection_path": str(projection_path),
+            "scheduler_projection_role": "read-only-view",
+            "scheduler_projection_refreshed": True,
+            "scheduler_projection_summary": projection.summary(),
+        }
+    )
+    evidence = replace(evidence_write.evidence, metadata=metadata)
+    return write_scheduler_loop_evidence(evidence, evidence_write.evidence_path)
 
 
 def _tasks_by_lane(state: SchedulerState) -> dict[str, tuple[ScheduledTask, ...]]:
