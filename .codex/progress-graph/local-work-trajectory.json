@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Sandbox mount binding over acquired leases",
-  "recorded_at": "2026-06-20T16:54:56.230950+00:00",
+  "title": "Lease and sandbox authorization readback",
+  "recorded_at": "2026-06-20T17:11:09.786451+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md",
+  "guide_context": "review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Sandbox mount binding over acquired leases",
+    "title": "Lease and sandbox authorization readback",
     "lane_count": 1,
-    "event_count": 3,
-    "relation_count": 2,
+    "event_count": 1,
+    "relation_count": 0,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "sandbox mount binding",
+      "label": "readback contract",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md"
+        "context": "review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md"
       }
     }
   },
@@ -36,66 +36,18 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open sandbox mount binding planning gate",
+      "title": "Open lease and sandbox authorization readback planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T16:44:47.214714+00:00",
-        "activated_at": "2026-06-20T16:44:47.214714+00:00",
+        "created_at": "2026-06-20T16:58:39.225518+00:00",
+        "activated_at": "2026-06-20T16:58:39.225518+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T16:49:51.955229+00:00"
-      }
-    },
-    "event:002": {
-      "id": "event:002",
-      "lane_id": "lane:main",
-      "title": "Implement acquired lease sandbox mount binding",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Extend sandbox request/allocation metadata and preflight wiring so lease-scoped mounts require acquired edit lease lifecycle evidence.",
-      "metadata": {
-        "created_at": "2026-06-20T16:50:00.278767+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T16:54:42.184269+00:00"
-      }
-    },
-    "event:003": {
-      "id": "event:003",
-      "lane_id": "lane:main",
-      "title": "Close sandbox mount binding slice",
-      "kind": "close",
-      "status": "completed",
-      "order": 3,
-      "summary": "Sandbox mount binding over acquired leases slice is closed; next decision is readback versus real provider spike.",
-      "metadata": {
-        "created_at": "2026-06-20T16:54:48.964333+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T16:54:56.230950+00:00",
-        "closed_at": "2026-06-20T16:54:56.230950+00:00"
+        "completed_at": "2026-06-20T17:11:09.786451+00:00"
       }
     }
   },
-  "relations": [
-    {
-      "source_event_id": "event:001",
-      "target_event_id": "event:002",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:002",
-      "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    }
-  ]
+  "relations": []
 }

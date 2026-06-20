@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-21T01:03:00+08:00
+# Checkpoint - 2026-06-21T01:10:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Sandbox mount binding close
+Post-v1.0 - Agent orchestration / Lease and sandbox authorization readback
 ## Active Planning Gate
-(none)
+design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -25,9 +25,15 @@ Post-v1.0 - Agent orchestration / Sandbox mount binding close
 - [x] Pass acquired lifecycle records through preflight.
 - [x] Validate focused sandbox/preflight tests and relevant runtime regression.
 - [x] Record review evidence and close gate.
+- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`.
+- [ ] Implement read-only scheduler authorization readback helper.
+- [ ] Expose MCP `schedulerAuthorizationReadback`.
+- [ ] Validate focused runtime/MCP tests and relevant regression.
+- [ ] Record review evidence and close gate.
 ## Pending User Decision
-- Choose next direction after sandbox metadata binding: Host UX/MCP readback or real sandbox provider spike.
+(none)
 ## Direction Candidates
+- Active Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 - Completed Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
 - Candidate Next Gate: Host UX / MCP Lease And Sandbox Authorization Readback - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
 - Candidate Next Gate: Real Sandbox Provider Spike - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
@@ -43,6 +49,7 @@ Post-v1.0 - Agent orchestration / Sandbox mount binding close
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
+- design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 - design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
 - review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
