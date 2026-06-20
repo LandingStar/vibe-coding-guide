@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Lease and sandbox authorization readback",
-  "recorded_at": "2026-06-20T18:22:30.111641+00:00",
+  "title": "Authorization readback follow-up direction analysis",
+  "recorded_at": "2026-06-20T18:29:04.001793+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md",
+  "guide_context": "review/lease-and-sandbox-authorization-readback-2026-06-21.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Lease and sandbox authorization readback",
+    "title": "Authorization readback follow-up direction analysis",
     "lane_count": 1,
-    "event_count": 3,
-    "relation_count": 2,
+    "event_count": 1,
+    "relation_count": 0,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "readback contract",
+      "label": "direction analysis",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md"
+        "context": "review/lease-and-sandbox-authorization-readback-2026-06-21.md"
       }
     }
   },
@@ -36,66 +36,18 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open lease and sandbox authorization readback planning gate",
+      "title": "Prepare readback follow-up direction analysis",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T16:58:39.225518+00:00",
-        "activated_at": "2026-06-20T16:58:39.225518+00:00",
+        "created_at": "2026-06-20T18:25:30.822475+00:00",
+        "activated_at": "2026-06-20T18:25:30.822475+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T17:11:09.786451+00:00"
-      }
-    },
-    "event:002": {
-      "id": "event:002",
-      "lane_id": "lane:main",
-      "title": "Implement authorization readback helper and MCP surface",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Add a read-only runtime summary over edit lease declarations, lifecycle records, and metadata-only sandbox mount authorization, then expose it via MCP schedulerAuthorizationReadback.",
-      "metadata": {
-        "created_at": "2026-06-20T17:13:00.843632+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T17:18:12.353912+00:00"
-      }
-    },
-    "event:003": {
-      "id": "event:003",
-      "lane_id": "lane:main",
-      "title": "Close lease and sandbox authorization readback slice",
-      "kind": "close",
-      "status": "completed",
-      "order": 3,
-      "summary": "Lease and sandbox authorization readback slice closed after runtime/MCP validation and review/status writeback.",
-      "metadata": {
-        "created_at": "2026-06-20T18:22:18.729976+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T18:22:30.110639+00:00",
-        "closed_at": "2026-06-20T18:22:30.110639+00:00"
+        "completed_at": "2026-06-20T18:29:04.001793+00:00"
       }
     }
   },
-  "relations": [
-    {
-      "source_event_id": "event:001",
-      "target_event_id": "event:002",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:002",
-      "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    }
-  ]
+  "relations": []
 }

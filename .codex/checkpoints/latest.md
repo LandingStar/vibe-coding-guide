@@ -33,6 +33,8 @@ Post-v1.0 - Agent orchestration / Lease and sandbox authorization readback close
 ## Pending User Decision
 (none)
 ## Direction Candidates
+- Recommended Next Gate: Host UX Binding For Authorization Readback - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
+- Deferred Candidate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Completed Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 - Candidate Next Gate: Host UX Binding For Authorization Readback - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - Candidate Next Gate: Real Sandbox Provider Spike - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
@@ -54,6 +56,7 @@ Post-v1.0 - Agent orchestration / Lease and sandbox authorization readback close
 - design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 - review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - src/runtime/orchestration/scheduler_authorization_readback.py
+- design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
 - review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
