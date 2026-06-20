@@ -101,7 +101,9 @@ from src.runtime.orchestration import (
     build_orchestration_preflight_bundle,
     build_host_scheduler_run_evidence,
     build_runtime_registry_from_config,
+    build_sandbox_allocation_receipt_evidence,
     build_scheduler_loop_evidence,
+    default_sandbox_allocation_receipt_evidence_path,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     drain_preflighted_ready_tasks,
@@ -153,11 +155,13 @@ from src.runtime.orchestration import (
     write_compacted_scheduler_snapshot,
     read_scheduler_daemon_lifecycle_control,
     write_host_scheduler_run_evidence,
+    read_sandbox_allocation_receipt_evidence_summary,
     read_scheduler_state_snapshot,
     read_host_scheduler_run_evidence_summaries,
     read_host_scheduler_run_evidence_summary,
     read_scheduler_loop_evidence_summary,
     write_scheduler_state_snapshot,
+    write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
 )
 from tools.progress_graph import (
@@ -3739,6 +3743,86 @@ def test_scheduler_authorization_readback_reports_null_git_worktree_receipt_when
     assert "profile_kind='shared-process'" in sandbox["allocation_reason"]
 
 
+def test_sandbox_allocation_receipt_evidence_round_trips_git_worktree_receipt(
+    tmp_path,
+) -> None:
+    task = _git_worktree_task()
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=True,
+        cleanup_state="required",
+    )
+    evidence = build_sandbox_allocation_receipt_evidence(
+        (allocation,),
+        evidence_id="receipt:task-1",
+        timestamp="2026-06-21T05:10:00+08:00",
+        metadata={"source": "unit-test"},
+    )
+    evidence_path = default_sandbox_allocation_receipt_evidence_path(
+        tmp_path,
+        "receipt:task-1",
+    )
+
+    result = write_sandbox_allocation_receipt_evidence(evidence, evidence_path)
+    summary = read_sandbox_allocation_receipt_evidence_summary(result.evidence_path)
+    payload = summary.to_json_dict()
+    restored = summary.allocations_by_task_id["task-1"]
+    restored_receipt = restored.git_worktree_receipt
+
+    assert result.evidence_path == tmp_path / ".codex/scheduler/evidence/receipt-task-1.json"
+    assert payload["product_type"] == "sandbox_allocation_receipt_evidence"
+    assert payload["schema_version"] == "1"
+    assert payload["allocation_count"] == 1
+    assert payload["authority_split"]["sandbox_provider_executed"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["evidence_written"] is True
+    assert summary.metadata == {"source": "unit-test"}
+    assert restored == allocation
+    assert restored_receipt is not None
+    assert restored_receipt.allocation.stdout == "allocated"
+    assert restored_receipt.cleanup_state == "required"
+
+
+def test_sandbox_allocation_receipt_evidence_rejects_wrong_contract(
+    tmp_path,
+) -> None:
+    wrong_product = tmp_path / "wrong-product.json"
+    wrong_product.write_text(
+        json.dumps(
+            {
+                "product_type": "other_product",
+                "schema_version": "1",
+                "evidence_id": "bad",
+                "timestamp": "2026-06-21T05:15:00+08:00",
+                "allocations": [],
+                "authority_split": {},
+                "metadata": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    wrong_schema = tmp_path / "wrong-schema.json"
+    wrong_schema.write_text(
+        json.dumps(
+            {
+                "product_type": "sandbox_allocation_receipt_evidence",
+                "schema_version": "999",
+                "evidence_id": "bad",
+                "timestamp": "2026-06-21T05:15:00+08:00",
+                "allocations": [],
+                "authority_split": {},
+                "metadata": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="product_type"):
+        read_sandbox_allocation_receipt_evidence_summary(wrong_product)
+    with pytest.raises(ValueError, match="schema_version"):
+        read_sandbox_allocation_receipt_evidence_summary(wrong_schema)
+
+
 def test_scheduler_authorization_snapshot_readback_uses_existing_recovery(tmp_path) -> None:
     task = _scheduled_task(
         "task-1",
@@ -3788,6 +3872,48 @@ def test_scheduler_authorization_snapshot_readback_uses_existing_recovery(tmp_pa
     assert payload["lifecycle_state_counts"] == {"acquired": 1}
     assert payload["tasks"][0]["sandbox_authorization"]["lease_authorization_state"] == "authorized"
     assert read_scheduler_state_snapshot(snapshot_path).edit_lease_lifecycle == {}
+
+
+def test_scheduler_authorization_snapshot_readback_merges_allocation_evidence(
+    tmp_path,
+) -> None:
+    task = _git_worktree_task()
+    snapshot_path = tmp_path / "scheduler-state.json"
+    state = _state_with_acquired_git_worktree_lease(task)
+    write_scheduler_state_snapshot(state, snapshot_path)
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=True,
+        cleanup_state="required",
+    )
+    evidence_path = tmp_path / ".codex/scheduler/evidence/git-worktree-receipts.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="git-worktree-receipts",
+            timestamp="2026-06-21T05:20:00+08:00",
+        ),
+        evidence_path,
+    )
+
+    readback = inspect_scheduler_authorization_snapshot(
+        snapshot_path,
+        sandbox_allocation_evidence_path=evidence_path,
+    )
+    payload = readback.to_json_dict()
+    sandbox = payload["tasks"][0]["sandbox_authorization"]
+    receipt = sandbox["git_worktree_receipt"]
+
+    assert payload["metadata"]["sandbox_allocation_evidence_path"] == str(evidence_path)
+    assert payload["metadata"]["sandbox_allocation_evidence_id"] == "git-worktree-receipts"
+    assert payload["metadata"]["sandbox_allocation_evidence_allocation_count"] == 1
+    assert payload["authority_split"]["real_sandbox_provider_executed"] is False
+    assert sandbox["allocation_state"] == "allocated"
+    assert sandbox["visible_mounts"] == ["README.md", "src/app.py"]
+    assert sandbox["lease_authorization_state"] == "authorized"
+    assert receipt["cleanup_state"] == "required"
+    assert receipt["cleanup_required"] is True
+    assert receipt["allocation"]["stdout"] == "allocated"
 
 
 def test_run_preflighted_task_uses_scheduler_run_path_and_runtime_registry(tmp_path) -> None:

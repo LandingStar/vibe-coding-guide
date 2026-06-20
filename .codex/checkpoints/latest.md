@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-21T04:48:00+08:00
+# Checkpoint - 2026-06-21T05:36:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Git worktree receipt readback and cleanup policy closed
+Post-v1.0 - Agent orchestration / Controlled host run opt-in provider wiring analysis
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,28 +9,28 @@ Post-v1.0 - Agent orchestration / Git worktree receipt readback and cleanup poli
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md`.
-- [x] Add JSON-safe git-worktree receipt readback projection.
-- [x] Add cleanup ownership metadata without executing provider or cleanup work.
-- [x] Validate allocated, rejected, cleanup-completed, and missing receipt readback cases.
+- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-durable-sandbox-allocation-receipt-evidence.md`.
+- [x] Define sandbox allocation receipt evidence contract.
+- [x] Add read/write helpers and allocation round-trip.
+- [x] Allow scheduler authorization snapshot readback to merge optional receipt evidence.
+- [x] Validate focused durable evidence/readback tests.
 - [x] Record review evidence and close gate.
-- [x] Prepare follow-up direction analysis for durable receipt evidence.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Gate: Git Worktree Receipt Readback And Cleanup Policy - source: design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md
-- Review Evidence: Git Worktree Receipt Readback And Cleanup Policy - source: review/git-worktree-receipt-readback-and-cleanup-policy-2026-06-21.md
-- Recommended Next Gate: Durable Sandbox Allocation Receipt Evidence - source: design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md
-- Deferred Candidate: Controlled Host Run Opt-In Provider Wiring - source: design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md
-- Deferred Candidate: Cleanup Policy Runner - source: design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md
-- Completed Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
+- Completed Gate: Durable Sandbox Allocation Receipt Evidence - source: design_docs/stages/planning-gate/2026-06-21-durable-sandbox-allocation-receipt-evidence.md
+- Review Evidence: Durable Sandbox Allocation Receipt Evidence Review - source: review/durable-sandbox-allocation-receipt-evidence-2026-06-21.md
+- Recommended Source: Durable Sandbox Allocation Receipt Evidence Follow-Up Direction Analysis - source: design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md
+- Recommended Next Gate: Controlled Host Run Opt-In Provider Wiring - source: design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md
+- Deferred Candidate: Cleanup Policy Runner - source: design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md
-- review/git-worktree-receipt-readback-and-cleanup-policy-2026-06-21.md
-- design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md
+- design_docs/stages/planning-gate/2026-06-21-durable-sandbox-allocation-receipt-evidence.md
+- design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md
+- review/durable-sandbox-allocation-receipt-evidence-2026-06-21.md
 - src/runtime/orchestration/scheduler_authorization_readback.py
 - src/runtime/orchestration/sandbox.py
+- src/runtime/orchestration/sandbox_allocation_evidence.py
 - src/runtime/orchestration/__init__.py
 - tests/test_runtime_orchestration.py

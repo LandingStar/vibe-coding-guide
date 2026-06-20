@@ -14,6 +14,7 @@ from .sandbox import (
     SandboxRequest,
     SharedProcessSandboxProvider,
 )
+from .sandbox_allocation_evidence import read_sandbox_allocation_receipt_evidence_summary
 from .scheduler import EditLeaseLifecycleRecord, SchedulerState, ScheduledTask
 from .scheduler_store import read_scheduler_state_snapshot, recover_scheduler_state
 
@@ -406,6 +407,7 @@ def inspect_scheduler_authorization_snapshot(
     snapshot_path: str | Path,
     *,
     scheduler_event_log_path: str | Path | None = None,
+    sandbox_allocation_evidence_path: str | Path | None = None,
     strict: bool = True,
     workspace_root: str = "",
     scratch_root: str = ".codex/scratch",
@@ -418,14 +420,32 @@ def inspect_scheduler_authorization_snapshot(
         state = read_scheduler_state_snapshot(snapshot)
     else:
         state = recover_scheduler_state(snapshot, event_log, strict=strict).recovered_state
+    allocation_evidence = (
+        read_sandbox_allocation_receipt_evidence_summary(sandbox_allocation_evidence_path)
+        if sandbox_allocation_evidence_path is not None
+        else None
+    )
+    metadata: dict[str, object] = {}
+    if allocation_evidence is not None:
+        metadata["sandbox_allocation_evidence_path"] = str(allocation_evidence.evidence_path)
+        metadata["sandbox_allocation_evidence_id"] = allocation_evidence.evidence_id
+        metadata["sandbox_allocation_evidence_allocation_count"] = (
+            allocation_evidence.allocation_count
+        )
     return inspect_scheduler_authorization(
         state,
         workspace_root=workspace_root,
         scratch_root=scratch_root,
+        sandbox_allocations=(
+            allocation_evidence.allocations_by_task_id
+            if allocation_evidence is not None
+            else None
+        ),
         snapshot_path=str(snapshot),
         scheduler_event_log_path="" if event_log is None else str(event_log),
         recovered_from_event_log=event_log is not None,
         strict_replay=strict,
+        metadata=metadata,
     )
 
 
