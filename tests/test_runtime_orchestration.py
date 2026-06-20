@@ -88,6 +88,7 @@ from src.runtime.orchestration import (
     agent_home_registration_to_artifact,
     apply_scheduler_daemon_lifecycle_action,
     cleanup_receipt_to_artifact,
+    classify_edit_lease_conflict,
     build_orchestration_preflight_bundle,
     build_host_scheduler_run_evidence,
     build_runtime_registry_from_config,
@@ -2546,7 +2547,219 @@ def test_scheduler_blocks_conflicting_write_leases_against_ready_or_running_task
 
     assert decision.state == "blocked"
     assert decision.reason == "edit lease conflict with task-a: src/app.py"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "exact_path_overlap"
+    assert decision.edit_lease_conflict.left_path == "src/app.py"
+    assert decision.edit_lease_conflict.right_path == "src/app.py"
     assert updated.tasks["task-b"].state == "blocked"
+
+
+def test_edit_lease_classifier_blocks_directory_containment_overlap() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+
+    assert decision.state == "blocked"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "directory_contains_file"
+    assert decision.edit_lease_conflict.left_path == "src/app.py"
+    assert decision.edit_lease_conflict.right_path == "src"
+    assert decision.reason == "edit lease conflict with task-a: src/app.py overlaps src"
+
+
+def test_edit_lease_classifier_classifies_directory_overlap() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/components",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+
+    assert decision.state == "blocked"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "directory_overlap"
+    assert decision.reason == "edit lease conflict with task-a: src/components overlaps src"
+
+
+def test_edit_lease_classifier_blocks_denied_artifact_hit() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src",),
+            denied_artifacts=("src/generated",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/generated/model.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    decision = classify_edit_lease_conflict(state, proposed)
+
+    assert decision.state == "blocked"
+    assert decision.classification == "denied_artifact_hit"
+    assert decision.left_path == "src/generated/model.py"
+    assert decision.right_path == "src/generated"
+    assert "is denied by src/generated" in decision.reason
+
+
+def test_edit_lease_classifier_routes_review_zone_overlap_to_review_required(
+    tmp_path,
+) -> None:
+    event_log = JsonlSchedulerEventLog(tmp_path / "review-zone-events.jsonl")
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="review-zone",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+    updated = mark_ready_tasks(
+        state,
+        event_log=event_log,
+        timestamp="2026-06-20T12:10:00+08:00",
+    )
+
+    assert decision.state == "review_required"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "review_zone_overlap"
+    assert updated.tasks["task-b"].state == "review_required"
+    assert updated.tasks["task-b"].blocked_reason == (
+        "edit lease review required with task-a: src/app.py overlaps src/app.py"
+    )
+    events = event_log.read_all()
+    assert [event.event_kind for event in events] == ["task_review_required"]
+    assert events[0].reason == updated.tasks["task-b"].blocked_reason
+
+
+def test_edit_lease_classifier_blocks_unsupported_conflict_policy() -> None:
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+            conflict_policy="merge-later",
+        ),
+    )
+    state = SchedulerState(tasks={"task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+
+    assert decision.state == "blocked"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "unsupported_policy"
+    assert "unsupported edit lease conflict_policy" in decision.reason
+
+
+def test_edit_lease_classifier_blocks_unsafe_project_relative_paths() -> None:
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("../outside.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+
+    assert decision.state == "blocked"
+    assert decision.edit_lease_conflict is not None
+    assert decision.edit_lease_conflict.classification == "unsafe_path"
+    assert decision.edit_lease_conflict.left_path == "../outside.py"
+    assert "unsafe edit lease path" in decision.reason
+
+
+def test_edit_lease_classifier_keeps_read_write_compatible() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="read",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    decision = evaluate_task_admission(state, "task-b")
+
+    assert decision.state == "admissible"
+    assert decision.edit_lease_conflict is None
 
 
 def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:

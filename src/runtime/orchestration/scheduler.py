@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Literal, Protocol
 
 from .exchange import ExchangeReference, ExchangeScope
@@ -55,7 +56,22 @@ EditLeaseMode = Literal["read", "write", "review-zone"]
 
 SandboxProfileKind = Literal["none", "shared-process", "git-worktree", "docker", "remote-vm"]
 
-AdmissionState = Literal["admissible", "waiting", "blocked"]
+AdmissionState = Literal["admissible", "waiting", "review_required", "blocked"]
+
+EditLeaseConflictState = Literal["compatible", "waiting", "review_required", "blocked"]
+
+EditLeaseConflictClassification = Literal[
+    "no_overlap",
+    "exact_path_overlap",
+    "directory_contains_file",
+    "directory_overlap",
+    "denied_artifact_hit",
+    "unsupported_policy",
+    "unsafe_path",
+    "review_zone_overlap",
+]
+
+SUPPORTED_EDIT_LEASE_CONFLICT_POLICIES = ("block-on-overlap",)
 
 SchedulerDrainStopReason = Literal[
     "no_ready_tasks",
@@ -232,6 +248,22 @@ class AdmissionDecision:
 
     state: AdmissionState
     reason: str = ""
+    edit_lease_conflict: EditLeaseConflictDecision | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EditLeaseConflictDecision:
+    """Structured scheduler decision for edit lease compatibility."""
+
+    state: EditLeaseConflictState = "compatible"
+    classification: EditLeaseConflictClassification = "no_overlap"
+    left_task_id: str = ""
+    right_task_id: str = ""
+    left_lease_id: str = ""
+    right_lease_id: str = ""
+    left_path: str = ""
+    right_path: str = ""
+    reason: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,9 +369,13 @@ def evaluate_task_admission(state: SchedulerState, task_id: str) -> AdmissionDec
             reason=f"waiting for merge gate {waiting_merge_gate.gate_id} to reach complete",
         )
 
-    conflict = _first_edit_lease_conflict(state, task)
-    if conflict:
-        return AdmissionDecision(state="blocked", reason=conflict)
+    conflict = classify_edit_lease_conflict(state, task)
+    if conflict.state in {"waiting", "review_required", "blocked"}:
+        return AdmissionDecision(
+            state=conflict.state,
+            reason=conflict.reason,
+            edit_lease_conflict=conflict,
+        )
 
     if task.sandbox_profile.profile_kind == "none" and task.edit_lease is not None:
         return AdmissionDecision(
@@ -819,6 +855,117 @@ def _first_incomplete_merge_gate(state: SchedulerState, task_id: str) -> Schedul
     return None
 
 
+def classify_edit_lease_conflict(
+    state: SchedulerState,
+    task: ScheduledTask,
+) -> EditLeaseConflictDecision:
+    """Classify the first scheduler-visible edit lease conflict for *task*."""
+
+    lease = task.edit_lease
+    if lease is None:
+        return _compatible_edit_lease_decision(task)
+
+    unsupported = _unsupported_conflict_policy_decision(task, lease)
+    if unsupported is not None:
+        return unsupported
+
+    allowed, unsafe_allowed = _normalize_lease_paths(lease.allowed_artifacts)
+    if unsafe_allowed:
+        return _unsafe_path_decision(task, lease, unsafe_allowed, side="left")
+
+    denied, unsafe_denied = _normalize_lease_paths(lease.denied_artifacts)
+    if unsafe_denied:
+        return _unsafe_path_decision(task, lease, unsafe_denied, side="left")
+
+    denied_hit = _first_denied_artifact_hit(
+        task=task,
+        lease=lease,
+        allowed_paths=allowed,
+        denied_paths=denied,
+    )
+    if denied_hit is not None:
+        return denied_hit
+
+    if lease.lease_mode == "read" or not allowed:
+        return _compatible_edit_lease_decision(task)
+
+    for other in sorted(state.tasks.values(), key=lambda item: item.task_id):
+        if other.task_id == task.task_id or other.state not in ("ready", "running"):
+            continue
+        other_lease = other.edit_lease
+        if other_lease is None:
+            continue
+
+        other_unsupported = _unsupported_conflict_policy_decision(other, other_lease)
+        if other_unsupported is not None:
+            return _with_left_context(other_unsupported, task, lease)
+
+        other_allowed, other_unsafe_allowed = _normalize_lease_paths(
+            other_lease.allowed_artifacts,
+        )
+        if other_unsafe_allowed:
+            return _unsafe_path_decision(
+                other,
+                other_lease,
+                other_unsafe_allowed,
+                side="right",
+                left=task,
+                left_lease=lease,
+            )
+
+        other_denied, other_unsafe_denied = _normalize_lease_paths(
+            other_lease.denied_artifacts,
+        )
+        if other_unsafe_denied:
+            return _unsafe_path_decision(
+                other,
+                other_lease,
+                other_unsafe_denied,
+                side="right",
+                left=task,
+                left_lease=lease,
+            )
+
+        other_denied_hit = _first_denied_artifact_hit(
+            task=other,
+            lease=other_lease,
+            allowed_paths=other_allowed,
+            denied_paths=other_denied,
+        )
+        if other_denied_hit is not None:
+            return _with_left_context(other_denied_hit, task, lease)
+
+        if other_lease.lease_mode == "read" or not other_allowed:
+            continue
+
+        for left_path in allowed:
+            for right_path in other_allowed:
+                if not _paths_overlap(left_path, right_path):
+                    continue
+                denied_hit = _denied_artifact_hit_between_leases(
+                    task=task,
+                    lease=lease,
+                    other=other,
+                    other_lease=other_lease,
+                    left_path=left_path,
+                    right_path=right_path,
+                    denied_paths=denied,
+                    other_denied_paths=other_denied,
+                )
+                if denied_hit is not None:
+                    return denied_hit
+                return _overlap_edit_lease_decision(
+                    task=task,
+                    lease=lease,
+                    other=other,
+                    other_lease=other_lease,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+
+    return _compatible_edit_lease_decision(task)
+
+
 def _merge_gate_by_id(state: SchedulerState, gate_id: str) -> SchedulerMergeGate:
     for gate in state.merge_gates:
         if gate.gate_id == gate_id:
@@ -963,6 +1110,20 @@ def _task_from_admission_decision(
             )
         return updated
 
+    if decision.state == "review_required":
+        updated = replace(task, state="review_required", blocked_reason=decision.reason)
+        if task.state != "review_required" or task.blocked_reason != decision.reason:
+            _record_scheduler_event(
+                event_log,
+                event_kind="task_review_required",
+                task_id=task.task_id,
+                from_state=task.state,
+                to_state="review_required",
+                reason=decision.reason,
+                timestamp=timestamp,
+            )
+        return updated
+
     updated = replace(task, state="blocked", blocked_reason=decision.reason)
     if task.state != "blocked" or task.blocked_reason != decision.reason:
         _record_scheduler_event(
@@ -977,28 +1138,260 @@ def _task_from_admission_decision(
     return updated
 
 
-def _first_edit_lease_conflict(state: SchedulerState, task: ScheduledTask) -> str:
+def _compatible_edit_lease_decision(task: ScheduledTask) -> EditLeaseConflictDecision:
     lease = task.edit_lease
-    if lease is None or lease.lease_mode == "read":
-        return ""
+    return EditLeaseConflictDecision(
+        state="compatible",
+        classification="no_overlap",
+        left_task_id=task.task_id,
+        left_lease_id=lease.lease_id if lease else "",
+        reason="",
+    )
 
-    requested = set(lease.allowed_artifacts)
-    if not requested:
-        return ""
 
-    for other in state.tasks.values():
-        if other.task_id == task.task_id or other.state not in ("ready", "running"):
+def _unsupported_conflict_policy_decision(
+    task: ScheduledTask,
+    lease: EditScopeLease,
+) -> EditLeaseConflictDecision | None:
+    if lease.conflict_policy in SUPPORTED_EDIT_LEASE_CONFLICT_POLICIES:
+        return None
+    return EditLeaseConflictDecision(
+        state="blocked",
+        classification="unsupported_policy",
+        left_task_id=task.task_id,
+        left_lease_id=lease.lease_id,
+        reason=(
+            f"unsupported edit lease conflict_policy for {task.task_id}: "
+            f"{lease.conflict_policy}"
+        ),
+    )
+
+
+def _normalize_lease_paths(raw_paths: tuple[str, ...]) -> tuple[tuple[str, ...], str]:
+    normalized: list[str] = []
+    for raw_path in raw_paths:
+        normalized_path = _normalize_lease_path(raw_path)
+        if normalized_path is None:
+            return tuple(normalized), str(raw_path)
+        if normalized_path not in normalized:
+            normalized.append(normalized_path)
+    return tuple(normalized), ""
+
+
+def _normalize_lease_path(raw_path: object) -> str | None:
+    """Normalize a lease path into a safe project-relative POSIX path."""
+
+    if not isinstance(raw_path, str):
+        return None
+    stripped = raw_path.strip()
+    if not stripped:
+        return None
+    windows_path = PureWindowsPath(stripped)
+    if windows_path.drive or windows_path.root:
+        return None
+    if PurePosixPath(stripped).is_absolute():
+        return None
+
+    candidate = PurePosixPath(stripped.replace("\\", "/"))
+    normalized_parts: list[str] = []
+    for part in candidate.parts:
+        if part in ("", "."):
             continue
-        other_lease = other.edit_lease
-        if other_lease is None or other_lease.lease_mode == "read":
-            continue
-        overlap = requested.intersection(other_lease.allowed_artifacts)
-        if overlap:
-            return (
-                f"edit lease conflict with {other.task_id}: "
-                f"{', '.join(sorted(overlap))}"
+        if part == "..":
+            return None
+        normalized_parts.append(part)
+
+    if not normalized_parts:
+        return None
+    return PurePosixPath(*normalized_parts).as_posix()
+
+
+def _unsafe_path_decision(
+    task: ScheduledTask,
+    lease: EditScopeLease,
+    raw_path: str,
+    *,
+    side: Literal["left", "right"],
+    left: ScheduledTask | None = None,
+    left_lease: EditScopeLease | None = None,
+) -> EditLeaseConflictDecision:
+    left_task = left or task
+    left_scope = left_lease or lease
+    return EditLeaseConflictDecision(
+        state="blocked",
+        classification="unsafe_path",
+        left_task_id=left_task.task_id,
+        right_task_id=task.task_id if side == "right" else "",
+        left_lease_id=left_scope.lease_id,
+        right_lease_id=lease.lease_id if side == "right" else "",
+        left_path=raw_path if side == "left" else "",
+        right_path=raw_path if side == "right" else "",
+        reason=f"unsafe edit lease path for {task.task_id}: {raw_path}",
+    )
+
+
+def _first_denied_artifact_hit(
+    *,
+    task: ScheduledTask,
+    lease: EditScopeLease,
+    allowed_paths: tuple[str, ...],
+    denied_paths: tuple[str, ...],
+) -> EditLeaseConflictDecision | None:
+    for allowed_path in allowed_paths:
+        for denied_path in denied_paths:
+            if allowed_path == denied_path or _path_is_child_of(allowed_path, denied_path):
+                return EditLeaseConflictDecision(
+                    state="blocked",
+                    classification="denied_artifact_hit",
+                    left_task_id=task.task_id,
+                    left_lease_id=lease.lease_id,
+                    left_path=allowed_path,
+                    right_path=denied_path,
+                    reason=(
+                        f"edit lease denied_artifacts conflicts with allowed_artifacts "
+                        f"for {task.task_id}: {allowed_path}"
+                    ),
+                )
+    return None
+
+
+def _denied_artifact_hit_between_leases(
+    *,
+    task: ScheduledTask,
+    lease: EditScopeLease,
+    other: ScheduledTask,
+    other_lease: EditScopeLease,
+    left_path: str,
+    right_path: str,
+    denied_paths: tuple[str, ...],
+    other_denied_paths: tuple[str, ...],
+) -> EditLeaseConflictDecision | None:
+    for other_denied_path in other_denied_paths:
+        if left_path == other_denied_path or _path_is_child_of(left_path, other_denied_path):
+            return EditLeaseConflictDecision(
+                state="blocked",
+                classification="denied_artifact_hit",
+                left_task_id=task.task_id,
+                right_task_id=other.task_id,
+                left_lease_id=lease.lease_id,
+                right_lease_id=other_lease.lease_id,
+                left_path=left_path,
+                right_path=other_denied_path,
+                reason=(
+                    f"edit lease denied_artifacts conflict with {other.task_id}: "
+                    f"{left_path} is denied by {other_denied_path}"
+                ),
             )
-    return ""
+
+    for denied_path in denied_paths:
+        if right_path == denied_path or _path_is_child_of(right_path, denied_path):
+            return EditLeaseConflictDecision(
+                state="blocked",
+                classification="denied_artifact_hit",
+                left_task_id=task.task_id,
+                right_task_id=other.task_id,
+                left_lease_id=lease.lease_id,
+                right_lease_id=other_lease.lease_id,
+                left_path=denied_path,
+                right_path=right_path,
+                reason=(
+                    f"edit lease denied_artifacts conflict with {other.task_id}: "
+                    f"{right_path} is denied by {denied_path}"
+                ),
+            )
+
+    return None
+
+
+def _with_left_context(
+    decision: EditLeaseConflictDecision,
+    task: ScheduledTask,
+    lease: EditScopeLease,
+) -> EditLeaseConflictDecision:
+    return replace(
+        decision,
+        left_task_id=task.task_id,
+        left_lease_id=lease.lease_id,
+        right_task_id=decision.left_task_id,
+        right_lease_id=decision.left_lease_id,
+        left_path="",
+        right_path=decision.left_path,
+    )
+
+
+def _overlap_edit_lease_decision(
+    *,
+    task: ScheduledTask,
+    lease: EditScopeLease,
+    other: ScheduledTask,
+    other_lease: EditScopeLease,
+    left_path: str,
+    right_path: str,
+) -> EditLeaseConflictDecision:
+    classification = _classify_path_overlap(left_path, right_path)
+    if lease.lease_mode == "review-zone" or other_lease.lease_mode == "review-zone":
+        return EditLeaseConflictDecision(
+            state="review_required",
+            classification="review_zone_overlap",
+            left_task_id=task.task_id,
+            right_task_id=other.task_id,
+            left_lease_id=lease.lease_id,
+            right_lease_id=other_lease.lease_id,
+            left_path=left_path,
+            right_path=right_path,
+            reason=(
+                f"edit lease review required with {other.task_id}: "
+                f"{left_path} overlaps {right_path}"
+            ),
+        )
+
+    if left_path == right_path:
+        reason = f"edit lease conflict with {other.task_id}: {left_path}"
+    else:
+        reason = (
+            f"edit lease conflict with {other.task_id}: "
+            f"{left_path} overlaps {right_path}"
+        )
+    return EditLeaseConflictDecision(
+        state="blocked",
+        classification=classification,
+        left_task_id=task.task_id,
+        right_task_id=other.task_id,
+        left_lease_id=lease.lease_id,
+        right_lease_id=other_lease.lease_id,
+        left_path=left_path,
+        right_path=right_path,
+        reason=reason,
+    )
+
+
+def _classify_path_overlap(
+    left_path: str,
+    right_path: str,
+) -> EditLeaseConflictClassification:
+    if left_path == right_path:
+        return "exact_path_overlap"
+    if _looks_like_file_path(left_path) or _looks_like_file_path(right_path):
+        return "directory_contains_file"
+    if _path_is_child_of(left_path, right_path) or _path_is_child_of(right_path, left_path):
+        return "directory_overlap"
+    return "directory_contains_file"
+
+
+def _path_is_denied(path: str, denied_paths: tuple[str, ...]) -> bool:
+    return any(path == denied or _path_is_child_of(path, denied) for denied in denied_paths)
+
+
+def _paths_overlap(left: str, right: str) -> bool:
+    return left == right or _path_is_child_of(left, right) or _path_is_child_of(right, left)
+
+
+def _path_is_child_of(path: str, parent: str) -> bool:
+    return PurePosixPath(parent) in PurePosixPath(path).parents
+
+
+def _looks_like_file_path(path: str) -> bool:
+    return bool(PurePosixPath(path).suffix)
 
 
 def _record_scheduler_event(

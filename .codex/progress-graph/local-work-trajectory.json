@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Edit lease conflict policy expansion direction analysis",
-  "recorded_at": "2026-06-20T11:58:00.016096+00:00",
+  "title": "Edit lease conflict classifier and admission evidence",
+  "recorded_at": "2026-06-20T12:18:52.447985+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/Project Master Checklist.md",
+  "guide_context": "design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Edit lease conflict policy expansion direction analysis",
+    "title": "Edit lease conflict classifier and admission evidence",
     "lane_count": 1,
-    "event_count": 1,
-    "relation_count": 0,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "edit lease policy",
-      "status": "done",
+      "label": "edit lease classifier",
+      "status": "pending",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/Project Master Checklist.md"
+        "context": "design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md"
       }
     }
   },
@@ -36,18 +36,89 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Assess edit lease conflict policy candidates",
+      "title": "Open edit lease conflict classifier planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-19T21:21:07.261855+00:00",
-        "activated_at": "2026-06-19T21:21:07.261855+00:00",
+        "created_at": "2026-06-20T12:02:11.559557+00:00",
+        "activated_at": "2026-06-20T12:02:11.559557+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T11:58:00.016096+00:00"
+        "completed_at": "2026-06-20T12:04:14.225654+00:00"
+      }
+    },
+    "event:002": {
+      "id": "event:002",
+      "lane_id": "lane:main",
+      "title": "Implement scheduler edit lease conflict classifier",
+      "kind": "task",
+      "status": "completed",
+      "order": 2,
+      "summary": "Add structured edit lease conflict decisions, path classification, and admission integration in the scheduler runtime.",
+      "metadata": {
+        "created_at": "2026-06-20T12:04:21.548551+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-20T12:12:20.087530+00:00",
+        "completed_at": "2026-06-20T12:14:16.558368+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Validate and write back edit lease classifier slice",
+      "kind": "validation",
+      "status": "completed",
+      "order": 3,
+      "summary": "Run focused and full runtime orchestration validation, then update planning gate, review evidence, status boards, and checkpoint.",
+      "metadata": {
+        "created_at": "2026-06-20T12:14:03.837277+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-06-20T12:14:16.558368+00:00",
+        "completed_at": "2026-06-20T12:17:32.980569+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Close edit lease classifier slice",
+      "kind": "close",
+      "status": "pending",
+      "order": 4,
+      "summary": "Close the local work line after validation and write-back; next recommended backend gate is Write-Back Enforcement Unification.",
+      "metadata": {
+        "created_at": "2026-06-20T12:18:52.447985+00:00",
+        "source": "single-line-lifecycle"
       }
     }
   },
-  "relations": []
+  "relations": [
+    {
+      "source_event_id": "event:001",
+      "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    }
+  ]
 }
