@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Authorization readback follow-up direction analysis",
-  "recorded_at": "2026-06-20T18:29:04.001793+00:00",
+  "title": "Host UX authorization readback binding",
+  "recorded_at": "2026-06-20T19:30:46.042571+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "review/lease-and-sandbox-authorization-readback-2026-06-21.md",
+  "guide_context": "design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Authorization readback follow-up direction analysis",
+    "title": "Host UX authorization readback binding",
     "lane_count": 1,
     "event_count": 1,
     "relation_count": 0,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "direction analysis",
+      "label": "host ux readback",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "review/lease-and-sandbox-authorization-readback-2026-06-21.md"
+        "context": "design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md"
       }
     }
   },
@@ -36,16 +36,16 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Prepare readback follow-up direction analysis",
+      "title": "Open narrow gate for authorization readback UI binding",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T18:25:30.822475+00:00",
-        "activated_at": "2026-06-20T18:25:30.822475+00:00",
+        "created_at": "2026-06-20T18:33:26.903626+00:00",
+        "activated_at": "2026-06-20T18:33:26.903626+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T18:29:04.001793+00:00"
+        "completed_at": "2026-06-20T19:30:46.042571+00:00"
       }
     }
   },

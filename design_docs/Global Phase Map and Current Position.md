@@ -576,6 +576,8 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 2026-06-21 继续新增：`design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md` 已完成。该方向分析把 readback 后续路线收束为四个候选：Host UX Binding For Authorization Readback、Git Worktree Sandbox Provider Spike Over Acquired Leases、Scheduler Authorization Readback CLI Surface、Lease Expiry Sweep In Daemon Loop。当前推荐下一条窄 gate 为 `Host UX Binding For Authorization Readback`，理由是 readback product 已具备 MCP/backend 合同，下一步最需要 operator 可见性；real sandbox provider spike 保留为紧随其后的 backend safety candidate。
 
+2026-06-21 继续新增：`design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md` 已创建并激活。当前 active gate 将下一步实现限制在 Host UX 只读绑定：在 VS Code Progress Graph Preview / Scheduler Operator 面板中读取并展示既有 `schedulerAuthorizationReadback` 产品，覆盖 edit lease declaration、lifecycle state 与 metadata-only sandbox authorization facts。该 gate 不新增 scheduler mutation button、不实现真实 sandbox provider、不扩展 scheduler/admission/readback schema、不突变 ExchangeArtifact/admission ledger、不刷新 scheduler projection、不从 UI 突变 Local Work Trajectory，并要求截图式验证。
+
 后续附加完成项：decision logs 最小字段设计、子 agent tracing 与 write-back 对接、多实例共存冲突解决策略、overrides 字段消费、hierarchical pack topology、completion boundary protocol、CI/CD 本地自动化脚本、Pack Index Metadata & CLI Pack Management、BL-1 Driver 职责定义文档、P4 handoff authority-doc footprint、`LLMWorker Structured Payload Producer Alignment`、`Payload + Handoff Footprint Controlled Dogfood`，以及 `LLMWorker Live Payload Contract Hardening`。详见上方"Post-v1.0 工作"条目。
 
 低优先级 backlog（BL-2/3 adapter-registry/转接层）已结构化记录在 `design_docs/direction-candidates-after-phase-35.md`。
