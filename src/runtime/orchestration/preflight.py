@@ -46,6 +46,7 @@ class PreflightDrainResult:
 
     state: SchedulerState
     preflight_results: tuple[PreflightedTaskRunResult, ...] = ()
+    sandbox_allocations: tuple[SandboxAllocation, ...] = ()
     stop_reason: SchedulerDrainStopReason = "no_ready_tasks"
     ready_task_ids: tuple[str, ...] = ()
     blocked_task_ids: tuple[str, ...] = ()
@@ -133,6 +134,7 @@ def drain_preflighted_ready_tasks(
     _validate_run_policy(active_policy)
     current = mark_ready_tasks(state, event_log=event_log, timestamp=timestamp)
     results: list[PreflightedTaskRunResult] = []
+    allocations: list[SandboxAllocation] = []
     failed_task_ids: list[str] = []
 
     while True:
@@ -143,6 +145,7 @@ def drain_preflighted_ready_tasks(
                 return PreflightDrainResult(
                     state=current,
                     preflight_results=tuple(results),
+                    sandbox_allocations=tuple(allocations),
                     stop_reason="completed_with_failures",
                     blocked_task_ids=blocked_task_ids,
                     failed_task_id=failed_task_ids[0],
@@ -153,6 +156,7 @@ def drain_preflighted_ready_tasks(
                 return PreflightDrainResult(
                     state=current,
                     preflight_results=tuple(results),
+                    sandbox_allocations=tuple(allocations),
                     stop_reason="blocked_tasks",
                     blocked_task_ids=blocked_task_ids,
                     stop_detail="one or more tasks are blocked",
@@ -160,6 +164,7 @@ def drain_preflighted_ready_tasks(
             return PreflightDrainResult(
                 state=current,
                 preflight_results=tuple(results),
+                sandbox_allocations=tuple(allocations),
                 stop_reason="no_ready_tasks",
             )
 
@@ -167,6 +172,7 @@ def drain_preflighted_ready_tasks(
             return PreflightDrainResult(
                 state=current,
                 preflight_results=tuple(results),
+                sandbox_allocations=tuple(allocations),
                 stop_reason="max_runs_reached",
                 ready_task_ids=ready_task_ids,
                 blocked_task_ids=_blocked_task_ids(current),
@@ -185,6 +191,7 @@ def drain_preflighted_ready_tasks(
                 created_at=created_at,
                 expires_at=expires_at,
             )
+            allocations.append(preflight.sandbox_allocation)
             run = run_preflighted_task(
                 current,
                 preflight,
@@ -205,6 +212,7 @@ def drain_preflighted_ready_tasks(
             return PreflightDrainResult(
                 state=blocked_state,
                 preflight_results=tuple(results),
+                sandbox_allocations=tuple(allocations),
                 stop_reason="task_failed",
                 ready_task_ids=tuple(
                     task for task in _ready_task_ids(blocked_state) if task != task_id

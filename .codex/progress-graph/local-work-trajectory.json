@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Durable sandbox allocation receipt evidence",
-  "recorded_at": "2026-06-20T20:40:30.349222+00:00",
+  "title": "Controlled host run opt-in provider wiring",
+  "recorded_at": "2026-06-20T20:55:28.632323+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md",
+  "guide_context": "design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Durable sandbox allocation receipt evidence",
+    "title": "Controlled host run opt-in provider wiring",
     "lane_count": 1,
     "event_count": 2,
     "relation_count": 1,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "receipt evidence",
+      "label": "host wiring",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md"
+        "context": "design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md"
       }
     }
   },
@@ -36,32 +36,31 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open narrow gate for durable sandbox allocation receipt evidence",
+      "title": "Open controlled host run provider wiring gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T20:28:19.001980+00:00",
-        "activated_at": "2026-06-20T20:28:19.001980+00:00",
+        "created_at": "2026-06-20T20:44:38.997150+00:00",
+        "activated_at": "2026-06-20T20:44:38.997150+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T20:29:28.559413+00:00"
+        "completed_at": "2026-06-20T20:47:17.035635+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Resume durable receipt evidence wiring",
-      "kind": "task",
+      "title": "Focused host opt-in tests passed",
+      "kind": "validation",
       "status": "completed",
       "order": 2,
-      "summary": "Durable sandbox allocation receipt evidence gate completed: runtime evidence contract, snapshot readback merge, focused/full validation, review evidence, checkpoint and status writeback are done.",
+      "summary": "Controlled Host Run Opt-In Provider Wiring completed: one-shot host-run explicit git-worktree opt-in, durable sandbox allocation receipt evidence writeback, focused/full validation, review and status docs are done.",
       "metadata": {
-        "created_at": "2026-06-20T20:32:13.694334+00:00",
+        "created_at": "2026-06-20T20:51:43.565418+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T20:36:41.592205+00:00",
-        "completed_at": "2026-06-20T20:40:30.349222+00:00",
-        "closed_at": "2026-06-20T20:40:30.349222+00:00"
+        "completed_at": "2026-06-20T20:55:28.628421+00:00",
+        "closed_at": "2026-06-20T20:55:28.628421+00:00"
       }
     }
   },

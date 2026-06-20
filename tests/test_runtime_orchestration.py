@@ -5897,6 +5897,9 @@ def test_host_scheduler_runner_fake_result_is_json_serializable(tmp_path) -> Non
     assert payload["stop_reason"] == "no_ready_tasks"
     assert payload["run_count"] == 1
     assert payload["state_written"] is True
+    assert payload["git_worktree_sandbox_opt_in"] is False
+    assert payload["sandbox_allocation_evidence_written"] is False
+    assert payload["sandbox_allocation_evidence_path"] == ""
     assert payload["local_trajectory_mutated"] is False
     assert payload["output_artifact_refs"] == [
         {
@@ -5911,6 +5914,133 @@ def test_host_scheduler_runner_fake_result_is_json_serializable(tmp_path) -> Non
 
     json.dumps(payload, ensure_ascii=False)
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "complete"
+
+
+def test_host_scheduler_runner_git_worktree_opt_in_requires_paths(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-1": _git_worktree_task()}),
+        snapshot_path,
+    )
+
+    with pytest.raises(ValueError, match="workspace_root source repository"):
+        run_host_authorized_scheduler_once(
+            HostSchedulerRunRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-workspace-root",
+                        requested_providers=("fake",),
+                    ),
+                ),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+                sandbox_allocation_evidence_id="missing-workspace-root",
+            ),
+            artifact_store=InMemoryArtifactVersionStore(),
+        )
+
+    with pytest.raises(ValueError, match="sandbox_allocation_evidence_id"):
+        run_host_authorized_scheduler_once(
+            HostSchedulerRunRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-evidence-id",
+                        requested_providers=("fake",),
+                    ),
+                ),
+                workspace_root=str(tmp_path),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+            ),
+            artifact_store=InMemoryArtifactVersionStore(),
+        )
+
+
+def test_host_scheduler_runner_git_worktree_opt_in_writes_allocation_evidence(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        output_artifact_id="task-1:result",
+    )
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / "evidence" / "allocation-receipts.json"
+    write_scheduler_state_snapshot(
+        _state_with_acquired_git_worktree_lease(task),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_once(
+        HostSchedulerRunRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-21T05:50:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-git-worktree-run",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                ),
+            ),
+            workspace_root=str(repo),
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            sandbox_allocation_evidence_id="allocation-receipts",
+            sandbox_allocation_evidence_path=evidence_path,
+            timestamp="2026-06-21T05:50:00+08:00",
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    payload = result.to_json_dict()
+    summary = read_sandbox_allocation_receipt_evidence_summary(evidence_path)
+    allocation = summary.allocations_by_task_id["task-1"]
+    receipt = allocation.git_worktree_receipt
+
+    assert payload["git_worktree_sandbox_opt_in"] is True
+    assert payload["git_worktree_sandbox_root"] == str(tmp_path / "sandboxes")
+    assert payload["sandbox_allocation_evidence_written"] is True
+    assert payload["sandbox_allocation_evidence_path"] == str(evidence_path)
+    assert payload["authority_split"]["sandbox_provider_authority"] == "host-explicit-opt-in"
+    assert result.sandbox_allocation_evidence_write is not None
+    assert summary.evidence_id == "allocation-receipts"
+    assert summary.allocation_count == 1
+    assert summary.metadata["git_worktree_sandbox_opt_in"] is True
+    assert allocation.provider == "git-worktree"
+    assert allocation.state == "allocated"
+    assert allocation.workspace_root == str(repo)
+    assert allocation.visible_mounts == ("src/app.py",)
+    assert allocation.cleanup_required is True
+    assert receipt is not None
+    assert receipt.source_repository_root == str(repo)
+    assert receipt.sandbox_root == str(tmp_path / "sandboxes")
+    assert receipt.cleanup_state == "required"
+    assert receipt.allocation.returncode == 0
+    assert Path(receipt.worktree_path).exists()
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-1"].state == "complete"
+
+    GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
 
 
 def test_host_scheduler_run_evidence_writes_contract_shape(tmp_path) -> None:

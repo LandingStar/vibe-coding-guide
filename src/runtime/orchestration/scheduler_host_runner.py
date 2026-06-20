@@ -9,7 +9,13 @@ from typing import Mapping
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from .runtime_adapter import QoderQueryClient
 from .runtime_wiring import RuntimeRegistryWiringConfig, build_runtime_registry_from_config
-from .sandbox import SandboxProviderRegistry, SharedProcessSandboxProvider
+from .sandbox import GitWorktreeSandboxProvider, SandboxAllocation, SandboxProviderRegistry, SharedProcessSandboxProvider
+from .sandbox_allocation_evidence import (
+    SandboxAllocationReceiptEvidenceWriteResult,
+    build_sandbox_allocation_receipt_evidence,
+    default_sandbox_allocation_receipt_evidence_path,
+    write_sandbox_allocation_receipt_evidence,
+)
 from .scheduler import SchedulerRunPolicy
 from .scheduler_runner import PersistedSchedulerRunOnceResult, run_persisted_scheduler_once_with_wiring
 
@@ -27,6 +33,9 @@ class HostSchedulerRunRequest:
     max_runs: int | None = None
     workspace_root: str = ""
     scratch_root: str = ".codex/scratch"
+    git_worktree_sandbox_root: str | Path | None = None
+    sandbox_allocation_evidence_id: str = ""
+    sandbox_allocation_evidence_path: str | Path | None = None
     created_at: str = ""
     expires_at: str = ""
     timestamp: str = ""
@@ -41,6 +50,7 @@ class HostSchedulerRunResult:
     run: PersistedSchedulerRunOnceResult
     request: HostSchedulerRunRequest
     scheduler_projection_path: Path | None = None
+    sandbox_allocation_evidence_write: SandboxAllocationReceiptEvidenceWriteResult | None = None
     local_trajectory_mutated: bool = False
 
     def to_json_dict(self) -> dict[str, object]:
@@ -68,6 +78,12 @@ class HostSchedulerRunResult:
             handle = item.runtime_result.run_handle
             run_ids.append(handle.run_id)
             session_ids.append(handle.session_id)
+
+        sandbox_allocation_evidence_path = (
+            ""
+            if self.sandbox_allocation_evidence_write is None
+            else str(self.sandbox_allocation_evidence_write.evidence_path)
+        )
 
         history_summary: dict[str, object] = {
             "scheduler_event_log_path": str(self.run.event_log_path),
@@ -97,6 +113,12 @@ class HostSchedulerRunResult:
             "runtime_host_surface": self.run.runtime_host_surface,
             "host_invocation_id": "" if invocation is None else invocation.invocation_id,
             "host_requested_by": "" if invocation is None else invocation.requested_by,
+            "git_worktree_sandbox_opt_in": self.request.git_worktree_sandbox_root is not None,
+            "git_worktree_sandbox_root": (
+                ""
+                if self.request.git_worktree_sandbox_root is None
+                else str(Path(self.request.git_worktree_sandbox_root))
+            ),
             "run_count": len(drain.preflight_results),
             "stop_reason": drain.stop_reason,
             "stop_detail": drain.stop_detail,
@@ -107,12 +129,17 @@ class HostSchedulerRunResult:
             "permission_review_count": len(permission_review_task_ids),
             "output_artifact_refs": output_artifact_refs,
             "state_written": self.run.state_written,
+            "sandbox_allocation_evidence_written": self.sandbox_allocation_evidence_write is not None,
+            "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path,
             "local_trajectory_mutated": self.local_trajectory_mutated,
             "authority_split": {
                 "scheduler_state_authority": "scheduler_snapshot_and_event_log",
                 "scheduler_projection_role": "read-only-view",
                 "local_work_trajectory_role": "agent-owned",
                 "local_work_trajectory_mutated": self.local_trajectory_mutated,
+                "sandbox_provider_authority": "host-explicit-opt-in",
+                "sandbox_allocation_evidence_written": self.sandbox_allocation_evidence_write is not None,
+                "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path,
             },
             "history_summary": history_summary,
         }
@@ -128,7 +155,10 @@ def run_host_authorized_scheduler_once(
 ) -> HostSchedulerRunResult:
     """Run one bounded scheduler pass through explicit host runtime wiring."""
 
-    active_sandbox_registry = sandbox_registry or _default_sandbox_registry()
+    active_sandbox_registry = _sandbox_registry_for_request(
+        request,
+        sandbox_registry=sandbox_registry,
+    )
     runtime_wiring = build_runtime_registry_from_config(
         request.runtime_config,
         artifact_store=artifact_store,
@@ -149,10 +179,99 @@ def run_host_authorized_scheduler_once(
         timestamp=request.timestamp,
         strict_recovery=request.strict_recovery,
     )
-    return HostSchedulerRunResult(run=run, request=request)
+    evidence_write = _write_sandbox_allocation_evidence_if_requested(
+        request,
+        _sandbox_allocations_from_run(run),
+    )
+    return HostSchedulerRunResult(
+        run=run,
+        request=request,
+        sandbox_allocation_evidence_write=evidence_write,
+    )
 
 
 def _default_sandbox_registry() -> SandboxProviderRegistry:
     registry = SandboxProviderRegistry()
     registry.register(SharedProcessSandboxProvider())
     return registry
+
+
+def _sandbox_registry_for_request(
+    request: HostSchedulerRunRequest,
+    *,
+    sandbox_registry: SandboxProviderRegistry | None,
+) -> SandboxProviderRegistry:
+    _validate_git_worktree_opt_in(request)
+    if sandbox_registry is not None:
+        return sandbox_registry
+    registry = _default_sandbox_registry()
+    if request.git_worktree_sandbox_root is None:
+        return registry
+    registry.register(GitWorktreeSandboxProvider(request.git_worktree_sandbox_root))
+    return registry
+
+
+def _validate_git_worktree_opt_in(request: HostSchedulerRunRequest) -> None:
+    if request.git_worktree_sandbox_root is None:
+        return
+    if not str(request.git_worktree_sandbox_root):
+        raise ValueError("git-worktree host-run opt-in requires git_worktree_sandbox_root")
+    if not request.workspace_root:
+        raise ValueError("git-worktree host-run opt-in requires workspace_root source repository")
+    if not request.sandbox_allocation_evidence_id:
+        raise ValueError("git-worktree host-run opt-in requires sandbox_allocation_evidence_id")
+
+
+def _sandbox_allocations_from_run(
+    run: PersistedSchedulerRunOnceResult,
+) -> tuple[SandboxAllocation, ...]:
+    return run.drain.sandbox_allocations
+
+
+def _write_sandbox_allocation_evidence_if_requested(
+    request: HostSchedulerRunRequest,
+    allocations: tuple[SandboxAllocation, ...],
+) -> SandboxAllocationReceiptEvidenceWriteResult | None:
+    if not request.sandbox_allocation_evidence_id:
+        return None
+    target = (
+        Path(request.sandbox_allocation_evidence_path)
+        if request.sandbox_allocation_evidence_path is not None
+        else default_sandbox_allocation_receipt_evidence_path(
+            _evidence_project_root(request),
+            request.sandbox_allocation_evidence_id,
+        )
+    )
+    invocation = request.runtime_config.host_invocation
+    metadata = {
+        "surface": "host-authorized-scheduler-run-once",
+        "host_invocation_id": "" if invocation is None else invocation.invocation_id,
+        "git_worktree_sandbox_opt_in": request.git_worktree_sandbox_root is not None,
+        "git_worktree_sandbox_root": (
+            ""
+            if request.git_worktree_sandbox_root is None
+            else str(Path(request.git_worktree_sandbox_root))
+        ),
+    }
+    return write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            allocations,
+            evidence_id=request.sandbox_allocation_evidence_id,
+            timestamp=request.timestamp,
+            evidence_path=target,
+            metadata=metadata,
+        ),
+        target,
+    )
+
+
+def _evidence_project_root(request: HostSchedulerRunRequest) -> Path:
+    if request.workspace_root:
+        return Path(request.workspace_root)
+    snapshot = Path(request.snapshot_path)
+    parts = snapshot.parts
+    if ".codex" in parts:
+        index = parts.index(".codex")
+        if index > 0:
+            return Path(*parts[:index])
+    return snapshot.parent
