@@ -1,6 +1,6 @@
 # Checkpoint - 2026-06-20T03:50:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Scheduler daemon lifecycle CLI/MCP surface close
+Post-v1.0 - Agent orchestration / Edit lease conflict policy expansion direction analysis
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,24 +9,20 @@ Post-v1.0 - Agent orchestration / Scheduler daemon lifecycle CLI/MCP surface clo
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Complete `design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md`.
-- [x] Add `doc-based-coding scheduler lifecycle inspect/start/heartbeat/pause/resume/cancel/shutdown/run-once`.
-- [x] Add MCP tools `schedulerLifecycleControl` and `schedulerLifecycleRunOnce`.
-- [x] Add MCP server schemas and routing for lifecycle tools.
-- [x] Update repo-local and bootstrap scheduler MCP smoke prompt guidance.
-- [x] Validate py_compile for `src/__main__.py`, `src/mcp/tools.py`, and `src/mcp/server.py`.
-- [x] Validate focused CLI lifecycle tests: `2 passed`.
-- [x] Validate focused tracked MCP lifecycle tests: `2 passed`.
-- [x] Validate scheduler MCP prompt guidance: `1 passed`.
-- [x] Validate wider CLI / tracked MCP admission / runtime orchestration / prompt regressions: `34 passed`, `5 passed`, `191 passed`, `20 passed`.
-- [x] Record review evidence in `review/scheduler-daemon-lifecycle-cli-mcp-surface-2026-06-20.md`.
-- [x] Update Checklist / Phase Map / checkpoint status.
+- [x] Complete `design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md`.
+- [x] Re-read scheduler lifecycle close status and no-active-gate checkpoint.
+- [x] Inspect current `EditScopeLease`, scheduler admission, subgraph preflight, and write-back boundary behavior.
+- [x] Recommend next gate `Edit Lease Conflict Classifier And Admission Evidence`.
+- [x] Update Checklist / Phase Map / checkpoint status for the direction analysis.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Line: Scheduler Daemon Lifecycle CLI/MCP Surface - source: design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md
-- Recommended Next Operator Line: Lifecycle Host UX Readback / Control Binding - source: design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
-- Deferred Line: Edit Lease Conflict Policy Expansion - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
+- Completed Line: Edit Lease Conflict Policy Expansion Direction Analysis - source: design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- Recommended Next Gate: Edit Lease Conflict Classifier And Admission Evidence - source: design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- Deferred Line: Write-Back Enforcement Unification - source: design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- Deferred Line: Lease Acquisition And Expiration Lifecycle - source: design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- Deferred Line: Sandbox Mount Binding - source: design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- Deferred Line: Lifecycle Host UX Readback / Control Binding - source: design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
 - Deferred Line: Runtime Subagent Policy - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
 - Deferred Line: Real Background Daemon Host - source: design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
 - Deferred Line: Real Sandbox Provider Spike - source: design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
@@ -36,7 +32,11 @@ Post-v1.0 - Agent orchestration / Scheduler daemon lifecycle CLI/MCP surface clo
 - design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md
 - review/scheduler-daemon-lifecycle-cli-mcp-surface-2026-06-20.md
+- design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
+- design_docs/agent-orchestration-after-release-evidence-direction-analysis.md
+- design_docs/agent-runtime-layering-and-orchestration-slice-plan.md
 - src/runtime/orchestration/scheduler_daemon_lifecycle.py
+- src/runtime/orchestration/scheduler.py
 - src/__main__.py
 - src/mcp/tools.py
 - src/mcp/server.py
