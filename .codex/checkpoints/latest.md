@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-20T22:44:00+08:00
+# Checkpoint - 2026-06-20T23:12:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Edit lease lifecycle direction analysis
+Post-v1.0 - Agent orchestration / Edit lease acquisition and expiration lifecycle
 ## Active Planning Gate
-(none)
+design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -14,10 +14,16 @@ Post-v1.0 - Agent orchestration / Edit lease lifecycle direction analysis
 - [x] Compare lease lifecycle, sandbox mount binding, Host UX/MCP lease readback, daemon lifecycle Host UX binding, and real sandbox provider spike.
 - [x] Recommend the next narrow gate as `Edit Lease Acquisition And Expiration Lifecycle`.
 - [x] Preserve non-goals for real sandbox enforcement, Host UX/MCP readback, write-back live scheduler query, ExchangeArtifact semantic changes, and Local Work Trajectory mutation.
-- [x] Update Checklist / Phase Map / checkpoint status.
+- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md`.
+- [ ] Implement scheduler-owned edit lease lifecycle record/state/event shapes.
+- [ ] Add acquire/release/expire/revoke helpers with explicit time input.
+- [ ] Persist/replay lifecycle evidence through scheduler events and state snapshots.
+- [ ] Validate focused lifecycle tests and relevant runtime orchestration regression.
+- [ ] Record review evidence and close gate.
 ## Pending User Decision
-- Review the recommended next planning gate: `Edit Lease Acquisition And Expiration Lifecycle`.
+(none)
 ## Direction Candidates
+- Active Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - Recommended Next Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Deferred Line: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Deferred Line: Host UX / MCP Lease Readback - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
@@ -28,6 +34,7 @@ Post-v1.0 - Agent orchestration / Edit lease lifecycle direction analysis
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
+- design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md
