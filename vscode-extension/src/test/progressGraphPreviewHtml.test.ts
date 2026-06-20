@@ -473,6 +473,75 @@ test('buildProgressGraphPreviewHtml renders host evidence cards from presentatio
   assert.match(html, /Local trajectory mutated: false/);
 });
 
+test('buildProgressGraphPreviewHtml renders cleanup receipt evidence cards', () => {
+  const presentation = coerceHostEvidencePresentation({
+    generated_at: '2026-06-21T07:15:00.000Z',
+    project_root: 'E:/workspace/example',
+    evidence_dir: 'E:/workspace/example/.codex/scheduler/evidence',
+    status: 'ok',
+    card_count: 1,
+    error_count: 0,
+    empty_message: '',
+    cards: [
+      {
+        id: 'cleanup',
+        title: 'Sandbox cleanup evidence cleanup',
+        subtitle: 'mcp:schedulerCleanupReceipts · 1 allocation(s) · cleanup settled',
+        status: 'completed',
+        severity: 'info',
+        timestamp: '2026-06-21T07:10:00+08:00',
+        runtime_providers: ['git-worktree'],
+        host_surface: 'mcp:schedulerCleanupReceipts',
+        invocation_id: 'cleanup',
+        requested_by: 'operator-or-host',
+        stop_reason: 'cleanup_settled',
+        stop_detail: '1 git-worktree allocation cleanup receipt(s) are completed.',
+        run_count: 0,
+        output_count: 0,
+        permission_review_count: 0,
+        key_facts: [
+          { label: 'Evidence product', value: 'sandbox_allocation_receipt_evidence' },
+          { label: 'Allocations', value: '1' },
+          { label: 'Git worktrees', value: '1' },
+          { label: 'Cleanup required', value: '0' },
+          { label: 'Cleanup completed', value: '1' },
+          { label: 'Cleanup executed', value: 'true' },
+          { label: 'Source evidence id', value: 'allocation' },
+        ],
+        refs: [
+          { label: 'Evidence', target: '.codex/scheduler/evidence/cleanup.json', ref_kind: 'path' },
+          { label: 'Source evidence', target: '.codex/scheduler/evidence/allocation.json', ref_kind: 'path' },
+          { label: 'Worktree task-1', target: 'E:/workspace/sandboxes/task-1-worktree', ref_kind: 'path' },
+        ],
+        authority_clues: [
+          { label: 'Cleanup executed', value: 'true' },
+          { label: 'Local trajectory mutated', value: 'false' },
+        ],
+        metadata: {
+          evidence_product_type: 'sandbox_allocation_receipt_evidence',
+          cleanup_state_counts: { completed: 1 },
+        },
+      },
+    ],
+    error_rows: [],
+  });
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: presentation,
+  }));
+
+  assert.match(html, /Sandbox cleanup evidence cleanup/);
+  assert.match(html, /git-worktree/);
+  assert.match(html, /mcp:schedulerCleanupReceipts/);
+  assert.match(html, /sandbox_allocation_receipt_evidence/);
+  assert.match(html, /Cleanup completed/);
+  assert.match(html, /cleanup_settled/);
+  assert.match(html, /Source evidence: \.codex\/scheduler\/evidence\/allocation\.json/);
+  assert.match(html, /Worktree task-1: E:\/workspace\/sandboxes\/task-1-worktree/);
+  assert.match(html, /Cleanup executed: true/);
+  assert.match(html, /Local trajectory mutated: false/);
+});
+
 test('buildProgressGraphPreviewHtml renders isolated malformed host evidence rows', () => {
   const presentation = coerceHostEvidencePresentation({
     generated_at: '2026-06-19T09:00:00.000Z',

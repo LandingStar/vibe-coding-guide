@@ -9,10 +9,13 @@ from typing import Literal, TypeAlias
 
 from src.runtime.orchestration import (
     HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE,
+    SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE,
     SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE,
     HostSchedulerRunEvidenceSummary,
+    SandboxAllocationReceiptEvidenceSummary,
     SchedulerLoopEvidenceSummary,
     read_host_scheduler_run_evidence_summary,
+    read_sandbox_allocation_receipt_evidence_summary,
     read_scheduler_loop_evidence_summary,
 )
 
@@ -25,7 +28,11 @@ HostEvidenceCardStatus = Literal[
 ]
 HostEvidenceBundleStatus = Literal["empty", "ok", "degraded", "failed"]
 HostEvidenceSeverity = Literal["info", "warning", "error"]
-HostEvidenceSummary: TypeAlias = HostSchedulerRunEvidenceSummary | SchedulerLoopEvidenceSummary
+HostEvidenceSummary: TypeAlias = (
+    HostSchedulerRunEvidenceSummary
+    | SchedulerLoopEvidenceSummary
+    | SandboxAllocationReceiptEvidenceSummary
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +236,8 @@ def _host_evidence_presentation_card(
 ) -> HostEvidencePresentationCard:
     if isinstance(summary, SchedulerLoopEvidenceSummary):
         return _scheduler_loop_evidence_presentation_card(summary)
+    if isinstance(summary, SandboxAllocationReceiptEvidenceSummary):
+        return _sandbox_allocation_receipt_evidence_presentation_card(summary)
     return _host_scheduler_run_evidence_presentation_card(summary)
 
 
@@ -430,6 +439,137 @@ def _scheduler_loop_evidence_presentation_card(
     )
 
 
+def _sandbox_allocation_receipt_evidence_presentation_card(
+    summary: SandboxAllocationReceiptEvidenceSummary,
+) -> HostEvidencePresentationCard:
+    authority_split = dict(summary.authority_split)
+    evidence_metadata = dict(summary.metadata)
+    cleanup_counts = _sandbox_allocation_cleanup_counts(summary)
+    git_worktree_count = cleanup_counts["git_worktree_count"]
+    cleanup_required_count = cleanup_counts["cleanup_required_count"]
+    cleanup_completed_count = cleanup_counts["cleanup_completed_count"]
+    cleanup_failed_count = cleanup_counts["cleanup_failed_count"]
+    cleanup_executed = _object_to_text(authority_split.get("cleanup_executed"))
+    source_evidence_path = _metadata_str(evidence_metadata, "source_evidence_path")
+    source_evidence_id = _metadata_str(evidence_metadata, "source_evidence_id")
+    host_surface = _metadata_str(evidence_metadata, "surface") or "sandbox-allocation-receipt"
+    status = _sandbox_allocation_receipt_evidence_card_status(
+        summary,
+        cleanup_required_count=cleanup_required_count,
+        cleanup_completed_count=cleanup_completed_count,
+        cleanup_failed_count=cleanup_failed_count,
+    )
+    cleanup_state_label = "cleanup settled"
+    if cleanup_failed_count:
+        cleanup_state_label = f"{cleanup_failed_count} cleanup failed"
+    elif cleanup_required_count:
+        cleanup_state_label = f"{cleanup_required_count} cleanup required"
+    subtitle_parts = [
+        host_surface,
+        f"{summary.allocation_count} allocation(s)",
+        cleanup_state_label,
+    ]
+
+    key_facts = [
+        HostEvidencePresentationFact("Evidence product", summary.product_type),
+        HostEvidencePresentationFact("Allocations", str(summary.allocation_count)),
+        HostEvidencePresentationFact("Git worktrees", str(git_worktree_count)),
+        HostEvidencePresentationFact("Cleanup required", str(cleanup_required_count)),
+        HostEvidencePresentationFact("Cleanup completed", str(cleanup_completed_count)),
+        HostEvidencePresentationFact("Cleanup failed", str(cleanup_failed_count)),
+        HostEvidencePresentationFact("Cleanup executed", cleanup_executed or "false"),
+    ]
+    if source_evidence_id:
+        key_facts.append(HostEvidencePresentationFact("Source evidence id", source_evidence_id))
+    if source_evidence_path:
+        key_facts.append(HostEvidencePresentationFact("Source evidence path", source_evidence_path))
+
+    refs: list[HostEvidencePresentationRef] = [
+        HostEvidencePresentationRef("Evidence", str(summary.evidence_path)),
+    ]
+    if source_evidence_path:
+        refs.append(HostEvidencePresentationRef("Source evidence", source_evidence_path))
+    for allocation in summary.allocations:
+        receipt = allocation.git_worktree_receipt
+        if receipt is None:
+            continue
+        if receipt.worktree_path:
+            refs.append(
+                HostEvidencePresentationRef(
+                    f"Worktree {allocation.task_id}",
+                    receipt.worktree_path,
+                )
+            )
+        if receipt.branch_name:
+            refs.append(
+                HostEvidencePresentationRef(
+                    f"Branch {allocation.task_id}",
+                    receipt.branch_name,
+                    ref_kind="git_branch",
+                )
+            )
+
+    authority_clues = tuple(
+        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
+        for label, key in (
+            ("Scheduler state read", "scheduler_state_read"),
+            ("Scheduler state mutated", "scheduler_state_mutated"),
+            ("Runtime provider executed", "runtime_provider_executed"),
+            ("Sandbox provider executed", "sandbox_provider_executed"),
+            ("Cleanup executed", "cleanup_executed"),
+            ("Evidence written", "evidence_written"),
+            ("Local trajectory mutated", "local_work_trajectory_mutated"),
+        )
+        if key in authority_split
+    )
+
+    return HostEvidencePresentationCard(
+        id=summary.evidence_id,
+        title=f"Sandbox cleanup evidence {summary.evidence_id}",
+        subtitle=" · ".join(part for part in subtitle_parts if part),
+        status=status,
+        severity=_host_evidence_card_severity(status),
+        timestamp=summary.timestamp,
+        runtime_providers=("git-worktree",) if git_worktree_count else (),
+        host_surface=host_surface,
+        invocation_id=summary.evidence_id,
+        requested_by="operator-or-host",
+        stop_reason=_sandbox_allocation_cleanup_stop_reason(
+            cleanup_required_count=cleanup_required_count,
+            cleanup_failed_count=cleanup_failed_count,
+        ),
+        stop_detail=_sandbox_allocation_cleanup_stop_detail(
+            cleanup_required_count=cleanup_required_count,
+            cleanup_completed_count=cleanup_completed_count,
+            cleanup_failed_count=cleanup_failed_count,
+        ),
+        run_count=0,
+        output_count=0,
+        permission_review_count=0,
+        key_facts=tuple(key_facts),
+        refs=tuple(refs),
+        authority_clues=authority_clues,
+        metadata={
+            "evidence_product_type": summary.product_type,
+            "allocation_task_ids": [
+                allocation.task_id
+                for allocation in summary.allocations
+            ],
+            "cleanup_state_counts": cleanup_counts["cleanup_state_counts"],
+            "cleanup_required_allocation_ids": cleanup_counts[
+                "cleanup_required_allocation_ids"
+            ],
+            "cleanup_completed_allocation_ids": cleanup_counts[
+                "cleanup_completed_allocation_ids"
+            ],
+            "cleanup_failed_allocation_ids": cleanup_counts[
+                "cleanup_failed_allocation_ids"
+            ],
+            "evidence_metadata": evidence_metadata,
+        },
+    )
+
+
 def _host_evidence_presentation_error_row(
     error: HostEvidenceReadError,
     *,
@@ -477,6 +617,86 @@ def _scheduler_loop_evidence_card_status(
     if summary.stop_reason == "cancelled":
         return "partial"
     return "unknown"
+
+
+def _sandbox_allocation_receipt_evidence_card_status(
+    summary: SandboxAllocationReceiptEvidenceSummary,
+    *,
+    cleanup_required_count: int,
+    cleanup_completed_count: int,
+    cleanup_failed_count: int,
+) -> HostEvidenceCardStatus:
+    if cleanup_failed_count:
+        return "failed"
+    if cleanup_required_count:
+        return "partial"
+    if cleanup_completed_count or summary.allocation_count:
+        return "completed"
+    return "unknown"
+
+
+def _sandbox_allocation_cleanup_counts(
+    summary: SandboxAllocationReceiptEvidenceSummary,
+) -> dict[str, object]:
+    cleanup_state_counts: dict[str, int] = {}
+    cleanup_required_allocation_ids: list[str] = []
+    cleanup_completed_allocation_ids: list[str] = []
+    cleanup_failed_allocation_ids: list[str] = []
+    git_worktree_count = 0
+
+    for allocation in summary.allocations:
+        receipt = allocation.git_worktree_receipt
+        if receipt is None:
+            continue
+        git_worktree_count += 1
+        state = receipt.cleanup_state or "unknown"
+        cleanup_state_counts[state] = cleanup_state_counts.get(state, 0) + 1
+        if state == "failed":
+            cleanup_failed_allocation_ids.append(allocation.allocation_id)
+        elif state == "completed":
+            cleanup_completed_allocation_ids.append(allocation.allocation_id)
+        elif allocation.cleanup_required or state == "required":
+            cleanup_required_allocation_ids.append(allocation.allocation_id)
+        elif state not in {"not_required", "unknown"}:
+            cleanup_failed_allocation_ids.append(allocation.allocation_id)
+
+    return {
+        "git_worktree_count": git_worktree_count,
+        "cleanup_required_count": len(cleanup_required_allocation_ids),
+        "cleanup_completed_count": len(cleanup_completed_allocation_ids),
+        "cleanup_failed_count": len(cleanup_failed_allocation_ids),
+        "cleanup_state_counts": dict(sorted(cleanup_state_counts.items())),
+        "cleanup_required_allocation_ids": cleanup_required_allocation_ids,
+        "cleanup_completed_allocation_ids": cleanup_completed_allocation_ids,
+        "cleanup_failed_allocation_ids": cleanup_failed_allocation_ids,
+    }
+
+
+def _sandbox_allocation_cleanup_stop_detail(
+    *,
+    cleanup_required_count: int,
+    cleanup_completed_count: int,
+    cleanup_failed_count: int,
+) -> str:
+    if cleanup_failed_count:
+        return f"{cleanup_failed_count} git-worktree cleanup attempt(s) failed."
+    if cleanup_required_count:
+        return f"{cleanup_required_count} git-worktree allocation(s) still require explicit cleanup."
+    if cleanup_completed_count:
+        return f"{cleanup_completed_count} git-worktree allocation cleanup receipt(s) are completed."
+    return "No git-worktree cleanup is required by this evidence artifact."
+
+
+def _sandbox_allocation_cleanup_stop_reason(
+    *,
+    cleanup_required_count: int,
+    cleanup_failed_count: int,
+) -> str:
+    if cleanup_failed_count:
+        return "cleanup_failed"
+    if cleanup_required_count:
+        return "cleanup_required"
+    return "cleanup_settled"
 
 
 def _scheduler_loop_authority_clues(
@@ -632,6 +852,8 @@ def _read_host_evidence_summary(path: Path) -> HostEvidenceSummary:
         return read_host_scheduler_run_evidence_summary(path)
     if product_type == SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE:
         return read_scheduler_loop_evidence_summary(path)
+    if product_type == SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE:
+        return read_sandbox_allocation_receipt_evidence_summary(path)
     raise ValueError(
         "host scheduler evidence artifact has unsupported product_type "
         f"{product_type!r}: {path}"

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Cleanup Runner CLI/MCP Surface",
-  "recorded_at": "2026-06-20T21:35:33.576972+00:00",
+  "title": "Host UX Cleanup Evidence Readback Linkage",
+  "recorded_at": "2026-06-20T22:05:50.610515+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/cleanup-policy-runner-over-durable-receipts-followup-direction-analysis.md",
+  "guide_context": "design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Cleanup Runner CLI/MCP Surface",
+    "title": "Host UX Cleanup Evidence Readback Linkage",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 5,
+    "relation_count": 4,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "cleanup surface",
+      "label": "cleanup readback",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/cleanup-policy-runner-over-durable-receipts-followup-direction-analysis.md"
+        "context": "design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md"
       }
     }
   },
@@ -36,61 +36,74 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open cleanup runner CLI/MCP planning gate",
+      "title": "Open cleanup evidence readback planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T21:17:19.241910+00:00",
-        "activated_at": "2026-06-20T21:17:19.241910+00:00",
+        "created_at": "2026-06-20T21:38:01.093825+00:00",
+        "activated_at": "2026-06-20T21:38:01.093825+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T21:17:54.739298+00:00"
+        "completed_at": "2026-06-20T21:38:27.695285+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Inspect scheduler CLI/MCP surfaces",
+      "title": "Inspect cleanup evidence readback and Host UX seams",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Read existing scheduler CLI commands, MCP tool definitions, and focused CLI/MCP tests before editing.",
+      "summary": "Read existing authorization readback, host evidence presentation, Scheduler Operator webview, and tests before choosing the minimal binding point.",
       "metadata": {
-        "created_at": "2026-06-20T21:17:54.830661+00:00",
+        "created_at": "2026-06-20T21:38:34.967397+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T21:29:41.476633+00:00",
-        "completed_at": "2026-06-20T21:35:16.586352+00:00"
+        "completed_at": "2026-06-20T21:48:05.079514+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Add cleanup runner CLI/MCP surface tests",
+      "title": "Validate cleanup readback and Host UX rendering",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Continue Cleanup Runner CLI/MCP Surface by covering explicit CLI and MCP invocation over durable git-worktree receipt evidence.",
+      "summary": "Run focused Python readback tests, VS Code extension build/tests, and screenshot-style UI validation for the Host Evidence cleanup card.",
       "metadata": {
-        "created_at": "2026-06-20T21:23:01.773702+00:00",
+        "created_at": "2026-06-20T21:48:15.799073+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T21:35:16.586352+00:00",
-        "completed_at": "2026-06-20T21:35:25.389900+00:00"
+        "activated_at": "2026-06-20T21:59:25.828626+00:00",
+        "completed_at": "2026-06-20T22:05:07.435374+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Close cleanup runner CLI/MCP surface docs",
+      "title": "Write back cleanup readback linkage closure",
       "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Write review evidence, close planning gate, refresh status board and checkpoint, and prepare the next narrow direction analysis.",
+      "summary": "Close planning gate, add review/follow-up direction, update project status docs and checkpoint, then commit scoped files.",
       "metadata": {
-        "created_at": "2026-06-20T21:29:47.164012+00:00",
+        "created_at": "2026-06-20T21:59:32.724990+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T21:35:25.389900+00:00",
-        "completed_at": "2026-06-20T21:35:33.576972+00:00"
+        "activated_at": "2026-06-20T22:05:07.435374+00:00",
+        "completed_at": "2026-06-20T22:05:14.291451+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Close cleanup readback linkage trajectory",
+      "kind": "close",
+      "status": "completed",
+      "order": 5,
+      "summary": "Trajectory close marker after code, tests, screenshot validation, and write-back finished.",
+      "metadata": {
+        "created_at": "2026-06-20T22:05:31.398164+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T22:05:50.610515+00:00"
       }
     }
   },
@@ -116,6 +129,15 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

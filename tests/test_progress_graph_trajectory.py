@@ -11,6 +11,8 @@ from src.runtime.orchestration import (
     AgentSpec,
     AgentRuntimeAdapterRegistry,
     ContextScope,
+    GitWorktreeCommandReceipt,
+    GitWorktreeSandboxReceipt,
     EditScopeLease,
     ExchangeReference,
     FakeAgentRuntimeAdapter,
@@ -40,13 +42,17 @@ from src.runtime.orchestration import (
     ScheduledTask,
     ScheduledTaskState,
     SchedulerState,
+    SandboxAllocation,
+    SandboxLeaseMountAuthorization,
     SharedProcessSandboxProvider,
     TaskDependency,
     TaskRunRecord,
+    build_sandbox_allocation_receipt_evidence,
     run_persisted_scheduler_once,
     read_scheduler_state_snapshot,
     scheduler_task_batch_submission_to_artifact,
     submit_scheduler_task_batch_with_persistence,
+    write_sandbox_allocation_receipt_evidence,
     write_scheduler_state_snapshot,
 )
 from src.workflow.checkpoint import write_checkpoint
@@ -1331,6 +1337,104 @@ def test_host_evidence_bundle_reads_scheduler_loop_evidence_summary(tmp_path: Pa
     assert {"label": "Ticks", "value": "1"} in card["key_facts"]
     assert {"label": "Provider executed", "value": "true"} in card["authority_clues"]
     assert card["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
+
+
+def test_host_evidence_bundle_reads_sandbox_allocation_cleanup_evidence(
+    tmp_path: Path,
+) -> None:
+    allocation = _git_worktree_allocation_fixture(
+        cleanup_required=False,
+        cleanup_state="completed",
+        cleanup_returncode=0,
+        branch_cleanup_returncode=0,
+    )
+    evidence_path = tmp_path / ".codex/scheduler/evidence/cleanup.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation-cleanup",
+            timestamp="2026-06-21T07:05:00+08:00",
+            evidence_path=evidence_path,
+            metadata={
+                "surface": "cli:scheduler cleanup-receipts",
+                "source_evidence_id": "allocation",
+                "source_evidence_path": str(
+                    tmp_path / ".codex/scheduler/evidence/allocation.json"
+                ),
+            },
+            authority_split={
+                "sandbox_provider_executed": True,
+                "cleanup_executed": True,
+                "evidence_written": True,
+                "local_work_trajectory_mutated": False,
+            },
+        ),
+        evidence_path,
+    )
+
+    bundle = read_host_evidence_bundle(tmp_path)
+    payload = bundle.to_json_dict()
+    presentation = build_host_evidence_presentation(bundle)
+    presentation_payload = presentation.to_json_dict()
+    card = presentation_payload["cards"][0]
+
+    assert payload["evidence_count"] == 1
+    assert payload["summaries"][0]["product_type"] == "sandbox_allocation_receipt_evidence"
+    assert payload["summaries"][0]["evidence_id"] == "allocation-cleanup"
+    assert payload["summaries"][0]["allocation_count"] == 1
+    assert presentation_payload["status"] == "ok"
+    assert card["id"] == "allocation-cleanup"
+    assert card["title"] == "Sandbox cleanup evidence allocation-cleanup"
+    assert card["status"] == "completed"
+    assert card["host_surface"] == "cli:scheduler cleanup-receipts"
+    assert card["runtime_providers"] == ["git-worktree"]
+    assert card["stop_reason"] == "cleanup_settled"
+    assert {"label": "Cleanup completed", "value": "1"} in card["key_facts"]
+    assert {"label": "Cleanup executed", "value": "true"} in card["authority_clues"]
+    assert card["metadata"]["evidence_product_type"] == "sandbox_allocation_receipt_evidence"
+    assert card["metadata"]["cleanup_state_counts"] == {"completed": 1}
+    assert card["metadata"]["cleanup_completed_allocation_ids"] == [
+        "git-worktree:task-1:worktree"
+    ]
+    assert any(ref["label"] == "Source evidence" for ref in card["refs"])
+    assert any(ref["label"] == "Worktree task-1" for ref in card["refs"])
+
+
+def test_host_evidence_cleanup_evidence_failed_state_takes_precedence(
+    tmp_path: Path,
+) -> None:
+    allocation = _git_worktree_allocation_fixture(
+        cleanup_required=True,
+        cleanup_state="failed",
+        cleanup_returncode=1,
+    )
+    evidence_path = tmp_path / ".codex/scheduler/evidence/cleanup-failed.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation-cleanup-failed",
+            timestamp="2026-06-21T07:10:00+08:00",
+            evidence_path=evidence_path,
+            authority_split={
+                "sandbox_provider_executed": True,
+                "cleanup_executed": True,
+                "evidence_written": True,
+                "local_work_trajectory_mutated": False,
+            },
+        ),
+        evidence_path,
+    )
+
+    presentation = build_host_evidence_presentation(read_host_evidence_bundle(tmp_path))
+    card = presentation.to_json_dict()["cards"][0]
+
+    assert card["status"] == "failed"
+    assert card["stop_reason"] == "cleanup_failed"
+    assert card["metadata"]["cleanup_failed_allocation_ids"] == [
+        "git-worktree:task-1:worktree"
+    ]
+    assert card["metadata"]["cleanup_required_allocation_ids"] == []
+    assert {"label": "Cleanup failed", "value": "1"} in card["key_facts"]
 
 
 def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None:
@@ -3435,6 +3539,74 @@ def _host_evidence_summary_fixture(
         },
         history_summary={},
         metadata={},
+    )
+
+
+def _git_worktree_allocation_fixture(
+    *,
+    cleanup_required: bool,
+    cleanup_state: str,
+    cleanup_returncode: int | None = None,
+    branch_cleanup_returncode: int | None = None,
+) -> SandboxAllocation:
+    profile = SandboxProfile(
+        profile_id="worktree",
+        profile_kind="git-worktree",
+        network_policy="disabled",
+        secret_policy="deny",
+        mount_policy="lease-scoped",
+    )
+    return SandboxAllocation(
+        allocation_id="git-worktree:task-1:worktree",
+        provider="git-worktree",
+        task_id="task-1",
+        profile=profile,
+        state="allocated",
+        workspace_root="E:/workspace/project",
+        scratch_path=".codex/scratch/task-1",
+        visible_mounts=("README.md", "src/app.py"),
+        network_policy=profile.network_policy,
+        secret_policy=profile.secret_policy,
+        cleanup_required=cleanup_required,
+        lease_authorized_mounts=(
+            SandboxLeaseMountAuthorization(
+                lease_id="lease-1",
+                task_id="task-1",
+                lifecycle_state="acquired",
+                authorized_mounts=("src/app.py",),
+                denied_mounts=(),
+                reason="lease-scoped mounts authorized by acquired edit lease lease-1",
+            ),
+        ),
+        lease_authorization_state="authorized",
+        lease_authorization_reason="lease-scoped mounts authorized by acquired edit lease lease-1",
+        git_worktree_receipt=GitWorktreeSandboxReceipt(
+            source_repository_root="E:/workspace/project",
+            sandbox_root="E:/workspace/sandboxes",
+            worktree_path="E:/workspace/sandboxes/task-1-worktree",
+            branch_name="dbc-sandbox/task-1-worktree",
+            base_ref="HEAD",
+            authorized_writable_paths=("src/app.py",),
+            denied_writable_paths=(),
+            cleanup_state=cleanup_state,
+            allocation=GitWorktreeCommandReceipt(
+                command=("git", "-C", "E:/workspace/project", "worktree", "add"),
+                returncode=0,
+                stdout="allocated",
+            ),
+            cleanup=GitWorktreeCommandReceipt(
+                command=("git", "worktree", "remove", "--force")
+                if cleanup_returncode is not None
+                else (),
+                returncode=cleanup_returncode,
+            ),
+            branch_cleanup=GitWorktreeCommandReceipt(
+                command=("git", "branch", "-D")
+                if branch_cleanup_returncode is not None
+                else (),
+                returncode=branch_cleanup_returncode,
+            ),
+        ),
     )
 
 
