@@ -996,6 +996,65 @@ class GovernanceTools:
             "metadata": dict(trajectory.metadata),
         }
 
+    def scheduler_authorization_readback(
+        self,
+        *,
+        snapshot_path: str,
+        scheduler_event_log_path: str = "",
+        strict: bool = True,
+        workspace_root: str = "",
+        scratch_root: str = ".codex/scratch",
+    ) -> dict[str, Any]:
+        """Read scheduler lease/sandbox authorization diagnostics."""
+
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "schedulerAuthorizationReadback requires snapshotPath.",
+            }
+
+        from ..runtime.orchestration import inspect_scheduler_authorization_snapshot
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        snapshot = resolve_path(snapshot_path)
+        event_log = resolve_path(scheduler_event_log_path) if scheduler_event_log_path else None
+        try:
+            readback = inspect_scheduler_authorization_snapshot(
+                snapshot,
+                scheduler_event_log_path=event_log,
+                strict=strict,
+                workspace_root=workspace_root or str(self._project_root),
+                scratch_root=scratch_root or ".codex/scratch",
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "snapshot_path": str(snapshot),
+                "scheduler_event_log_path": "" if event_log is None else str(event_log),
+                "authority_split": {
+                    "scheduler_state_read": False,
+                    "scheduler_event_log_read": event_log is not None,
+                    "scheduler_state_mutated": False,
+                    "scheduler_projection_refreshed": False,
+                    "runtime_provider_executed": False,
+                    "sandbox_metadata_evaluated": False,
+                    "real_sandbox_provider_executed": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "local_work_trajectory_mutated": False,
+                },
+            }
+
+        payload = readback.to_json_dict()
+        payload["ok"] = True
+        return payload
+
     def scheduler_run_once_and_project(
         self,
         *,

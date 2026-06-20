@@ -11,16 +11,20 @@ from src.mcp.tools import GovernanceTools
 from src.runtime.orchestration import (
     AgentSpec,
     ContextScope,
+    EditLeaseLifecycleRecord,
+    EditScopeLease,
     JsonArtifactVersionStore,
     JsonExchangeArtifactAdmissionLedger,
     JsonlSchedulerEventLog,
     SchedulerTaskSubmission,
     SchedulerState,
+    ScheduledTask,
     read_scheduler_state_snapshot,
     scheduler_task_submission_to_artifact,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     submit_scheduler_task_with_persistence,
+    write_scheduler_state_snapshot,
 )
 
 
@@ -341,5 +345,75 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert run_payload["skipped"] is False
         assert run_payload["loop"]["total_run_count"] == 1
         assert run_payload["runtime_provider"] == "fake"
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_server_exposes_and_routes_scheduler_authorization_readback(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-server-readback": ScheduledTask(
+                    task_id="task-server-readback",
+                    title="Server readback task",
+                    instruction="Inspect lease authorization.",
+                    agent=AgentSpec(agent_id="agent:server-readback", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="context:server-readback"),
+                    edit_lease=EditScopeLease(
+                        lease_id="lease-server-readback",
+                        task_id="task-server-readback",
+                        allowed_artifacts=("src/app.py",),
+                        lease_mode="write",
+                    ),
+                    output_artifact_id="task-server-readback:result",
+                )
+            },
+            edit_lease_lifecycle={
+                "lease-server-readback": EditLeaseLifecycleRecord(
+                    lease_id="lease-server-readback",
+                    task_id="task-server-readback",
+                    state="acquired",
+                    mode="write",
+                    allowed_artifacts=("src/app.py",),
+                    acquired_at="2026-06-21T01:40:00+08:00",
+                )
+            },
+        ),
+        snapshot_path,
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerAuthorizationReadback" in names
+        readback_tool = next(tool for tool in tools if tool.name == "schedulerAuthorizationReadback")
+        assert readback_tool.inputSchema["required"] == ["snapshotPath"]
+        assert "schedulerEventLogPath" in readback_tool.inputSchema["properties"]
+        assert "metadata-only shared-process sandbox" in readback_tool.description
+
+        result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerAuthorizationReadback",
+                    arguments={
+                        "snapshotPath": str(snapshot_path),
+                        "workspaceRoot": str(tmp_path),
+                    },
+                )
+            )
+        )
+        payload = json.loads(result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["product_type"] == "scheduler_authorization_readback"
+        assert payload["task_count"] == 1
+        assert payload["lifecycle_state_counts"] == {"acquired": 1}
+        assert payload["tasks"][0]["sandbox_authorization"]["lease_authorization_state"] == "authorized"
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert payload["authority_split"]["runtime_provider_executed"] is False
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())

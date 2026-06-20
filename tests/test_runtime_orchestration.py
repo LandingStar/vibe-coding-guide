@@ -106,6 +106,8 @@ from src.runtime.orchestration import (
     inspect_exchange_artifact_admission_ledger,
     inspect_exchange_artifact_store,
     inspect_scheduler_daemon_lifecycle_control,
+    inspect_scheduler_authorization,
+    inspect_scheduler_authorization_snapshot,
     has_scheduler_readable_relation,
     mark_ready_tasks,
     part_types,
@@ -3307,6 +3309,169 @@ def test_orchestration_preflight_bundle_surfaces_sandbox_rejection() -> None:
 
     with pytest.raises(KeyError, match="no sandbox provider registered for 'docker'"):
         build_orchestration_preflight_bundle(task, sandbox_registry=registry)
+
+
+def test_scheduler_authorization_readback_reports_acquired_mount_authorization() -> None:
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        input_artifact_refs=(
+            ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
+        ),
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T01:20:00+08:00",
+            )
+        },
+    )
+
+    readback = inspect_scheduler_authorization(
+        state,
+        workspace_root="E:/workspace/project",
+        snapshot_path="scheduler-state.json",
+    )
+    payload = readback.to_json_dict()
+    task_payload = payload["tasks"][0]
+    sandbox = task_payload["sandbox_authorization"]
+
+    assert payload["product_type"] == "scheduler_authorization_readback"
+    assert payload["task_count"] == 1
+    assert payload["edit_lease_task_count"] == 1
+    assert payload["lifecycle_state_counts"] == {"acquired": 1}
+    assert task_payload["lifecycle_missing"] is False
+    assert task_payload["lifecycle"]["state"] == "acquired"
+    assert sandbox["allocation_state"] == "allocated"
+    assert sandbox["lease_authorization_state"] == "authorized"
+    assert sandbox["visible_mounts"] == ["README.md", "src/app.py"]
+    assert sandbox["lease_authorizations"][0]["authorized_mounts"] == ["src/app.py"]
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["runtime_provider_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_scheduler_authorization_readback_reports_missing_lifecycle_rejection() -> None:
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+
+    readback = inspect_scheduler_authorization(SchedulerState(tasks={"task-1": task}))
+    task_payload = readback.to_json_dict()["tasks"][0]
+    sandbox = task_payload["sandbox_authorization"]
+
+    assert task_payload["has_edit_lease"] is True
+    assert task_payload["lifecycle_missing"] is True
+    assert task_payload["lifecycle"] is None
+    assert sandbox["allocation_state"] == "rejected"
+    assert sandbox["lease_authorization_state"] == "rejected"
+    assert sandbox["lease_authorizations"][0]["denied_mounts"] == ["src/app.py"]
+    assert "require acquired edit lease lifecycle record" in sandbox["allocation_reason"]
+
+
+def test_scheduler_authorization_readback_reports_non_acquired_lifecycle_rejection() -> None:
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="released",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                released_at="2026-06-21T01:25:00+08:00",
+            )
+        },
+    )
+
+    task_payload = inspect_scheduler_authorization(state).to_json_dict()["tasks"][0]
+    sandbox = task_payload["sandbox_authorization"]
+
+    assert task_payload["lifecycle"]["state"] == "released"
+    assert sandbox["allocation_state"] == "rejected"
+    assert sandbox["lease_authorization_state"] == "rejected"
+    assert sandbox["lease_authorizations"][0]["lifecycle_state"] == "released"
+    assert "current lifecycle state is 'released'" in sandbox["allocation_reason"]
+
+
+def test_scheduler_authorization_snapshot_readback_uses_existing_recovery(tmp_path) -> None:
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(SchedulerState(tasks={"task-1": task}), snapshot_path)
+    JsonlSchedulerEventLog(event_log_path).append(
+        SchedulerEvent(
+            event_id="scheduler-event-1",
+            event_kind="lease_acquired",
+            timestamp="2026-06-21T01:30:00+08:00",
+            task_id="task-1",
+            from_state="requested",
+            to_state="acquired",
+            lease_id="lease-1",
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T01:30:00+08:00",
+            ),
+            sequence=1,
+        )
+    )
+
+    readback = inspect_scheduler_authorization_snapshot(
+        snapshot_path,
+        scheduler_event_log_path=event_log_path,
+        workspace_root=str(tmp_path),
+    )
+    payload = readback.to_json_dict()
+
+    assert payload["snapshot_path"] == str(snapshot_path)
+    assert payload["scheduler_event_log_path"] == str(event_log_path)
+    assert payload["recovered_from_event_log"] is True
+    assert payload["authority_split"]["scheduler_event_log_read"] is True
+    assert payload["lifecycle_state_counts"] == {"acquired": 1}
+    assert payload["tasks"][0]["sandbox_authorization"]["lease_authorization_state"] == "authorized"
+    assert read_scheduler_state_snapshot(snapshot_path).edit_lease_lifecycle == {}
 
 
 def test_run_preflighted_task_uses_scheduler_run_path_and_runtime_registry(tmp_path) -> None:

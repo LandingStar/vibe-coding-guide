@@ -1025,6 +1025,43 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerAuthorizationReadback",
+                description=(
+                    "Read-only scheduler authorization diagnostics over edit lease "
+                    "declarations, scheduler-owned edit lease lifecycle records, and "
+                    "metadata-only shared-process sandbox mount authorization. Reads "
+                    "a scheduler snapshot plus optional scheduler event log recovery; "
+                    "does not run providers, mutate scheduler state, refresh projection, "
+                    "or mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "schedulerEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler task event JSONL path. Relative paths resolve under the MCP project root and is replayed through the existing recovery path.",
+                        },
+                        "strict": {
+                            "type": "boolean",
+                            "description": "Whether event-log replay should reject unknown task events. Default true.",
+                        },
+                        "workspaceRoot": {
+                            "type": "string",
+                            "description": "Optional workspace root recorded in sandbox metadata readback. Defaults to the MCP project root.",
+                        },
+                        "scratchRoot": {
+                            "type": "string",
+                            "description": "Optional scratch root used only to compute readback scratch paths. Defaults to .codex/scratch.",
+                        },
+                    },
+                    "required": ["snapshotPath"],
+                },
+            ),
+            Tool(
                 name="schedulerOperatorWorkflow",
                 description=(
                     "Run the explicit shared scheduler operator workflow: inspect "
@@ -1418,6 +1455,14 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerAuthorizationReadback":
+            result = tools.scheduler_authorization_readback(
+                snapshot_path=arguments.get("snapshotPath", ""),
+                scheduler_event_log_path=arguments.get("schedulerEventLogPath", ""),
+                strict=arguments.get("strict", True),
+                workspace_root=arguments.get("workspaceRoot", ""),
+                scratch_root=arguments.get("scratchRoot", ".codex/scratch"),
             )
         elif name == "schedulerOperatorWorkflow":
             result = tools.scheduler_operator_workflow(

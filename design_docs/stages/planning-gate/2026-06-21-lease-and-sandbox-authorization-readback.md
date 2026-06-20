@@ -1,7 +1,7 @@
 # Planning Gate - Lease And Sandbox Authorization Readback
 
 > Date: 2026-06-21
-> Status: ACTIVE
+> Status: COMPLETED
 
 ## Trigger
 
@@ -117,6 +117,58 @@ The gate may close when:
 5. Focused runtime and MCP tests pass.
 6. Wider relevant runtime orchestration regression passes.
 7. Review/status docs record validation and preserved non-goals.
+
+## Close Summary
+
+Completed on 2026-06-21.
+
+This gate added a read-only scheduler authorization diagnostic surface over
+edit lease declarations, scheduler-owned edit lease lifecycle records, and
+metadata-only sandbox mount authorization.
+
+Implemented behavior:
+
+1. `inspect_scheduler_authorization()` builds an in-memory readback product from
+   `SchedulerState`.
+2. `inspect_scheduler_authorization_snapshot()` reads a scheduler snapshot and,
+   when a scheduler event log is provided, reuses existing
+   `recover_scheduler_state()` replay before inspection.
+3. `SchedulerAuthorizationReadback` reports task counts, edit-lease task counts,
+   lifecycle state counts, sandbox authorization state counts, per-task lease
+   facts, lifecycle missing/non-missing facts, per-task sandbox allocation
+   authorization, and orphan lifecycle records.
+4. Sandbox authorization readback reuses `SharedProcessSandboxProvider`
+   metadata allocation so acquired/missing/non-acquired decisions share the same
+   contract as preflight.
+5. MCP `schedulerAuthorizationReadback` exposes the readback product with
+   required `snapshotPath` and optional `schedulerEventLogPath`, `strict`,
+   `workspaceRoot`, and `scratchRoot`.
+6. The readback surface reports `authority_split` showing no scheduler
+   mutation, runtime execution, projection refresh, ExchangeArtifact/admission
+   ledger mutation, or Local Work Trajectory mutation.
+
+Validation:
+
+```text
+.\.venv\Scripts\python.exe -m py_compile src/runtime/orchestration/scheduler_authorization_readback.py src/runtime/orchestration/__init__.py src/mcp/tools.py src/mcp/server.py tests/test_runtime_orchestration.py tests/test_mcp_admission.py
+passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "authorization_readback or sandbox_provider or orchestration_preflight_bundle"
+12 passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_admission.py -k "authorization_readback or scheduler_lifecycle"
+3 passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py
+214 passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_admission.py
+6 passed
+```
+
+Review evidence:
+
+`review/lease-and-sandbox-authorization-readback-2026-06-21.md`
 
 ## Implementation Notes
 

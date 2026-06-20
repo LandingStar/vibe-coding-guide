@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-21T01:10:00+08:00
+# Checkpoint - 2026-06-21T01:45:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Lease and sandbox authorization readback
+Post-v1.0 - Agent orchestration / Lease and sandbox authorization readback close
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -26,14 +26,16 @@ design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-read
 - [x] Validate focused sandbox/preflight tests and relevant runtime regression.
 - [x] Record review evidence and close gate.
 - [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`.
-- [ ] Implement read-only scheduler authorization readback helper.
-- [ ] Expose MCP `schedulerAuthorizationReadback`.
-- [ ] Validate focused runtime/MCP tests and relevant regression.
-- [ ] Record review evidence and close gate.
+- [x] Implement read-only scheduler authorization readback helper.
+- [x] Expose MCP `schedulerAuthorizationReadback`.
+- [x] Validate focused runtime/MCP tests and relevant regression.
+- [x] Record review evidence and close gate.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Active Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
+- Completed Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
+- Candidate Next Gate: Host UX Binding For Authorization Readback - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
+- Candidate Next Gate: Real Sandbox Provider Spike - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - Completed Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
 - Candidate Next Gate: Host UX / MCP Lease And Sandbox Authorization Readback - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
 - Candidate Next Gate: Real Sandbox Provider Spike - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
@@ -50,6 +52,8 @@ design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-read
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
+- review/lease-and-sandbox-authorization-readback-2026-06-21.md
+- src/runtime/orchestration/scheduler_authorization_readback.py
 - design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
 - review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
