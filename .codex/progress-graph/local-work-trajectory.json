@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Host UX authorization readback binding",
-  "recorded_at": "2026-06-20T19:53:11.997442+00:00",
+  "title": "Git worktree sandbox provider spike",
+  "recorded_at": "2026-06-20T19:58:11.421912+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md",
+  "guide_context": "design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Host UX authorization readback binding",
+    "title": "Git worktree sandbox provider spike",
     "lane_count": 1,
-    "event_count": 3,
-    "relation_count": 2,
+    "event_count": 1,
+    "relation_count": 0,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "host ux readback",
+      "label": "worktree sandbox",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md"
+        "context": "design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md"
       }
     }
   },
@@ -36,65 +36,18 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open narrow gate for authorization readback UI binding",
+      "title": "Open narrow gate for git-worktree sandbox provider spike",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T18:33:26.903626+00:00",
-        "activated_at": "2026-06-20T18:33:26.903626+00:00",
+        "created_at": "2026-06-20T19:56:39.040334+00:00",
+        "activated_at": "2026-06-20T19:56:39.040334+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T19:30:46.042571+00:00"
-      }
-    },
-    "event:002": {
-      "id": "event:002",
-      "lane_id": "lane:main",
-      "title": "Bind authorization readback into Scheduler Operator panel",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Implement a read-only Host UX adapter and rendering for schedulerAuthorizationReadback without adding mutation controls.",
-      "metadata": {
-        "created_at": "2026-06-20T19:31:37.419843+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T19:48:41.091875+00:00"
-      }
-    },
-    "event:003": {
-      "id": "event:003",
-      "lane_id": "lane:main",
-      "title": "Validate Host UX authorization readback binding",
-      "kind": "validation",
-      "status": "completed",
-      "order": 3,
-      "summary": "Build and focused tests passed; screenshot validation captured authorization readback UI evidence.",
-      "metadata": {
-        "created_at": "2026-06-20T19:48:50.016024+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T19:53:11.997442+00:00"
+        "completed_at": "2026-06-20T19:58:11.420912+00:00"
       }
     }
   },
-  "relations": [
-    {
-      "source_event_id": "event:001",
-      "target_event_id": "event:002",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:002",
-      "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    }
-  ]
+  "relations": []
 }

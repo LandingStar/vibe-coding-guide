@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-21T03:18:00+08:00
+# Checkpoint - 2026-06-21T03:56:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Host UX authorization readback binding close
+Post-v1.0 - Agent orchestration / Git worktree sandbox provider spike
 ## Active Planning Gate
-(none)
+design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -25,6 +25,11 @@ Post-v1.0 - Agent orchestration / Host UX authorization readback binding close
 - [x] Add focused UI/adapter tests for populated, empty, and error readback states.
 - [x] Capture screenshot-style UI validation evidence.
 - [x] Record review evidence and close gate.
+- [ ] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`.
+- [ ] Add minimal git-worktree sandbox provider contract and receipt fields.
+- [ ] Implement deterministic worktree allocation and cleanup over acquired edit lease lifecycle.
+- [ ] Validate focused runtime tests for authorized allocation and fail-closed rejection.
+- [ ] Record review evidence and close gate.
 - [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`.
 - [x] Implement metadata-only acquired lease mount authorization in sandbox contracts.
 - [x] Pass acquired lifecycle records through preflight.
@@ -40,6 +45,7 @@ Post-v1.0 - Agent orchestration / Host UX authorization readback binding close
 ## Direction Candidates
 - Completed Gate: Host UX Binding For Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
 - Recommended Next Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
+- Active Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
 - Recommended Source: Host UX Binding For Authorization Readback - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Deferred Candidate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Completed Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
@@ -64,6 +70,7 @@ Post-v1.0 - Agent orchestration / Host UX authorization readback binding close
 - design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
 - review/host-ux-authorization-readback-binding-2026-06-21.md
 - design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
+- design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
 - review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - src/runtime/orchestration/scheduler_authorization_readback.py
 - design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
