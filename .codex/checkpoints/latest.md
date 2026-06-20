@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-21T08:08:00+08:00
+# Checkpoint - 2026-06-21T08:35:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Cleanup evidence readback linkage completed
+Post-v1.0 - Agent orchestration / Daemon loop git-worktree opt-in completed
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,30 +9,30 @@ Post-v1.0 - Agent orchestration / Cleanup evidence readback linkage completed
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md`.
-- [x] Extend `dbc://host-evidence/presentation` to read durable `sandbox_allocation_receipt_evidence`.
-- [x] Render read-only cleanup evidence cards with cleanup required/completed/failed counts and refs.
-- [x] Cover completed and failed cleanup state readback, including failed-state precedence.
-- [x] Validate backend, MCP resource, VS Code HTML/panel tests, and screenshot-style Host Evidence rendering.
+- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-daemon-loop-git-worktree-opt-in.md`.
+- [x] Add explicit daemon-loop git-worktree opt-in fields and fail-closed validation.
+- [x] Register `GitWorktreeSandboxProvider` only when host opt-in is complete.
+- [x] Write durable `sandbox_allocation_receipt_evidence` from daemon-loop preflight allocations.
+- [x] Prove Host Evidence can read daemon-loop allocation receipt evidence.
+- [x] Keep cleanup explicit and outside daemon-loop execution.
 - [x] Record review evidence and follow-up direction.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Gate: Host UX Cleanup Evidence Readback Linkage - source: design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md
-- Review Evidence: Host UX Cleanup Evidence Readback Linkage Review - source: review/host-ux-cleanup-evidence-readback-linkage-2026-06-21.md
-- Recommended Source: Host UX Cleanup Evidence Readback Linkage Follow-Up Direction Analysis - source: design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md
-- Recommended Next Gate: Daemon Loop Git-Worktree Opt-In - source: design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md
-- Prior Gate: Cleanup Runner CLI/MCP Surface - source: design_docs/stages/planning-gate/2026-06-21-cleanup-runner-cli-mcp-surface.md
+- Completed Gate: Daemon Loop Git-Worktree Opt-In - source: design_docs/stages/planning-gate/2026-06-21-daemon-loop-git-worktree-opt-in.md
+- Review Evidence: Daemon Loop Git-Worktree Opt-In Review - source: review/daemon-loop-git-worktree-opt-in-2026-06-21.md
+- Recommended Source: Daemon Loop Git-Worktree Opt-In Follow-Up Direction Analysis - source: design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md
+- Recommended Next Gate: Host Workflow For Allocate-Read-Cleanup-Read - source: design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md
+- Prior Gate: Host UX Cleanup Evidence Readback Linkage - source: design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md
-- design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md
-- review/host-ux-cleanup-evidence-readback-linkage-2026-06-21.md
-- tools/progress_graph/host_evidence.py
-- src/runtime/orchestration/sandbox_cleanup_runner.py
+- design_docs/stages/planning-gate/2026-06-21-daemon-loop-git-worktree-opt-in.md
+- design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md
+- review/daemon-loop-git-worktree-opt-in-2026-06-21.md
+- src/runtime/orchestration/scheduler_host_daemon.py
+- src/runtime/orchestration/scheduler_host_runner.py
 - src/runtime/orchestration/sandbox_allocation_evidence.py
 - src/runtime/orchestration/sandbox.py
-- tests/test_progress_graph_trajectory.py
-- tests/test_mcp_prompts_resources.py
-- vscode-extension/src/test/progressGraphPreviewHtml.test.ts
+- tools/progress_graph/host_evidence.py
+- tests/test_runtime_orchestration.py

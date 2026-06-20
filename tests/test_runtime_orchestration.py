@@ -167,6 +167,8 @@ from src.runtime.orchestration import (
 )
 from tools.progress_graph import (
     SchedulerOperatorWorkflowRequest,
+    build_host_evidence_presentation,
+    read_host_evidence_bundle,
     run_scheduler_operator_workflow,
 )
 
@@ -6482,6 +6484,164 @@ def test_host_scheduler_daemon_loop_fake_result_is_json_serializable(tmp_path) -
     written = read_scheduler_state_snapshot(snapshot_path)
     assert written.tasks["task-a"].state == "complete"
     assert written.tasks["task-b"].state == "complete"
+
+
+def test_host_scheduler_daemon_loop_git_worktree_opt_in_requires_paths(tmp_path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-1": _git_worktree_task()}),
+        snapshot_path,
+    )
+
+    with pytest.raises(ValueError, match="workspace_root source repository"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-loop-workspace-root",
+                        requested_providers=("fake",),
+                    ),
+                ),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+                sandbox_allocation_evidence_id="missing-loop-workspace-root",
+            ),
+            artifact_store=InMemoryArtifactVersionStore(),
+        )
+
+    with pytest.raises(ValueError, match="sandbox_allocation_evidence_id"):
+        run_host_authorized_scheduler_daemon_loop(
+            HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="missing-loop-evidence-id",
+                        requested_providers=("fake",),
+                    ),
+                ),
+                workspace_root=str(tmp_path),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+            ),
+            artifact_store=InMemoryArtifactVersionStore(),
+        )
+
+
+def test_host_scheduler_daemon_loop_git_worktree_opt_in_writes_allocation_evidence(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        context_scope=ContextScope(
+            context_id="context:task-1",
+            lane_id="lane-main",
+            required_refs=(
+                ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
+            ),
+        ),
+        output_artifact_id="task-1:result",
+    )
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    evidence_path = tmp_path / ".codex" / "scheduler" / "evidence" / "daemon-allocation-receipts.json"
+    write_scheduler_state_snapshot(
+        _state_with_acquired_git_worktree_lease(task),
+        snapshot_path,
+    )
+
+    result = run_host_authorized_scheduler_daemon_loop(
+        HostSchedulerDaemonLoopRequest(
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            runtime_config=RuntimeRegistryWiringConfig(
+                providers=("fake",),
+                timestamp="2026-06-21T08:10:00+08:00",
+                host_invocation=RuntimeHostInvocation(
+                    surface="host-authorized-adapter",
+                    invocation_id="host-loop-git-worktree",
+                    requested_providers=("fake",),
+                    requested_by="host:test",
+                ),
+            ),
+            workspace_root=str(repo),
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            sandbox_allocation_evidence_id="daemon-allocation-receipts",
+            sandbox_allocation_evidence_path=evidence_path,
+            timestamp="2026-06-21T08:10:00+08:00",
+            metadata={"scenario": "daemon-git-worktree-opt-in"},
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    payload = result.to_json_dict()
+    summary = read_sandbox_allocation_receipt_evidence_summary(evidence_path)
+    allocation = summary.allocations_by_task_id["task-1"]
+    receipt = allocation.git_worktree_receipt
+    host_evidence = build_host_evidence_presentation(
+        read_host_evidence_bundle(tmp_path)
+    ).to_json_dict()
+    host_card = host_evidence["cards"][0]
+
+    assert payload["git_worktree_sandbox_opt_in"] is True
+    assert payload["git_worktree_sandbox_root"] == str(tmp_path / "sandboxes")
+    assert payload["sandbox_allocation_evidence_written"] is True
+    assert payload["sandbox_allocation_evidence_path"] == str(evidence_path)
+    assert payload["authority_split"]["sandbox_provider_authority"] == "host-explicit-opt-in"
+    assert payload["authority_split"]["sandbox_allocation_evidence_written"] is True
+    assert result.sandbox_allocation_evidence_write is not None
+    assert summary.evidence_id == "daemon-allocation-receipts"
+    assert summary.allocation_count == 1
+    assert summary.metadata["surface"] == "host-authorized-scheduler-daemon-loop"
+    assert summary.metadata["host_invocation_id"] == "host-loop-git-worktree"
+    assert summary.metadata["git_worktree_sandbox_opt_in"] is True
+    assert summary.metadata["scenario"] == "daemon-git-worktree-opt-in"
+    assert summary.authority_split["scheduler_state_read"] is True
+    assert summary.authority_split["scheduler_state_mutated"] is True
+    assert summary.authority_split["runtime_provider_executed"] is True
+    assert summary.authority_split["sandbox_provider_executed"] is True
+    assert summary.authority_split["cleanup_executed"] is False
+    assert allocation.provider == "git-worktree"
+    assert allocation.state == "allocated"
+    assert allocation.workspace_root == str(repo)
+    assert allocation.visible_mounts == ("README.md", "src/app.py")
+    assert allocation.cleanup_required is True
+    assert receipt is not None
+    assert receipt.source_repository_root == str(repo)
+    assert receipt.sandbox_root == str(tmp_path / "sandboxes")
+    assert receipt.cleanup_state == "required"
+    assert receipt.allocation.returncode == 0
+    assert Path(receipt.worktree_path).exists()
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-1"].state == "complete"
+    assert host_evidence["status"] == "degraded"
+    assert host_card["id"] == "daemon-allocation-receipts"
+    assert host_card["title"] == "Sandbox cleanup evidence daemon-allocation-receipts"
+    assert host_card["status"] == "partial"
+    assert host_card["host_surface"] == "host-authorized-scheduler-daemon-loop"
+    assert host_card["runtime_providers"] == ["git-worktree"]
+    assert {"label": "Cleanup required", "value": "1"} in host_card["key_facts"]
+    assert {"label": "Sandbox provider executed", "value": "true"} in host_card["authority_clues"]
+    assert {"label": "Evidence written", "value": "true"} in host_card["authority_clues"]
+
+    GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
 
 
 def test_host_scheduler_daemon_loop_mock_qoder_writes_scheduler_loop_evidence(tmp_path) -> None:

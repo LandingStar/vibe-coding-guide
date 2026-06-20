@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Host UX Cleanup Evidence Readback Linkage",
-  "recorded_at": "2026-06-20T22:05:50.610515+00:00",
+  "title": "Daemon Loop Git-Worktree Opt-In",
+  "recorded_at": "2026-06-20T22:24:44.077410+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md",
+  "guide_context": "design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Host UX Cleanup Evidence Readback Linkage",
+    "title": "Daemon Loop Git-Worktree Opt-In",
     "lane_count": 1,
-    "event_count": 5,
-    "relation_count": 4,
+    "event_count": 4,
+    "relation_count": 3,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "cleanup readback",
+      "label": "daemon git opt-in",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md"
+        "context": "design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md"
       }
     }
   },
@@ -36,74 +36,59 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open cleanup evidence readback planning gate",
+      "title": "Open daemon loop git-worktree opt-in planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T21:38:01.093825+00:00",
-        "activated_at": "2026-06-20T21:38:01.093825+00:00",
+        "created_at": "2026-06-20T22:08:33.303052+00:00",
+        "activated_at": "2026-06-20T22:08:33.303052+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T21:38:27.695285+00:00"
+        "completed_at": "2026-06-20T22:10:08.727286+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Inspect cleanup evidence readback and Host UX seams",
+      "title": "Implement daemon-loop git-worktree opt-in",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Read existing authorization readback, host evidence presentation, Scheduler Operator webview, and tests before choosing the minimal binding point.",
+      "summary": "Implementation is in progress: daemon host adapter now mirrors one-shot git-worktree opt-in shape; next step is focused runtime and Host Evidence readback tests.",
       "metadata": {
-        "created_at": "2026-06-20T21:38:34.967397+00:00",
+        "created_at": "2026-06-20T22:10:20.453801+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T21:48:05.079514+00:00"
+        "updated_at": "2026-06-20T22:13:06.855961+00:00",
+        "completed_at": "2026-06-20T22:19:31.839008+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate cleanup readback and Host UX rendering",
+      "title": "Validate and write back daemon-loop opt-in slice",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Run focused Python readback tests, VS Code extension build/tests, and screenshot-style UI validation for the Host Evidence cleanup card.",
+      "summary": "Run focused daemon-loop regression, close the planning gate, record review evidence and follow-up direction, then update project status files.",
       "metadata": {
-        "created_at": "2026-06-20T21:48:15.799073+00:00",
+        "created_at": "2026-06-20T22:19:37.513299+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T21:59:25.828626+00:00",
-        "completed_at": "2026-06-20T22:05:07.435374+00:00"
+        "completed_at": "2026-06-20T22:24:14.318889+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Write back cleanup readback linkage closure",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 4,
-      "summary": "Close planning gate, add review/follow-up direction, update project status docs and checkpoint, then commit scoped files.",
-      "metadata": {
-        "created_at": "2026-06-20T21:59:32.724990+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T22:05:07.435374+00:00",
-        "completed_at": "2026-06-20T22:05:14.291451+00:00"
-      }
-    },
-    "event:005": {
-      "id": "event:005",
-      "lane_id": "lane:main",
-      "title": "Close cleanup readback linkage trajectory",
+      "title": "Close daemon-loop git-worktree opt-in trajectory",
       "kind": "close",
       "status": "completed",
-      "order": 5,
-      "summary": "Trajectory close marker after code, tests, screenshot validation, and write-back finished.",
+      "order": 4,
+      "summary": "Implementation, validation, review evidence, follow-up direction, and project status writeback are complete.",
       "metadata": {
-        "created_at": "2026-06-20T22:05:31.398164+00:00",
+        "created_at": "2026-06-20T22:24:38.256881+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T22:05:50.610515+00:00"
+        "completed_at": "2026-06-20T22:24:44.076891+00:00"
       }
     }
   },
@@ -129,15 +114,6 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:004",
-      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

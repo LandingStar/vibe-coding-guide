@@ -9,7 +9,18 @@ from typing import Mapping
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from .runtime_adapter import QoderQueryClient
 from .runtime_wiring import RuntimeRegistryWiringConfig, build_runtime_registry_from_config
-from .sandbox import SandboxProviderRegistry, SharedProcessSandboxProvider
+from .sandbox import (
+    GitWorktreeSandboxProvider,
+    SandboxAllocation,
+    SandboxProviderRegistry,
+    SharedProcessSandboxProvider,
+)
+from .sandbox_allocation_evidence import (
+    SandboxAllocationReceiptEvidenceWriteResult,
+    build_sandbox_allocation_receipt_evidence,
+    default_sandbox_allocation_receipt_evidence_path,
+    write_sandbox_allocation_receipt_evidence,
+)
 from .scheduler_daemon import (
     SchedulerDaemonLoopResult,
     SchedulerDaemonLoopStopPolicy,
@@ -35,6 +46,9 @@ class HostSchedulerDaemonLoopRequest:
     evidence_path: str | Path | None = None
     workspace_root: str = ""
     scratch_root: str = ".codex/scratch"
+    git_worktree_sandbox_root: str | Path | None = None
+    sandbox_allocation_evidence_id: str = ""
+    sandbox_allocation_evidence_path: str | Path | None = None
     created_at: str = ""
     expires_at: str = ""
     timestamp: str = ""
@@ -52,6 +66,7 @@ class HostSchedulerDaemonLoopResult:
     runtime_registry_providers: tuple[str, ...]
     runtime_host_surface: str = ""
     evidence_write: SchedulerLoopEvidenceWriteResult | None = None
+    sandbox_allocation_evidence_write: SandboxAllocationReceiptEvidenceWriteResult | None = None
     local_work_trajectory_mutated: bool = False
     scheduler_projection_refreshed: bool = False
 
@@ -64,6 +79,11 @@ class HostSchedulerDaemonLoopResult:
             ""
             if self.evidence_write is None
             else str(self.evidence_write.evidence_path)
+        )
+        sandbox_allocation_evidence_path = (
+            ""
+            if self.sandbox_allocation_evidence_write is None
+            else str(self.sandbox_allocation_evidence_write.evidence_path)
         )
         payload: dict[str, object] = {
             "ok": True,
@@ -85,6 +105,14 @@ class HostSchedulerDaemonLoopResult:
             "final_queue_summary": loop_payload["final_queue_summary"],
             "evidence_written": self.evidence_write is not None,
             "evidence_path": evidence_path,
+            "git_worktree_sandbox_opt_in": self.request.git_worktree_sandbox_root is not None,
+            "git_worktree_sandbox_root": (
+                ""
+                if self.request.git_worktree_sandbox_root is None
+                else str(Path(self.request.git_worktree_sandbox_root))
+            ),
+            "sandbox_allocation_evidence_written": self.sandbox_allocation_evidence_write is not None,
+            "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path,
             "metadata": dict(self.request.metadata),
             "authority_split": {
                 "scheduler_state_authority": "scheduler_snapshot_and_event_log",
@@ -95,6 +123,9 @@ class HostSchedulerDaemonLoopResult:
                 "runtime_host_surface": self.runtime_host_surface,
                 "evidence_written": self.evidence_write is not None,
                 "evidence_path": evidence_path,
+                "sandbox_provider_authority": "host-explicit-opt-in",
+                "sandbox_allocation_evidence_written": self.sandbox_allocation_evidence_write is not None,
+                "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path,
                 "scheduler_projection_refreshed": self.scheduler_projection_refreshed,
                 "local_work_trajectory_mutated": self.local_work_trajectory_mutated,
                 "exchange_artifact_store_mutated": False,
@@ -120,7 +151,10 @@ def run_host_authorized_scheduler_daemon_loop(
         coordination_event_log=coordination_event_log,
         qoder_query_client=qoder_query_client,
     )
-    active_sandbox_registry = sandbox_registry or _default_sandbox_registry()
+    active_sandbox_registry = _sandbox_registry_for_request(
+        request,
+        sandbox_registry=sandbox_registry,
+    )
     provider = _select_loop_runtime_provider(runtime_wiring.registered_providers)
     loop = run_scheduler_daemon_loop(
         _loop_request(request, runtime_provider=provider),
@@ -137,6 +171,10 @@ def run_host_authorized_scheduler_daemon_loop(
             else runtime_wiring.config.host_invocation.surface
         ),
     )
+    sandbox_allocation_evidence_write = _write_sandbox_allocation_evidence_if_requested(
+        request,
+        loop,
+    )
     return HostSchedulerDaemonLoopResult(
         loop=loop,
         request=request,
@@ -147,6 +185,7 @@ def run_host_authorized_scheduler_daemon_loop(
             else runtime_wiring.config.host_invocation.surface
         ),
         evidence_write=evidence_write,
+        sandbox_allocation_evidence_write=sandbox_allocation_evidence_write,
     )
 
 
@@ -228,6 +267,89 @@ def _evidence_project_root(request: HostSchedulerDaemonLoopRequest) -> Path:
         if index > 0:
             return Path(*parts[:index])
     return snapshot.parent
+
+
+def _sandbox_registry_for_request(
+    request: HostSchedulerDaemonLoopRequest,
+    *,
+    sandbox_registry: SandboxProviderRegistry | None,
+) -> SandboxProviderRegistry:
+    _validate_git_worktree_opt_in(request)
+    if sandbox_registry is not None:
+        return sandbox_registry
+    registry = _default_sandbox_registry()
+    if request.git_worktree_sandbox_root is None:
+        return registry
+    registry.register(GitWorktreeSandboxProvider(request.git_worktree_sandbox_root))
+    return registry
+
+
+def _validate_git_worktree_opt_in(request: HostSchedulerDaemonLoopRequest) -> None:
+    if request.git_worktree_sandbox_root is None:
+        return
+    if not str(request.git_worktree_sandbox_root):
+        raise ValueError("git-worktree host daemon loop opt-in requires git_worktree_sandbox_root")
+    if not request.workspace_root:
+        raise ValueError("git-worktree host daemon loop opt-in requires workspace_root source repository")
+    if not request.sandbox_allocation_evidence_id:
+        raise ValueError("git-worktree host daemon loop opt-in requires sandbox_allocation_evidence_id")
+
+
+def _sandbox_allocations_from_loop(
+    loop: SchedulerDaemonLoopResult,
+) -> tuple[SandboxAllocation, ...]:
+    allocations: list[SandboxAllocation] = []
+    for iteration in loop.iterations:
+        allocations.extend(iteration.tick.run.drain.sandbox_allocations)
+    return tuple(allocations)
+
+
+def _write_sandbox_allocation_evidence_if_requested(
+    request: HostSchedulerDaemonLoopRequest,
+    loop: SchedulerDaemonLoopResult,
+) -> SandboxAllocationReceiptEvidenceWriteResult | None:
+    if not request.sandbox_allocation_evidence_id:
+        return None
+    allocations = _sandbox_allocations_from_loop(loop)
+    target = (
+        Path(request.sandbox_allocation_evidence_path)
+        if request.sandbox_allocation_evidence_path is not None
+        else default_sandbox_allocation_receipt_evidence_path(
+            _evidence_project_root(request),
+            request.sandbox_allocation_evidence_id,
+        )
+    )
+    invocation = request.runtime_config.host_invocation
+    metadata = {
+        "surface": "host-authorized-scheduler-daemon-loop",
+        "host_invocation_id": "" if invocation is None else invocation.invocation_id,
+        "git_worktree_sandbox_opt_in": request.git_worktree_sandbox_root is not None,
+        "git_worktree_sandbox_root": (
+            ""
+            if request.git_worktree_sandbox_root is None
+            else str(Path(request.git_worktree_sandbox_root))
+        ),
+    }
+    metadata.update(dict(request.metadata))
+    return write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            allocations,
+            evidence_id=request.sandbox_allocation_evidence_id,
+            timestamp=request.timestamp,
+            evidence_path=target,
+            metadata=metadata,
+            authority_split={
+                "scheduler_state_read": True,
+                "scheduler_state_mutated": bool(loop.iterations),
+                "runtime_provider_executed": loop.total_run_count > 0,
+                "sandbox_provider_executed": bool(allocations),
+                "cleanup_executed": False,
+                "evidence_written": True,
+                "local_work_trajectory_mutated": False,
+            },
+        ),
+        target,
+    )
 
 
 def _default_sandbox_registry() -> SandboxProviderRegistry:
