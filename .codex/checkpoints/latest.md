@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-21T02:33:00+08:00
+# Checkpoint - 2026-06-21T03:18:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Host UX authorization readback binding
+Post-v1.0 - Agent orchestration / Host UX authorization readback binding close
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -20,11 +20,11 @@ design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-bindi
 - [x] Persist/replay lifecycle evidence through scheduler events and state snapshots.
 - [x] Validate focused lifecycle tests and relevant runtime orchestration regression.
 - [x] Record review evidence and close gate.
-- [ ] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md`.
-- [ ] Bind read-only scheduler authorization diagnostics into the VS Code Scheduler Operator panel.
-- [ ] Add focused UI/adapter tests for populated, empty, and error readback states.
-- [ ] Capture screenshot-style UI validation evidence.
-- [ ] Record review evidence and close gate.
+- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md`.
+- [x] Bind read-only scheduler authorization diagnostics into the VS Code Scheduler Operator panel.
+- [x] Add focused UI/adapter tests for populated, empty, and error readback states.
+- [x] Capture screenshot-style UI validation evidence.
+- [x] Record review evidence and close gate.
 - [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`.
 - [x] Implement metadata-only acquired lease mount authorization in sandbox contracts.
 - [x] Pass acquired lifecycle records through preflight.
@@ -38,7 +38,8 @@ design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-bindi
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Active Gate: Host UX Binding For Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
+- Completed Gate: Host UX Binding For Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
+- Recommended Next Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
 - Recommended Source: Host UX Binding For Authorization Readback - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Deferred Candidate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Completed Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
@@ -61,6 +62,8 @@ design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-bindi
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
 - design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
+- review/host-ux-authorization-readback-binding-2026-06-21.md
+- design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
 - review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - src/runtime/orchestration/scheduler_authorization_readback.py
 - design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md

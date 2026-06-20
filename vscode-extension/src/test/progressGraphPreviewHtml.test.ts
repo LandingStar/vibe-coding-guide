@@ -61,6 +61,8 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
       exchangeReadError: null,
       scheduler: null,
       schedulerReadError: 'scheduler snapshot is not available',
+      authorizationReadback: null,
+      authorizationReadError: null,
       paths: {
         artifactStorePath: 'E:/workspace/example/.codex/orchestration/exchange-artifacts.json',
         admissionLedgerPath: 'E:/workspace/example/.codex/orchestration/exchange-artifact-admissions.json',
@@ -201,6 +203,8 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
   assert.match(html, /id="pgHostSchedulerOperatorPanel"/);
   assert.match(html, /Scheduler Operator/);
   assert.match(html, /dbc:\/\/exchange-artifacts\/bundle/);
+  assert.match(html, /id="pgHostSchedulerAuthorizationReadback"/);
+  assert.match(html, /authorization unavailable/);
   assert.match(html, /No scheduler-admission candidates are currently present/);
   assert.match(html, /id="pgHostEvidencePanel"/);
   assert.match(html, /Host Evidence/);
@@ -274,6 +278,132 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /Scheduler events/);
   assert.match(html, />9<\/div>/);
   assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
+});
+
+test('buildProgressGraphPreviewHtml renders scheduler authorization readback task diagnostics', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      scheduler: {
+        snapshotExists: true,
+        eventLogExists: true,
+        taskCount: 1,
+        dependencyCount: 0,
+        runRecordCount: 0,
+        schedulerEventCount: 3,
+        taskStateCounts: { queued: 1 },
+        schedulerEventKindCounts: { task_submitted: 1 },
+      },
+      schedulerReadError: null,
+      authorizationReadback: {
+        ok: true,
+        productType: 'scheduler_authorization_readback',
+        schemaVersion: '1',
+        snapshotPath: 'E:/workspace/example/.codex/scheduler/scheduler-state.json',
+        schedulerEventLogPath: 'E:/workspace/example/.codex/scheduler/scheduler-events.jsonl',
+        recoveredFromEventLog: true,
+        strictReplay: true,
+        taskCount: 1,
+        editLeaseTaskCount: 1,
+        lifecycleRecordCount: 1,
+        lifecycleStateCounts: { acquired: 1 },
+        sandboxAuthorizationStateCounts: { allocated: 1 },
+        orphanLifecycleRecordCount: 0,
+        error: '',
+        tasks: [
+          {
+            taskId: 'task-api',
+            title: 'Implement API',
+            state: 'queued',
+            agentId: 'agent-api',
+            runtimeProvider: 'fake',
+            hasEditLease: true,
+            leaseId: 'lease-api',
+            leaseMode: 'exclusive',
+            allowedArtifacts: ['src/api.py'],
+            deniedArtifacts: [],
+            conflictPolicy: 'block',
+            leaseExpiresAt: '',
+            lifecycleMissing: false,
+            lifecycle: {
+              leaseId: 'lease-api',
+              taskId: 'task-api',
+              state: 'acquired',
+              mode: 'exclusive',
+              allowedArtifacts: ['src/api.py'],
+              deniedArtifacts: [],
+              conflictPolicy: 'block',
+              acquiredAt: '2026-06-21T01:00:00.000Z',
+              expiresAt: '',
+              releasedAt: '',
+              reason: '',
+              conflictState: 'compatible',
+              conflictClassification: 'no_conflict',
+            },
+            sandboxAuthorization: {
+              profileId: 'shared-process',
+              profileKind: 'shared-process',
+              mountPolicy: 'workspace',
+              allocationState: 'allocated',
+              allocationReason: '',
+              visibleMounts: ['src/api.py'],
+              leaseAuthorizationState: 'authorized',
+              leaseAuthorizationReason: 'acquired lifecycle authorizes visible mounts',
+            },
+          },
+        ],
+      },
+      authorizationReadError: null,
+    },
+  }));
+
+  assert.match(html, /data-pg-authorization-readback-status="ok"/);
+  assert.match(html, /Authorization Readback/);
+  assert.match(html, /read-only schedulerAuthorizationReadback/);
+  assert.match(html, /Edit lease tasks/);
+  assert.match(html, />1<\/div>/);
+  assert.match(html, /Lifecycle states/);
+  assert.match(html, /acquired: 1/);
+  assert.match(html, /Sandbox authorization states/);
+  assert.match(html, /allocated: 1/);
+  assert.match(html, /data-pg-authorization-task-id="task-api"/);
+  assert.match(html, /Implement API/);
+  assert.match(html, /lease=lease-api · exclusive/);
+  assert.match(html, /allowed=src\/api\.py/);
+  assert.match(html, /lifecycle acquired/);
+  assert.match(html, /sandbox authorized/);
+});
+
+test('buildProgressGraphPreviewHtml renders scheduler authorization readback errors without mutation controls', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      authorizationReadback: {
+        ok: false,
+        productType: '',
+        schemaVersion: '',
+        snapshotPath: 'E:/workspace/example/.codex/scheduler/scheduler-state.json',
+        schedulerEventLogPath: '',
+        recoveredFromEventLog: false,
+        strictReplay: true,
+        taskCount: 0,
+        editLeaseTaskCount: 0,
+        lifecycleRecordCount: 0,
+        lifecycleStateCounts: {},
+        sandboxAuthorizationStateCounts: {},
+        orphanLifecycleRecordCount: 0,
+        tasks: [],
+        error: 'scheduler state snapshot does not exist',
+      },
+      authorizationReadError: null,
+    },
+  }));
+
+  assert.match(html, /data-pg-authorization-readback-status="failed"/);
+  assert.match(html, /authorization unavailable/);
+  assert.match(html, /scheduler state snapshot does not exist/);
+  assert.doesNotMatch(html, /data-pg-scheduler-action="authorize"/);
+  assert.doesNotMatch(html, /data-pg-scheduler-action="acquireLease"/);
 });
 
 test('buildProgressGraphPreviewHtml renders host evidence cards from presentation payload', () => {

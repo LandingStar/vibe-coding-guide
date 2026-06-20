@@ -1,4 +1,6 @@
 import type {
+  SchedulerAuthorizationReadback,
+  SchedulerAuthorizationTaskSummary,
   SchedulerOperatorExchangeCandidate,
   SchedulerOperatorWorkflowState,
 } from './schedulerOperatorWorkflow';
@@ -2031,9 +2033,23 @@ function buildParallelPreviewHtml(
     display: grid;
     gap: 9px;
   }
+  .pg-host-scheduler-authorization {
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(163, 218, 255, 0.16);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+  }
   .pg-host-scheduler-candidate {
     display: grid;
     gap: 8px;
+    padding: 10px 0 11px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .pg-host-scheduler-auth-task {
+    display: grid;
+    gap: 7px;
     padding: 10px 0 11px;
     border-top: 1px solid rgba(255, 255, 255, 0.09);
   }
@@ -3044,6 +3060,10 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   const schedulerReadError = workflow.schedulerReadError
     ? `<p class="pg-host-control-card-subtitle">Scheduler state readback unavailable: ${escapeHtml(workflow.schedulerReadError)}</p>`
     : '';
+  const authorizationReadback = buildSchedulerAuthorizationReadbackSection(
+    workflow.authorizationReadback,
+    workflow.authorizationReadError,
+  );
   const errors = exchange?.errors.length
     ? buildHostEvidenceChipGroup('Exchange read errors', exchange.errors)
     : '';
@@ -3072,11 +3092,131 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   </div>
   <div class="pg-host-scheduler-operator-grid">${exchangeFacts || pathFacts}${schedulerFacts}</div>
   ${schedulerReadError}
+  ${authorizationReadback}
   ${readError}
   ${candidateList}
   ${errors}
   ${lastActionHtml}
 </section>`;
+}
+
+function buildSchedulerAuthorizationReadbackSection(
+  readback: SchedulerAuthorizationReadback | null,
+  readError: string | null,
+): string {
+  if (readError) {
+    return `<section id="pgHostSchedulerAuthorizationReadback" class="pg-host-scheduler-authorization" data-pg-authorization-readback-status="failed">
+  <div class="pg-host-evidence-chip-row">
+    <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">authorization read failed</span>
+  </div>
+  <p class="pg-host-control-card-subtitle">${escapeHtml(readError)}</p>
+</section>`;
+  }
+
+  if (!readback) {
+    return `<section id="pgHostSchedulerAuthorizationReadback" class="pg-host-scheduler-authorization" data-pg-authorization-readback-status="unavailable">
+  <div class="pg-host-evidence-chip-row">
+    <span class="pg-host-evidence-badge" data-pg-evidence-status="unknown">authorization unavailable</span>
+  </div>
+  <p class="pg-host-control-card-subtitle">Scheduler authorization readback has not been loaded.</p>
+</section>`;
+  }
+
+  if (!readback.ok) {
+    return `<section id="pgHostSchedulerAuthorizationReadback" class="pg-host-scheduler-authorization" data-pg-authorization-readback-status="failed">
+  <div class="pg-host-evidence-chip-row">
+    <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">authorization unavailable</span>
+    <span class="pg-host-evidence-badge">${escapeHtml(readback.snapshotPath || 'snapshot unknown')}</span>
+  </div>
+  <p class="pg-host-control-card-subtitle">${escapeHtml(readback.error || 'schedulerAuthorizationReadback returned ok=false')}</p>
+</section>`;
+  }
+
+  const facts = [
+    ['Tasks', String(readback.taskCount)],
+    ['Edit lease tasks', String(readback.editLeaseTaskCount)],
+    ['Lifecycle records', String(readback.lifecycleRecordCount)],
+    ['Orphan lifecycle records', String(readback.orphanLifecycleRecordCount)],
+    ['Recovered from event log', String(readback.recoveredFromEventLog)],
+  ].map(([label, value]) => (
+    `<div class="pg-host-evidence-fact">
+      <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+      <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
+    </div>`
+  )).join('');
+  const lifecycleCounts = buildRecordChipGroup('Lifecycle states', readback.lifecycleStateCounts);
+  const sandboxCounts = buildRecordChipGroup('Sandbox authorization states', readback.sandboxAuthorizationStateCounts);
+  const taskRows = readback.tasks.length
+    ? `<div class="pg-host-evidence-list">${readback.tasks.map(buildSchedulerAuthorizationTaskRow).join('')}</div>`
+    : '<p class="pg-host-control-card-subtitle">No scheduler tasks are present in the authorization readback.</p>';
+
+  return `<section id="pgHostSchedulerAuthorizationReadback" class="pg-host-scheduler-authorization" data-pg-authorization-readback-status="ok">
+  <div class="pg-host-evidence-head">
+    <div class="pg-host-evidence-title-wrap">
+      <h3 class="pg-host-scheduler-candidate-title">Authorization Readback</h3>
+      <p class="pg-host-control-card-subtitle">read-only schedulerAuthorizationReadback · ${escapeHtml(readback.productType || 'scheduler_authorization_readback')}</p>
+    </div>
+    <div class="pg-host-evidence-badge-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="ok">read-only</span>
+      <span class="pg-host-evidence-badge">schema ${escapeHtml(readback.schemaVersion || 'unknown')}</span>
+    </div>
+  </div>
+  <div class="pg-host-scheduler-operator-grid">${facts}</div>
+  ${lifecycleCounts}
+  ${sandboxCounts}
+  ${taskRows}
+</section>`;
+}
+
+function buildSchedulerAuthorizationTaskRow(task: SchedulerAuthorizationTaskSummary): string {
+  const lifecycleState = task.lifecycle?.state ?? (task.lifecycleMissing ? 'missing' : 'not_required');
+  const sandboxState = task.sandboxAuthorization?.leaseAuthorizationState
+    ?? task.sandboxAuthorization?.allocationState
+    ?? 'unknown';
+  const leaseLabel = task.hasEditLease
+    ? `${task.leaseId || 'lease unknown'} · ${task.leaseMode || 'mode unknown'}`
+    : 'no edit lease';
+  const artifacts = task.allowedArtifacts.length
+    ? task.allowedArtifacts.join(', ')
+    : 'none';
+  const reason = [
+    task.lifecycle?.reason || '',
+    task.sandboxAuthorization?.leaseAuthorizationReason || task.sandboxAuthorization?.allocationReason || '',
+  ].filter(Boolean).join(' · ');
+  return `<article class="pg-host-scheduler-auth-task" data-pg-authorization-task-id="${escapeHtml(task.taskId)}">
+  <div class="pg-host-scheduler-candidate-head">
+    <div>
+      <h4 class="pg-host-scheduler-candidate-title">${escapeHtml(task.taskId || 'unknown task')}</h4>
+      <p class="pg-host-scheduler-candidate-meta">${escapeHtml(task.title || 'untitled task')} · ${escapeHtml(task.state || 'unknown')} · ${escapeHtml(task.runtimeProvider || 'unknown provider')}</p>
+      <p class="pg-host-scheduler-candidate-meta">lease=${escapeHtml(leaseLabel)} · allowed=${escapeHtml(artifacts)}</p>
+    </div>
+    <div class="pg-host-evidence-badge-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(statusToEvidenceBadge(lifecycleState))}">lifecycle ${escapeHtml(lifecycleState)}</span>
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(statusToEvidenceBadge(sandboxState))}">sandbox ${escapeHtml(sandboxState)}</span>
+    </div>
+  </div>
+  ${reason ? `<p class="pg-host-control-card-subtitle">${escapeHtml(reason)}</p>` : ''}
+</article>`;
+}
+
+function buildRecordChipGroup(title: string, record: Record<string, number>): string {
+  const values = Object.entries(record)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}: ${value}`);
+  return buildHostEvidenceChipGroup(title, values);
+}
+
+function statusToEvidenceBadge(status: string): string {
+  if (['acquired', 'authorized', 'allocated', 'ok', 'completed'].includes(status)) {
+    return 'ok';
+  }
+  if (['waiting', 'review_required', 'not_required', 'missing'].includes(status)) {
+    return 'unknown';
+  }
+  if (['released', 'revoked', 'expired', 'rejected', 'blocked', 'failed'].includes(status)) {
+    return 'failed';
+  }
+  return 'unknown';
 }
 
 function buildSchedulerOperatorCandidate(

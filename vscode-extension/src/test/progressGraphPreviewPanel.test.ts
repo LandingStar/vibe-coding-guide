@@ -135,6 +135,11 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /from src\.__main__ import main/);
   assert.match(schedulerOperatorSource, /sys\.argv = \["doc-based-coding"/);
   assert.match(schedulerOperatorSource, /tools\.read_resource/);
+  assert.match(schedulerOperatorSource, /scheduler_authorization_readback/);
+  assert.match(schedulerOperatorSource, /authorizationReadback/);
+  assert.match(schedulerOperatorSource, /authorizationReadError/);
+  assert.match(schedulerOperatorSource, /strict=True/);
+  assert.match(schedulerOperatorSource, /workspace_root=/);
   assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'admit-exchange-artifact'/);
   assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'daemon-loop'/);
   assert.doesNotMatch(schedulerOperatorContractSource, /'scheduler',\s*'project'/);

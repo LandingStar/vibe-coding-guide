@@ -1,7 +1,7 @@
 # Host UX Authorization Readback Binding
 
 > Date: 2026-06-21
-> Status: ACTIVE
+> Status: COMPLETED
 
 ## Trigger
 
@@ -79,3 +79,21 @@ On close, update:
 This gate is complete when the Progress Graph Preview panel exposes the
 read-only authorization readback product in the Scheduler Operator area, focused
 tests pass, and screenshot evidence shows the populated UI state.
+
+## Close Notes
+
+Closed on 2026-06-21.
+
+Review evidence:
+
+- `review/host-ux-authorization-readback-binding-2026-06-21.md`
+- Screenshot: `output/playwright/host-ux-authorization-readback/authorization-readback.png`
+
+Validation:
+
+```text
+npm run build --prefix vscode-extension
+node --test vscode-extension/dist/test/progressGraphPreviewHtml.test.js vscode-extension/dist/test/progressGraphPreviewPanel.test.js
+```
+
+Focused tests passed: `26 passed`.

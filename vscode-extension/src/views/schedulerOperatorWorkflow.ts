@@ -70,12 +70,77 @@ export type SchedulerOperatorLastAction = {
   payload: Record<string, unknown> | null;
 };
 
+export type SchedulerAuthorizationLifecycleSummary = {
+  leaseId: string;
+  taskId: string;
+  state: string;
+  mode: string;
+  allowedArtifacts: string[];
+  deniedArtifacts: string[];
+  conflictPolicy: string;
+  acquiredAt: string;
+  expiresAt: string;
+  releasedAt: string;
+  reason: string;
+  conflictState: string;
+  conflictClassification: string;
+};
+
+export type SchedulerAuthorizationSandboxSummary = {
+  profileId: string;
+  profileKind: string;
+  mountPolicy: string;
+  allocationState: string;
+  allocationReason: string;
+  visibleMounts: string[];
+  leaseAuthorizationState: string;
+  leaseAuthorizationReason: string;
+};
+
+export type SchedulerAuthorizationTaskSummary = {
+  taskId: string;
+  title: string;
+  state: string;
+  agentId: string;
+  runtimeProvider: string;
+  hasEditLease: boolean;
+  leaseId: string;
+  leaseMode: string;
+  allowedArtifacts: string[];
+  deniedArtifacts: string[];
+  conflictPolicy: string;
+  leaseExpiresAt: string;
+  lifecycleMissing: boolean;
+  lifecycle: SchedulerAuthorizationLifecycleSummary | null;
+  sandboxAuthorization: SchedulerAuthorizationSandboxSummary | null;
+};
+
+export type SchedulerAuthorizationReadback = {
+  ok: boolean;
+  productType: string;
+  schemaVersion: string;
+  snapshotPath: string;
+  schedulerEventLogPath: string;
+  recoveredFromEventLog: boolean;
+  strictReplay: boolean;
+  taskCount: number;
+  editLeaseTaskCount: number;
+  lifecycleRecordCount: number;
+  lifecycleStateCounts: Record<string, number>;
+  sandboxAuthorizationStateCounts: Record<string, number>;
+  orphanLifecycleRecordCount: number;
+  tasks: SchedulerAuthorizationTaskSummary[];
+  error: string;
+};
+
 export type SchedulerOperatorWorkflowState = {
   exchangeResourceUri: string;
   exchange: SchedulerOperatorExchangeSummary | null;
   exchangeReadError: string | null;
   scheduler: SchedulerOperatorSchedulerSummary | null;
   schedulerReadError: string | null;
+  authorizationReadback: SchedulerAuthorizationReadback | null;
+  authorizationReadError: string | null;
   paths: SchedulerOperatorPaths;
   lastAction: SchedulerOperatorLastAction;
 };
@@ -110,6 +175,7 @@ export async function readSchedulerOperatorWorkflowState(
 ): Promise<SchedulerOperatorWorkflowState> {
   const paths = buildSchedulerOperatorPaths(options.projectRoot);
   const schedulerReadback = await readSchedulerSummary(options);
+  const authorizationReadback = await readSchedulerAuthorizationReadback(options, paths);
   try {
     const raw = await readResourceJson(options, EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI);
     return {
@@ -118,6 +184,8 @@ export async function readSchedulerOperatorWorkflowState(
       exchangeReadError: null,
       scheduler: schedulerReadback.scheduler,
       schedulerReadError: schedulerReadback.schedulerReadError,
+      authorizationReadback: authorizationReadback.readback,
+      authorizationReadError: authorizationReadback.readError,
       paths,
       lastAction: options.lastAction,
     };
@@ -128,6 +196,8 @@ export async function readSchedulerOperatorWorkflowState(
       exchangeReadError: error instanceof Error ? error.message : String(error),
       scheduler: schedulerReadback.scheduler,
       schedulerReadError: schedulerReadback.schedulerReadError,
+      authorizationReadback: authorizationReadback.readback,
+      authorizationReadError: authorizationReadback.readError,
       paths,
       lastAction: options.lastAction,
     };
@@ -274,6 +344,65 @@ async function readSchedulerSummary(
   }
 }
 
+async function readSchedulerAuthorizationReadback(
+  options: SchedulerOperatorRuntimeOptions,
+  paths: SchedulerOperatorPaths,
+): Promise<{
+  readback: SchedulerAuthorizationReadback | null;
+  readError: string | null;
+}> {
+  const readbackScript = [
+    'import importlib.metadata',
+    'import json',
+    'import sys',
+    ...(options.sourceRoot ? [`sys.path.append(${JSON.stringify(options.sourceRoot)})`] : []),
+    'try:',
+    '    runtime_root = importlib.metadata.distribution("doc-based-coding-runtime").locate_file("")',
+    '    sys.path.insert(0, str(runtime_root))',
+    'except importlib.metadata.PackageNotFoundError:',
+    '    pass',
+    'from src.mcp.tools import GovernanceTools',
+    `tools = GovernanceTools(${JSON.stringify(options.projectRoot)}, dry_run=True)`,
+    'payload = tools.scheduler_authorization_readback(',
+    `    snapshot_path=${JSON.stringify(paths.schedulerSnapshotPath)},`,
+    `    scheduler_event_log_path=${JSON.stringify(paths.schedulerEventLogPath)},`,
+    '    strict=True,',
+    `    workspace_root=${JSON.stringify(options.projectRoot)},`,
+    '    scratch_root=".codex/scratch",',
+    ')',
+    'print(json.dumps(payload, ensure_ascii=False))',
+  ].join('\n');
+
+  options.outputChannel.appendLine(
+    `[SchedulerOperator] Reading scheduler authorization readback with Python: ${options.pythonPath}`,
+  );
+
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      options.pythonPath,
+      ['-c', readbackScript],
+      {
+        cwd: options.projectRoot,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const stderrText = stderr.trim();
+    if (stderrText) {
+      options.outputChannel.appendLine(`[SchedulerOperator authorization stderr] ${stderrText}`);
+    }
+    return {
+      readback: coerceSchedulerAuthorizationReadback(parseJsonObject(stdout)),
+      readError: null,
+    };
+  } catch (error: unknown) {
+    const execError = error as { stderr?: string; message?: string };
+    return {
+      readback: null,
+      readError: execError.stderr?.trim() || execError.message || String(error),
+    };
+  }
+}
+
 function buildCliScriptInvocation(
   options: SchedulerOperatorRuntimeOptions,
   args: string[],
@@ -322,6 +451,91 @@ function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperato
     admissionLedgerExists: readBoolean(value.admission_ledger_exists),
     candidates,
     errors: readStringArray(value.errors),
+  };
+}
+
+function coerceSchedulerAuthorizationReadback(
+  value: Record<string, unknown>,
+): SchedulerAuthorizationReadback {
+  return {
+    ok: readBoolean(value.ok),
+    productType: readString(value.product_type, ''),
+    schemaVersion: readString(value.schema_version, ''),
+    snapshotPath: readString(value.snapshot_path, ''),
+    schedulerEventLogPath: readString(value.scheduler_event_log_path, ''),
+    recoveredFromEventLog: readBoolean(value.recovered_from_event_log),
+    strictReplay: readBoolean(value.strict_replay),
+    taskCount: readNumber(value.task_count),
+    editLeaseTaskCount: readNumber(value.edit_lease_task_count),
+    lifecycleRecordCount: readNumber(value.lifecycle_record_count),
+    lifecycleStateCounts: readNumberRecord(value.lifecycle_state_counts),
+    sandboxAuthorizationStateCounts: readNumberRecord(value.sandbox_authorization_state_counts),
+    orphanLifecycleRecordCount: readNumber(value.orphan_lifecycle_record_count),
+    tasks: readObjectArray(value.tasks).map(coerceSchedulerAuthorizationTaskSummary),
+    error: readString(value.error, ''),
+  };
+}
+
+function coerceSchedulerAuthorizationTaskSummary(
+  value: Record<string, unknown>,
+): SchedulerAuthorizationTaskSummary {
+  return {
+    taskId: readString(value.task_id, ''),
+    title: readString(value.title, ''),
+    state: readString(value.state, 'unknown'),
+    agentId: readString(value.agent_id, ''),
+    runtimeProvider: readString(value.runtime_provider, ''),
+    hasEditLease: readBoolean(value.has_edit_lease),
+    leaseId: readString(value.lease_id, ''),
+    leaseMode: readString(value.lease_mode, ''),
+    allowedArtifacts: readStringArray(value.allowed_artifacts),
+    deniedArtifacts: readStringArray(value.denied_artifacts),
+    conflictPolicy: readString(value.conflict_policy, ''),
+    leaseExpiresAt: readString(value.lease_expires_at, ''),
+    lifecycleMissing: readBoolean(value.lifecycle_missing),
+    lifecycle: coerceSchedulerAuthorizationLifecycleSummary(readRecord(value.lifecycle)),
+    sandboxAuthorization: coerceSchedulerAuthorizationSandboxSummary(readRecord(value.sandbox_authorization)),
+  };
+}
+
+function coerceSchedulerAuthorizationLifecycleSummary(
+  value: Record<string, unknown>,
+): SchedulerAuthorizationLifecycleSummary | null {
+  if (Object.keys(value).length === 0) {
+    return null;
+  }
+  return {
+    leaseId: readString(value.lease_id, ''),
+    taskId: readString(value.task_id, ''),
+    state: readString(value.state, 'unknown'),
+    mode: readString(value.mode, ''),
+    allowedArtifacts: readStringArray(value.allowed_artifacts),
+    deniedArtifacts: readStringArray(value.denied_artifacts),
+    conflictPolicy: readString(value.conflict_policy, ''),
+    acquiredAt: readString(value.acquired_at, ''),
+    expiresAt: readString(value.expires_at, ''),
+    releasedAt: readString(value.released_at, ''),
+    reason: readString(value.reason, ''),
+    conflictState: readString(value.conflict_state, ''),
+    conflictClassification: readString(value.conflict_classification, ''),
+  };
+}
+
+function coerceSchedulerAuthorizationSandboxSummary(
+  value: Record<string, unknown>,
+): SchedulerAuthorizationSandboxSummary | null {
+  if (Object.keys(value).length === 0) {
+    return null;
+  }
+  return {
+    profileId: readString(value.profile_id, ''),
+    profileKind: readString(value.profile_kind, ''),
+    mountPolicy: readString(value.mount_policy, ''),
+    allocationState: readString(value.allocation_state, 'unknown'),
+    allocationReason: readString(value.allocation_reason, ''),
+    visibleMounts: readStringArray(value.visible_mounts),
+    leaseAuthorizationState: readString(value.lease_authorization_state, 'unknown'),
+    leaseAuthorizationReason: readString(value.lease_authorization_reason, ''),
   };
 }
 
