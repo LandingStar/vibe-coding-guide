@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -78,6 +81,19 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "project" in proc.stdout
     assert "seed-dogfood-fixture" in proc.stdout
     assert "operator-workflow" in proc.stdout
+    assert "cleanup-receipts" in proc.stdout
+
+
+def test_scheduler_cleanup_receipts_help_describes_explicit_cleanup() -> None:
+    proc = _run_cli(["scheduler", "cleanup-receipts", "--help"])
+
+    assert proc.returncode == 0
+    assert "--input-evidence-path PATH" in proc.stdout
+    assert "--output-evidence-path PATH" in proc.stdout
+    assert "--git-executable PATH" in proc.stdout
+    assert "durable sandbox allocation receipt evidence" in proc.stdout
+    assert "does not mutate scheduler state" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
 
 
 def test_scheduler_admit_exchange_artifact_help_describes_non_goals() -> None:
@@ -1219,3 +1235,156 @@ def test_scheduler_inspect_state_reports_missing_snapshot(tmp_path) -> None:
     assert "missing.json" in proc.stderr
     assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_cleanup_receipts_cli_cleans_git_worktree_evidence(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        build_sandbox_allocation_receipt_evidence,
+        read_sandbox_allocation_receipt_evidence_summary,
+        write_sandbox_allocation_receipt_evidence,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    repo = _git_repo(project)
+    allocation = _allocated_git_worktree(project, repo)
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    input_path = project / ".codex" / "scheduler" / "evidence" / "allocation.json"
+    output_path = project / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation",
+            timestamp="2026-06-21T06:30:00+08:00",
+            metadata={"surface": "cli-test"},
+        ),
+        input_path,
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "cleanup-receipts",
+            "--input-evidence-path",
+            ".codex/scheduler/evidence/allocation.json",
+            "--output-evidence-path",
+            ".codex/scheduler/evidence/cleanup.json",
+            "--output-evidence-id",
+            "cleanup",
+            "--timestamp",
+            "2026-06-21T06:35:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["input_evidence_id"] == "allocation"
+    assert payload["output_evidence_id"] == "cleanup"
+    assert payload["selected_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["cleaned_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["failed_allocation_ids"] == []
+    assert payload["authority_split"]["cleanup_executed"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert output_path.exists()
+    summary = read_sandbox_allocation_receipt_evidence_summary(output_path)
+    cleaned = summary.allocations_by_task_id["task-1"]
+    cleaned_receipt = cleaned.git_worktree_receipt
+    assert cleaned.cleanup_required is False
+    assert cleaned_receipt is not None
+    assert cleaned_receipt.cleanup_state == "completed"
+    assert summary.metadata["surface"] == "cli:scheduler cleanup-receipts"
+    assert not Path(receipt.worktree_path).exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_cleanup_receipts_cli_requires_input_evidence_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        ["scheduler", "cleanup-receipts", "--timestamp", "2026-06-21T06:35:00+08:00"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "Missing required option(s): --input-evidence-path" in proc.stderr
+
+
+def _allocated_git_worktree(project: Path, repo: Path):
+    from src.runtime.orchestration import (
+        EditLeaseLifecycleRecord,
+        EditScopeLease,
+        GitWorktreeSandboxProvider,
+        SandboxProfile,
+        SandboxRequest,
+    )
+
+    provider = GitWorktreeSandboxProvider(project / "sandboxes")
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(
+                profile_id="worktree",
+                profile_kind="git-worktree",
+                network_policy="disabled",
+                secret_policy="deny",
+                mount_policy="lease-scoped",
+            ),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T06:00:00+08:00",
+            ),
+            workspace_root=str(repo),
+            scratch_path=".codex/scratch/task-1",
+            required_mounts=("README.md",),
+        )
+    )
+    assert allocation.state == "allocated"
+    assert allocation.cleanup_required is True
+    return allocation
+
+
+def _git_repo(project: Path) -> Path:
+    if shutil.which("git") is None:
+        pytest.skip("git executable is required for git-worktree cleanup tests")
+    repo = project / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.email", "tests@example.invalid")
+    _run_git(repo, "config", "user.name", "Doc Based Coding Tests")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "initial")
+    return repo
+
+
+def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        ("git", "-C", str(repo), *args),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(args)} failed with {completed.returncode}: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    return completed

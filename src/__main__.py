@@ -369,6 +369,12 @@ _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
+_SCHEDULER_CLEANUP_RECEIPTS_USAGE = (
+    "Usage: doc-based-coding scheduler cleanup-receipts "
+    "--input-evidence-path PATH [--output-evidence-path PATH] "
+    "[--output-evidence-id ID] [--timestamp TIMESTAMP] [--git-executable PATH]"
+)
+
 _SCHEDULER_LIFECYCLE_USAGE = (
     "Usage: doc-based-coding scheduler lifecycle "
     "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once> "
@@ -403,7 +409,8 @@ def cmd_scheduler(args: list[str]) -> int:
             "  lifecycle                Read or mutate scheduler daemon lifecycle control state\n"
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
-            "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n",
+            "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n"
+            "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n",
         )
         return 0
 
@@ -426,10 +433,12 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_seed_dogfood_fixture(args[1:])
     if sub == "operator-workflow":
         return cmd_scheduler_operator_workflow(args[1:])
+    if sub == "cleanup-receipts":
+        return cmd_scheduler_cleanup_receipts(args[1:])
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|cleanup-receipts> [args]",
         file=sys.stderr,
     )
     return 1
@@ -863,6 +872,90 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
         )
 
     payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_cleanup_receipts(args: list[str]) -> int:
+    """Explicitly clean git-worktree sandboxes from durable receipt evidence."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CLEANUP_RECEIPTS_USAGE + "\n\n"
+            "This explicitly runs cleanup for cleanup-required git-worktree sandbox "
+            "allocations recorded in one durable sandbox allocation receipt evidence "
+            "artifact. It writes updated receipt evidence. It does not mutate scheduler "
+            "state, run host tasks, refresh projection, start a daemon, or mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    input_evidence_path = ""
+    output_evidence_path = ""
+    output_evidence_id = ""
+    timestamp = ""
+    git_executable = "git"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--input-evidence-path",
+            "--output-evidence-path",
+            "--output-evidence-id",
+            "--timestamp",
+            "--git-executable",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CLEANUP_RECEIPTS_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--input-evidence-path":
+                input_evidence_path = value
+            elif arg == "--output-evidence-path":
+                output_evidence_path = value
+            elif arg == "--output-evidence-id":
+                output_evidence_id = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--git-executable":
+                git_executable = value
+            i += 2
+            continue
+        print(f"Unknown scheduler cleanup-receipts option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CLEANUP_RECEIPTS_USAGE, file=sys.stderr)
+        return 1
+
+    if not input_evidence_path:
+        print(_SCHEDULER_CLEANUP_RECEIPTS_USAGE, file=sys.stderr)
+        print("Missing required option(s): --input-evidence-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import run_sandbox_allocation_cleanup_over_receipts
+
+        result = run_sandbox_allocation_cleanup_over_receipts(
+            _resolve_project_path(root, input_evidence_path),
+            output_evidence_path=(
+                _resolve_project_path(root, output_evidence_path)
+                if output_evidence_path
+                else None
+            ),
+            output_evidence_id=output_evidence_id,
+            timestamp=timestamp,
+            git_executable=git_executable,
+            metadata={"surface": "cli:scheduler cleanup-receipts"},
+        )
+        payload = result.to_json_dict()
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler cleanup receipts",
+            e,
+            category="scheduler_cleanup_receipts_failed",
+        )
+
     _print_json(payload)
     return 0 if payload.get("ok") else 1
 

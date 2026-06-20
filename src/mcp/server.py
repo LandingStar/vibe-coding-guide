@@ -1062,6 +1062,43 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerCleanupReceipts",
+                description=(
+                    "Explicitly clean cleanup-required git-worktree sandbox "
+                    "allocations recorded in one durable sandbox allocation receipt "
+                    "evidence artifact. Writes updated receipt evidence and returns "
+                    "cleanup command receipt summaries. This does not mutate scheduler "
+                    "state, run host tasks, refresh projection, start a daemon, or "
+                    "mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "inputEvidencePath": {
+                            "type": "string",
+                            "description": "Input sandbox_allocation_receipt_evidence JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "outputEvidencePath": {
+                            "type": "string",
+                            "description": "Optional output evidence path. Relative paths resolve under the MCP project root.",
+                        },
+                        "outputEvidenceId": {
+                            "type": "string",
+                            "description": "Optional output evidence id. Defaults to '<input evidence id>:cleanup'.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for the cleanup evidence.",
+                        },
+                        "gitExecutable": {
+                            "type": "string",
+                            "description": "Optional git executable path/name. Defaults to git.",
+                        },
+                    },
+                    "required": ["inputEvidencePath"],
+                },
+            ),
+            Tool(
                 name="schedulerOperatorWorkflow",
                 description=(
                     "Run the explicit shared scheduler operator workflow: inspect "
@@ -1463,6 +1500,14 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 strict=arguments.get("strict", True),
                 workspace_root=arguments.get("workspaceRoot", ""),
                 scratch_root=arguments.get("scratchRoot", ".codex/scratch"),
+            )
+        elif name == "schedulerCleanupReceipts":
+            result = tools.scheduler_cleanup_receipts(
+                input_evidence_path=arguments.get("inputEvidencePath", ""),
+                output_evidence_path=arguments.get("outputEvidencePath", ""),
+                output_evidence_id=arguments.get("outputEvidenceId", ""),
+                timestamp=arguments.get("timestamp", ""),
+                git_executable=arguments.get("gitExecutable", "git"),
             )
         elif name == "schedulerOperatorWorkflow":
             result = tools.scheduler_operator_workflow(

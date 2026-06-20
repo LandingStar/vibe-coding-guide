@@ -1055,6 +1055,61 @@ class GovernanceTools:
         payload["ok"] = True
         return payload
 
+    def scheduler_cleanup_receipts(
+        self,
+        *,
+        input_evidence_path: str,
+        output_evidence_path: str = "",
+        output_evidence_id: str = "",
+        timestamp: str = "",
+        git_executable: str = "git",
+    ) -> dict[str, Any]:
+        """Explicitly clean git-worktree sandboxes from durable receipt evidence."""
+
+        if not input_evidence_path:
+            return {
+                "ok": False,
+                "error": "schedulerCleanupReceipts requires inputEvidencePath.",
+            }
+
+        from ..runtime.orchestration import run_sandbox_allocation_cleanup_over_receipts
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        input_path = resolve_path(input_evidence_path)
+        output_path = resolve_path(output_evidence_path) if output_evidence_path else None
+        try:
+            result = run_sandbox_allocation_cleanup_over_receipts(
+                input_path,
+                output_evidence_path=output_path,
+                output_evidence_id=output_evidence_id,
+                timestamp=timestamp,
+                git_executable=git_executable or "git",
+                metadata={"surface": "mcp:schedulerCleanupReceipts"},
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "input_evidence_path": str(input_path),
+                "output_evidence_path": "" if output_path is None else str(output_path),
+                "authority_split": {
+                    "scheduler_state_read": False,
+                    "scheduler_state_mutated": False,
+                    "runtime_provider_executed": False,
+                    "sandbox_provider_executed": False,
+                    "cleanup_executed": False,
+                    "evidence_written": False,
+                    "local_work_trajectory_mutated": False,
+                },
+            }
+
+        return result.to_json_dict()
+
     def scheduler_run_once_and_project(
         self,
         *,

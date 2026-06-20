@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 from mcp.types import CallToolRequest, CallToolRequestParams, ListToolsRequest
 
 from src.mcp.server import create_server
@@ -19,11 +22,14 @@ from src.runtime.orchestration import (
     SchedulerTaskSubmission,
     SchedulerState,
     ScheduledTask,
+    build_sandbox_allocation_receipt_evidence,
     read_scheduler_state_snapshot,
+    read_sandbox_allocation_receipt_evidence_summary,
     scheduler_task_submission_to_artifact,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     submit_scheduler_task_with_persistence,
+    write_sandbox_allocation_receipt_evidence,
     write_scheduler_state_snapshot,
 )
 
@@ -417,3 +423,173 @@ def test_mcp_server_exposes_and_routes_scheduler_authorization_readback(tmp_path
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())
+
+
+def test_governance_tools_scheduler_cleanup_receipts_cleans_git_worktree(
+    tmp_path: Path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    allocation = _allocated_git_worktree(tmp_path, repo)
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    input_path = tmp_path / ".codex" / "scheduler" / "evidence" / "allocation.json"
+    output_path = tmp_path / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation",
+            timestamp="2026-06-21T06:40:00+08:00",
+            metadata={"surface": "mcp-tools-test"},
+        ),
+        input_path,
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    payload = tools.scheduler_cleanup_receipts(
+        input_evidence_path=".codex/scheduler/evidence/allocation.json",
+        output_evidence_path=".codex/scheduler/evidence/cleanup.json",
+        output_evidence_id="cleanup",
+        timestamp="2026-06-21T06:45:00+08:00",
+    )
+
+    assert payload["ok"] is True
+    assert payload["cleaned_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["authority_split"]["cleanup_executed"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert output_path.exists()
+    summary = read_sandbox_allocation_receipt_evidence_summary(output_path)
+    cleaned = summary.allocations_by_task_id["task-1"]
+    assert cleaned.cleanup_required is False
+    assert summary.metadata["surface"] == "mcp:schedulerCleanupReceipts"
+    assert not Path(receipt.worktree_path).exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_mcp_server_exposes_and_routes_scheduler_cleanup_receipts(tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path)
+    allocation = _allocated_git_worktree(tmp_path, repo)
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    input_path = tmp_path / ".codex" / "scheduler" / "evidence" / "allocation.json"
+    output_path = tmp_path / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation",
+            timestamp="2026-06-21T06:50:00+08:00",
+        ),
+        input_path,
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerCleanupReceipts" in names
+        cleanup_tool = next(tool for tool in tools if tool.name == "schedulerCleanupReceipts")
+        assert cleanup_tool.inputSchema["required"] == ["inputEvidencePath"]
+        assert "outputEvidencePath" in cleanup_tool.inputSchema["properties"]
+        assert "gitExecutable" in cleanup_tool.inputSchema["properties"]
+        assert "local-work-trajectory.json" in cleanup_tool.description
+
+        result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerCleanupReceipts",
+                    arguments={
+                        "inputEvidencePath": ".codex/scheduler/evidence/allocation.json",
+                        "outputEvidencePath": ".codex/scheduler/evidence/cleanup.json",
+                        "outputEvidenceId": "cleanup",
+                        "timestamp": "2026-06-21T06:55:00+08:00",
+                    },
+                )
+            )
+        )
+        payload = json.loads(result.root.content[0].text)
+        assert payload["ok"] is True
+        assert payload["selected_allocation_ids"] == ["git-worktree:task-1:worktree"]
+        assert payload["cleaned_allocation_ids"] == ["git-worktree:task-1:worktree"]
+        assert payload["authority_split"]["cleanup_executed"] is True
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    asyncio.run(exercise_server())
+    summary = read_sandbox_allocation_receipt_evidence_summary(output_path)
+    assert summary.allocations_by_task_id["task-1"].cleanup_required is False
+    assert not Path(receipt.worktree_path).exists()
+
+
+def _allocated_git_worktree(project: Path, repo: Path):
+    from src.runtime.orchestration import (
+        GitWorktreeSandboxProvider,
+        SandboxProfile,
+        SandboxRequest,
+    )
+
+    provider = GitWorktreeSandboxProvider(project / "sandboxes")
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(
+                profile_id="worktree",
+                profile_kind="git-worktree",
+                network_policy="disabled",
+                secret_policy="deny",
+                mount_policy="lease-scoped",
+            ),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T06:00:00+08:00",
+            ),
+            workspace_root=str(repo),
+            scratch_path=".codex/scratch/task-1",
+            required_mounts=("README.md",),
+        )
+    )
+    assert allocation.state == "allocated"
+    assert allocation.cleanup_required is True
+    return allocation
+
+
+def _git_repo(project: Path) -> Path:
+    if shutil.which("git") is None:
+        pytest.skip("git executable is required for git-worktree cleanup tests")
+    repo = project / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.email", "tests@example.invalid")
+    _run_git(repo, "config", "user.name", "Doc Based Coding Tests")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "initial")
+    return repo
+
+
+def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        ("git", "-C", str(repo), *args),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(args)} failed with {completed.returncode}: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    return completed
