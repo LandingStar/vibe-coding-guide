@@ -75,11 +75,24 @@ class WritebackEngine:
                 "skipped_payloads": [],
             }
         else:
-            report_plans, report_summary = self._plan_report_payloads(execution_result)
+            report_lease_decision = self._normalize_edit_lease_decision(
+                execution_result.get("edit_lease_conflict")
+                or execution_result.get("edit_lease_decision"),
+            )
+            report_plans, report_summary = self._plan_report_payloads(
+                execution_result,
+                edit_lease_decision=report_lease_decision,
+            )
         execution_result["report_writeback_summary"] = report_summary
         grouped_review_summary = self._summarize_grouped_review(execution_result)
         execution_result["grouped_review_writeback_summary"] = grouped_review_summary
-        grouped_child_plans, grouped_child_summary = self._plan_grouped_review_payloads(execution_result)
+        grouped_child_plans, grouped_child_summary = self._plan_grouped_review_payloads(
+            execution_result,
+            edit_lease_decision=(
+                execution_result.get("edit_lease_conflict")
+                or execution_result.get("edit_lease_decision")
+            ),
+        )
         execution_result["grouped_child_writeback_summary"] = grouped_child_summary
 
         # Build a default plan from the execution detail.
@@ -87,6 +100,22 @@ class WritebackEngine:
         intent = envelope.get("intent_result", {}).get("intent", "unknown")
         gate_level = envelope.get("gate_decision", {}).get("gate_level", "unknown")
         detail = execution_result.get("detail", "")
+        report_review_routed = self._count_skipped_disposition(
+            report_summary["skipped_payloads"],
+            "review_routed",
+        )
+        report_blocked = self._count_skipped_disposition(
+            report_summary["skipped_payloads"],
+            "blocked",
+        )
+        grouped_child_review_routed = self._count_skipped_disposition(
+            grouped_child_summary["skipped_payloads"],
+            "review_routed",
+        )
+        grouped_child_blocked = self._count_skipped_disposition(
+            grouped_child_summary["skipped_payloads"],
+            "blocked",
+        )
 
         summary = (
             f"# Write-back: {envelope_id}\n\n"
@@ -96,8 +125,12 @@ class WritebackEngine:
             f"- Detail: {detail}\n"
             f"- Report payload-derived plans: {len(report_summary['planned_payloads'])}\n"
             f"- Report payloads skipped: {len(report_summary['skipped_payloads'])}\n"
+            f"- Report payloads review-routed: {report_review_routed}\n"
+            f"- Report payloads blocked: {report_blocked}\n"
             f"- Grouped child payload-derived plans: {len(grouped_child_summary['planned_payloads'])}\n"
             f"- Grouped child payloads skipped: {len(grouped_child_summary['skipped_payloads'])}\n"
+            f"- Grouped child payloads review-routed: {grouped_child_review_routed}\n"
+            f"- Grouped child payloads blocked: {grouped_child_blocked}\n"
             f"- Grouped child writeback eligibility: {grouped_child_summary['eligibility_basis']}\n"
             f"- Grouped review outcome: {grouped_review_summary['outcome']}\n"
             f"- Grouped review driver: {grouped_review_summary['review_driver']}\n"
@@ -129,6 +162,8 @@ class WritebackEngine:
 
     def _plan_grouped_review_payloads(
         self, execution_result: dict,
+        *,
+        edit_lease_decision: object = None,
     ) -> tuple[list[WritebackPlan], dict[str, object]]:
         """Plan child payload writeback for all_clear or zone-approved grouped review."""
         grouped_review = execution_result.get("grouped_review_outcome") or {}
@@ -205,11 +240,19 @@ class WritebackEngine:
 
             report = record.get("report") or {}
             payloads = report.get("artifact_payloads") if isinstance(report, dict) else None
+            child_lease_decision = (
+                record.get("edit_lease_conflict")
+                or record.get("edit_lease_decision")
+                or (report.get("edit_lease_conflict") if isinstance(report, dict) else None)
+                or (report.get("edit_lease_decision") if isinstance(report, dict) else None)
+                or edit_lease_decision
+            )
             child_plans, child_summary = self._plan_payload_entries(
                 payloads,
                 child_boundaries.get(child_task_id, []),
                 summary_context={"child_task_id": child_task_id},
                 empty_boundary_reason="child allowed_artifacts is empty",
+                edit_lease_decision=child_lease_decision,
             )
             plans.extend(child_plans)
             planned_payloads = summary["planned_payloads"]
@@ -310,6 +353,8 @@ class WritebackEngine:
 
     def _plan_report_payloads(
         self, execution_result: dict,
+        *,
+        edit_lease_decision: object = None,
     ) -> tuple[list[WritebackPlan], dict[str, list[dict[str, str]]]]:
         """Convert report artifact payloads into safe writeback plans."""
         report = execution_result.get("report") or {}
@@ -319,6 +364,7 @@ class WritebackEngine:
         return self._plan_payload_entries(
             payloads,
             contract.get("allowed_artifacts") or [],
+            edit_lease_decision=edit_lease_decision,
         )
 
     def _plan_payload_entries(
@@ -328,6 +374,7 @@ class WritebackEngine:
         *,
         summary_context: dict[str, str] | None = None,
         empty_boundary_reason: str = "contract.allowed_artifacts is empty",
+        edit_lease_decision: object = None,
     ) -> tuple[list[WritebackPlan], dict[str, list[dict[str, str]]]]:
         """Convert payload entries into safe writeback plans under a boundary."""
 
@@ -339,6 +386,7 @@ class WritebackEngine:
             return [], summary
 
         normalized_allowed_artifacts = self._normalize_allowed_artifacts(allowed_artifacts)
+        normalized_lease_decision = self._normalize_edit_lease_decision(edit_lease_decision)
         plans: list[WritebackPlan] = []
 
         for payload in payloads:
@@ -375,6 +423,15 @@ class WritebackEngine:
                     "path": normalized_path,
                     "reason": "path is outside contract.allowed_artifacts",
                 })
+                continue
+
+            lease_skip_entry = self._lease_skip_payload_entry(
+                normalized_path,
+                normalized_lease_decision,
+                entry_prefix=entry_prefix,
+            )
+            if lease_skip_entry is not None:
+                summary["skipped_payloads"].append(lease_skip_entry)
                 continue
 
             content = payload.get("content")
@@ -417,6 +474,86 @@ class WritebackEngine:
             })
 
         return plans, summary
+
+    @staticmethod
+    def _count_skipped_disposition(skipped_payloads: object, disposition: str) -> int:
+        """Count skipped payloads with a specific lease-enforcement disposition."""
+        if not isinstance(skipped_payloads, list):
+            return 0
+        return sum(
+            1
+            for item in skipped_payloads
+            if isinstance(item, dict) and item.get("disposition") == disposition
+        )
+
+    def _lease_skip_payload_entry(
+        self,
+        normalized_path: str,
+        lease_decision: dict[str, str],
+        *,
+        entry_prefix: dict[str, str],
+    ) -> dict[str, str] | None:
+        """Return skipped payload evidence when lease state forbids direct writeback."""
+        state = lease_decision.get("state", "")
+        if state == "review_required":
+            disposition = "review_routed"
+            fallback_reason = "edit lease review required"
+        elif state in {"blocked", "waiting"}:
+            disposition = "blocked"
+            fallback_reason = f"edit lease {state}"
+        else:
+            return None
+
+        entry = {
+            **entry_prefix,
+            "path": normalized_path,
+            "reason": lease_decision.get("reason") or fallback_reason,
+            "disposition": disposition,
+            "edit_lease_state": state,
+        }
+        for key in (
+            "classification",
+            "left_path",
+            "right_path",
+            "left_task_id",
+            "right_task_id",
+            "left_lease_id",
+            "right_lease_id",
+        ):
+            value = lease_decision.get(key, "")
+            if value:
+                entry[f"edit_lease_{key}"] = value
+        return entry
+
+    @staticmethod
+    def _normalize_edit_lease_decision(evidence: object) -> dict[str, str]:
+        """Normalize optional scheduler edit lease evidence for writeback planning."""
+        if evidence is None:
+            return {}
+
+        allowed_states = {"compatible", "waiting", "review_required", "blocked"}
+        fields = (
+            "state",
+            "classification",
+            "reason",
+            "left_path",
+            "right_path",
+            "left_task_id",
+            "right_task_id",
+            "left_lease_id",
+            "right_lease_id",
+        )
+        normalized: dict[str, str] = {}
+        for field_name in fields:
+            if isinstance(evidence, dict):
+                raw_value = evidence.get(field_name)
+            else:
+                raw_value = getattr(evidence, field_name, None)
+            normalized[field_name] = raw_value if isinstance(raw_value, str) else ""
+
+        if normalized["state"] not in allowed_states:
+            return {}
+        return normalized
 
     def _normalize_allowed_artifacts(self, allowed_artifacts: list[object]) -> list[str]:
         """Normalize contract allowed_artifacts entries into safe relative paths."""
