@@ -160,6 +160,7 @@ from src.runtime.orchestration import (
     read_host_scheduler_run_evidence_summaries,
     read_host_scheduler_run_evidence_summary,
     read_scheduler_loop_evidence_summary,
+    run_sandbox_allocation_cleanup_over_receipts,
     write_scheduler_state_snapshot,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
@@ -3914,6 +3915,123 @@ def test_scheduler_authorization_snapshot_readback_merges_allocation_evidence(
     assert receipt["cleanup_state"] == "required"
     assert receipt["cleanup_required"] is True
     assert receipt["allocation"]["stdout"] == "allocated"
+
+
+def test_sandbox_allocation_cleanup_runner_cleans_git_worktree_receipts(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    allocation = _allocated_git_worktree_for_cleanup(tmp_path, repo)
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    input_path = tmp_path / "evidence" / "allocation-receipts.json"
+    output_path = tmp_path / "evidence" / "allocation-receipts-cleaned.json"
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="allocation-receipts",
+            timestamp="2026-06-21T06:10:00+08:00",
+            metadata={"surface": "unit-test"},
+        ),
+        input_path,
+    )
+
+    result = run_sandbox_allocation_cleanup_over_receipts(
+        input_path,
+        output_evidence_path=output_path,
+        output_evidence_id="allocation-receipts-cleaned",
+        timestamp="2026-06-21T06:15:00+08:00",
+    )
+    payload = result.to_json_dict()
+    summary = read_sandbox_allocation_receipt_evidence_summary(output_path)
+    cleaned = summary.allocations_by_task_id["task-1"]
+    cleaned_receipt = cleaned.git_worktree_receipt
+
+    assert payload["ok"] is True
+    assert payload["selected_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["cleaned_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["failed_allocation_ids"] == []
+    assert payload["authority_split"]["cleanup_executed"] is True
+    assert result.evidence_write.evidence_path == output_path
+    assert summary.evidence_id == "allocation-receipts-cleaned"
+    assert summary.timestamp == "2026-06-21T06:15:00+08:00"
+    assert summary.metadata["surface"] == "explicit-sandbox-allocation-cleanup-runner"
+    assert summary.metadata["source_evidence_id"] == "allocation-receipts"
+    assert summary.authority_split["cleanup_executed"] is True
+    assert cleaned.cleanup_required is False
+    assert cleaned_receipt is not None
+    assert cleaned_receipt.cleanup_state == "completed"
+    assert cleaned_receipt.cleanup.returncode == 0
+    assert cleaned_receipt.branch_cleanup.returncode == 0
+    assert not Path(receipt.worktree_path).exists()
+
+
+def test_sandbox_allocation_cleanup_runner_noops_without_required_cleanup(
+    tmp_path,
+) -> None:
+    task = _git_worktree_task()
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=False,
+        cleanup_state="completed",
+        cleanup_returncode=0,
+        branch_cleanup_returncode=0,
+    )
+    input_path = default_sandbox_allocation_receipt_evidence_path(
+        tmp_path,
+        "already-clean",
+    )
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="already-clean",
+            timestamp="2026-06-21T06:20:00+08:00",
+        ),
+        input_path,
+    )
+
+    result = run_sandbox_allocation_cleanup_over_receipts(input_path)
+    payload = result.to_json_dict()
+    summary = read_sandbox_allocation_receipt_evidence_summary(result.output_evidence_path)
+    restored = summary.allocations_by_task_id["task-1"]
+
+    assert result.output_evidence_path == tmp_path / ".codex/scheduler/evidence/already-clean-cleanup.json"
+    assert payload["ok"] is True
+    assert payload["selected_allocation_ids"] == []
+    assert payload["skipped_allocation_ids"] == ["git-worktree:task-1:worktree"]
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert summary.evidence_id == "already-clean:cleanup"
+    assert summary.authority_split["cleanup_executed"] is False
+    assert restored == allocation
+
+
+def test_sandbox_allocation_cleanup_runner_default_output_path_for_relative_codex_path(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    task = _git_worktree_task()
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=False,
+        cleanup_state="completed",
+        cleanup_returncode=0,
+        branch_cleanup_returncode=0,
+    )
+    monkeypatch.chdir(tmp_path)
+    input_path = Path(".codex/scheduler/evidence/relative-receipts.json")
+    write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            (allocation,),
+            evidence_id="relative-receipts",
+            timestamp="2026-06-21T06:25:00+08:00",
+        ),
+        input_path,
+    )
+
+    result = run_sandbox_allocation_cleanup_over_receipts(input_path)
+
+    assert result.output_evidence_path == Path(".codex/scheduler/evidence/relative-receipts-cleanup.json")
+    assert result.output_evidence_path.exists()
 
 
 def test_run_preflighted_task_uses_scheduler_run_path_and_runtime_registry(tmp_path) -> None:
@@ -8449,6 +8567,42 @@ def _git_worktree_allocation(
         ),
         reason=reason,
     )
+
+
+def _allocated_git_worktree_for_cleanup(tmp_path: Path, repo: Path) -> SandboxAllocation:
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(
+                profile_id="worktree",
+                profile_kind="git-worktree",
+                network_policy="disabled",
+                secret_policy="deny",
+                mount_policy="lease-scoped",
+            ),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T06:00:00+08:00",
+            ),
+            workspace_root=str(repo),
+            scratch_path=".codex/scratch/task-1",
+            required_mounts=("README.md",),
+        )
+    )
+    assert allocation.state == "allocated"
+    assert allocation.cleanup_required is True
+    return allocation
 
 
 def _git_repo(tmp_path: Path) -> Path:

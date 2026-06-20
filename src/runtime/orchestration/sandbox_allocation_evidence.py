@@ -30,10 +30,21 @@ class SandboxAllocationReceiptEvidence:
     product_type: str = SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE
     schema_version: str = SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_SCHEMA_VERSION
     metadata: Mapping[str, object] = field(default_factory=dict)
+    authority_split: Mapping[str, object] = field(default_factory=dict)
 
     def to_json_dict(self) -> dict[str, object]:
         """Return a JSON-serializable sandbox allocation receipt evidence artifact."""
 
+        authority_split: dict[str, object] = {
+            "scheduler_state_read": False,
+            "scheduler_state_mutated": False,
+            "runtime_provider_executed": False,
+            "sandbox_provider_executed": False,
+            "cleanup_executed": False,
+            "evidence_written": self.evidence_path is not None,
+            "local_work_trajectory_mutated": False,
+        }
+        authority_split.update(dict(self.authority_split))
         return {
             "product_type": self.product_type,
             "schema_version": self.schema_version,
@@ -44,15 +55,7 @@ class SandboxAllocationReceiptEvidence:
                 sandbox_allocation_to_json_dict(allocation)
                 for allocation in self.allocations
             ],
-            "authority_split": {
-                "scheduler_state_read": False,
-                "scheduler_state_mutated": False,
-                "runtime_provider_executed": False,
-                "sandbox_provider_executed": False,
-                "cleanup_executed": False,
-                "evidence_written": self.evidence_path is not None,
-                "local_work_trajectory_mutated": False,
-            },
+            "authority_split": authority_split,
             "metadata": dict(self.metadata),
         }
 
@@ -140,6 +143,7 @@ def build_sandbox_allocation_receipt_evidence(
     timestamp: str = "",
     evidence_path: str | Path | None = None,
     metadata: Mapping[str, object] | None = None,
+    authority_split: Mapping[str, object] | None = None,
 ) -> SandboxAllocationReceiptEvidence:
     """Build a durable sandbox allocation receipt evidence artifact."""
 
@@ -149,6 +153,7 @@ def build_sandbox_allocation_receipt_evidence(
         evidence_path=evidence_path,
         allocations=allocations,
         metadata={} if metadata is None else metadata,
+        authority_split={} if authority_split is None else authority_split,
     )
 
 
@@ -187,6 +192,7 @@ def write_sandbox_allocation_receipt_evidence(
         product_type=evidence.product_type,
         schema_version=evidence.schema_version,
         metadata=evidence.metadata,
+        authority_split=evidence.authority_split,
     )
     target.write_text(written.to_json(), encoding="utf-8")
     return SandboxAllocationReceiptEvidenceWriteResult(

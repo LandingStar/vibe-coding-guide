@@ -180,6 +180,10 @@ from .sandbox_allocation_evidence import (
     sandbox_allocation_to_json_dict,
     write_sandbox_allocation_receipt_evidence,
 )
+from .sandbox_cleanup_runner import (
+    SandboxCleanupRunnerResult,
+    run_sandbox_allocation_cleanup_over_receipts,
+)
 from .scheduler import (
     AdmissionDecision,
     AdmissionState,
@@ -478,6 +482,7 @@ __all__ = [
     "SandboxAllocationReceiptEvidence",
     "SandboxAllocationReceiptEvidenceSummary",
     "SandboxAllocationReceiptEvidenceWriteResult",
+    "SandboxCleanupRunnerResult",
     "SCHEDULER_DAEMON_LIFECYCLE_SCHEMA_VERSION",
     "SCHEDULER_STATE_SNAPSHOT_VERSION",
     "SchedulerCompactionResult",
@@ -625,6 +630,7 @@ __all__ = [
     "read_host_scheduler_run_evidence_summaries",
     "read_host_scheduler_run_evidence_summary",
     "read_sandbox_allocation_receipt_evidence_summary",
+    "run_sandbox_allocation_cleanup_over_receipts",
     "read_scheduler_loop_evidence_summary",
     "read_scheduler_daemon_lifecycle_control",
     "inspect_scheduler_daemon_lifecycle_control",

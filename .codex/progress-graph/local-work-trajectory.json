@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Controlled host run opt-in provider wiring",
-  "recorded_at": "2026-06-20T20:55:28.632323+00:00",
+  "title": "Cleanup Policy Runner Over Durable Receipts",
+  "recorded_at": "2026-06-20T21:10:18.277108+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md",
+  "guide_context": "design_docs/controlled-host-run-opt-in-provider-wiring-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Controlled host run opt-in provider wiring",
+    "title": "Cleanup Policy Runner Over Durable Receipts",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 5,
+    "relation_count": 4,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "host wiring",
+      "label": "cleanup runner",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md"
+        "context": "design_docs/controlled-host-run-opt-in-provider-wiring-followup-direction-analysis.md"
       }
     }
   },
@@ -36,31 +36,72 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open controlled host run provider wiring gate",
+      "title": "Open cleanup runner planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T20:44:38.997150+00:00",
-        "activated_at": "2026-06-20T20:44:38.997150+00:00",
+        "created_at": "2026-06-20T20:58:35.825948+00:00",
+        "activated_at": "2026-06-20T20:58:35.825948+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T20:47:17.035635+00:00"
+        "completed_at": "2026-06-20T20:59:40.358068+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Focused host opt-in tests passed",
-      "kind": "validation",
+      "title": "Inspect cleanup/evidence contracts",
+      "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Controlled Host Run Opt-In Provider Wiring completed: one-shot host-run explicit git-worktree opt-in, durable sandbox allocation receipt evidence writeback, focused/full validation, review and status docs are done.",
+      "summary": "Read sandbox provider, durable receipt evidence, host runner, and focused runtime tests before editing.",
       "metadata": {
-        "created_at": "2026-06-20T20:51:43.565418+00:00",
+        "created_at": "2026-06-20T20:59:40.442162+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T20:55:28.628421+00:00",
-        "closed_at": "2026-06-20T20:55:28.628421+00:00"
+        "completed_at": "2026-06-20T21:03:53.587510+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Validate cleanup runner slice",
+      "kind": "validation",
+      "status": "completed",
+      "order": 3,
+      "summary": "Run py_compile, focused cleanup/evidence/git/host readback tests, and full runtime orchestration tests.",
+      "metadata": {
+        "created_at": "2026-06-20T21:03:53.668589+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T21:04:40.178457+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Write back cleanup runner review and status",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 4,
+      "summary": "Record review evidence, close planning gate, update Checklist, Phase Map, and checkpoint.",
+      "metadata": {
+        "created_at": "2026-06-20T21:04:40.240722+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T21:09:46.997833+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Close cleanup runner trajectory",
+      "kind": "close",
+      "status": "completed",
+      "order": 5,
+      "summary": "All cleanup runner implementation, validation, and writeback work is complete.",
+      "metadata": {
+        "created_at": "2026-06-20T21:10:10.295586+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T21:10:18.277108+00:00"
       }
     }
   },
@@ -68,6 +109,33 @@
     {
       "source_event_id": "event:001",
       "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {
