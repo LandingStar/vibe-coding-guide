@@ -11,6 +11,8 @@ from .exchange import ExchangeReference
 from .runtime_adapter import AgentSpec
 from .scheduler import (
     ContextScope,
+    EditLeaseConflictDecision,
+    EditLeaseLifecycleRecord,
     EditScopeLease,
     SandboxProfile,
     ScheduledTask,
@@ -192,6 +194,10 @@ def write_scheduler_state_snapshot(state: SchedulerState, path: str | Path) -> P
         "dependencies": [_dependency_to_json(dependency) for dependency in state.dependencies],
         "run_records": [_run_record_to_json(record) for record in state.run_records],
         "merge_gates": [_merge_gate_to_json(gate) for gate in state.merge_gates],
+        "edit_lease_lifecycle": [
+            _lease_lifecycle_to_json(record)
+            for record in state.edit_lease_lifecycle.values()
+        ],
     }
     target.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     return target
@@ -223,11 +229,19 @@ def read_scheduler_state_snapshot(path: str | Path) -> SchedulerState:
         _merge_gate_from_json(item)
         for item in payload.get("merge_gates", ())
     )
+    edit_lease_lifecycle = {
+        record.lease_id: record
+        for record in (
+            _lease_lifecycle_from_json(item)
+            for item in payload.get("edit_lease_lifecycle", ()) or ()
+        )
+    }
     return SchedulerState(
         tasks=tasks,
         dependencies=dependencies,
         run_records=run_records,
         merge_gates=merge_gates,
+        edit_lease_lifecycle=edit_lease_lifecycle,
     )
 
 
@@ -328,6 +342,7 @@ def replay_scheduler_events(
 
     tasks = dict(baseline.tasks)
     run_records = list(baseline.run_records)
+    edit_lease_lifecycle = dict(baseline.edit_lease_lifecycle)
     known_run_keys = {
         (record.task_id, record.run_id, record.output_artifact_id, record.output_artifact_version)
         for record in run_records
@@ -343,6 +358,10 @@ def replay_scheduler_events(
                     "and do not create task contracts across a compaction "
                     "or recovery boundary."
                 )
+            continue
+        if event.edit_lease_lifecycle is not None:
+            edit_lease_lifecycle[event.edit_lease_lifecycle.lease_id] = event.edit_lease_lifecycle
+        if event.event_kind.startswith("lease_"):
             continue
         task = tasks[event.task_id]
         next_state = _state_from_scheduler_event(event)
@@ -382,6 +401,7 @@ def replay_scheduler_events(
         dependencies=baseline.dependencies,
         run_records=tuple(run_records),
         merge_gates=baseline.merge_gates,
+        edit_lease_lifecycle=edit_lease_lifecycle,
     )
 
 
@@ -533,6 +553,78 @@ def _lease_from_json(payload: dict[str, Any] | None) -> EditScopeLease | None:
         lease_mode=str(payload.get("lease_mode", "read")),  # type: ignore[arg-type]
         conflict_policy=str(payload.get("conflict_policy", "block-on-overlap")),
         expires_at=str(payload.get("expires_at", "")),
+    )
+
+
+def _lease_conflict_to_json(
+    decision: EditLeaseConflictDecision | None,
+) -> dict[str, object] | None:
+    if decision is None:
+        return None
+    return {
+        "state": decision.state,
+        "classification": decision.classification,
+        "left_task_id": decision.left_task_id,
+        "right_task_id": decision.right_task_id,
+        "left_lease_id": decision.left_lease_id,
+        "right_lease_id": decision.right_lease_id,
+        "left_path": decision.left_path,
+        "right_path": decision.right_path,
+        "reason": decision.reason,
+    }
+
+
+def _lease_conflict_from_json(payload: dict[str, Any] | None) -> EditLeaseConflictDecision | None:
+    if payload is None:
+        return None
+    return EditLeaseConflictDecision(
+        state=str(payload.get("state", "compatible")),  # type: ignore[arg-type]
+        classification=str(payload.get("classification", "no_overlap")),  # type: ignore[arg-type]
+        left_task_id=str(payload.get("left_task_id", "")),
+        right_task_id=str(payload.get("right_task_id", "")),
+        left_lease_id=str(payload.get("left_lease_id", "")),
+        right_lease_id=str(payload.get("right_lease_id", "")),
+        left_path=str(payload.get("left_path", "")),
+        right_path=str(payload.get("right_path", "")),
+        reason=str(payload.get("reason", "")),
+    )
+
+
+def _lease_lifecycle_to_json(record: EditLeaseLifecycleRecord | None) -> dict[str, object] | None:
+    if record is None:
+        return None
+    return {
+        "lease_id": record.lease_id,
+        "task_id": record.task_id,
+        "state": record.state,
+        "mode": record.mode,
+        "allowed_artifacts": list(record.allowed_artifacts),
+        "denied_artifacts": list(record.denied_artifacts),
+        "conflict_policy": record.conflict_policy,
+        "acquired_at": record.acquired_at,
+        "expires_at": record.expires_at,
+        "released_at": record.released_at,
+        "reason": record.reason,
+        "conflict_decision": _lease_conflict_to_json(record.conflict_decision),
+    }
+
+
+def _lease_lifecycle_from_json(payload: dict[str, Any] | None) -> EditLeaseLifecycleRecord:
+    if payload is None:
+        raise ValueError("edit lease lifecycle payload is missing")
+    return EditLeaseLifecycleRecord(
+        lease_id=str(payload.get("lease_id", "")),
+        task_id=str(payload.get("task_id", "")),
+        state=str(payload.get("state", "requested")),  # type: ignore[arg-type]
+        mode=str(payload.get("mode", "read")),  # type: ignore[arg-type]
+        allowed_artifacts=tuple(str(item) for item in payload.get("allowed_artifacts", ()) or ()),
+        denied_artifacts=tuple(str(item) for item in payload.get("denied_artifacts", ()) or ()),
+        conflict_policy=str(payload.get("conflict_policy", "block-on-overlap")),
+        acquired_at=str(payload.get("acquired_at", "")),
+        expires_at=str(payload.get("expires_at", "")),
+        released_at=str(payload.get("released_at", "")),
+        reason=str(payload.get("reason", "")),
+        conflict_decision=_lease_conflict_from_json(payload.get("conflict_decision")),
     )
 
 
@@ -738,6 +830,7 @@ def _scheduler_event_to_json(event: SchedulerEvent) -> dict[str, object]:
     payload = asdict(event)
     payload["related_dependency_ids"] = list(event.related_dependency_ids)
     payload["related_artifact_ids"] = list(event.related_artifact_ids)
+    payload["edit_lease_lifecycle"] = _lease_lifecycle_to_json(event.edit_lease_lifecycle)
     return payload
 
 
@@ -760,6 +853,12 @@ def _scheduler_event_from_json(payload: dict[str, object]) -> SchedulerEvent:
         related_artifact_ids=tuple(
             str(item) for item in payload.get("related_artifact_ids", ()) or ()
         ),
+        lease_id=str(payload.get("lease_id", "")),
+        edit_lease_lifecycle=_lease_lifecycle_from_json(
+            payload.get("edit_lease_lifecycle")  # type: ignore[arg-type]
+        )
+        if payload.get("edit_lease_lifecycle") is not None
+        else None,
         sequence=payload.get("sequence") if isinstance(payload.get("sequence"), int) else None,
     )
 

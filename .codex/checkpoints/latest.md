@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-20T23:12:00+08:00
+# Checkpoint - 2026-06-21T00:37:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Edit lease acquisition and expiration lifecycle
+Post-v1.0 - Agent orchestration / Edit lease lifecycle close
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -15,15 +15,16 @@ design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiratio
 - [x] Recommend the next narrow gate as `Edit Lease Acquisition And Expiration Lifecycle`.
 - [x] Preserve non-goals for real sandbox enforcement, Host UX/MCP readback, write-back live scheduler query, ExchangeArtifact semantic changes, and Local Work Trajectory mutation.
 - [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md`.
-- [ ] Implement scheduler-owned edit lease lifecycle record/state/event shapes.
-- [ ] Add acquire/release/expire/revoke helpers with explicit time input.
-- [ ] Persist/replay lifecycle evidence through scheduler events and state snapshots.
-- [ ] Validate focused lifecycle tests and relevant runtime orchestration regression.
-- [ ] Record review evidence and close gate.
+- [x] Implement scheduler-owned edit lease lifecycle record/state/event shapes.
+- [x] Add acquire/release/expire/revoke helpers with explicit time input.
+- [x] Persist/replay lifecycle evidence through scheduler events and state snapshots.
+- [x] Validate focused lifecycle tests and relevant runtime orchestration regression.
+- [x] Record review evidence and close gate.
 ## Pending User Decision
-(none)
+- Review next recommended gate: `Sandbox Mount Binding Over Acquired Leases`.
 ## Direction Candidates
-- Active Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
+- Completed Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
+- Recommended Next Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Recommended Next Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Deferred Line: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Deferred Line: Host UX / MCP Lease Readback - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
@@ -35,6 +36,7 @@ design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiratio
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
+- review/edit-lease-acquisition-and-expiration-lifecycle-2026-06-21.md
 - design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md
@@ -43,3 +45,5 @@ design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiratio
 - src/runtime/orchestration/sandbox.py
 - src/runtime/orchestration/preflight.py
 - src/pep/writeback_engine.py
+- src/runtime/orchestration/scheduler_store.py
+- tests/test_runtime_orchestration.py

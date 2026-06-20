@@ -18,6 +18,7 @@ from src.runtime.orchestration import (
     ArtifactDelta,
     CleanupReceipt,
     ContextScope,
+    EditLeaseLifecycleRecord,
     EditScopeLease,
     ExchangeArtifact,
     ExchangeCausality,
@@ -99,6 +100,7 @@ from src.runtime.orchestration import (
     drain_ready_tasks,
     evaluate_stop_condition,
     evaluate_task_admission,
+    expire_edit_leases,
     exchange_artifact_from_json_dict,
     exchange_artifact_to_json_dict,
     inspect_exchange_artifact_admission_ledger,
@@ -2760,6 +2762,288 @@ def test_edit_lease_classifier_keeps_read_write_compatible() -> None:
 
     assert decision.state == "admissible"
     assert decision.edit_lease_conflict is None
+
+
+def test_edit_lease_lifecycle_acquires_when_task_becomes_ready(tmp_path) -> None:
+    event_log = JsonlSchedulerEventLog(tmp_path / "lease-acquire-events.jsonl")
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+            expires_at="2026-06-20T12:30:00+08:00",
+        ),
+    )
+    state = SchedulerState(tasks={"task-b": proposed})
+
+    updated = mark_ready_tasks(
+        state,
+        event_log=event_log,
+        timestamp="2026-06-20T12:00:00+08:00",
+    )
+
+    record = updated.edit_lease_lifecycle["lease-b"]
+    assert updated.tasks["task-b"].state == "ready"
+    assert record.state == "acquired"
+    assert record.mode == "write"
+    assert record.allowed_artifacts == ("src/app.py",)
+    assert record.acquired_at == "2026-06-20T12:00:00+08:00"
+    assert record.expires_at == "2026-06-20T12:30:00+08:00"
+    events = event_log.read_all()
+    assert events[0].event_kind == "task_ready"
+    assert events[0].lease_id == "lease-b"
+    assert events[0].edit_lease_lifecycle is not None
+    assert events[0].edit_lease_lifecycle.state == "acquired"
+
+
+def test_edit_lease_lifecycle_blocks_with_conflict_evidence() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    updated = mark_ready_tasks(state, timestamp="2026-06-20T12:05:00+08:00")
+
+    record = updated.edit_lease_lifecycle["lease-b"]
+    assert updated.tasks["task-b"].state == "blocked"
+    assert record.state == "blocked"
+    assert record.conflict_decision is not None
+    assert record.conflict_decision.classification == "exact_path_overlap"
+    assert record.reason == "edit lease conflict with task-a: src/app.py"
+
+
+def test_edit_lease_lifecycle_review_required_preserves_review_zone_evidence() -> None:
+    running = _scheduled_task(
+        "task-a",
+        state="running",
+        edit_lease=EditScopeLease(
+            lease_id="lease-a",
+            task_id="task-a",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    proposed = _scheduled_task(
+        "task-b",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="review-zone",
+        ),
+    )
+    state = SchedulerState(tasks={"task-a": running, "task-b": proposed})
+
+    updated = mark_ready_tasks(state, timestamp="2026-06-20T12:10:00+08:00")
+
+    record = updated.edit_lease_lifecycle["lease-b"]
+    assert updated.tasks["task-b"].state == "review_required"
+    assert record.state == "review_required"
+    assert record.conflict_decision is not None
+    assert record.conflict_decision.classification == "review_zone_overlap"
+
+
+def test_edit_lease_lifecycle_releases_on_completed_task(tmp_path) -> None:
+    store = InMemoryArtifactVersionStore()
+    runtime = FakeAgentRuntimeAdapter(
+        artifact_store=store,
+        timestamp="2026-06-20T12:20:00+08:00",
+    )
+    event_log = JsonlSchedulerEventLog(tmp_path / "lease-release-events.jsonl")
+    task = _scheduled_task(
+        "task-b",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        output_artifact_id="task-b:result",
+    )
+    state = SchedulerState(
+        tasks={"task-b": task},
+        edit_lease_lifecycle={
+            "lease-b": EditLeaseLifecycleRecord(
+                lease_id="lease-b",
+                task_id="task-b",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+            )
+        },
+    )
+
+    updated, _ = run_ready_task(
+        state,
+        "task-b",
+        runtime=runtime,
+        event_log=event_log,
+        timestamp="2026-06-20T12:20:00+08:00",
+    )
+
+    record = updated.edit_lease_lifecycle["lease-b"]
+    assert updated.tasks["task-b"].state == "complete"
+    assert record.state == "released"
+    assert record.acquired_at == "2026-06-20T12:00:00+08:00"
+    assert record.released_at == "2026-06-20T12:20:00+08:00"
+    events = event_log.read_all()
+    assert events[-1].event_kind == "task_completed"
+    assert events[-1].edit_lease_lifecycle is not None
+    assert events[-1].edit_lease_lifecycle.state == "released"
+
+
+def test_edit_lease_lifecycle_revokes_on_permission_rejection(tmp_path) -> None:
+    event_log = JsonlSchedulerEventLog(tmp_path / "lease-revoke-events.jsonl")
+    task = _scheduled_task(
+        "task-b",
+        state="review_required",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    task = replace(
+        task,
+        run_id="run-b",
+        output_artifact_ref=ExchangeReference(
+            ref_kind="exchange_artifact",
+            ref_id="task-b:result",
+            version="v1",
+        ),
+    )
+    state = SchedulerState(
+        tasks={"task-b": task},
+        edit_lease_lifecycle={
+            "lease-b": EditLeaseLifecycleRecord(
+                lease_id="lease-b",
+                task_id="task-b",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+            )
+        },
+    )
+
+    updated = resolve_task_permission_review(
+        state,
+        "task-b",
+        approved=False,
+        reason="write permission denied",
+        event_log=event_log,
+        timestamp="2026-06-20T12:25:00+08:00",
+    )
+
+    record = updated.edit_lease_lifecycle["lease-b"]
+    assert updated.tasks["task-b"].state == "blocked"
+    assert record.state == "revoked"
+    assert record.reason == "write permission denied"
+    assert record.released_at == "2026-06-20T12:25:00+08:00"
+    assert event_log.read_all()[-1].edit_lease_lifecycle is not None
+
+
+def test_edit_lease_lifecycle_revokes_on_runtime_failure(tmp_path) -> None:
+    event_log = JsonlSchedulerEventLog(tmp_path / "lease-runtime-failure-events.jsonl")
+    task = _scheduled_task(
+        "task-b",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-b",
+            task_id="task-b",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(
+        tasks={"task-b": task},
+        edit_lease_lifecycle={
+            "lease-b": EditLeaseLifecycleRecord(
+                lease_id="lease-b",
+                task_id="task-b",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+            )
+        },
+    )
+
+    result = drain_ready_tasks(
+        state,
+        runtime=_FailingRuntime("boom"),
+        event_log=event_log,
+        timestamp="2026-06-20T12:26:00+08:00",
+    )
+
+    record = result.state.edit_lease_lifecycle["lease-b"]
+    assert result.state.tasks["task-b"].state == "blocked"
+    assert record.state == "revoked"
+    assert record.reason == "runtime failure: boom"
+    assert event_log.read_all()[-1].edit_lease_lifecycle is not None
+
+
+def test_edit_lease_lifecycle_expiry_requires_explicit_now(tmp_path) -> None:
+    event_log = JsonlSchedulerEventLog(tmp_path / "lease-expire-events.jsonl")
+    state = SchedulerState(
+        tasks={
+            "task-b": _scheduled_task(
+                "task-b",
+                edit_lease=EditScopeLease(
+                    lease_id="lease-b",
+                    task_id="task-b",
+                    allowed_artifacts=("src/app.py",),
+                    lease_mode="write",
+                    expires_at="2026-06-20T12:30:00+08:00",
+                ),
+            )
+        },
+        edit_lease_lifecycle={
+            "lease-b": EditLeaseLifecycleRecord(
+                lease_id="lease-b",
+                task_id="task-b",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+                expires_at="2026-06-20T12:30:00+08:00",
+            )
+        },
+    )
+
+    unchanged = expire_edit_leases(state, event_log=event_log)
+    expired = expire_edit_leases(
+        state,
+        now="2026-06-20T12:31:00+08:00",
+        event_log=event_log,
+    )
+
+    assert unchanged.edit_lease_lifecycle["lease-b"].state == "acquired"
+    assert event_log.read_all()[0].event_kind == "lease_expired"
+    record = expired.edit_lease_lifecycle["lease-b"]
+    assert record.state == "expired"
+    assert record.released_at == "2026-06-20T12:31:00+08:00"
 
 
 def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:
@@ -6234,6 +6518,62 @@ def test_replay_scheduler_events_recovers_task_state_and_run_records(tmp_path) -
     assert recovered.run_records[0].session_id == "session-1"
 
 
+def test_replay_scheduler_events_recovers_edit_lease_lifecycle_record(tmp_path) -> None:
+    scheduler_log = JsonlSchedulerEventLog(tmp_path / "lease-replay-events.jsonl")
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-1",
+            event_kind="task_ready",
+            timestamp="2026-06-20T12:00:00+08:00",
+            task_id="task-1",
+            from_state="proposed",
+            to_state="ready",
+            lease_id="lease-1",
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+            ),
+            sequence=1,
+        )
+    )
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-2",
+            event_kind="lease_expired",
+            timestamp="2026-06-20T12:31:00+08:00",
+            task_id="task-1",
+            from_state="acquired",
+            to_state="expired",
+            lease_id="lease-1",
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="expired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+                expires_at="2026-06-20T12:30:00+08:00",
+                released_at="2026-06-20T12:31:00+08:00",
+                reason="edit lease expired at 2026-06-20T12:30:00+08:00",
+            ),
+            sequence=2,
+        )
+    )
+    baseline = SchedulerState(tasks={"task-1": _scheduled_task("task-1")})
+
+    recovered = replay_scheduler_events(baseline, scheduler_log.read_all())
+
+    assert recovered.tasks["task-1"].state == "ready"
+    record = recovered.edit_lease_lifecycle["lease-1"]
+    assert record.state == "expired"
+    assert record.released_at == "2026-06-20T12:31:00+08:00"
+    assert record.reason == "edit lease expired at 2026-06-20T12:30:00+08:00"
+
+
 def test_recover_scheduler_state_reads_snapshot_and_jsonl_event_log(tmp_path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
@@ -6832,6 +7172,68 @@ def test_scheduler_state_snapshot_round_trips_task_graph(tmp_path) -> None:
     assert restored.tasks["task-b"].input_artifact_refs[0].ref_id == "server-api"
     assert restored.dependencies[0].source_task_id == "task-a"
     assert restored.run_records == ()
+
+
+def test_scheduler_state_snapshot_round_trips_edit_lease_lifecycle(tmp_path) -> None:
+    state = SchedulerState(
+        tasks={
+            "task-a": _scheduled_task(
+                "task-a",
+                edit_lease=EditScopeLease(
+                    lease_id="lease-a",
+                    task_id="task-a",
+                    allowed_artifacts=("src/app.py",),
+                    lease_mode="write",
+                ),
+            )
+        },
+        edit_lease_lifecycle={
+            "lease-a": EditLeaseLifecycleRecord(
+                lease_id="lease-a",
+                task_id="task-a",
+                state="blocked",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-20T12:00:00+08:00",
+                reason="edit lease conflict with task-b: src/app.py",
+                conflict_decision=classify_edit_lease_conflict(
+                    SchedulerState(
+                        tasks={
+                            "task-a": _scheduled_task(
+                                "task-a",
+                                edit_lease=EditScopeLease(
+                                    lease_id="lease-a",
+                                    task_id="task-a",
+                                    allowed_artifacts=("src/app.py",),
+                                    lease_mode="write",
+                                ),
+                            )
+                        }
+                    ),
+                    _scheduled_task(
+                        "task-a",
+                        edit_lease=EditScopeLease(
+                            lease_id="lease-a",
+                            task_id="task-a",
+                            allowed_artifacts=("src/app.py",),
+                            lease_mode="write",
+                        ),
+                    ),
+                ),
+            )
+        },
+    )
+    path = tmp_path / "scheduler-state.json"
+
+    write_scheduler_state_snapshot(state, path)
+    restored = read_scheduler_state_snapshot(path)
+
+    record = restored.edit_lease_lifecycle["lease-a"]
+    assert record.state == "blocked"
+    assert record.mode == "write"
+    assert record.allowed_artifacts == ("src/app.py",)
+    assert record.conflict_decision is not None
+    assert record.conflict_decision.classification == "no_overlap"
 
 
 def test_scheduler_state_snapshot_round_trips_merge_gates(tmp_path) -> None:

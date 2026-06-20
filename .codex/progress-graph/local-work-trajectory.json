@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Edit lease acquisition and expiration lifecycle",
-  "recorded_at": "2026-06-20T16:23:58.729045+00:00",
+  "recorded_at": "2026-06-20T16:39:55.022261+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Edit lease acquisition and expiration lifecycle",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 3,
+    "relation_count": 2,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "lease lifecycle gate",
-      "status": "pending",
+      "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -53,12 +53,28 @@
       "lane_id": "lane:main",
       "title": "Implement edit lease lifecycle scheduler slice",
       "kind": "task",
-      "status": "pending",
+      "status": "completed",
       "order": 2,
       "summary": "Implement lifecycle record/state/event support in scheduler state, transitions, snapshot/replay, and focused runtime orchestration tests.",
       "metadata": {
         "created_at": "2026-06-20T16:23:58.729045+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T16:39:31.666882+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Close edit lease lifecycle scheduler slice",
+      "kind": "close",
+      "status": "completed",
+      "order": 3,
+      "summary": "Edit lease acquisition and expiration lifecycle slice is closed with implementation, validation, review evidence, and status writeback complete.",
+      "metadata": {
+        "created_at": "2026-06-20T16:39:42.423401+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T16:39:55.022261+00:00",
+        "closed_at": "2026-06-20T16:39:55.022261+00:00"
       }
     }
   },
@@ -66,6 +82,15 @@
     {
       "source_event_id": "event:001",
       "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
       "kind": "sequence",
       "summary": "",
       "metadata": {

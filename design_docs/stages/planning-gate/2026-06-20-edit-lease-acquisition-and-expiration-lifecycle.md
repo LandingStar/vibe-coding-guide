@@ -1,7 +1,7 @@
 # Planning Gate - Edit Lease Acquisition And Expiration Lifecycle
 
 > Date: 2026-06-20
-> Status: ACTIVE
+> Status: COMPLETED
 
 ## Trigger
 
@@ -159,6 +159,53 @@ The gate may close when:
 6. Focused runtime orchestration lifecycle tests pass.
 7. Wider relevant runtime orchestration regression passes.
 8. Review/status docs record validation and preserved non-goals.
+
+## Close Summary
+
+Completed on 2026-06-21.
+
+This gate added scheduler-owned edit lease lifecycle evidence without adding
+real sandbox enforcement or Host UX/MCP readback.
+
+Implemented behavior:
+
+1. `EditLeaseLifecycleState` and `EditLeaseLifecycleRecord` are exported from
+   orchestration runtime.
+2. `SchedulerState` now carries `edit_lease_lifecycle` records keyed by
+   `lease_id`.
+3. Scheduler admission derives lifecycle records from existing
+   `classify_edit_lease_conflict()` evidence:
+   - admissible edit leases become `acquired`;
+   - waiting decisions become `waiting`;
+   - review-zone conflicts become `review_required`;
+   - blocked conflicts become `blocked`.
+4. Task submission records declared edit leases as `requested`.
+5. Task completion and permission approval release acquired leases.
+6. Runtime failure and permission rejection revoke acquired leases.
+7. `expire_edit_leases()` expires active leases only when the caller provides
+   explicit `now`; no ambient time is read for expiry.
+8. `SchedulerEvent` can carry `lease_id` and an optional lifecycle snapshot;
+   replay restores lifecycle records and treats `lease_*` events as lifecycle
+   evidence rather than task state transitions.
+9. Scheduler state snapshots round-trip lifecycle records and conflict
+   decisions.
+
+Validation:
+
+```text
+.\.venv\Scripts\python.exe -m py_compile src/runtime/orchestration/scheduler.py src/runtime/orchestration/scheduler_store.py src/runtime/orchestration/scheduler_submission.py src/runtime/orchestration/__init__.py tests/test_runtime_orchestration.py
+passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "edit_lease_lifecycle or edit_lease_classifier or conflicting_write_leases or scheduler_state_snapshot_round_trips_edit_lease_lifecycle or replay_scheduler_events_recovers_edit_lease_lifecycle"
+17 passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py
+207 passed
+```
+
+Review evidence:
+
+`review/edit-lease-acquisition-and-expiration-lifecycle-2026-06-21.md`
 
 ## Implementation Notes
 

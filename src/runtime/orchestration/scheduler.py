@@ -73,6 +73,17 @@ EditLeaseConflictClassification = Literal[
 
 SUPPORTED_EDIT_LEASE_CONFLICT_POLICIES = ("block-on-overlap",)
 
+EditLeaseLifecycleState = Literal[
+    "requested",
+    "acquired",
+    "waiting",
+    "review_required",
+    "released",
+    "expired",
+    "revoked",
+    "blocked",
+]
+
 SchedulerDrainStopReason = Literal[
     "no_ready_tasks",
     "max_runs_reached",
@@ -92,6 +103,14 @@ SchedulerEventKind = Literal[
     "task_review_required",
     "task_permission_approved",
     "task_permission_rejected",
+    "lease_requested",
+    "lease_acquired",
+    "lease_waiting",
+    "lease_review_required",
+    "lease_released",
+    "lease_expired",
+    "lease_revoked",
+    "lease_blocked",
 ]
 
 SchedulerMergeGateEventKind = Literal[
@@ -205,6 +224,24 @@ class TaskRunRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class EditLeaseLifecycleRecord:
+    """Scheduler-owned lifecycle evidence for one edit lease."""
+
+    lease_id: str
+    task_id: str
+    state: EditLeaseLifecycleState = "requested"
+    mode: EditLeaseMode = "read"
+    allowed_artifacts: tuple[str, ...] = ()
+    denied_artifacts: tuple[str, ...] = ()
+    conflict_policy: str = "block-on-overlap"
+    acquired_at: str = ""
+    expires_at: str = ""
+    released_at: str = ""
+    reason: str = ""
+    conflict_decision: EditLeaseConflictDecision | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SchedulerState:
     """Immutable-ish scheduler snapshot for local tests."""
 
@@ -212,6 +249,7 @@ class SchedulerState:
     dependencies: tuple[TaskDependency, ...] = ()
     run_records: tuple[TaskRunRecord, ...] = ()
     merge_gates: tuple[SchedulerMergeGate, ...] = ()
+    edit_lease_lifecycle: dict[str, EditLeaseLifecycleRecord] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,6 +321,8 @@ class SchedulerEvent:
     output_artifact_version: str = ""
     related_dependency_ids: tuple[str, ...] = ()
     related_artifact_ids: tuple[str, ...] = ()
+    lease_id: str = ""
+    edit_lease_lifecycle: EditLeaseLifecycleRecord | None = None
     sequence: int | None = None
 
 
@@ -348,6 +388,95 @@ def task_to_runtime_spec(task: ScheduledTask) -> TaskSpec:
     )
 
 
+def build_requested_edit_lease_lifecycle(
+    task: ScheduledTask,
+    *,
+    timestamp: str = "",
+    reason: str = "",
+) -> EditLeaseLifecycleRecord | None:
+    """Build the initial lifecycle record for a declared task edit lease."""
+
+    lease = task.edit_lease
+    if lease is None:
+        return None
+    return EditLeaseLifecycleRecord(
+        lease_id=lease.lease_id,
+        task_id=task.task_id,
+        state="requested",
+        mode=lease.lease_mode,
+        allowed_artifacts=lease.allowed_artifacts,
+        denied_artifacts=lease.denied_artifacts,
+        conflict_policy=lease.conflict_policy,
+        expires_at=lease.expires_at,
+        reason=reason or "edit lease requested",
+    )
+
+
+def request_edit_lease_for_task(
+    state: SchedulerState,
+    task_id: str,
+    *,
+    timestamp: str = "",
+    reason: str = "",
+) -> SchedulerState:
+    """Record that a task declared an edit lease request."""
+
+    task = state.tasks[task_id]
+    record = build_requested_edit_lease_lifecycle(
+        task,
+        timestamp=timestamp,
+        reason=reason,
+    )
+    if record is None:
+        return state
+    return _replace_edit_lease_lifecycle_record(state, record)
+
+
+def expire_edit_leases(
+    state: SchedulerState,
+    *,
+    now: str = "",
+    event_log: SchedulerEventSink | None = None,
+    timestamp: str = "",
+) -> SchedulerState:
+    """Expire active edit leases using an explicit caller-provided timestamp.
+
+    If ``now`` is empty, no expiry check is performed. This keeps replay paths
+    deterministic and prevents hidden wall-clock reads.
+    """
+
+    if not now:
+        return state
+    now_dt = _parse_timestamp(now, field_name="now")
+    current = state
+    for record in sorted(state.edit_lease_lifecycle.values(), key=lambda item: item.lease_id):
+        if record.state not in {"requested", "acquired", "waiting", "review_required"}:
+            continue
+        if not record.expires_at:
+            continue
+        expires_at = _parse_timestamp(record.expires_at, field_name="expires_at")
+        if expires_at > now_dt:
+            continue
+        expired = replace(
+            record,
+            state="expired",
+            released_at=now,
+            reason=f"edit lease expired at {record.expires_at}",
+        )
+        current = _replace_edit_lease_lifecycle_record(current, expired)
+        _record_scheduler_event(
+            event_log,
+            event_kind="lease_expired",
+            task_id=record.task_id,
+            from_state=record.state,
+            to_state="expired",
+            reason=expired.reason,
+            timestamp=timestamp or now,
+            lease_lifecycle=expired,
+        )
+    return current
+
+
 def evaluate_task_admission(state: SchedulerState, task_id: str) -> AdmissionDecision:
     """Evaluate whether a task can run now."""
 
@@ -395,18 +524,28 @@ def mark_ready_tasks(
     """Promote proposed tasks to ready or waiting/blocked based on admission."""
 
     updated = dict(state.tasks)
+    lifecycle = dict(state.edit_lease_lifecycle)
     for task in state.tasks.values():
         if task.state not in ("proposed", "waiting", "blocked"):
             continue
         decision = evaluate_task_admission(state, task.task_id)
+        lifecycle_record = _edit_lease_lifecycle_from_admission(
+            state,
+            task,
+            decision,
+            timestamp=timestamp,
+        )
+        if lifecycle_record is not None:
+            lifecycle[lifecycle_record.lease_id] = lifecycle_record
         updated[task.task_id] = _task_from_admission_decision(
             state,
             task,
             decision,
             event_log=event_log,
             timestamp=timestamp,
+            lease_lifecycle=lifecycle_record,
         )
-    return replace(state, tasks=updated)
+    return replace(state, tasks=updated, edit_lease_lifecycle=lifecycle)
 
 
 def wake_dependent_tasks(
@@ -438,17 +577,27 @@ def wake_dependent_tasks(
         if task.state not in ("proposed", "waiting", "blocked"):
             continue
         decision = evaluate_task_admission(current, task_id)
+        lifecycle_record = _edit_lease_lifecycle_from_admission(
+            current,
+            task,
+            decision,
+            timestamp=timestamp,
+        )
         updated_task = _task_from_admission_decision(
             current,
             task,
             decision,
             event_log=event_log,
             timestamp=timestamp,
+            lease_lifecycle=lifecycle_record,
         )
         updated[task_id] = updated_task
-        current = replace(current, tasks=dict(updated))
+        lifecycle = dict(current.edit_lease_lifecycle)
+        if lifecycle_record is not None:
+            lifecycle[lifecycle_record.lease_id] = lifecycle_record
+        current = replace(current, tasks=dict(updated), edit_lease_lifecycle=lifecycle)
 
-    return replace(state, tasks=updated)
+    return current
 
 
 def run_ready_task(
@@ -465,13 +614,22 @@ def run_ready_task(
     task = state.tasks[task_id]
     if task.state in ("proposed", "waiting", "blocked"):
         decision = evaluate_task_admission(state, task_id)
+        lifecycle_record = _edit_lease_lifecycle_from_admission(
+            state,
+            task,
+            decision,
+            timestamp=timestamp,
+        )
         task = _task_from_admission_decision(
             state,
             task,
             decision,
             event_log=event_log,
             timestamp=timestamp,
+            lease_lifecycle=lifecycle_record,
         )
+        if lifecycle_record is not None:
+            state = _replace_edit_lease_lifecycle_record(state, lifecycle_record)
     ready_tasks = dict(state.tasks)
     ready_tasks[task_id] = task
     ready_state = replace(state, tasks=ready_tasks)
@@ -496,6 +654,13 @@ def run_ready_task(
         result = runtime.run_task(session_handle, task_to_runtime_spec(running))
     except Exception as exc:
         failure_reason = _runtime_failure_reason(str(exc))
+        revoked_lease = _terminal_edit_lease_lifecycle_record(
+            ready_state,
+            running,
+            next_state="revoked",
+            reason=failure_reason,
+            timestamp=timestamp,
+        )
         _record_scheduler_event(
             event_log,
             event_kind="task_run_failed",
@@ -505,6 +670,7 @@ def run_ready_task(
             reason=failure_reason,
             session_id=session_handle.session_id,
             timestamp=timestamp,
+            lease_lifecycle=revoked_lease,
         )
         raise
     output_ref = ExchangeReference(
@@ -551,6 +717,9 @@ def run_ready_task(
             output_artifact_version=result.output_artifact.version,
             related_artifact_ids=(result.output_artifact.artifact_id,),
             timestamp=timestamp,
+            lease_lifecycle=ready_state.edit_lease_lifecycle.get(
+                task.edit_lease.lease_id if task.edit_lease else ""
+            ),
         )
         return replace(
             ready_state,
@@ -558,6 +727,17 @@ def run_ready_task(
             run_records=ready_state.run_records + (run_record,),
         ), result
 
+    released_lease = _terminal_edit_lease_lifecycle_record(
+        ready_state,
+        running,
+        next_state="released",
+        reason="task completed",
+        timestamp=timestamp,
+    )
+    if released_lease is not None:
+        updated_lifecycle = dict(ready_state.edit_lease_lifecycle)
+        updated_lifecycle[released_lease.lease_id] = released_lease
+        ready_state = replace(ready_state, edit_lease_lifecycle=updated_lifecycle)
     _record_scheduler_event(
         event_log,
         event_kind="task_completed",
@@ -570,6 +750,7 @@ def run_ready_task(
         output_artifact_version=result.output_artifact.version,
         related_artifact_ids=(result.output_artifact.artifact_id,),
         timestamp=timestamp,
+        lease_lifecycle=released_lease,
     )
     completed_state = replace(
         ready_state,
@@ -623,6 +804,16 @@ def resolve_task_permission_review(
         raise ValueError(f"task {task_id!r} is not in review_required: {task.state}")
 
     if approved:
+        released_lease = _terminal_edit_lease_lifecycle_record(
+            state,
+            task,
+            next_state="released",
+            reason=reason or "permission approved",
+            timestamp=timestamp,
+        )
+        lifecycle = dict(state.edit_lease_lifecycle)
+        if released_lease is not None:
+            lifecycle[released_lease.lease_id] = released_lease
         completed = replace(task, state="complete", blocked_reason="")
         updated_tasks = dict(state.tasks)
         updated_tasks[task_id] = completed
@@ -635,6 +826,7 @@ def resolve_task_permission_review(
                 run_id=task.run_id,
                 next_state="complete",
             ),
+            edit_lease_lifecycle=lifecycle,
         )
         _record_scheduler_event(
             event_log,
@@ -650,6 +842,7 @@ def resolve_task_permission_review(
                 (task.output_artifact_ref.ref_id,) if task.output_artifact_ref else ()
             ),
             timestamp=timestamp,
+            lease_lifecycle=released_lease,
         )
         return wake_dependent_tasks(
             approved_state,
@@ -659,6 +852,16 @@ def resolve_task_permission_review(
         )
 
     blocked_reason = reason or "permission rejected"
+    revoked_lease = _terminal_edit_lease_lifecycle_record(
+        state,
+        task,
+        next_state="revoked",
+        reason=blocked_reason,
+        timestamp=timestamp,
+    )
+    lifecycle = dict(state.edit_lease_lifecycle)
+    if revoked_lease is not None:
+        lifecycle[revoked_lease.lease_id] = revoked_lease
     blocked = replace(task, state="blocked", blocked_reason=blocked_reason)
     updated_tasks = dict(state.tasks)
     updated_tasks[task_id] = blocked
@@ -676,6 +879,7 @@ def resolve_task_permission_review(
             (task.output_artifact_ref.ref_id,) if task.output_artifact_ref else ()
         ),
         timestamp=timestamp,
+        lease_lifecycle=revoked_lease,
     )
     return replace(
         state,
@@ -686,6 +890,7 @@ def resolve_task_permission_review(
             run_id=task.run_id,
             next_state="blocked",
         ),
+        edit_lease_lifecycle=lifecycle,
     )
 
 
@@ -1040,8 +1245,19 @@ def mark_task_blocked_after_runtime_failure(
 
     task = state.tasks[task_id]
     updated = dict(state.tasks)
-    updated[task_id] = replace(task, state="blocked", blocked_reason=_runtime_failure_reason(reason))
-    return replace(state, tasks=updated)
+    failure_reason = _runtime_failure_reason(reason)
+    updated[task_id] = replace(task, state="blocked", blocked_reason=failure_reason)
+    revoked_lease = _terminal_edit_lease_lifecycle_record(
+        state,
+        task,
+        next_state="revoked",
+        reason=failure_reason,
+        timestamp="",
+    )
+    lifecycle = dict(state.edit_lease_lifecycle)
+    if revoked_lease is not None:
+        lifecycle[revoked_lease.lease_id] = revoked_lease
+    return replace(state, tasks=updated, edit_lease_lifecycle=lifecycle)
 
 
 def _runtime_failure_reason(reason: str) -> str:
@@ -1078,6 +1294,7 @@ def _task_from_admission_decision(
     *,
     event_log: SchedulerEventSink | None,
     timestamp: str,
+    lease_lifecycle: EditLeaseLifecycleRecord | None = None,
 ) -> ScheduledTask:
     if _is_runtime_failure_block(task):
         return task
@@ -1092,6 +1309,7 @@ def _task_from_admission_decision(
                 from_state=task.state,
                 to_state="ready",
                 timestamp=timestamp,
+                lease_lifecycle=lease_lifecycle,
             )
         return updated
 
@@ -1107,6 +1325,7 @@ def _task_from_admission_decision(
                 reason=decision.reason,
                 related_dependency_ids=_blocking_dependency_ids(state, task.task_id),
                 timestamp=timestamp,
+                lease_lifecycle=lease_lifecycle,
             )
         return updated
 
@@ -1121,6 +1340,7 @@ def _task_from_admission_decision(
                 to_state="review_required",
                 reason=decision.reason,
                 timestamp=timestamp,
+                lease_lifecycle=lease_lifecycle,
             )
         return updated
 
@@ -1134,8 +1354,126 @@ def _task_from_admission_decision(
             to_state="blocked",
             reason=decision.reason,
             timestamp=timestamp,
+            lease_lifecycle=lease_lifecycle,
         )
     return updated
+
+
+def _replace_edit_lease_lifecycle_record(
+    state: SchedulerState,
+    record: EditLeaseLifecycleRecord,
+) -> SchedulerState:
+    lifecycle = dict(state.edit_lease_lifecycle)
+    lifecycle[record.lease_id] = record
+    return replace(state, edit_lease_lifecycle=lifecycle)
+
+
+def _edit_lease_lifecycle_from_admission(
+    state: SchedulerState,
+    task: ScheduledTask,
+    decision: AdmissionDecision,
+    *,
+    timestamp: str,
+) -> EditLeaseLifecycleRecord | None:
+    lease = task.edit_lease
+    if lease is None:
+        return None
+    existing = state.edit_lease_lifecycle.get(lease.lease_id)
+    if decision.state == "admissible":
+        acquired_at = (
+            existing.acquired_at
+            if existing is not None and existing.state == "acquired" and existing.acquired_at
+            else timestamp
+        )
+        return _lease_lifecycle_record_from_task(
+            task,
+            state="acquired",
+            acquired_at=acquired_at,
+            reason="edit lease acquired",
+        )
+    if decision.state == "waiting":
+        return _lease_lifecycle_record_from_task(
+            task,
+            state="waiting",
+            acquired_at=existing.acquired_at if existing else "",
+            reason=decision.reason,
+            conflict_decision=decision.edit_lease_conflict,
+        )
+    if decision.state == "review_required":
+        return _lease_lifecycle_record_from_task(
+            task,
+            state="review_required",
+            acquired_at=existing.acquired_at if existing else "",
+            reason=decision.reason,
+            conflict_decision=decision.edit_lease_conflict,
+        )
+    return _lease_lifecycle_record_from_task(
+        task,
+        state="blocked",
+        acquired_at=existing.acquired_at if existing else "",
+        reason=decision.reason,
+        conflict_decision=decision.edit_lease_conflict,
+    )
+
+
+def _terminal_edit_lease_lifecycle_record(
+    state: SchedulerState,
+    task: ScheduledTask,
+    *,
+    next_state: Literal["released", "revoked"],
+    reason: str,
+    timestamp: str,
+) -> EditLeaseLifecycleRecord | None:
+    lease = task.edit_lease
+    if lease is None:
+        return None
+    existing = state.edit_lease_lifecycle.get(lease.lease_id)
+    return _lease_lifecycle_record_from_task(
+        task,
+        state=next_state,
+        acquired_at=existing.acquired_at if existing else "",
+        released_at=timestamp,
+        reason=reason,
+        conflict_decision=existing.conflict_decision if existing else None,
+    )
+
+
+def _lease_lifecycle_record_from_task(
+    task: ScheduledTask,
+    *,
+    state: EditLeaseLifecycleState,
+    acquired_at: str = "",
+    released_at: str = "",
+    reason: str = "",
+    conflict_decision: EditLeaseConflictDecision | None = None,
+) -> EditLeaseLifecycleRecord:
+    lease = task.edit_lease
+    if lease is None:
+        raise ValueError(f"task {task.task_id!r} has no edit lease")
+    return EditLeaseLifecycleRecord(
+        lease_id=lease.lease_id,
+        task_id=task.task_id,
+        state=state,
+        mode=lease.lease_mode,
+        allowed_artifacts=lease.allowed_artifacts,
+        denied_artifacts=lease.denied_artifacts,
+        conflict_policy=lease.conflict_policy,
+        acquired_at=acquired_at,
+        expires_at=lease.expires_at,
+        released_at=released_at,
+        reason=reason,
+        conflict_decision=conflict_decision,
+    )
+
+
+def _parse_timestamp(value: str, *, field_name: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"invalid edit lease {field_name}: {value!r}") from exc
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _compatible_edit_lease_decision(task: ScheduledTask) -> EditLeaseConflictDecision:
@@ -1409,6 +1747,7 @@ def _record_scheduler_event(
     output_artifact_version: str = "",
     related_dependency_ids: tuple[str, ...] = (),
     related_artifact_ids: tuple[str, ...] = (),
+    lease_lifecycle: EditLeaseLifecycleRecord | None = None,
 ) -> None:
     if event_log is None:
         return
@@ -1429,6 +1768,8 @@ def _record_scheduler_event(
             output_artifact_version=output_artifact_version,
             related_dependency_ids=related_dependency_ids,
             related_artifact_ids=related_artifact_ids,
+            lease_id=lease_lifecycle.lease_id if lease_lifecycle is not None else "",
+            edit_lease_lifecycle=lease_lifecycle,
             sequence=sequence,
         )
     )

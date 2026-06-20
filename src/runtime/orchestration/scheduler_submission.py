@@ -23,6 +23,7 @@ from .scheduler import (
     SchedulerEvent,
     SchedulerState,
     TaskDependency,
+    build_requested_edit_lease_lifecycle,
 )
 
 TASK_SUBMISSION_PRODUCT_TYPE = "scheduler_task_submission"
@@ -553,13 +554,22 @@ def _submit_scheduler_task_submission(
     )
     tasks = dict(state.tasks)
     tasks[task.task_id] = task
+    edit_lease_lifecycle = dict(state.edit_lease_lifecycle)
+    requested_lease = build_requested_edit_lease_lifecycle(task)
+    if requested_lease is not None:
+        edit_lease_lifecycle[requested_lease.lease_id] = requested_lease
     dependencies = tuple(
         dependency
         for dependency in state.dependencies
         if not replace_existing or dependency.target_task_id != task.task_id
     ) + submission.dependencies
     return SchedulerTaskSubmissionResult(
-        state=replace(state, tasks=tasks, dependencies=dependencies),
+        state=replace(
+            state,
+            tasks=tasks,
+            dependencies=dependencies,
+            edit_lease_lifecycle=edit_lease_lifecycle,
+        ),
         task=task,
         dependencies_added=submission.dependencies,
         source_artifact_id=artifact.artifact_id,
@@ -766,6 +776,11 @@ def _append_scheduler_submission_events(
                     if dependency.target_task_id == task.task_id
                 ),
                 related_artifact_ids=((artifact.artifact_id,) if artifact.artifact_id else ()),
+                lease_id=task.edit_lease.lease_id if task.edit_lease is not None else "",
+                edit_lease_lifecycle=build_requested_edit_lease_lifecycle(
+                    task,
+                    timestamp=timestamp,
+                ),
                 sequence=sequence,
             )
         )
