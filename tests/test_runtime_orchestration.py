@@ -32,7 +32,9 @@ from src.runtime.orchestration import (
     ExchangeRelation,
     ExchangeScope,
     ExchangeArtifactAdmissionRecord,
+    GitWorktreeCommandReceipt,
     GitWorktreeSandboxProvider,
+    GitWorktreeSandboxReceipt,
     HostSchedulerRunRequest,
     AgentRuntimeAdapterRegistry,
     FakeAgentRuntimeAdapter,
@@ -45,6 +47,8 @@ from src.runtime.orchestration import (
     JsonlCoordinationEventLog,
     JsonlSchedulerEventLog,
     JsonlSchedulerMergeGateEventLog,
+    SandboxAllocation,
+    SandboxLeaseMountAuthorization,
     SandboxProviderRegistry,
     SandboxProfile,
     SandboxRequest,
@@ -3622,6 +3626,117 @@ def test_scheduler_authorization_readback_reports_non_acquired_lifecycle_rejecti
     assert sandbox["lease_authorization_state"] == "rejected"
     assert sandbox["lease_authorizations"][0]["lifecycle_state"] == "released"
     assert "current lifecycle state is 'released'" in sandbox["allocation_reason"]
+
+
+def test_scheduler_authorization_readback_summarizes_git_worktree_allocation_receipt() -> None:
+    task = _git_worktree_task()
+    state = _state_with_acquired_git_worktree_lease(task)
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=True,
+        cleanup_state="required",
+    )
+
+    payload = inspect_scheduler_authorization(
+        state,
+        sandbox_allocations={"task-1": allocation},
+    ).to_json_dict()
+    sandbox = payload["tasks"][0]["sandbox_authorization"]
+    receipt = sandbox["git_worktree_receipt"]
+
+    assert sandbox["profile_kind"] == "git-worktree"
+    assert sandbox["allocation_state"] == "allocated"
+    assert sandbox["lease_authorization_state"] == "authorized"
+    assert receipt["source_repository_root"] == "E:/workspace/project"
+    assert receipt["sandbox_root"] == "E:/workspace/sandboxes"
+    assert receipt["worktree_path"].endswith("task-1-worktree")
+    assert receipt["branch_name"] == "dbc-sandbox/task-1-worktree"
+    assert receipt["authorized_writable_paths"] == ["src/app.py"]
+    assert receipt["denied_writable_paths"] == []
+    assert receipt["cleanup_state"] == "required"
+    assert receipt["cleanup_required"] is True
+    assert receipt["cleanup_owner"] == "host-or-daemon"
+    assert receipt["cleanup_policy"] == "explicit-cleanup-required"
+    assert receipt["allocation"]["command"] == [
+        "git",
+        "-C",
+        "E:/workspace/project",
+        "worktree",
+        "add",
+    ]
+    assert receipt["allocation"]["returncode"] == 0
+    assert payload["authority_split"]["real_sandbox_provider_executed"] is False
+
+
+def test_scheduler_authorization_readback_summarizes_git_worktree_rejection_receipt() -> None:
+    task = _git_worktree_task()
+    state = SchedulerState(tasks={"task-1": task})
+    allocation = _git_worktree_allocation(
+        task,
+        state="rejected",
+        cleanup_required=False,
+        cleanup_state="not_required",
+        lifecycle_state="missing",
+        authorized_mounts=(),
+        denied_mounts=("src/app.py",),
+        reason="require acquired edit lease lifecycle record",
+    )
+
+    sandbox = inspect_scheduler_authorization(
+        state,
+        sandbox_allocations={"task-1": allocation},
+    ).to_json_dict()["tasks"][0]["sandbox_authorization"]
+    receipt = sandbox["git_worktree_receipt"]
+
+    assert sandbox["allocation_state"] == "rejected"
+    assert sandbox["allocation_reason"] == "require acquired edit lease lifecycle record"
+    assert sandbox["lease_authorization_state"] == "rejected"
+    assert sandbox["lease_authorizations"][0]["denied_mounts"] == ["src/app.py"]
+    assert receipt["cleanup_required"] is False
+    assert receipt["cleanup_owner"] == "none"
+    assert receipt["cleanup_policy"] == "no-cleanup-required"
+    assert receipt["denied_writable_paths"] == ["src/app.py"]
+
+
+def test_scheduler_authorization_readback_summarizes_git_worktree_cleanup_completed_receipt() -> None:
+    task = _git_worktree_task()
+    state = _state_with_acquired_git_worktree_lease(task)
+    allocation = _git_worktree_allocation(
+        task,
+        cleanup_required=False,
+        cleanup_state="completed",
+        cleanup_returncode=0,
+        branch_cleanup_returncode=0,
+    )
+
+    sandbox = inspect_scheduler_authorization(
+        state,
+        sandbox_allocations={"task-1": allocation},
+    ).to_json_dict()["tasks"][0]["sandbox_authorization"]
+    receipt = sandbox["git_worktree_receipt"]
+
+    assert sandbox["allocation_state"] == "allocated"
+    assert receipt["cleanup_state"] == "completed"
+    assert receipt["cleanup_required"] is False
+    assert receipt["cleanup_owner"] == "none"
+    assert receipt["cleanup"]["command"] == ["git", "worktree", "remove", "--force"]
+    assert receipt["cleanup"]["returncode"] == 0
+    assert receipt["branch_cleanup"]["command"] == ["git", "branch", "-D"]
+    assert receipt["branch_cleanup"]["returncode"] == 0
+
+
+def test_scheduler_authorization_readback_reports_null_git_worktree_receipt_when_missing() -> None:
+    task = _git_worktree_task()
+    state = _state_with_acquired_git_worktree_lease(task)
+
+    sandbox = inspect_scheduler_authorization(state).to_json_dict()["tasks"][0][
+        "sandbox_authorization"
+    ]
+
+    assert sandbox["profile_kind"] == "git-worktree"
+    assert sandbox["git_worktree_receipt"] is None
+    assert sandbox["allocation_state"] == "rejected"
+    assert "profile_kind='shared-process'" in sandbox["allocation_reason"]
 
 
 def test_scheduler_authorization_snapshot_readback_uses_existing_recovery(tmp_path) -> None:
@@ -7970,6 +8085,113 @@ def _scheduled_task(
         input_artifact_refs=input_artifact_refs,
         acceptance=("complete fake task",),
         output_artifact_id=output_artifact_id,
+    )
+
+
+def _git_worktree_task() -> ScheduledTask:
+    return _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        input_artifact_refs=(
+            ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
+        ),
+    )
+
+
+def _state_with_acquired_git_worktree_lease(task: ScheduledTask) -> SchedulerState:
+    return SchedulerState(
+        tasks={task.task_id: task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id=task.task_id,
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T04:30:00+08:00",
+            )
+        },
+    )
+
+
+def _git_worktree_allocation(
+    task: ScheduledTask,
+    *,
+    state: str = "allocated",
+    cleanup_required: bool,
+    cleanup_state: str,
+    lifecycle_state: str = "acquired",
+    authorized_mounts: tuple[str, ...] = ("src/app.py",),
+    denied_mounts: tuple[str, ...] = (),
+    reason: str = "",
+    cleanup_returncode: int | None = None,
+    branch_cleanup_returncode: int | None = None,
+) -> SandboxAllocation:
+    return SandboxAllocation(
+        allocation_id=f"git-worktree:{task.task_id}:worktree",
+        provider="git-worktree",
+        task_id=task.task_id,
+        profile=task.sandbox_profile,
+        state=state,
+        workspace_root="E:/workspace/project",
+        scratch_path=".codex/scratch/task-1",
+        visible_mounts=("README.md", *authorized_mounts),
+        network_policy=task.sandbox_profile.network_policy,
+        secret_policy=task.sandbox_profile.secret_policy,
+        cleanup_required=cleanup_required,
+        lease_authorized_mounts=(
+            SandboxLeaseMountAuthorization(
+                lease_id="lease-1",
+                task_id=task.task_id,
+                lifecycle_state=lifecycle_state,
+                authorized_mounts=authorized_mounts,
+                denied_mounts=denied_mounts,
+                reason=reason or "lease-scoped mounts authorized by acquired edit lease lease-1",
+            ),
+        ),
+        lease_authorization_state="rejected" if denied_mounts else "authorized",
+        lease_authorization_reason=reason
+        or "lease-scoped mounts authorized by acquired edit lease lease-1",
+        git_worktree_receipt=GitWorktreeSandboxReceipt(
+            source_repository_root="E:/workspace/project",
+            sandbox_root="E:/workspace/sandboxes",
+            worktree_path="E:/workspace/sandboxes/task-1-worktree",
+            branch_name="dbc-sandbox/task-1-worktree",
+            base_ref="HEAD",
+            authorized_writable_paths=authorized_mounts,
+            denied_writable_paths=denied_mounts,
+            cleanup_state=cleanup_state,
+            allocation=GitWorktreeCommandReceipt(
+                command=("git", "-C", "E:/workspace/project", "worktree", "add"),
+                returncode=0 if state == "allocated" else 128,
+                stdout="allocated" if state == "allocated" else "",
+                stderr="" if state == "allocated" else reason,
+            ),
+            cleanup=GitWorktreeCommandReceipt(
+                command=("git", "worktree", "remove", "--force")
+                if cleanup_returncode is not None
+                else (),
+                returncode=cleanup_returncode,
+            ),
+            branch_cleanup=GitWorktreeCommandReceipt(
+                command=("git", "branch", "-D")
+                if branch_cleanup_returncode is not None
+                else (),
+                returncode=branch_cleanup_returncode,
+            ),
+        ),
+        reason=reason,
     )
 
 

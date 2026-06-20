@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Git worktree sandbox provider spike",
-  "recorded_at": "2026-06-20T20:13:22.922787+00:00",
+  "title": "Git worktree receipt readback and cleanup policy",
+  "recorded_at": "2026-06-20T20:25:08.109928+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md",
+  "guide_context": "design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Git worktree sandbox provider spike",
+    "title": "Git worktree receipt readback and cleanup policy",
     "lane_count": 1,
     "event_count": 3,
     "relation_count": 2,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "worktree sandbox",
+      "label": "receipt readback",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md"
+        "context": "design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md"
       }
     }
   },
@@ -36,44 +36,44 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open narrow gate for git-worktree sandbox provider spike",
+      "title": "Open narrow gate for git-worktree receipt readback and cleanup policy",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T19:56:39.040334+00:00",
-        "activated_at": "2026-06-20T19:56:39.040334+00:00",
+        "created_at": "2026-06-20T20:17:53.008037+00:00",
+        "activated_at": "2026-06-20T20:17:53.008037+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T19:58:11.420912+00:00"
+        "completed_at": "2026-06-20T20:18:58.577592+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement minimal GitWorktreeSandboxProvider and focused tests",
+      "title": "Implement git-worktree receipt readback projection",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Continue the active git-worktree sandbox provider spike: add the provider over acquired edit leases, preserve shared-process behavior, and validate with focused runtime orchestration tests.",
+      "summary": "Add optional allocation evidence input to scheduler authorization readback, summarize git-worktree receipts and cleanup ownership metadata, and preserve read-only/no-provider-execution behavior.",
       "metadata": {
-        "created_at": "2026-06-20T20:00:18.636106+00:00",
+        "created_at": "2026-06-20T20:19:07.628795+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T20:07:48.759521+00:00"
+        "completed_at": "2026-06-20T20:22:01.391860+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Write back provider spike evidence and close gate",
+      "title": "Write back receipt readback policy evidence and close gate",
       "kind": "writeback",
       "status": "completed",
       "order": 3,
-      "summary": "Record review evidence, close the git-worktree provider planning gate, update status/checkpoint documents, and prepare the follow-up direction analysis.",
+      "summary": "Record review evidence, close the receipt readback/cleanup policy gate, update status/checkpoint documents, and prepare durable receipt evidence follow-up analysis.",
       "metadata": {
-        "created_at": "2026-06-20T20:09:49.307899+00:00",
+        "created_at": "2026-06-20T20:25:00.965460+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T20:13:22.922787+00:00"
+        "completed_at": "2026-06-20T20:25:08.109928+00:00"
       }
     }
   },

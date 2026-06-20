@@ -313,6 +313,8 @@ from .scheduler_loop_evidence import (
 from .scheduler_authorization_readback import (
     SCHEDULER_AUTHORIZATION_READBACK_PRODUCT_TYPE,
     SCHEDULER_AUTHORIZATION_READBACK_SCHEMA_VERSION,
+    GitWorktreeCommandReceiptSummary,
+    GitWorktreeReceiptSummary,
     LeaseLifecycleSummary,
     SandboxAuthorizationSummary,
     SandboxLeaseAuthorizationSummary,
@@ -519,6 +521,8 @@ __all__ = [
     "SCHEDULER_LOOP_EVIDENCE_SCHEMA_VERSION",
     "SCHEDULER_AUTHORIZATION_READBACK_PRODUCT_TYPE",
     "SCHEDULER_AUTHORIZATION_READBACK_SCHEMA_VERSION",
+    "GitWorktreeCommandReceiptSummary",
+    "GitWorktreeReceiptSummary",
     "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID",
     "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_BATCH_ID",
     "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION",

@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Mapping
 
 from .sandbox import (
+    GitWorktreeCommandReceipt,
+    GitWorktreeSandboxReceipt,
     SandboxAllocation,
     SandboxLeaseMountAuthorization,
     SandboxRequest,
@@ -90,6 +92,72 @@ class SandboxLeaseAuthorizationSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class GitWorktreeCommandReceiptSummary:
+    """JSON-safe summary of one git-worktree command receipt."""
+
+    command: tuple[str, ...] = ()
+    returncode: int | None = None
+    stdout: str = ""
+    stderr: str = ""
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a JSON-safe command receipt summary."""
+
+        return {
+            "command": list(self.command),
+            "returncode": self.returncode,
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GitWorktreeReceiptSummary:
+    """JSON-safe summary of one git-worktree sandbox receipt."""
+
+    source_repository_root: str = ""
+    sandbox_root: str = ""
+    worktree_path: str = ""
+    branch_name: str = ""
+    base_ref: str = ""
+    authorized_writable_paths: tuple[str, ...] = ()
+    denied_writable_paths: tuple[str, ...] = ()
+    cleanup_state: str = ""
+    cleanup_required: bool = False
+    cleanup_owner: str = ""
+    cleanup_policy: str = ""
+    allocation: GitWorktreeCommandReceiptSummary = field(
+        default_factory=GitWorktreeCommandReceiptSummary
+    )
+    cleanup: GitWorktreeCommandReceiptSummary = field(
+        default_factory=GitWorktreeCommandReceiptSummary
+    )
+    branch_cleanup: GitWorktreeCommandReceiptSummary = field(
+        default_factory=GitWorktreeCommandReceiptSummary
+    )
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a JSON-safe git-worktree receipt summary."""
+
+        return {
+            "source_repository_root": self.source_repository_root,
+            "sandbox_root": self.sandbox_root,
+            "worktree_path": self.worktree_path,
+            "branch_name": self.branch_name,
+            "base_ref": self.base_ref,
+            "authorized_writable_paths": list(self.authorized_writable_paths),
+            "denied_writable_paths": list(self.denied_writable_paths),
+            "cleanup_state": self.cleanup_state,
+            "cleanup_required": self.cleanup_required,
+            "cleanup_owner": self.cleanup_owner,
+            "cleanup_policy": self.cleanup_policy,
+            "allocation": self.allocation.to_json_dict(),
+            "cleanup": self.cleanup.to_json_dict(),
+            "branch_cleanup": self.branch_cleanup.to_json_dict(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SandboxAuthorizationSummary:
     """JSON-safe task sandbox authorization readback."""
 
@@ -102,6 +170,7 @@ class SandboxAuthorizationSummary:
     lease_authorization_state: str = "not_required"
     lease_authorization_reason: str = ""
     lease_authorizations: tuple[SandboxLeaseAuthorizationSummary, ...] = ()
+    git_worktree_receipt: GitWorktreeReceiptSummary | None = None
 
     def to_json_dict(self) -> dict[str, object]:
         """Return a JSON-safe sandbox authorization summary."""
@@ -119,6 +188,11 @@ class SandboxAuthorizationSummary:
                 item.to_json_dict()
                 for item in self.lease_authorizations
             ],
+            "git_worktree_receipt": (
+                self.git_worktree_receipt.to_json_dict()
+                if self.git_worktree_receipt is not None
+                else None
+            ),
         }
 
 
@@ -271,6 +345,7 @@ def inspect_scheduler_authorization(
     *,
     workspace_root: str = "",
     scratch_root: str = ".codex/scratch",
+    sandbox_allocations: Mapping[str, SandboxAllocation] | None = None,
     snapshot_path: str = "",
     scheduler_event_log_path: str = "",
     recovered_from_event_log: bool = False,
@@ -296,6 +371,11 @@ def inspect_scheduler_authorization(
             ),
             workspace_root=workspace_root,
             scratch_root=scratch_root,
+            sandbox_allocation=(
+                sandbox_allocations.get(task.task_id)
+                if sandbox_allocations is not None
+                else None
+            ),
         )
         for task in sorted(state.tasks.values(), key=lambda item: item.task_id)
     )
@@ -355,14 +435,19 @@ def _task_authorization_summary(
     lifecycle: EditLeaseLifecycleRecord | None,
     workspace_root: str,
     scratch_root: str,
+    sandbox_allocation: SandboxAllocation | None = None,
 ) -> TaskAuthorizationSummary:
     lease = task.edit_lease
     lifecycle_summary = _lease_lifecycle_summary(lifecycle) if lifecycle is not None else None
-    allocation = _sandbox_allocation_for_task(
-        task,
-        lifecycle=lifecycle,
-        workspace_root=workspace_root,
-        scratch_root=scratch_root,
+    allocation = (
+        sandbox_allocation
+        if sandbox_allocation is not None
+        else _sandbox_allocation_for_task(
+            task,
+            lifecycle=lifecycle,
+            workspace_root=workspace_root,
+            scratch_root=scratch_root,
+        )
     )
     if lease is None:
         return TaskAuthorizationSummary(
@@ -437,6 +522,7 @@ def _sandbox_authorization_summary(
             _lease_authorization_summary(item)
             for item in allocation.lease_authorized_mounts
         ),
+        git_worktree_receipt=_git_worktree_receipt_summary(allocation),
     )
 
 
@@ -450,6 +536,50 @@ def _lease_authorization_summary(
         authorized_mounts=authorization.authorized_mounts,
         denied_mounts=authorization.denied_mounts,
         reason=authorization.reason,
+    )
+
+
+def _git_worktree_receipt_summary(
+    allocation: SandboxAllocation,
+) -> GitWorktreeReceiptSummary | None:
+    receipt = allocation.git_worktree_receipt
+    if receipt is None:
+        return None
+    cleanup_required = allocation.cleanup_required or receipt.cleanup_state == "required"
+    return GitWorktreeReceiptSummary(
+        source_repository_root=receipt.source_repository_root,
+        sandbox_root=receipt.sandbox_root,
+        worktree_path=receipt.worktree_path,
+        branch_name=receipt.branch_name,
+        base_ref=receipt.base_ref,
+        authorized_writable_paths=receipt.authorized_writable_paths,
+        denied_writable_paths=receipt.denied_writable_paths,
+        cleanup_state=receipt.cleanup_state,
+        cleanup_required=cleanup_required,
+        cleanup_owner=(
+            "host-or-daemon"
+            if cleanup_required
+            else "none"
+        ),
+        cleanup_policy=(
+            "explicit-cleanup-required"
+            if cleanup_required
+            else "no-cleanup-required"
+        ),
+        allocation=_git_worktree_command_receipt_summary(receipt.allocation),
+        cleanup=_git_worktree_command_receipt_summary(receipt.cleanup),
+        branch_cleanup=_git_worktree_command_receipt_summary(receipt.branch_cleanup),
+    )
+
+
+def _git_worktree_command_receipt_summary(
+    receipt: GitWorktreeCommandReceipt,
+) -> GitWorktreeCommandReceiptSummary:
+    return GitWorktreeCommandReceiptSummary(
+        command=receipt.command,
+        returncode=receipt.returncode,
+        stdout=receipt.stdout,
+        stderr=receipt.stderr,
     )
 
 

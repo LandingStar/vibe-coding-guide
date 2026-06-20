@@ -14,6 +14,20 @@
   - 依据：`design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`、`design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md`
 - 当前倾向：默认先进入候选 1。真实 worktree allocation 已成立，但 cleanup 责任和 receipt 可见性尚未成为 operator/readback 产品；先补只读诊断和 cleanup policy，比直接把 provider 接入 live/host run 更稳。
 
+## 2026-06-21 补充候选：git-worktree receipt readback 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md` 已完成并关闭；`inspect_scheduler_authorization()` 现在可消费 caller-supplied `SandboxAllocation` evidence，并将 `GitWorktreeSandboxReceipt` 投影为 JSON-safe readback summary，同时记录 cleanup owner / cleanup policy。
+- 候选 1：`Durable Sandbox Allocation Receipt Evidence`
+  - 做什么：定义并持久化 sandbox allocation receipt evidence，使 snapshot/CLI/MCP/Host UX readback 能从文件恢复真实 git-worktree receipt，而不是只依赖内存参数。
+  - 依据：`design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md`、`review/git-worktree-receipt-readback-and-cleanup-policy-2026-06-21.md`
+- 候选 2：`Controlled Host Run Opt-In Provider Wiring`
+  - 做什么：让 host-controlled scheduler run 显式注入 `GitWorktreeSandboxProvider` 并输出 receipt evidence。
+  - 依据：`design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md`
+- 候选 3：`Cleanup Policy Runner`
+  - 做什么：在 durable receipt 存在后增加显式 cleanup runner。
+  - 依据：`design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。receipt readback 已成立，但 evidence 还没有 durable source；先做持久化 evidence，可以让后续 host-run wiring 和 cleanup runner 共享同一证据产品。
+
 ## 2026-05-28 补充候选：knowledge-graph-engine 接入暴露的跨组件协同流程标准化
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md` 已把 VS Code progress graph preview 切到外部 `knowledge-graph-engine`，并通过接口需求文档驱动了颜色组、viewport、label controls 等组件/宿主协作问题。
