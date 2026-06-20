@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Git worktree sandbox provider spike",
-  "recorded_at": "2026-06-20T19:58:11.421912+00:00",
+  "recorded_at": "2026-06-20T20:13:22.922787+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Git worktree sandbox provider spike",
     "lane_count": 1,
-    "event_count": 1,
-    "relation_count": 0,
+    "event_count": 3,
+    "relation_count": 2,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -47,7 +47,54 @@
         "source": "single-line-lifecycle",
         "completed_at": "2026-06-20T19:58:11.420912+00:00"
       }
+    },
+    "event:002": {
+      "id": "event:002",
+      "lane_id": "lane:main",
+      "title": "Implement minimal GitWorktreeSandboxProvider and focused tests",
+      "kind": "task",
+      "status": "completed",
+      "order": 2,
+      "summary": "Continue the active git-worktree sandbox provider spike: add the provider over acquired edit leases, preserve shared-process behavior, and validate with focused runtime orchestration tests.",
+      "metadata": {
+        "created_at": "2026-06-20T20:00:18.636106+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T20:07:48.759521+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Write back provider spike evidence and close gate",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 3,
+      "summary": "Record review evidence, close the git-worktree provider planning gate, update status/checkpoint documents, and prepare the follow-up direction analysis.",
+      "metadata": {
+        "created_at": "2026-06-20T20:09:49.307899+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-20T20:13:22.922787+00:00"
+      }
     }
   },
-  "relations": []
+  "relations": [
+    {
+      "source_event_id": "event:001",
+      "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    }
+  ]
 }

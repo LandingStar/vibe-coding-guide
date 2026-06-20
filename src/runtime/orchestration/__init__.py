@@ -151,6 +151,10 @@ from .runtime_wiring import (
     build_runtime_registry_from_config,
 )
 from .sandbox import (
+    GitWorktreeCleanupState,
+    GitWorktreeCommandReceipt,
+    GitWorktreeSandboxProvider,
+    GitWorktreeSandboxReceipt,
     SandboxAllocation,
     SandboxAllocationState,
     SandboxCapability,
@@ -433,6 +437,10 @@ __all__ = [
     "RuntimeRunResult",
     "RuntimeRegistryWiringConfig",
     "RuntimeRegistryWiringResult",
+    "GitWorktreeCleanupState",
+    "GitWorktreeCommandReceipt",
+    "GitWorktreeSandboxProvider",
+    "GitWorktreeSandboxReceipt",
     "OrchestrationPreflightBundle",
     "PreflightDrainResult",
     "PreflightedTaskRunResult",

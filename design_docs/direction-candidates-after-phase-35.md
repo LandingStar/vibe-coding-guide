@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：git-worktree sandbox provider spike 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md` 已完成并关闭；`src/runtime/orchestration/sandbox.py` 已新增最小 `GitWorktreeSandboxProvider`、typed allocation/cleanup receipt、acquired edit lease lifecycle fail-closed 行为，以及 deterministic per-task worktree allocation / cleanup helper。
+- 候选 1：`Git Worktree Receipt Readback And Cleanup Policy`
+  - 做什么：先把 real provider receipt 纳入只读诊断/readback 语义，并收口 cleanup ownership / receipt state contract，保持 provider explicit opt-in。
+  - 依据：`design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`、`review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md`、`design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`
+- 候选 2：`Provider Registry Wiring For Controlled Host Runs`
+  - 做什么：允许 controlled host scheduler run 显式注入 `GitWorktreeSandboxProvider`，但不默认启用。
+  - 依据：`design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`
+- 候选 3：`Lease Expiry Sweep Before Provider Preflight`
+  - 做什么：在 bounded scheduler loop/provider preflight 前处理 stale acquired leases。
+  - 依据：`design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`、`design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。真实 worktree allocation 已成立，但 cleanup 责任和 receipt 可见性尚未成为 operator/readback 产品；先补只读诊断和 cleanup policy，比直接把 provider 接入 live/host run 更稳。
+
 ## 2026-05-28 补充候选：knowledge-graph-engine 接入暴露的跨组件协同流程标准化
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md` 已把 VS Code progress graph preview 切到外部 `knowledge-graph-engine`，并通过接口需求文档驱动了颜色组、viewport、label controls 等组件/宿主协作问题。

@@ -1,7 +1,7 @@
 # Git Worktree Sandbox Provider Spike Over Acquired Leases
 
 > Date: 2026-06-21
-> Status: ACTIVE
+> Status: COMPLETED
 
 ## Trigger
 
@@ -82,3 +82,19 @@ This gate is complete when a minimal `GitWorktreeSandboxProvider` can allocate
 and clean up deterministic worktrees in tests, refuses missing/non-acquired
 lease lifecycle authority, and records enough receipt metadata for later Host
 UX or CLI inspection.
+
+## Close Evidence
+
+Completed on 2026-06-21.
+
+Review evidence:
+
+- `review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md`
+
+Validation:
+
+- `.\.venv\Scripts\python.exe -m py_compile src/runtime/orchestration/sandbox.py src/runtime/orchestration/preflight.py src/runtime/orchestration/__init__.py`
+- `.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "git_worktree or shared_process_sandbox or orchestration_preflight_bundle" -q`
+  - `13 passed, 206 deselected`
+- `.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -q`
+  - `219 passed`

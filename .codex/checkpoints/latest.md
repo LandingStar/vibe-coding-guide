@@ -1,91 +1,39 @@
-# Checkpoint - 2026-06-21T03:56:00+08:00
+# Checkpoint - 2026-06-21T04:25:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Git worktree sandbox provider spike
+Post-v1.0 - Agent orchestration / Git worktree sandbox provider spike closed
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Complete `design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md`.
-- [x] Prepare `design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md`.
-- [x] Compare lease lifecycle, sandbox mount binding, Host UX/MCP lease readback, daemon lifecycle Host UX binding, and real sandbox provider spike.
-- [x] Recommend the next narrow gate as `Edit Lease Acquisition And Expiration Lifecycle`.
-- [x] Preserve non-goals for real sandbox enforcement, Host UX/MCP readback, write-back live scheduler query, ExchangeArtifact semantic changes, and Local Work Trajectory mutation.
-- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md`.
-- [x] Implement scheduler-owned edit lease lifecycle record/state/event shapes.
-- [x] Add acquire/release/expire/revoke helpers with explicit time input.
-- [x] Persist/replay lifecycle evidence through scheduler events and state snapshots.
-- [x] Validate focused lifecycle tests and relevant runtime orchestration regression.
+- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`.
+- [x] Add minimal git-worktree sandbox provider contract and receipt fields.
+- [x] Implement deterministic worktree allocation and cleanup over acquired edit lease lifecycle.
+- [x] Validate focused runtime tests for authorized allocation and fail-closed rejection.
 - [x] Record review evidence and close gate.
-- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md`.
-- [x] Bind read-only scheduler authorization diagnostics into the VS Code Scheduler Operator panel.
-- [x] Add focused UI/adapter tests for populated, empty, and error readback states.
-- [x] Capture screenshot-style UI validation evidence.
-- [x] Record review evidence and close gate.
-- [ ] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`.
-- [ ] Add minimal git-worktree sandbox provider contract and receipt fields.
-- [ ] Implement deterministic worktree allocation and cleanup over acquired edit lease lifecycle.
-- [ ] Validate focused runtime tests for authorized allocation and fail-closed rejection.
-- [ ] Record review evidence and close gate.
-- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`.
-- [x] Implement metadata-only acquired lease mount authorization in sandbox contracts.
-- [x] Pass acquired lifecycle records through preflight.
-- [x] Validate focused sandbox/preflight tests and relevant runtime regression.
-- [x] Record review evidence and close gate.
-- [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`.
-- [x] Implement read-only scheduler authorization readback helper.
-- [x] Expose MCP `schedulerAuthorizationReadback`.
-- [x] Validate focused runtime/MCP tests and relevant regression.
-- [x] Record review evidence and close gate.
+- [x] Prepare follow-up direction analysis for receipt readback and cleanup policy.
 ## Pending User Decision
 (none)
 ## Direction Candidates
+- Completed Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
+- Review Evidence: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md
+- Recommended Next Gate: Git Worktree Receipt Readback And Cleanup Policy - source: design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md
+- Deferred Candidate: Provider Registry Wiring For Controlled Host Runs - source: design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md
+- Deferred Candidate: Lease Expiry Sweep Before Provider Preflight - source: design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md
 - Completed Gate: Host UX Binding For Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
-- Recommended Next Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
-- Active Gate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
-- Recommended Source: Host UX Binding For Authorization Readback - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
-- Deferred Candidate: Git Worktree Sandbox Provider Spike Over Acquired Leases - source: design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
 - Completed Gate: Lease And Sandbox Authorization Readback - source: design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
-- Candidate Next Gate: Host UX Binding For Authorization Readback - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
-- Candidate Next Gate: Real Sandbox Provider Spike - source: review/lease-and-sandbox-authorization-readback-2026-06-21.md
 - Completed Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
-- Candidate Next Gate: Host UX / MCP Lease And Sandbox Authorization Readback - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
-- Candidate Next Gate: Real Sandbox Provider Spike - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
 - Completed Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
-- Recommended Next Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Recommended Next Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Deferred Line: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Deferred Line: Host UX / MCP Lease Readback - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Deferred Line: Lifecycle Host UX Readback / Control Binding - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Deferred Line: Real Sandbox Provider Spike - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- Completed Line: Write-Back Enforcement Unification - source: design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md
-- Completed Line: Edit Lease Conflict Classifier And Admission Evidence - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-conflict-classifier-and-admission-evidence.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md
-- design_docs/stages/planning-gate/2026-06-21-host-ux-authorization-readback-binding.md
-- review/host-ux-authorization-readback-binding-2026-06-21.md
-- design_docs/host-ux-authorization-readback-binding-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md
-- review/lease-and-sandbox-authorization-readback-2026-06-21.md
-- src/runtime/orchestration/scheduler_authorization_readback.py
-- design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md
-- design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
-- design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
-- review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
-- review/edit-lease-acquisition-and-expiration-lifecycle-2026-06-21.md
-- design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
-- design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md
-- design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md
-- review/write-back-enforcement-unification-2026-06-20.md
-- src/runtime/orchestration/scheduler.py
+- review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md
+- design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md
 - src/runtime/orchestration/sandbox.py
 - src/runtime/orchestration/preflight.py
-- src/runtime/orchestration/sandbox.py
-- src/pep/writeback_engine.py
-- src/runtime/orchestration/scheduler_store.py
+- src/runtime/orchestration/__init__.py
 - tests/test_runtime_orchestration.py

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
+import subprocess
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -29,6 +32,7 @@ from src.runtime.orchestration import (
     ExchangeRelation,
     ExchangeScope,
     ExchangeArtifactAdmissionRecord,
+    GitWorktreeSandboxProvider,
     HostSchedulerRunRequest,
     AgentRuntimeAdapterRegistry,
     FakeAgentRuntimeAdapter,
@@ -3139,6 +3143,203 @@ def test_shared_process_sandbox_provider_rejects_other_profile_kind() -> None:
     assert allocation.state == "rejected"
     assert allocation.provider == "shared-process"
     assert "profile_kind='shared-process'" in allocation.reason
+
+
+def test_git_worktree_sandbox_provider_advertises_filesystem_isolation(tmp_path) -> None:
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+
+    capability = provider.capability()
+
+    assert capability.provider == "git-worktree"
+    assert capability.supports_process_isolation is False
+    assert capability.supports_filesystem_isolation is True
+    assert capability.supports_mount_policy is True
+    assert capability.supports_cleanup is True
+
+
+def test_git_worktree_sandbox_provider_allocates_and_cleans_up_worktree(tmp_path) -> None:
+    repo = _git_repo(tmp_path)
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+    request = SandboxRequest(
+        task_id="task-1",
+        profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            network_policy="disabled",
+            secret_policy="deny",
+            mount_policy="lease-scoped",
+        ),
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        edit_lease_lifecycle=EditLeaseLifecycleRecord(
+            lease_id="lease-1",
+            task_id="task-1",
+            state="acquired",
+            mode="write",
+            allowed_artifacts=("src/app.py",),
+            acquired_at="2026-06-21T00:00:00+08:00",
+        ),
+        workspace_root=str(repo),
+        scratch_path=".codex/scratch/task-1",
+        required_mounts=("README.md",),
+    )
+
+    allocation = provider.allocate(request)
+
+    assert allocation.state == "allocated"
+    assert allocation.provider == "git-worktree"
+    assert allocation.allocation_id == "git-worktree:task-1:worktree"
+    assert allocation.visible_mounts == ("README.md", "src/app.py")
+    assert allocation.cleanup_required is True
+    assert allocation.lease_authorization_state == "authorized"
+    assert allocation.lease_authorized_mounts[0].authorized_mounts == ("src/app.py",)
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    assert receipt.source_repository_root == str(repo)
+    assert receipt.sandbox_root == str(tmp_path / "sandboxes")
+    assert receipt.branch_name.startswith("dbc-sandbox/task-1-worktree-")
+    assert receipt.authorized_writable_paths == ("src/app.py",)
+    assert receipt.denied_writable_paths == ()
+    assert receipt.cleanup_state == "required"
+    assert receipt.allocation.returncode == 0
+    assert Path(receipt.worktree_path).exists()
+
+    cleaned = provider.cleanup(allocation)
+
+    cleaned_receipt = cleaned.git_worktree_receipt
+    assert cleaned.cleanup_required is False
+    assert cleaned_receipt is not None
+    assert cleaned_receipt.cleanup_state == "completed"
+    assert cleaned_receipt.cleanup.returncode == 0
+    assert cleaned_receipt.branch_cleanup.returncode == 0
+    assert not Path(receipt.worktree_path).exists()
+
+
+def test_git_worktree_sandbox_provider_rejects_missing_lifecycle_without_worktree(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    sandbox_root = tmp_path / "sandboxes"
+    provider = GitWorktreeSandboxProvider(sandbox_root)
+
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(profile_id="worktree", profile_kind="git-worktree"),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            workspace_root=str(repo),
+            required_mounts=("README.md",),
+        )
+    )
+
+    assert allocation.state == "rejected"
+    assert allocation.cleanup_required is False
+    assert allocation.lease_authorization_state == "rejected"
+    assert allocation.lease_authorized_mounts[0].denied_mounts == ("src/app.py",)
+    assert "require acquired edit lease lifecycle record" in allocation.reason
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    assert receipt.denied_writable_paths == ("src/app.py",)
+    assert receipt.allocation.command == ()
+    assert not sandbox_root.exists()
+
+
+def test_git_worktree_sandbox_provider_rejects_non_acquired_lifecycle(tmp_path) -> None:
+    repo = _git_repo(tmp_path)
+    sandbox_root = tmp_path / "sandboxes"
+    provider = GitWorktreeSandboxProvider(sandbox_root)
+
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(profile_id="worktree", profile_kind="git-worktree"),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="released",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                released_at="2026-06-21T00:05:00+08:00",
+            ),
+            workspace_root=str(repo),
+        )
+    )
+
+    assert allocation.state == "rejected"
+    assert allocation.cleanup_required is False
+    assert allocation.lease_authorization_state == "rejected"
+    assert allocation.lease_authorized_mounts[0].lifecycle_state == "released"
+    assert "current lifecycle state is 'released'" in allocation.reason
+    receipt = allocation.git_worktree_receipt
+    assert receipt is not None
+    assert receipt.denied_writable_paths == ("src/app.py",)
+    assert not sandbox_root.exists()
+
+
+def test_orchestration_preflight_bundle_can_use_git_worktree_provider(tmp_path) -> None:
+    repo = _git_repo(tmp_path)
+    registry = SandboxProviderRegistry()
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+    registry.register(provider)
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        input_artifact_refs=(ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),),
+        output_artifact_id="task-1:result",
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T00:00:00+08:00",
+            )
+        },
+    )
+
+    bundle = build_orchestration_preflight_bundle(
+        task,
+        sandbox_registry=registry,
+        scheduler_state=state,
+        workspace_root=str(repo),
+    )
+
+    assert bundle.sandbox_allocation.provider == "git-worktree"
+    assert bundle.sandbox_allocation.state == "allocated"
+    assert bundle.sandbox_allocation.visible_mounts == ("README.md", "src/app.py")
+    assert bundle.sandbox_allocation.git_worktree_receipt is not None
+
+    provider.cleanup(bundle.sandbox_allocation)
 
 
 def test_sandbox_provider_registry_resolves_provider_by_capability() -> None:
@@ -7770,6 +7971,38 @@ def _scheduled_task(
         acceptance=("complete fake task",),
         output_artifact_id=output_artifact_id,
     )
+
+
+def _git_repo(tmp_path: Path) -> Path:
+    if shutil.which("git") is None:
+        pytest.skip("git executable is required for git-worktree sandbox provider tests")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.email", "tests@example.invalid")
+    _run_git(repo, "config", "user.name", "Doc Based Coding Tests")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "initial")
+    return repo
+
+
+def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        ("git", "-C", str(repo), *args),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(args)} failed with {completed.returncode}: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    return completed
 
 
 class _FailingRuntime:
