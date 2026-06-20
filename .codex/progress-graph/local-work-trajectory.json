@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Write-back enforcement unification",
-  "recorded_at": "2026-06-20T12:35:25.322113+00:00",
+  "title": "Post write-back lease lifecycle direction analysis",
+  "recorded_at": "2026-06-20T15:01:13.603554+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md",
@@ -13,17 +13,17 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Write-back enforcement unification",
+    "title": "Post write-back lease lifecycle direction analysis",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 3,
+    "relation_count": 2,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "write-back lease policy",
+      "label": "lease lifecycle direction",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
@@ -36,61 +36,45 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open write-back enforcement unification planning gate",
+      "title": "Open edit lease lifecycle follow-up direction analysis",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T12:21:51.359172+00:00",
-        "activated_at": "2026-06-20T12:21:51.359172+00:00",
+        "created_at": "2026-06-20T14:44:34.095800+00:00",
+        "activated_at": "2026-06-20T14:44:34.095800+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T12:28:55.501369+00:00"
+        "completed_at": "2026-06-20T14:45:46.405673+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement write-back lease evidence consumption",
-      "kind": "task",
+      "title": "Write edit lease lifecycle direction analysis",
+      "kind": "writeback",
       "status": "completed",
       "order": 2,
-      "summary": "Proceed from the active planning gate into scoped code/test implementation for optional edit lease conflict evidence in WritebackEngine.",
+      "summary": "Document candidate comparison and recommend the next narrow planning gate after write-back enforcement unification.",
       "metadata": {
-        "created_at": "2026-06-20T12:24:14.793749+00:00",
+        "created_at": "2026-06-20T14:45:53.040991+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T12:28:55.501369+00:00",
-        "completed_at": "2026-06-20T12:31:10.556613+00:00"
+        "completed_at": "2026-06-20T15:00:30.504770+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate and write back write-back enforcement slice",
-      "kind": "validation",
-      "status": "completed",
-      "order": 3,
-      "summary": "Run focused and relevant regression tests, then update planning gate, review evidence, status boards, and checkpoint.",
-      "metadata": {
-        "created_at": "2026-06-20T12:31:04.205563+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-20T12:31:10.556613+00:00",
-        "completed_at": "2026-06-20T12:34:44.282269+00:00"
-      }
-    },
-    "event:004": {
-      "id": "event:004",
-      "lane_id": "lane:main",
-      "title": "Close write-back enforcement unification slice",
+      "title": "Close edit lease lifecycle direction analysis",
       "kind": "close",
       "status": "completed",
-      "order": 4,
-      "summary": "Write-back enforcement unification is complete; implementation, validation, review evidence, status boards, and checkpoint are written back.",
+      "order": 3,
+      "summary": "Edit lease lifecycle direction analysis is closed; current recommendation is to open the next narrow planning gate for scheduler-owned edit lease acquisition and expiration lifecycle.",
       "metadata": {
-        "created_at": "2026-06-20T12:34:52.029044+00:00",
+        "created_at": "2026-06-20T15:00:36.226703+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T12:35:25.322113+00:00",
-        "closed_at": "2026-06-20T12:35:25.322113+00:00"
+        "completed_at": "2026-06-20T15:01:13.603554+00:00",
+        "closed_at": "2026-06-20T15:01:13.603554+00:00"
       }
     }
   },
@@ -107,15 +91,6 @@
     {
       "source_event_id": "event:002",
       "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:003",
-      "target_event_id": "event:004",
       "kind": "sequence",
       "summary": "",
       "metadata": {
