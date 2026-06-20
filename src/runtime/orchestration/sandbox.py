@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from .scheduler import EditScopeLease, SandboxProfile, SandboxProfileKind
+from .scheduler import EditLeaseLifecycleRecord, EditScopeLease, SandboxProfile, SandboxProfileKind
 
 SandboxProviderKind = SandboxProfileKind
 SandboxAllocationState = Literal["allocated", "rejected"]
+SandboxLeaseAuthorizationState = Literal["not_required", "authorized", "rejected"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,10 +33,23 @@ class SandboxRequest:
     task_id: str
     profile: SandboxProfile
     edit_lease: EditScopeLease | None = None
+    edit_lease_lifecycle: EditLeaseLifecycleRecord | None = None
     workspace_root: str = ""
     scratch_path: str = ""
     required_mounts: tuple[str, ...] = ()
     metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SandboxLeaseMountAuthorization:
+    """Metadata describing which mounts were authorized by one edit lease."""
+
+    lease_id: str = ""
+    task_id: str = ""
+    lifecycle_state: str = ""
+    authorized_mounts: tuple[str, ...] = ()
+    denied_mounts: tuple[str, ...] = ()
+    reason: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +67,9 @@ class SandboxAllocation:
     network_policy: str = ""
     secret_policy: str = ""
     cleanup_required: bool = False
+    lease_authorized_mounts: tuple[SandboxLeaseMountAuthorization, ...] = ()
+    lease_authorization_state: SandboxLeaseAuthorizationState = "not_required"
+    lease_authorization_reason: str = ""
     reason: str = ""
 
 
@@ -142,6 +159,30 @@ class SharedProcessSandboxProvider:
                     "profile_kind='shared-process'"
                 ),
             )
+        lease_authorization = _lease_mount_authorization_from_request(request)
+        if lease_authorization.denied_mounts:
+            return SandboxAllocation(
+                allocation_id=f"rejected:{request.task_id}:{profile.profile_id}",
+                provider="shared-process",
+                task_id=request.task_id,
+                profile=profile,
+                state="rejected",
+                workspace_root=request.workspace_root,
+                scratch_path=request.scratch_path,
+                visible_mounts=tuple(dict.fromkeys(request.required_mounts)),
+                network_policy=profile.network_policy,
+                secret_policy=profile.secret_policy,
+                cleanup_required=False,
+                lease_authorized_mounts=(lease_authorization,),
+                lease_authorization_state="rejected",
+                lease_authorization_reason=lease_authorization.reason,
+                reason=lease_authorization.reason,
+            )
+        lease_authorized_mounts = (
+            (lease_authorization,)
+            if lease_authorization.lifecycle_state == "acquired"
+            else ()
+        )
         return SandboxAllocation(
             allocation_id=f"shared-process:{request.task_id}:{profile.profile_id}",
             provider="shared-process",
@@ -153,6 +194,11 @@ class SharedProcessSandboxProvider:
             network_policy=profile.network_policy,
             secret_policy=profile.secret_policy,
             cleanup_required=False,
+            lease_authorized_mounts=lease_authorized_mounts,
+            lease_authorization_state=(
+                "authorized" if lease_authorized_mounts else "not_required"
+            ),
+            lease_authorization_reason=lease_authorization.reason,
         )
 
 
@@ -199,7 +245,61 @@ def sandbox_capability_placeholder(provider: SandboxProviderKind) -> SandboxCapa
 
 def _visible_mounts_from_request(request: SandboxRequest) -> tuple[str, ...]:
     mounts = list(request.required_mounts)
-    lease = request.edit_lease
-    if lease is not None and request.profile.mount_policy == "lease-scoped":
-        mounts.extend(lease.allowed_artifacts)
+    lease_authorization = _lease_mount_authorization_from_request(request)
+    if lease_authorization.lifecycle_state == "acquired":
+        mounts.extend(lease_authorization.authorized_mounts)
     return tuple(dict.fromkeys(mounts))
+
+
+def _lease_mount_authorization_from_request(
+    request: SandboxRequest,
+) -> SandboxLeaseMountAuthorization:
+    lease = request.edit_lease
+    if lease is None or request.profile.mount_policy != "lease-scoped":
+        return SandboxLeaseMountAuthorization(reason="lease-scoped mounts not required")
+
+    lifecycle = request.edit_lease_lifecycle
+    if lifecycle is None:
+        return SandboxLeaseMountAuthorization(
+            lease_id=lease.lease_id,
+            task_id=request.task_id,
+            lifecycle_state="missing",
+            denied_mounts=lease.allowed_artifacts,
+            reason=(
+                f"lease-scoped mounts for task {request.task_id!r} require "
+                f"acquired edit lease lifecycle record {lease.lease_id!r}"
+            ),
+        )
+
+    if lifecycle.lease_id != lease.lease_id or lifecycle.task_id != request.task_id:
+        return SandboxLeaseMountAuthorization(
+            lease_id=lease.lease_id,
+            task_id=request.task_id,
+            lifecycle_state=lifecycle.state,
+            denied_mounts=lease.allowed_artifacts,
+            reason=(
+                f"edit lease lifecycle record mismatch for task {request.task_id!r}: "
+                f"expected lease {lease.lease_id!r}, got {lifecycle.lease_id!r}"
+            ),
+        )
+
+    if lifecycle.state != "acquired":
+        return SandboxLeaseMountAuthorization(
+            lease_id=lease.lease_id,
+            task_id=request.task_id,
+            lifecycle_state=lifecycle.state,
+            denied_mounts=lease.allowed_artifacts,
+            reason=(
+                f"lease-scoped mounts for task {request.task_id!r} require "
+                f"acquired edit lease {lease.lease_id!r}; current lifecycle "
+                f"state is {lifecycle.state!r}"
+            ),
+        )
+
+    return SandboxLeaseMountAuthorization(
+        lease_id=lease.lease_id,
+        task_id=request.task_id,
+        lifecycle_state="acquired",
+        authorized_mounts=lifecycle.allowed_artifacts,
+        reason=f"lease-scoped mounts authorized by acquired edit lease {lease.lease_id}",
+    )

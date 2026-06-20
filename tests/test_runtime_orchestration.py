@@ -3064,6 +3064,14 @@ def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:
             allowed_artifacts=("src/app.py",),
             lease_mode="write",
         ),
+        edit_lease_lifecycle=EditLeaseLifecycleRecord(
+            lease_id="lease-1",
+            task_id="task-1",
+            state="acquired",
+            mode="write",
+            allowed_artifacts=("src/app.py",),
+            acquired_at="2026-06-21T00:00:00+08:00",
+        ),
         workspace_root="E:/workspace/project",
         scratch_path=".codex/scratch/task-1",
         required_mounts=("README.md",),
@@ -3083,6 +3091,37 @@ def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:
     assert allocation.network_policy == "disabled"
     assert allocation.secret_policy == "deny"
     assert allocation.cleanup_required is False
+    assert allocation.lease_authorization_state == "authorized"
+    assert allocation.lease_authorized_mounts[0].lease_id == "lease-1"
+    assert allocation.lease_authorized_mounts[0].authorized_mounts == ("src/app.py",)
+
+
+def test_shared_process_sandbox_provider_rejects_static_lease_without_acquired_lifecycle() -> None:
+    provider = SharedProcessSandboxProvider()
+
+    allocation = provider.allocate(
+        SandboxRequest(
+            task_id="task-1",
+            profile=SandboxProfile(
+                profile_id="shared",
+                profile_kind="shared-process",
+                mount_policy="lease-scoped",
+            ),
+            edit_lease=EditScopeLease(
+                lease_id="lease-1",
+                task_id="task-1",
+                allowed_artifacts=("src/app.py",),
+                lease_mode="write",
+            ),
+            required_mounts=("README.md",),
+        )
+    )
+
+    assert allocation.state == "rejected"
+    assert allocation.visible_mounts == ("README.md",)
+    assert allocation.lease_authorization_state == "rejected"
+    assert allocation.lease_authorized_mounts[0].denied_mounts == ("src/app.py",)
+    assert "require acquired edit lease lifecycle record" in allocation.reason
 
 
 def test_shared_process_sandbox_provider_rejects_other_profile_kind() -> None:
@@ -3151,10 +3190,24 @@ def test_orchestration_preflight_bundle_assembles_runtime_sandbox_and_scratch() 
         ),
         output_artifact_id="task-1:result",
     )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                acquired_at="2026-06-21T00:00:00+08:00",
+            )
+        },
+    )
 
     bundle = build_orchestration_preflight_bundle(
         task,
         sandbox_registry=registry,
+        scheduler_state=state,
         workspace_root="E:/workspace/project",
         scratch_root=".codex/scratch",
         created_at="2026-06-17T00:10:00+08:00",
@@ -3172,6 +3225,64 @@ def test_orchestration_preflight_bundle_assembles_runtime_sandbox_and_scratch() 
     assert bundle.sandbox_allocation.workspace_root == "E:/workspace/project"
     assert bundle.sandbox_allocation.scratch_path == ".codex/scratch/task-1"
     assert bundle.sandbox_allocation.visible_mounts == ("README.md", "src/app.py")
+    assert bundle.sandbox_allocation.lease_authorization_state == "authorized"
+
+
+def test_orchestration_preflight_bundle_rejects_missing_acquired_lease_lifecycle() -> None:
+    registry = SandboxProviderRegistry()
+    registry.register(SharedProcessSandboxProvider())
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="require acquired edit lease lifecycle record"):
+        build_orchestration_preflight_bundle(
+            task,
+            sandbox_registry=registry,
+            scheduler_state=SchedulerState(tasks={"task-1": task}),
+        )
+
+
+def test_orchestration_preflight_bundle_rejects_non_acquired_lease_lifecycle() -> None:
+    registry = SandboxProviderRegistry()
+    registry.register(SharedProcessSandboxProvider())
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="released",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+                released_at="2026-06-21T00:05:00+08:00",
+            )
+        },
+    )
+
+    with pytest.raises(ValueError, match="current lifecycle state is 'released'"):
+        build_orchestration_preflight_bundle(
+            task,
+            sandbox_registry=registry,
+            scheduler_state=state,
+        )
 
 
 def test_orchestration_preflight_bundle_requires_ready_task() -> None:

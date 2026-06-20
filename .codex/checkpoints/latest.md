@@ -1,8 +1,8 @@
-# Checkpoint - 2026-06-21T00:49:00+08:00
+# Checkpoint - 2026-06-21T01:03:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Sandbox mount binding over acquired leases
+Post-v1.0 - Agent orchestration / Sandbox mount binding close
 ## Active Planning Gate
-design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
+(none)
 ## Current Handoff
 - handoff_id: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close
 - source_path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md
@@ -21,14 +21,16 @@ design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-
 - [x] Validate focused lifecycle tests and relevant runtime orchestration regression.
 - [x] Record review evidence and close gate.
 - [x] Create active planning gate `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`.
-- [ ] Implement metadata-only acquired lease mount authorization in sandbox contracts.
-- [ ] Pass acquired lifecycle records through preflight.
-- [ ] Validate focused sandbox/preflight tests and relevant runtime regression.
-- [ ] Record review evidence and close gate.
+- [x] Implement metadata-only acquired lease mount authorization in sandbox contracts.
+- [x] Pass acquired lifecycle records through preflight.
+- [x] Validate focused sandbox/preflight tests and relevant runtime regression.
+- [x] Record review evidence and close gate.
 ## Pending User Decision
-(none)
+- Choose next direction after sandbox metadata binding: Host UX/MCP readback or real sandbox provider spike.
 ## Direction Candidates
-- Active Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
+- Completed Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
+- Candidate Next Gate: Host UX / MCP Lease And Sandbox Authorization Readback - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
+- Candidate Next Gate: Real Sandbox Provider Spike - source: review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
 - Completed Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - Recommended Next Gate: Sandbox Mount Binding Over Acquired Leases - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - Recommended Next Gate: Edit Lease Acquisition And Expiration Lifecycle - source: design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
@@ -43,6 +45,7 @@ design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md
 - design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md
+- review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md
 - review/edit-lease-acquisition-and-expiration-lifecycle-2026-06-21.md
 - design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md
 - design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md

@@ -1,7 +1,7 @@
 # Planning Gate - Sandbox Mount Binding Over Acquired Leases
 
 > Date: 2026-06-21
-> Status: ACTIVE
+> Status: COMPLETED
 
 ## Trigger
 
@@ -128,6 +128,48 @@ The gate may close when:
 5. Focused sandbox/preflight tests pass.
 6. Wider relevant runtime orchestration regression passes.
 7. Review/status docs record validation and preserved non-goals.
+
+## Close Summary
+
+Completed on 2026-06-21.
+
+This gate added metadata-only sandbox mount authorization over scheduler-owned
+acquired edit lease lifecycle records.
+
+Implemented behavior:
+
+1. `SandboxRequest` can carry `edit_lease_lifecycle`.
+2. `SandboxLeaseMountAuthorization` records lease id, task id, lifecycle state,
+   authorized mounts, denied mounts, and reason.
+3. `SandboxAllocation` reports `lease_authorized_mounts`,
+   `lease_authorization_state`, and `lease_authorization_reason`.
+4. `SharedProcessSandboxProvider` still remains metadata-only and does not
+   claim process/filesystem isolation.
+5. Lease-scoped edit mounts are authorized only when lifecycle state is
+   `acquired`.
+6. Static `EditScopeLease.allowed_artifacts` without acquired lifecycle now
+   fails closed for lease-scoped sandbox allocation.
+7. `build_orchestration_preflight_bundle()` accepts optional `scheduler_state`
+   and passes the task's lifecycle record to sandbox allocation.
+8. `drain_preflighted_ready_tasks()` passes the current scheduler state into
+   preflight, so admission-acquired lifecycle records authorize mounts.
+
+Validation:
+
+```text
+.\.venv\Scripts\python.exe -m py_compile src/runtime/orchestration/sandbox.py src/runtime/orchestration/preflight.py src/runtime/orchestration/__init__.py tests/test_runtime_orchestration.py
+passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "sandbox_provider or orchestration_preflight_bundle or preflighted_task or preflighted_ready_tasks"
+16 passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py
+210 passed
+```
+
+Review evidence:
+
+`review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md`
 
 ## Implementation Notes
 

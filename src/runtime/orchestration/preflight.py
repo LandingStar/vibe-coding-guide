@@ -8,6 +8,7 @@ from .agent_storage import AgentScratchSpace
 from .runtime_adapter import AgentRuntimeAdapterRegistry, RuntimeRunResult, TaskSpec
 from .sandbox import SandboxAllocation, SandboxProviderRegistry, SandboxRequest
 from .scheduler import (
+    EditLeaseLifecycleRecord,
     SchedulerDrainStopReason,
     SchedulerEventSink,
     SchedulerRunPolicy,
@@ -57,6 +58,7 @@ def build_orchestration_preflight_bundle(
     task: ScheduledTask,
     *,
     sandbox_registry: SandboxProviderRegistry,
+    scheduler_state: SchedulerState | None = None,
     workspace_root: str = "",
     scratch_root: str = ".codex/scratch",
     created_at: str = "",
@@ -84,6 +86,10 @@ def build_orchestration_preflight_bundle(
             task_id=task.task_id,
             profile=task.sandbox_profile,
             edit_lease=task.edit_lease,
+            edit_lease_lifecycle=_edit_lease_lifecycle_for_task(
+                task,
+                scheduler_state,
+            ),
             workspace_root=workspace_root,
             scratch_path=scratch.path,
             required_mounts=_required_mounts_for_task(task),
@@ -173,6 +179,7 @@ def drain_preflighted_ready_tasks(
             preflight = build_orchestration_preflight_bundle(
                 current.tasks[task_id],
                 sandbox_registry=sandbox_registry,
+                scheduler_state=current,
                 workspace_root=workspace_root,
                 scratch_root=scratch_root,
                 created_at=created_at,
@@ -292,6 +299,16 @@ def _required_mounts_for_task(task: ScheduledTask) -> tuple[str, ...]:
         if ref.path
     ]
     return tuple(dict.fromkeys(mounts))
+
+
+def _edit_lease_lifecycle_for_task(
+    task: ScheduledTask,
+    scheduler_state: SchedulerState | None,
+) -> EditLeaseLifecycleRecord | None:
+    lease = task.edit_lease
+    if lease is None or scheduler_state is None:
+        return None
+    return scheduler_state.edit_lease_lifecycle.get(lease.lease_id)
 
 
 def _scratch_for_task(
