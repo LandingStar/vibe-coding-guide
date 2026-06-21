@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Host-managed daemon supervisor contract 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-managed-daemon-supervisor-contract.md` 已完成并关闭；当前 runtime 层已有 `SchedulerDaemonSupervisorRequest` / `SchedulerDaemonSupervisorStatus` / `SchedulerDaemonSupervisorResult` 与 `run_scheduler_daemon_supervisor_step()`，可在 policy-controlled bounded harness 外提供 host/session/run identity、cancellation source、deadline/status readback 与 authority split。
+- 候选 1：`CLI/MCP Surface For Daemon Supervisor Step`
+  - 做什么：将 `run_scheduler_daemon_supervisor_step()` 暴露为 CLI/MCP operator surface，保持 fake-runtime-only、显式 path、bounded harness controls 与无 projection/cleanup side effect。
+  - 依据：`design_docs/host-managed-daemon-supervisor-contract-followup-direction-analysis.md`、`review/host-managed-daemon-supervisor-contract-2026-06-21.md`
+- 候选 2：`Agent Home / Context Session Binding Over Supervisor Runs`
+  - 做什么：把 agent home / temporary scratch / context session lifecycle 绑定到 supervisor run identity 和 harness attempts，形成更清晰的 storage lifecycle anchor。
+  - 依据：`design_docs/host-managed-daemon-supervisor-contract-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 候选 3：`Supervisor Dogfood Workflow`
+  - 做什么：建立 deterministic dogfood workflow，串联 lifecycle control、supervisor step、status/evidence readback，验证 Codex-style 使用流程。
+  - 依据：`design_docs/host-managed-daemon-supervisor-contract-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。runtime supervisor contract 已稳定但还不能被 Codex/operator surface 直接调用；CLI/MCP exposure 是下一条最窄且最实用的接入面，agent-home/session 绑定和 dogfood workflow 都更适合建立在该 invocation surface 之后。
+
 ## 2026-06-21 补充候选：Scheduler harness policy MCP surface 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-scheduler-harness-policy-mcp-surface.md` 已完成并关闭；当前 Codex/MCP 主链可直接调用 `schedulerLifecycleHarness`，以 fake-runtime-only、显式 path、bounded attempts 的方式运行 policy-controlled scheduler lifecycle harness。
