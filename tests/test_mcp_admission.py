@@ -276,6 +276,133 @@ def test_governance_tools_scheduler_lifecycle_control_and_run_once(tmp_path: Pat
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
+def test_governance_tools_scheduler_lifecycle_harness_policy_surface(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    missing_control_path = tmp_path / "missing-control.json"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-harness-mcp",
+                title="Harness MCP task",
+                instruction="Complete through lifecycle harness MCP.",
+                agent=AgentSpec(agent_id="agent:harness-mcp", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:harness-mcp"),
+                output_artifact_id="task-harness-mcp:result",
+            ),
+            artifact_id="submission:harness-mcp",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-21T16:30:00+08:00",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    cancelled = tools.scheduler_lifecycle_harness(
+        control_path=str(missing_control_path),
+        policy_cancelled=True,
+        max_attempts=2,
+    )
+    deadline = tools.scheduler_lifecycle_harness(
+        control_path=str(missing_control_path),
+        deadline_epoch_seconds=200,
+        now_epoch_seconds=200,
+    )
+    rejected = tools.scheduler_lifecycle_harness(
+        control_path=str(control_path),
+        runtime_provider="qoder",
+    )
+
+    start = tools.scheduler_lifecycle_control(
+        action="start",
+        control_path=str(control_path),
+        snapshot_path=str(snapshot_path),
+        event_log_path=str(event_log_path),
+        daemon_id="daemon-harness-mcp",
+        timestamp="2026-06-21T16:31:00+08:00",
+    )
+    ran = tools.scheduler_lifecycle_harness(
+        control_path=str(control_path),
+        max_cycles=2,
+        max_ticks=2,
+        timestamp="2026-06-21T16:32:00+08:00",
+    )
+
+    assert cancelled["ok"] is True
+    assert cancelled["stop_reason"] == "cancelled"
+    assert cancelled["attempt_count"] == 0
+    assert cancelled["policy"]["max_attempts"] == 2
+    assert deadline["ok"] is True
+    assert deadline["stop_reason"] == "deadline_exceeded"
+    assert deadline["attempt_count"] == 0
+    assert not missing_control_path.exists()
+    assert rejected["ok"] is False
+    assert rejected["runtime_provider"] == "qoder"
+    assert "runtimeProvider='fake' only" in rejected["error"]
+    assert start["ok"] is True
+    assert ran["ok"] is True
+    assert ran["stop_reason"] == "harness_completed"
+    assert ran["attempt_count"] == 1
+    assert ran["total_run_count"] == 1
+    assert ran["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
+    assert ran["runtime_provider"] == "fake"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-harness-mcp"].state == "complete"
+    assert ran["authority_split"]["scheduler_projection_refreshed"] is False
+    assert ran["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
+def test_governance_tools_scheduler_lifecycle_harness_retries_policy_stop_reason(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-harness-retry-mcp",
+                title="Harness retry MCP task",
+                instruction="Remain proposed while lifecycle is paused.",
+                agent=AgentSpec(agent_id="agent:harness-retry-mcp", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:harness-retry-mcp"),
+                output_artifact_id="task-harness-retry-mcp:result",
+            ),
+            artifact_id="submission:harness-retry-mcp",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-21T16:40:00+08:00",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    tools.scheduler_lifecycle_control(
+        action="start",
+        control_path=str(control_path),
+        snapshot_path=str(snapshot_path),
+        event_log_path=str(event_log_path),
+        daemon_id="daemon-harness-retry-mcp",
+    )
+    tools.scheduler_lifecycle_control(
+        action="pause",
+        control_path=str(control_path),
+    )
+    result = tools.scheduler_lifecycle_harness(
+        control_path=str(control_path),
+        max_attempts=2,
+        retry_stop_reasons=["paused"],
+    )
+
+    assert result["ok"] is True
+    assert result["stop_reason"] == "max_attempts_reached"
+    assert result["attempt_count"] == 2
+    assert [attempt["harness"]["stop_reason"] for attempt in result["attempts"]] == ["paused", "paused"]
+    assert all(attempt["retryable"] for attempt in result["attempts"])
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-harness-retry-mcp"].state == "proposed"
+
+
 def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
@@ -305,8 +432,10 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         names = {tool.name for tool in tools}
         assert "schedulerLifecycleControl" in names
         assert "schedulerLifecycleRunOnce" in names
+        assert "schedulerLifecycleHarness" in names
         control_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleControl")
         run_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleRunOnce")
+        harness_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleHarness")
         assert control_tool.inputSchema["required"] == ["action", "controlPath"]
         assert "daemonId" in control_tool.inputSchema["properties"]
         assert "local-work-trajectory.json" in control_tool.description
@@ -316,6 +445,11 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
             in run_tool.inputSchema["properties"]["runtimeProvider"]["description"]
         )
         assert "cancellation is consumed before provider execution" in run_tool.description
+        assert harness_tool.inputSchema["required"] == ["controlPath"]
+        assert "policyCancelled" in harness_tool.inputSchema["properties"]
+        assert "deadlineEpochSeconds" in harness_tool.inputSchema["properties"]
+        assert "retryStopReasons" in harness_tool.inputSchema["properties"]
+        assert "policy-controlled bounded scheduler lifecycle harness" in harness_tool.description
 
         start_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(
@@ -353,6 +487,24 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert run_payload["skipped"] is False
         assert run_payload["loop"]["total_run_count"] == 1
         assert run_payload["runtime_provider"] == "fake"
+
+        cancelled_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerLifecycleHarness",
+                    arguments={
+                        "controlPath": str(tmp_path / "missing-control.json"),
+                        "policyCancelled": True,
+                        "maxAttempts": 2,
+                    },
+                )
+            )
+        )
+        cancelled_payload = json.loads(cancelled_result.root.content[0].text)
+        assert cancelled_payload["ok"] is True
+        assert cancelled_payload["stop_reason"] == "cancelled"
+        assert cancelled_payload["attempt_count"] == 0
+        assert cancelled_payload["policy"]["max_attempts"] == 2
 
     asyncio.run(exercise_server())
 

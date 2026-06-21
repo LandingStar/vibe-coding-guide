@@ -146,6 +146,9 @@
 | `schedulerSubmitTasks` | `snapshotPath*`, `eventLogPath*`, `batch`, `batchId`, `tasks`, `title`, `summary`, `artifactId`, `artifactVersion`, `producer`, `timestamp`, `replaceExisting` | 将结构化 scheduler task batch submission 提交到 scheduler-owned snapshot/event log；复用 `scheduler_submission` exchange-artifact intake；不运行任务、不刷新 projection、不写 local trajectory | 调度任务提交 / 调度状态 |
 | `schedulerProjection` | `snapshotPath*`, `schedulerEventLogPath`, `mergeGateEventLogPath`, `outputPath`, `trajectoryId`, `title`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 从 scheduler snapshot 与可选 JSONL history 写出 scheduler-derived trajectory projection artifact | 调度可观测 / Progress Graph |
 | `schedulerRunOnceAndProject` | `snapshotPath*`, `eventLogPath*`, `mergeGateEventLogPath`, `outputPath`, `maxRuns`, `timestamp`, `runtimeProvider`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 显式读取 persisted scheduler snapshot/event log，执行一次 bounded fake-runtime scheduler pass，写回 snapshot，并刷新 scheduler-derived trajectory projection artifact；`runtimeProvider` 当前只允许 `fake` | 调度执行烟测 / 调度可观测 |
+| `schedulerLifecycleControl` | `action*`, `controlPath*`, `snapshotPath`, `eventLogPath`, `daemonId`, `runId`, `timestamp`, `staleAfterSeconds`, `nowEpochSeconds` | 读写 scheduler daemon lifecycle control file；只做 deterministic control-file operation，不运行 provider、不刷新 projection、不写 local trajectory | 调度 lifecycle control |
+| `schedulerLifecycleRunOnce` | `controlPath*`, `runtimeProvider`, `timestamp`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures` | 在 lifecycle state 允许时执行一次 bounded fake-runtime lifecycle-gated loop；paused/cancelled/stopped/stale 会跳过 scheduler mutation；`runtimeProvider` 当前只允许 `fake` | 调度 lifecycle execution |
+| `schedulerLifecycleHarness` | `controlPath*`, `runtimeProvider`, `timestamp`, `maxCycles`, `maxLoopFailures`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `staleAfterSeconds`, `nowEpochSeconds`, `policyCancelled`, `deadlineEpochSeconds`, `maxAttempts`, `retryStopReasons` | 通过 `run_scheduler_daemon_harness_with_policy()` 运行 policy-controlled bounded harness；支持 cancelled/deadline preflight 与 explicit retry stop reasons；不启动 daemon service、不刷新 projection、不执行 cleanup、不写 local trajectory；`runtimeProvider` 当前只允许 `fake` | 调度 lifecycle harness / policy |
 
 合并判断：
 
@@ -158,6 +161,7 @@
 - 当前 fake-only 执行路径已经通过 `build_runtime_registry_from_config()` 构建 `AgentRuntimeAdapterRegistry`，并传入 `RuntimeHostInvocation(surface="mcp-scheduler-run-once")`。成功返回会报告 `runtime_registry_providers=["fake"]`。这只是把 Host wiring seam 提前固定住，不代表 MCP 已允许真实 qoder 执行。
 - 当前保留为独立工具是合理的，因为它们分别对应 submit / project / run+project 三个不同 lifecycle action，同时避免把 scheduler mutation 误解为 trajectory mutation。
 - 当前端到端冒烟顺序已固化为 `schedulerSubmitTasks -> schedulerProjection -> schedulerRunOnceAndProject`，并由 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 及 bootstrap 副本提供 agent 操作提示；该提示词只用于 scheduler lifecycle 验证，不替代 `localTrajectory`。
+- `schedulerLifecycleHarness` 不替代 `schedulerLifecycleRunOnce`：前者是 host-managed bounded harness + policy wrapper，可能执行多个 harness attempts；后者是单次 lifecycle-gated loop。需要只跑一次 lifecycle decision 时保留 run-once，关注 retry/deadline/cancel policy 时使用 harness。
 
 ## 2026-06-19 增量：Scheduler Operator Workflow Tool
 

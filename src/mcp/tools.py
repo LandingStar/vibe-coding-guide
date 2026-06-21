@@ -1607,6 +1607,120 @@ class GovernanceTools:
         payload["runtime_provider"] = normalized_runtime_provider
         return payload
 
+    def scheduler_lifecycle_harness(
+        self,
+        *,
+        control_path: str,
+        runtime_provider: str = "fake",
+        timestamp: str = "",
+        max_cycles: int = 1,
+        max_loop_failures: int | None = 1,
+        max_ticks: int = 1,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        stale_after_seconds: int | None = None,
+        now_epoch_seconds: int | None = None,
+        policy_cancelled: bool = False,
+        deadline_epoch_seconds: int | None = None,
+        max_attempts: int = 1,
+        retry_stop_reasons: list[str] | tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """Run the policy-controlled bounded scheduler lifecycle harness."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerLifecycleHarness currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "explicit host permission and adapter registry configuration."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "policy_authority": "host-owned-harness-policy",
+                    "harness_authority": "host-owned-bounded-process-harness",
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+        if not control_path:
+            return {
+                "ok": False,
+                "error": "schedulerLifecycleHarness requires controlPath.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from ..runtime.orchestration import (
+            SchedulerDaemonHarnessPolicy,
+            SchedulerDaemonHarnessRequest,
+            SchedulerDaemonLoopStopPolicy,
+            run_scheduler_daemon_harness_with_policy,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        control = resolve_path(control_path)
+        try:
+            result = run_scheduler_daemon_harness_with_policy(
+                SchedulerDaemonHarnessRequest(
+                    control_path=control,
+                    max_cycles=max_cycles,
+                    stop_policy=SchedulerDaemonLoopStopPolicy(
+                        max_ticks=max_ticks,
+                        max_runs_per_tick=max_runs_per_tick,
+                        max_runtime_failures=max_runtime_failures,
+                    ),
+                    runtime_provider=normalized_runtime_provider,
+                    timestamp=timestamp,
+                    workspace_root=str(self._project_root),
+                    stale_now_epoch_seconds=now_epoch_seconds,
+                    stale_after_seconds=stale_after_seconds,
+                    max_loop_failures=max_loop_failures,
+                ),
+                SchedulerDaemonHarnessPolicy(
+                    cancelled=policy_cancelled,
+                    deadline_epoch_seconds=deadline_epoch_seconds,
+                    now_epoch_seconds=now_epoch_seconds,
+                    max_attempts=max_attempts,
+                    retry_stop_reasons=tuple(retry_stop_reasons or ()),
+                ),
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "control_path": str(control),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "policy_authority": "host-owned-harness-policy",
+                    "harness_authority": "host-owned-bounded-process-harness",
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+
+        payload = result.to_json_dict()
+        payload["runtime_provider"] = normalized_runtime_provider
+        return payload
+
     def scheduler_operator_workflow(
         self,
         *,

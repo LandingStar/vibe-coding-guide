@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Scheduler harness policy MCP surface 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-scheduler-harness-policy-mcp-surface.md` 已完成并关闭；当前 Codex/MCP 主链可直接调用 `schedulerLifecycleHarness`，以 fake-runtime-only、显式 path、bounded attempts 的方式运行 policy-controlled scheduler lifecycle harness。
+- 候选 1：`Host-Managed Daemon Supervisor Contract`
+  - 做什么：定义 host-owned supervisor 对 repeated policy-controlled harness invocation 的最小合同，覆盖 status readback、cancellation source、cadence ownership、process/session identity 与 lifecycle event shape。
+  - 依据：`design_docs/scheduler-harness-policy-mcp-surface-followup-direction-analysis.md`、`review/scheduler-harness-policy-mcp-surface-2026-06-21.md`
+- 候选 2：`Agent Home / Context Session Binding Over Harness Attempts`
+  - 做什么：把 agent home / temporary scratch / context session lifecycle 绑定到 scheduler harness attempts，为后续较大 agent 编排提供可见 ownership 与 cleanup 语义。
+  - 依据：`design_docs/scheduler-harness-policy-mcp-surface-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 候选 3：`Harness Policy Dogfood Workflow`
+  - 做什么：建立 deterministic dogfood workflow，串联 MCP lifecycle control、`schedulerLifecycleHarness`、state readback/evidence 检查，验证 Codex-style 使用流程。
+  - 依据：`design_docs/scheduler-harness-policy-mcp-surface-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。MCP invocation gap 已关闭，下一步更缺 host 对 repeated policy-controlled harness invocation 的所有权和状态合同；这会为后续 agent-home/session 绑定提供更清晰的 lifecycle anchor。
+
 ## 2026-06-21 补充候选：Scheduler harness retry/deadline/cancellation policy 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md` 已完成并关闭；当前 bounded host-managed harness 外已有 deterministic host-owned policy wrapper，支持 cancelled/deadline preflight、explicit retry stop reasons、max attempts 与 policy result JSON。

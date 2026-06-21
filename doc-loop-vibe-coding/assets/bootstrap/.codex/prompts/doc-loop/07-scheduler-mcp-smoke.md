@@ -91,7 +91,13 @@ Keep the lifecycle split:
    loop. It may mutate scheduler snapshot/event-log state only through the
    bounded scheduler loop; paused/cancelled/stopped/stale controls skip
    scheduler mutation, and cancellation is consumed before provider execution.
-19. Controlled host-runtime dogfood uses
+19. Scheduler lifecycle harness uses
+   `doc-based-coding scheduler lifecycle harness` or
+   `schedulerLifecycleHarness` to run the bounded host-managed harness with
+   explicit cancelled/deadline preflight and retry over listed harness stop
+   reasons. It remains fake-runtime-only in MCP, does not refresh projection,
+   and does not mutate agent-owned Local Work Trajectory.
+20. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
