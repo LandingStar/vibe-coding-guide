@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Host UX daemon-loop sandbox receipt workflow mode 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-ux-daemon-loop-sandbox-receipt-workflow-mode.md` 已完成并关闭；VS Code Scheduler Operator 的 `Sandbox Receipt Workflow` 控件已支持 `run-once` 与 bounded `daemon-loop` 两种模式，daemon-loop 显式采集 `max ticks`、`max runs per tick`、`max runtime failures`，并复用既有 `doc-based-coding scheduler sandbox-receipt-workflow` CLI surface。
+- 候选 1：`Host UX Cleanup Outcome Diff For Sandbox Receipt Workflow`
+  - 做什么：在 Host UX 中只读对比 allocation evidence 与 cleanup evidence，展示 cleanup required / completed / failed id 变化和每个 allocation 的状态转移。
+  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`、`review/host-ux-daemon-loop-sandbox-receipt-workflow-mode-2026-06-21.md`
+- 候选 2：`Evidence-Aware Workflow Defaults`
+  - 做什么：从可见 Host Evidence receipt candidates 预填 workflow path/id 字段，但不自动勾选 cleanup、不自动执行 workflow。
+  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`
+- 候选 3：`Scheduler Projection Refresh Integration`
+  - 做什么：在 workflow 完成后提供显式 projection refresh follow-up，使 scheduler-derived trajectory projection 可在同一 Host UX flow 内检查。
+  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。两种 workflow mode 已能产生 allocation/cleanup evidence pair，下一步最有价值的是把 evidence pair 的结果差异读清楚；这保持只读和 fake-runtime 边界，不扩大调度/runtime 权限。
+
 ## 2026-06-21 补充候选：git-worktree sandbox provider spike 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md` 已完成并关闭；`src/runtime/orchestration/sandbox.py` 已新增最小 `GitWorktreeSandboxProvider`、typed allocation/cleanup receipt、acquired edit lease lifecycle fail-closed 行为，以及 deterministic per-task worktree allocation / cleanup helper。

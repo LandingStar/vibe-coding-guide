@@ -2067,6 +2067,17 @@ function buildParallelPreviewHtml(
   .pg-host-scheduler-cleanup-input::placeholder {
     color: rgba(248, 244, 239, 0.42);
   }
+  .pg-host-scheduler-select {
+    min-width: 0;
+    min-height: 30px;
+    border: 1px solid rgba(163, 218, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.26);
+    color: #f8f4ef;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 0.74rem;
+  }
   .pg-host-scheduler-workflow-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2085,6 +2096,11 @@ function buildParallelPreviewHtml(
   }
   .pg-host-scheduler-field[data-pg-wide-field="true"] {
     grid-column: 1 / -1;
+  }
+  .pg-host-scheduler-field-hint {
+    color: rgba(248, 244, 239, 0.52);
+    font-size: 0.68rem;
+    line-height: 1.35;
   }
   .pg-host-scheduler-workflow-details {
     display: grid;
@@ -2479,6 +2495,11 @@ function buildParallelPreviewHtml(
     const input = document.getElementById(id);
     return input instanceof HTMLInputElement ? input.checked : false;
   };
+  const readSelectValue = (id) => {
+    const select = document.getElementById(id);
+    return select instanceof HTMLSelectElement ? select.value : '';
+  };
+  const isPositiveIntegerText = (value) => /^[1-9]\\d*$/.test(value);
   const focusFirstMissingInput = (ids) => {
     for (const id of ids) {
       const input = document.getElementById(id);
@@ -2507,12 +2528,16 @@ function buildParallelPreviewHtml(
         return;
       }
       const workflowCleanup = readCheckbox('pgHostSandboxWorkflowCleanup');
+      const workflowMode = readSelectValue('pgHostSandboxWorkflowMode') || 'run-once';
       const workflowPayload = {
-        workflowMode: 'run-once',
+        workflowMode,
         workspaceRoot: readTextInput('pgHostSandboxWorkflowWorkspaceRoot'),
         gitWorktreeSandboxRoot: readTextInput('pgHostSandboxWorkflowSandboxRoot'),
         allocationEvidenceId: readTextInput('pgHostSandboxWorkflowAllocationEvidenceId'),
         allocationEvidencePath: readTextInput('pgHostSandboxWorkflowAllocationEvidencePath'),
+        maxTicks: workflowMode === 'daemon-loop' ? readTextInput('pgHostSandboxWorkflowMaxTicks') : '',
+        maxRunsPerTick: workflowMode === 'daemon-loop' ? readTextInput('pgHostSandboxWorkflowMaxRunsPerTick') : '',
+        maxRuntimeFailures: workflowMode === 'daemon-loop' ? readTextInput('pgHostSandboxWorkflowMaxRuntimeFailures') : '',
         cleanup: workflowCleanup,
         cleanupEvidenceId: workflowCleanup ? readTextInput('pgHostSandboxWorkflowCleanupEvidenceId') : '',
         cleanupEvidencePath: workflowCleanup ? readTextInput('pgHostSandboxWorkflowCleanupEvidencePath') : '',
@@ -2535,6 +2560,23 @@ function buildParallelPreviewHtml(
         ];
         if (focusFirstMissingInput(missing)) {
           return;
+        }
+        if (workflowMode === 'daemon-loop') {
+          const daemonBounds = [
+            'pgHostSandboxWorkflowMaxTicks',
+            'pgHostSandboxWorkflowMaxRunsPerTick',
+            'pgHostSandboxWorkflowMaxRuntimeFailures',
+          ];
+          if (focusFirstMissingInput(daemonBounds)) {
+            return;
+          }
+          for (const id of daemonBounds) {
+            const input = document.getElementById(id);
+            if (input instanceof HTMLInputElement && !isPositiveIntegerText(input.value.trim())) {
+              input.focus();
+              return;
+            }
+          }
         }
       }
       target.disabled = true;
@@ -3305,9 +3347,66 @@ function buildSchedulerSandboxReceiptWorkflowAction(actionRunning: boolean): str
   return `<section id="pgHostSandboxReceiptWorkflow" class="pg-host-scheduler-cleanup-form">
   <div class="pg-host-evidence-title-wrap">
     <h3 class="pg-host-scheduler-candidate-title">Sandbox Receipt Workflow</h3>
-    <p class="pg-host-control-card-subtitle">run-once allocate/readback with optional explicit cleanup/readback · scheduler sandbox-receipt-workflow</p>
+    <p class="pg-host-control-card-subtitle">run-once or bounded daemon-loop allocate/readback with optional explicit cleanup/readback · scheduler sandbox-receipt-workflow</p>
   </div>
   <div class="pg-host-scheduler-workflow-grid">
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowMode">workflow mode</label>
+      <select
+        id="pgHostSandboxWorkflowMode"
+        class="pg-host-scheduler-select"
+        ${actionRunning ? 'disabled' : ''}
+      >
+        <option value="run-once" selected>run-once</option>
+        <option value="daemon-loop">daemon-loop</option>
+      </select>
+      <span class="pg-host-scheduler-field-hint">daemon-loop uses bounded fake runtime settings below.</span>
+    </div>
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowMaxTicks">max ticks</label>
+      <input
+        id="pgHostSandboxWorkflowMaxTicks"
+        class="pg-host-scheduler-cleanup-input"
+        type="number"
+        min="1"
+        step="1"
+        inputmode="numeric"
+        autocomplete="off"
+        spellcheck="false"
+        value="1"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowMaxRunsPerTick">max runs / tick</label>
+      <input
+        id="pgHostSandboxWorkflowMaxRunsPerTick"
+        class="pg-host-scheduler-cleanup-input"
+        type="number"
+        min="1"
+        step="1"
+        inputmode="numeric"
+        autocomplete="off"
+        spellcheck="false"
+        value="1"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowMaxRuntimeFailures">max runtime failures</label>
+      <input
+        id="pgHostSandboxWorkflowMaxRuntimeFailures"
+        class="pg-host-scheduler-cleanup-input"
+        type="number"
+        min="1"
+        step="1"
+        inputmode="numeric"
+        autocomplete="off"
+        spellcheck="false"
+        value="1"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
     <div class="pg-host-scheduler-field" data-pg-wide-field="true">
       <label for="pgHostSandboxWorkflowWorkspaceRoot">workspace root</label>
       <input

@@ -243,6 +243,9 @@ test('scheduler operator run-once sandbox receipt workflow requires explicit inp
     gitWorktreeSandboxRoot: 'sandboxes',
     allocationEvidenceId: 'allocation',
     allocationEvidencePath: '.codex/scheduler/evidence/allocation.json',
+    maxTicks: '',
+    maxRunsPerTick: '',
+    maxRuntimeFailures: '',
     cleanup: true,
     cleanupEvidenceId: 'cleanup',
     cleanupEvidencePath: '.codex/scheduler/evidence/cleanup.json',
@@ -257,6 +260,9 @@ test('scheduler operator run-once sandbox receipt workflow maps to explicit work
     gitWorktreeSandboxRoot: 'sandboxes',
     allocationEvidenceId: 'workflow-allocation',
     allocationEvidencePath: '.codex/scheduler/evidence/workflow-allocation.json',
+    maxTicks: '',
+    maxRunsPerTick: '',
+    maxRuntimeFailures: '',
     cleanup: false,
     cleanupEvidenceId: '',
     cleanupEvidencePath: '',
@@ -294,6 +300,9 @@ test('scheduler operator run-once sandbox receipt workflow only sends cleanup ou
     gitWorktreeSandboxRoot: 'sandboxes',
     allocationEvidenceId: 'workflow-allocation',
     allocationEvidencePath: '',
+    maxTicks: '',
+    maxRunsPerTick: '',
+    maxRuntimeFailures: '',
     cleanup: true,
     cleanupEvidenceId: 'workflow-cleanup',
     cleanupEvidencePath: '.codex/scheduler/evidence/workflow-cleanup.json',
@@ -306,4 +315,86 @@ test('scheduler operator run-once sandbox receipt workflow only sends cleanup ou
   assert.ok(args.includes('--cleanup-evidence-path'));
   assert.ok(args.includes('.codex/scheduler/evidence/workflow-cleanup.json'));
   assert.equal(flagCount(args, '--allocation-evidence-path'), 0);
+});
+
+test('scheduler operator daemon-loop sandbox receipt workflow requires bounded positive integers', () => {
+  for (const badValue of ['', '0', '-1', '1.5', 'abc']) {
+    assert.equal(
+      coerceSchedulerOperatorActionMessage({
+        command: 'schedulerOperatorAction',
+        action: 'runSandboxReceiptWorkflow',
+        workflowMode: 'daemon-loop',
+        workspaceRoot: 'repo',
+        gitWorktreeSandboxRoot: 'sandboxes',
+        allocationEvidenceId: 'allocation',
+        maxTicks: badValue,
+        maxRunsPerTick: '1',
+        maxRuntimeFailures: '1',
+      }),
+      null,
+    );
+  }
+
+  const action = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'runSandboxReceiptWorkflow',
+    workflowMode: 'daemon-loop',
+    workspaceRoot: ' repo ',
+    gitWorktreeSandboxRoot: ' sandboxes ',
+    allocationEvidenceId: ' allocation ',
+    allocationEvidencePath: ' ',
+    maxTicks: ' 4 ',
+    maxRunsPerTick: ' 2 ',
+    maxRuntimeFailures: ' 3 ',
+    cleanup: false,
+  });
+
+  assert.deepEqual(action, {
+    kind: 'runSandboxReceiptWorkflow',
+    mode: 'daemon-loop',
+    workspaceRoot: 'repo',
+    gitWorktreeSandboxRoot: 'sandboxes',
+    allocationEvidenceId: 'allocation',
+    allocationEvidencePath: '',
+    maxTicks: '4',
+    maxRunsPerTick: '2',
+    maxRuntimeFailures: '3',
+    cleanup: false,
+    cleanupEvidenceId: '',
+    cleanupEvidencePath: '',
+  } satisfies SchedulerOperatorAction);
+});
+
+test('scheduler operator daemon-loop sandbox receipt workflow maps bounded flags', () => {
+  const args = buildSchedulerOperatorWorkflowArgs({
+    kind: 'runSandboxReceiptWorkflow',
+    mode: 'daemon-loop',
+    workspaceRoot: 'repo',
+    gitWorktreeSandboxRoot: 'sandboxes',
+    allocationEvidenceId: 'workflow-allocation',
+    allocationEvidencePath: '',
+    maxTicks: '4',
+    maxRunsPerTick: '2',
+    maxRuntimeFailures: '3',
+    cleanup: false,
+    cleanupEvidenceId: '',
+    cleanupEvidencePath: '',
+  });
+
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'sandbox-receipt-workflow']);
+  assert.deepEqual(args.slice(args.indexOf('--mode'), args.indexOf('--mode') + 2), ['--mode', 'daemon-loop']);
+  assert.deepEqual(
+    args.slice(args.indexOf('--max-ticks'), args.indexOf('--max-ticks') + 2),
+    ['--max-ticks', '4'],
+  );
+  assert.deepEqual(
+    args.slice(args.indexOf('--max-runs-per-tick'), args.indexOf('--max-runs-per-tick') + 2),
+    ['--max-runs-per-tick', '2'],
+  );
+  assert.deepEqual(
+    args.slice(args.indexOf('--max-runtime-failures'), args.indexOf('--max-runtime-failures') + 2),
+    ['--max-runtime-failures', '3'],
+  );
+  assert.equal(flagCount(args, '--max-runs'), 0);
+  assertOnlyExplicitActionFlag(args, null);
 });

@@ -5,11 +5,14 @@ export type SchedulerOperatorAction =
   | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
   | {
       kind: 'runSandboxReceiptWorkflow';
-      mode: 'run-once';
+      mode: 'run-once' | 'daemon-loop';
       workspaceRoot: string;
       gitWorktreeSandboxRoot: string;
       allocationEvidenceId: string;
       allocationEvidencePath: string;
+      maxTicks: string;
+      maxRunsPerTick: string;
+      maxRuntimeFailures: string;
       cleanup: boolean;
       cleanupEvidenceId: string;
       cleanupEvidencePath: string;
@@ -27,6 +30,9 @@ export type SchedulerOperatorWebviewMessage = {
   gitWorktreeSandboxRoot?: unknown;
   allocationEvidenceId?: unknown;
   allocationEvidencePath?: unknown;
+  maxTicks?: unknown;
+  maxRunsPerTick?: unknown;
+  maxRuntimeFailures?: unknown;
   cleanup?: unknown;
   cleanupEvidenceId?: unknown;
   cleanupEvidencePath?: unknown;
@@ -79,7 +85,7 @@ export function coerceSchedulerOperatorActionMessage(
     };
   }
   if (message.action === 'runSandboxReceiptWorkflow') {
-    if (message.workflowMode !== 'run-once') {
+    if (message.workflowMode !== 'run-once' && message.workflowMode !== 'daemon-loop') {
       return null;
     }
     if (typeof message.workspaceRoot !== 'string' || !message.workspaceRoot.trim()) {
@@ -112,15 +118,36 @@ export function coerceSchedulerOperatorActionMessage(
         return null;
       }
     }
+    const mode = message.workflowMode;
+    const maxTicks = typeof message.maxTicks === 'string' ? message.maxTicks.trim() : '';
+    const maxRunsPerTick = typeof message.maxRunsPerTick === 'string'
+      ? message.maxRunsPerTick.trim()
+      : '';
+    const maxRuntimeFailures = typeof message.maxRuntimeFailures === 'string'
+      ? message.maxRuntimeFailures.trim()
+      : '';
+    if (
+      mode === 'daemon-loop'
+      && (
+        !isPositiveIntegerText(maxTicks)
+        || !isPositiveIntegerText(maxRunsPerTick)
+        || !isPositiveIntegerText(maxRuntimeFailures)
+      )
+    ) {
+      return null;
+    }
     return {
       kind: 'runSandboxReceiptWorkflow',
-      mode: 'run-once',
+      mode,
       workspaceRoot: message.workspaceRoot.trim(),
       gitWorktreeSandboxRoot: message.gitWorktreeSandboxRoot.trim(),
       allocationEvidenceId: message.allocationEvidenceId.trim(),
       allocationEvidencePath: typeof message.allocationEvidencePath === 'string'
         ? message.allocationEvidencePath.trim()
         : '',
+      maxTicks: mode === 'daemon-loop' ? maxTicks : '',
+      maxRunsPerTick: mode === 'daemon-loop' ? maxRunsPerTick : '',
+      maxRuntimeFailures: mode === 'daemon-loop' ? maxRuntimeFailures : '',
       cleanup,
       cleanupEvidenceId: cleanup && typeof message.cleanupEvidenceId === 'string'
         ? message.cleanupEvidenceId.trim()
@@ -211,9 +238,19 @@ export function buildSchedulerOperatorWorkflowArgs(
       action.allocationEvidenceId,
       '--runtime-provider',
       'fake',
-      '--max-runs',
-      '1',
     ];
+    if (action.mode === 'daemon-loop') {
+      args.push(
+        '--max-ticks',
+        action.maxTicks,
+        '--max-runs-per-tick',
+        action.maxRunsPerTick,
+        '--max-runtime-failures',
+        action.maxRuntimeFailures,
+      );
+    } else {
+      args.push('--max-runs', '1');
+    }
     if (action.allocationEvidencePath) {
       args.push('--allocation-evidence-path', action.allocationEvidencePath);
     }
@@ -234,4 +271,8 @@ export function buildSchedulerOperatorWorkflowArgs(
     '--guide-context',
     'vscode-scheduler-operator',
   ];
+}
+
+function isPositiveIntegerText(value: string): boolean {
+  return /^[1-9]\d*$/.test(value);
 }
