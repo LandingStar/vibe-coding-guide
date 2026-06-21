@@ -2029,6 +2029,45 @@ function buildParallelPreviewHtml(
     grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
     gap: 8px;
   }
+  .pg-host-scheduler-cleanup-form {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+  .pg-host-scheduler-cleanup-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .pg-host-scheduler-cleanup-input {
+    min-width: 0;
+    min-height: 30px;
+    border: 1px solid rgba(163, 218, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.16);
+    color: #f8f4ef;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 0.74rem;
+  }
+  .pg-host-scheduler-cleanup-input::placeholder {
+    color: rgba(248, 244, 239, 0.42);
+  }
+  .pg-host-scheduler-cleanup-confirm {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    color: rgba(248, 244, 239, 0.74);
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
+  .pg-host-scheduler-cleanup-confirm input {
+    margin: 0;
+  }
   .pg-host-scheduler-candidates {
     display: grid;
     gap: 9px;
@@ -2354,13 +2393,25 @@ function buildParallelPreviewHtml(
         return;
       }
       const action = target.dataset.pgSchedulerAction || '';
+      const evidencePathInput = document.getElementById('pgHostCleanupEvidencePath');
+      const cleanupConfirmInput = document.getElementById('pgHostCleanupConfirm');
+      const evidencePath = evidencePathInput instanceof HTMLInputElement ? evidencePathInput.value.trim() : '';
+      const cleanupConfirmed = cleanupConfirmInput instanceof HTMLInputElement ? cleanupConfirmInput.checked : false;
+      if (action === 'cleanupReceipts' && (!evidencePath || !cleanupConfirmed)) {
+        if (cleanupConfirmInput instanceof HTMLInputElement) {
+          cleanupConfirmInput.focus();
+        }
+        return;
+      }
       target.disabled = true;
-      target.textContent = action === 'admit' ? 'Admitting...' : action === 'runLoop' ? 'Running...' : 'Refreshing...';
+      target.textContent = action === 'admit' ? 'Admitting...' : action === 'runLoop' ? 'Running...' : action === 'cleanupReceipts' ? 'Cleaning...' : 'Refreshing...';
       vscode.postMessage({
         command: 'schedulerOperatorAction',
         action,
         artifactId: target.dataset.pgArtifactId || '',
         version: target.dataset.pgVersion || '',
+        evidencePath,
+        confirmed: cleanupConfirmed,
       });
     });
   }
@@ -3064,6 +3115,7 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
     workflow.authorizationReadback,
     workflow.authorizationReadError,
   );
+  const cleanupAction = buildSchedulerCleanupReceiptAction(lastAction.status === 'running');
   const errors = exchange?.errors.length
     ? buildHostEvidenceChipGroup('Exchange read errors', exchange.errors)
     : '';
@@ -3093,10 +3145,36 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   <div class="pg-host-scheduler-operator-grid">${exchangeFacts || pathFacts}${schedulerFacts}</div>
   ${schedulerReadError}
   ${authorizationReadback}
+  ${cleanupAction}
   ${readError}
   ${candidateList}
   ${errors}
   ${lastActionHtml}
+</section>`;
+}
+
+function buildSchedulerCleanupReceiptAction(actionRunning: boolean): string {
+  return `<section id="pgHostSchedulerCleanupReceipts" class="pg-host-scheduler-cleanup-form">
+  <div class="pg-host-evidence-title-wrap">
+    <h3 class="pg-host-scheduler-candidate-title">Sandbox Receipt Cleanup</h3>
+    <p class="pg-host-control-card-subtitle">manual sandbox_allocation_receipt_evidence path · explicit scheduler cleanup-receipts invocation</p>
+  </div>
+  <div class="pg-host-scheduler-cleanup-row">
+    <input
+      id="pgHostCleanupEvidencePath"
+      class="pg-host-scheduler-cleanup-input"
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder=".codex/scheduler/evidence/allocation-receipts.json"
+      ${actionRunning ? 'disabled' : ''}
+    >
+    <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="cleanupReceipts" ${actionRunning ? 'disabled' : ''}>Clean receipts</button>
+  </div>
+  <label class="pg-host-scheduler-cleanup-confirm" for="pgHostCleanupConfirm">
+    <input id="pgHostCleanupConfirm" type="checkbox" ${actionRunning ? 'disabled' : ''}>
+    <span>I confirm this explicitly runs cleanup for receipt-marked git-worktree sandboxes and writes updated evidence.</span>
+  </label>
 </section>`;
 }
 

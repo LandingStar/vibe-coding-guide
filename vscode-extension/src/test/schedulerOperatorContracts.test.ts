@@ -130,3 +130,58 @@ test('scheduler operator run-loop args can derive deterministic evidence path fr
   assert.ok(args.includes('--evidence-path'));
   assert.ok(args.includes('.codex/scheduler/evidence/vscode-operator-42.json'));
 });
+
+test('scheduler operator cleanup receipts action requires path and explicit confirmation', () => {
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'cleanupReceipts',
+      evidencePath: '.codex/scheduler/evidence/allocation.json',
+      confirmed: false,
+    }),
+    null,
+  );
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'cleanupReceipts',
+      confirmed: true,
+    }),
+    null,
+  );
+
+  const action = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'cleanupReceipts',
+    evidencePath: '  .codex/scheduler/evidence/allocation.json  ',
+    confirmed: true,
+  });
+
+  assert.deepEqual(action, {
+    kind: 'cleanupReceipts',
+    evidencePath: '.codex/scheduler/evidence/allocation.json',
+    confirmed: true,
+  } satisfies SchedulerOperatorAction);
+});
+
+test('scheduler operator cleanup receipts action maps to explicit cleanup CLI surface', () => {
+  const args = buildSchedulerOperatorWorkflowArgs(
+    {
+      kind: 'cleanupReceipts',
+      evidencePath: '.codex/scheduler/evidence/allocation.json',
+      confirmed: true,
+    },
+    { now: () => 777 },
+  );
+
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'cleanup-receipts']);
+  assert.ok(args.includes('--input-evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/allocation.json'));
+  assert.ok(args.includes('--output-evidence-id'));
+  assert.ok(args.includes('vscode-cleanup-777'));
+  assert.ok(args.includes('--output-evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/vscode-cleanup-777.json'));
+  assert.equal(flagCount(args, '--admit'), 0);
+  assert.equal(flagCount(args, '--run-loop'), 0);
+  assert.equal(flagCount(args, '--refresh-projection'), 0);
+});

@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-21T10:05:00+08:00
+# Checkpoint - 2026-06-21T10:25:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Host sandbox receipt workflow CLI/MCP surface completed
+Post-v1.0 - Agent orchestration / Host UX sandbox receipt workflow selection completed
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,36 +9,33 @@ Post-v1.0 - Agent orchestration / Host sandbox receipt workflow CLI/MCP surface 
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md`.
-- [x] Add CLI `doc-based-coding scheduler sandbox-receipt-workflow`.
-- [x] Add MCP `schedulerSandboxReceiptWorkflow`.
-- [x] Support `run-once` and `daemon-loop` modes through the shared backend helper.
-- [x] Preserve fake-only CLI/MCP runtime and explicit cleanup opt-in.
+- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-host-ux-sandbox-receipt-workflow-selection.md`.
+- [x] Add manual sandbox allocation receipt evidence path input to Scheduler Operator Host UX.
+- [x] Require explicit cleanup confirmation before dispatch.
+- [x] Add shared `cleanupReceipts` webview action contract.
+- [x] Invoke existing `doc-based-coding scheduler cleanup-receipts` CLI surface.
+- [x] Refresh/read Host Evidence through the existing panel reload path.
 - [x] Record review evidence and follow-up direction.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Gate: CLI/MCP Surface For Host Sandbox Receipt Workflow - source: design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md
-- Review Evidence: CLI/MCP Surface For Host Sandbox Receipt Workflow Review - source: review/host-sandbox-receipt-workflow-cli-mcp-surface-2026-06-21.md
-- Recommended Source: CLI/MCP Surface For Host Sandbox Receipt Workflow Follow-Up Direction Analysis - source: design_docs/host-sandbox-receipt-workflow-cli-mcp-surface-followup-direction-analysis.md
-- Recommended Next Gate: Host UX Selection For Sandbox Receipt Workflow - source: design_docs/host-sandbox-receipt-workflow-cli-mcp-surface-followup-direction-analysis.md
-- Prior Gate: Host Workflow For Allocate-Read-Cleanup-Read - source: design_docs/stages/planning-gate/2026-06-21-host-workflow-allocate-read-cleanup-read.md
+- Completed Gate: Host UX Selection For Sandbox Receipt Workflow - source: design_docs/stages/planning-gate/2026-06-21-host-ux-sandbox-receipt-workflow-selection.md
+- Review Evidence: Host UX Selection For Sandbox Receipt Workflow Review - source: review/host-ux-sandbox-receipt-workflow-selection-2026-06-21.md
+- Recommended Source: Host UX Sandbox Receipt Workflow Selection Follow-Up Direction Analysis - source: design_docs/host-ux-sandbox-receipt-workflow-selection-followup-direction-analysis.md
+- Recommended Next Gate: Host UX Evidence Discovery For Sandbox Receipts - source: design_docs/host-ux-sandbox-receipt-workflow-selection-followup-direction-analysis.md
+- Prior Gate: CLI/MCP Surface For Host Sandbox Receipt Workflow - source: design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md
-- design_docs/host-sandbox-receipt-workflow-cli-mcp-surface-followup-direction-analysis.md
-- review/host-sandbox-receipt-workflow-cli-mcp-surface-2026-06-21.md
-- tools/progress_graph/host_sandbox_receipt_workflow.py
-- tools/progress_graph/__init__.py
+- design_docs/stages/planning-gate/2026-06-21-host-ux-sandbox-receipt-workflow-selection.md
+- design_docs/host-ux-sandbox-receipt-workflow-selection-followup-direction-analysis.md
+- review/host-ux-sandbox-receipt-workflow-selection-2026-06-21.md
+- vscode-extension/src/views/progressGraphPreviewHtml.ts
+- vscode-extension/src/views/schedulerOperatorContracts.ts
+- vscode-extension/src/views/schedulerOperatorWorkflow.ts
+- vscode-extension/src/test/schedulerOperatorContracts.test.ts
+- vscode-extension/src/test/progressGraphPreviewHtml.test.ts
+- vscode-extension/src/test/progressGraphPreviewPanel.test.ts
 - src/__main__.py
-- src/mcp/tools.py
-- src/mcp/server.py
-- src/runtime/orchestration/scheduler_host_runner.py
-- src/runtime/orchestration/scheduler_host_daemon.py
 - src/runtime/orchestration/sandbox_cleanup_runner.py
-- src/runtime/orchestration/sandbox_allocation_evidence.py
 - tools/progress_graph/host_evidence.py
-- tests/test_cli.py
-- tests/test_mcp_admission.py
-- tests/test_mcp_tools.py

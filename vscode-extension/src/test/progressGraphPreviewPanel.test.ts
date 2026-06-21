@@ -120,9 +120,13 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /dbc:\/\/exchange-artifacts\/bundle/);
   assert.match(schedulerOperatorSource, /buildSchedulerOperatorWorkflowArgs/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'operator-workflow'/);
+  assert.match(schedulerOperatorContractSource, /'scheduler',\s*'cleanup-receipts'/);
   assert.match(schedulerOperatorContractSource, /'--admit'/);
   assert.match(schedulerOperatorContractSource, /'--run-loop'/);
   assert.match(schedulerOperatorContractSource, /'--refresh-projection'/);
+  assert.match(schedulerOperatorContractSource, /'--input-evidence-path'/);
+  assert.match(schedulerOperatorContractSource, /'--output-evidence-id'/);
+  assert.match(schedulerOperatorContractSource, /vscode-cleanup-/);
   assert.match(schedulerOperatorContractSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
   assert.match(schedulerOperatorContractSource, /'--admission-ledger-path',\s*'\.codex\/orchestration\/exchange-artifact-admissions\.json'/);
   assert.match(schedulerOperatorContractSource, /'--projection-output-path',\s*'\.codex\/progress-graph\/scheduler-work-trajectory\.json'/);
@@ -131,6 +135,9 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'admission_result'\)/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'loop_result'\)/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'projection_result'\)/);
+  assert.match(schedulerOperatorSource, /action === 'cleanupReceipts'/);
+  assert.match(schedulerOperatorSource, /cleaned_allocation_ids/);
+  assert.match(schedulerOperatorSource, /failed_allocation_ids/);
   assert.match(schedulerOperatorSource, /importlib\.metadata\.distribution\("doc-based-coding-runtime"\)/);
   assert.match(schedulerOperatorSource, /from src\.__main__ import main/);
   assert.match(schedulerOperatorSource, /sys\.argv = \["doc-based-coding"/);

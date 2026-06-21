@@ -205,6 +205,13 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
   assert.match(html, /dbc:\/\/exchange-artifacts\/bundle/);
   assert.match(html, /id="pgHostSchedulerAuthorizationReadback"/);
   assert.match(html, /authorization unavailable/);
+  assert.match(html, /id="pgHostSchedulerCleanupReceipts"/);
+  assert.match(html, /Sandbox Receipt Cleanup/);
+  assert.match(html, /id="pgHostCleanupEvidencePath"/);
+  assert.match(html, /placeholder="\.codex\/scheduler\/evidence\/allocation-receipts\.json"/);
+  assert.match(html, /id="pgHostCleanupConfirm"/);
+  assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
+  assert.match(html, /scheduler cleanup-receipts/);
   assert.match(html, /No scheduler-admission candidates are currently present/);
   assert.match(html, /id="pgHostEvidencePanel"/);
   assert.match(html, /Host Evidence/);
@@ -274,6 +281,12 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /data-pg-version="v1"/);
   assert.match(html, /data-pg-scheduler-action="runLoop"/);
   assert.match(html, /data-pg-scheduler-action="project"/);
+  assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
+  assert.match(html, /const evidencePath = evidencePathInput instanceof HTMLInputElement \? evidencePathInput\.value\.trim\(\) : ''/);
+  assert.match(html, /const cleanupConfirmed = cleanupConfirmInput instanceof HTMLInputElement \? cleanupConfirmInput\.checked : false/);
+  assert.match(html, /action === 'cleanupReceipts' && \(!evidencePath \|\| !cleanupConfirmed\)/);
+  assert.match(html, /evidencePath,/);
+  assert.match(html, /confirmed: cleanupConfirmed/);
   assert.match(html, /loop ticks=2/);
   assert.match(html, /Scheduler events/);
   assert.match(html, />9<\/div>/);

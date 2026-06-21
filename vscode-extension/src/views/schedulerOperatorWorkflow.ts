@@ -562,6 +562,13 @@ function summarizeActionPayload(action: string, payload: Record<string, unknown>
     const laneCount = readNumber(projectionResult.lane_count);
     return `projection refreshed · events=${eventCount} · lanes=${laneCount}`;
   }
+  if (action === 'cleanupReceipts') {
+    const cleanedCount = readStringArray(payload.cleaned_allocation_ids).length;
+    const failedCount = readStringArray(payload.failed_allocation_ids).length;
+    const skippedCount = readStringArray(payload.skipped_allocation_ids).length;
+    const evidenceId = readString(payload.output_evidence_id, '');
+    return `cleanup receipts · cleaned=${cleanedCount} · failed=${failedCount} · skipped=${skippedCount}${evidenceId ? ` · evidence=${evidenceId}` : ''}`;
+  }
   return 'action completed';
 }
 

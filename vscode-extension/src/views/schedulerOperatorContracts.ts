@@ -1,13 +1,16 @@
 export type SchedulerOperatorAction =
   | { kind: 'admit'; artifactId: string; version: string }
   | { kind: 'runLoop' }
-  | { kind: 'project' };
+  | { kind: 'project' }
+  | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean };
 
 export type SchedulerOperatorWebviewMessage = {
   command?: unknown;
   action?: unknown;
   artifactId?: unknown;
   version?: unknown;
+  evidencePath?: unknown;
+  confirmed?: unknown;
 };
 
 export type SchedulerOperatorWorkflowArgsOptions = {
@@ -42,6 +45,19 @@ export function coerceSchedulerOperatorActionMessage(
   }
   if (message.action === 'project') {
     return { kind: 'project' };
+  }
+  if (message.action === 'cleanupReceipts') {
+    if (typeof message.evidencePath !== 'string' || !message.evidencePath.trim()) {
+      return null;
+    }
+    if (message.confirmed !== true) {
+      return null;
+    }
+    return {
+      kind: 'cleanupReceipts',
+      evidencePath: message.evidencePath.trim(),
+      confirmed: true,
+    };
   }
   return null;
 }
@@ -90,6 +106,19 @@ export function buildSchedulerOperatorWorkflowArgs(
       '--evidence-id',
       evidenceId,
       '--evidence-path',
+      `.codex/scheduler/evidence/${evidenceId}.json`,
+    ];
+  }
+  if (action.kind === 'cleanupReceipts') {
+    const evidenceId = options.evidenceId ?? `vscode-cleanup-${(options.now ?? Date.now)()}`;
+    return [
+      'scheduler',
+      'cleanup-receipts',
+      '--input-evidence-path',
+      action.evidencePath,
+      '--output-evidence-id',
+      evidenceId,
+      '--output-evidence-path',
       `.codex/scheduler/evidence/${evidenceId}.json`,
     ];
   }
