@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Scheduler harness retry/deadline/cancellation policy 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md` 已完成并关闭；当前 bounded host-managed harness 外已有 deterministic host-owned policy wrapper，支持 cancelled/deadline preflight、explicit retry stop reasons、max attempts 与 policy result JSON。
+- 候选 1：`MCP Surface For Policy-Controlled Harness`
+  - 做什么：将 `run_scheduler_daemon_harness_with_policy()` 暴露为 MCP 工具，保持 fake-runtime-only、显式 path、bounded attempts 与无 projection/cleanup side effect。
+  - 依据：`design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md`、`review/scheduler-harness-retry-deadline-cancellation-policy-2026-06-21.md`
+- 候选 2：`Host-Managed Daemon Supervisor Contract`
+  - 做什么：围绕 repeated policy-controlled harness invocation 定义 host supervisor contract，先固定 cancellation source、status/result readback 与 bounded behavior，不进入 OS service/watch/unbounded daemon。
+  - 依据：`design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md`
+- 候选 3：`Agent Home / Context Session Binding`
+  - 做什么：将 agent home / scratch governance products 绑定到 scheduler runtime session 与 policy-controlled harness attempts，形成 storage lifecycle hook。
+  - 依据：`design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 当前倾向：默认先进入候选 1。policy result shape 已稳定，Codex 主链最好通过 MCP 直接触达该 host-neutral control surface；supervisor 与 agent-home 绑定更适合等 MCP invocation surface 固定后继续扩展。
+
 ## 2026-06-21 补充候选：Host-managed scheduler daemon process harness 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md` 已完成并关闭；当前 backend scheduler/orchestration 线已有 bounded host-managed harness，可通过 `doc-based-coding scheduler lifecycle harness` 复用既有 lifecycle-gated run-once，输出 cycle summary 与 authority split。

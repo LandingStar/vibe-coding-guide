@@ -296,10 +296,15 @@ from .scheduler_daemon_lifecycle import (
 )
 from .scheduler_daemon_harness import (
     SchedulerDaemonHarnessCycle,
+    SchedulerDaemonHarnessPolicy,
+    SchedulerDaemonHarnessPolicyAttempt,
+    SchedulerDaemonHarnessPolicyResult,
+    SchedulerDaemonHarnessPolicyStopReason,
     SchedulerDaemonHarnessRequest,
     SchedulerDaemonHarnessResult,
     SchedulerDaemonHarnessStopReason,
     run_scheduler_daemon_harness,
+    run_scheduler_daemon_harness_with_policy,
 )
 from .scheduler_host_runner import (
     HostSchedulerRunRequest,
@@ -539,6 +544,10 @@ __all__ = [
     "SchedulerDaemonLifecycleRunOnceResult",
     "SchedulerDaemonLifecycleState",
     "SchedulerDaemonHarnessCycle",
+    "SchedulerDaemonHarnessPolicy",
+    "SchedulerDaemonHarnessPolicyAttempt",
+    "SchedulerDaemonHarnessPolicyResult",
+    "SchedulerDaemonHarnessPolicyStopReason",
     "SchedulerDaemonHarnessRequest",
     "SchedulerDaemonHarnessResult",
     "SchedulerDaemonHarnessStopReason",
@@ -632,6 +641,7 @@ __all__ = [
     "run_scheduler_daemon_tick",
     "run_scheduler_daemon_lifecycle_once",
     "run_scheduler_daemon_harness",
+    "run_scheduler_daemon_harness_with_policy",
     "run_persisted_scheduler_once",
     "run_persisted_scheduler_once_with_wiring",
     "run_host_authorized_scheduler_once",

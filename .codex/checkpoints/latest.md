@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-21T13:55:00+08:00
+# Checkpoint - 2026-06-21T16:01:23+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Host-managed scheduler daemon process harness completed
+Post-v1.0 - Agent orchestration / Scheduler harness retry deadline cancellation policy completed
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,29 +9,30 @@ Post-v1.0 - Agent orchestration / Host-managed scheduler daemon process harness 
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md`.
-- [x] Add bounded host-managed scheduler daemon process harness runtime contract.
-- [x] Add CLI `doc-based-coding scheduler lifecycle harness`.
-- [x] Keep harness fake-runtime only at CLI surface and avoid Host UX/MCP expansion.
-- [x] Preserve no projection refresh, no hidden cleanup, and no Local Work Trajectory mutation from scheduler code.
-- [x] Validate py_compile, focused runtime lifecycle/harness tests `11 passed`, and focused CLI lifecycle tests.
+- [x] Close active planning gate `design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md`.
+- [x] Add deterministic scheduler harness policy objects and result shape.
+- [x] Add cancelled/deadline preflight that avoids scheduler state mutation.
+- [x] Add explicit retry stop reason and max-attempt handling.
+- [x] Extend CLI `doc-based-coding scheduler lifecycle harness` with policy fields.
+- [x] Preserve existing `run_scheduler_daemon_harness()` semantics.
+- [x] Preserve no MCP/Host UX, no live provider, no projection refresh, no hidden cleanup, and no Local Work Trajectory mutation from scheduler code.
+- [x] Validate py_compile, focused runtime lifecycle/harness tests `15 passed`, focused CLI lifecycle tests `4 passed`, wider runtime scheduler daemon/lifecycle/loop-evidence tests `32 passed`, and wider CLI scheduler lifecycle/daemon-loop/help tests `8 passed`.
 - [x] Record review evidence and follow-up direction.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Gate: Host-Managed Scheduler Daemon Process Harness - source: design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md
-- Review Evidence: Host-Managed Scheduler Daemon Process Harness Review - source: review/host-managed-scheduler-daemon-process-harness-2026-06-21.md
-- Recommended Source: Host-Managed Scheduler Daemon Process Harness Follow-Up Direction Analysis - source: design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md
-- Recommended Next Gate: Scheduler Harness Retry / Deadline / Cancellation Policy - source: design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md
-- Prior Direction Analysis: Backend Orchestration After Host UX Sandbox Branch - source: design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md
+- Completed Gate: Scheduler Harness Retry Deadline Cancellation Policy - source: design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md
+- Review Evidence: Scheduler Harness Retry Deadline Cancellation Policy Review - source: review/scheduler-harness-retry-deadline-cancellation-policy-2026-06-21.md
+- Recommended Source: Scheduler Harness Retry Deadline Cancellation Policy Follow-Up Direction Analysis - source: design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md
+- Recommended Next Gate: MCP Surface For Policy-Controlled Harness - source: design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md
+- Prior Direction Analysis: Host-Managed Scheduler Daemon Process Harness Follow-Up Direction Analysis - source: design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/direction-candidates-after-phase-35.md
-- design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md
-- design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md
-- design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md
-- review/host-managed-scheduler-daemon-process-harness-2026-06-21.md
+- design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md
+- design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md
+- review/scheduler-harness-retry-deadline-cancellation-policy-2026-06-21.md
 - src/runtime/orchestration/scheduler_daemon_harness.py
 - src/runtime/orchestration/scheduler_daemon_lifecycle.py
 - src/__main__.py

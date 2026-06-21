@@ -34,6 +34,13 @@ SchedulerDaemonHarnessStopReason = Literal[
     "lifecycle_skipped",
 ]
 
+SchedulerDaemonHarnessPolicyStopReason = Literal[
+    "cancelled",
+    "deadline_exceeded",
+    "harness_completed",
+    "max_attempts_reached",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class SchedulerDaemonHarnessRequest:
@@ -135,6 +142,89 @@ class SchedulerDaemonHarnessResult:
                 "fake_runtime_only_by_default": self.request.runtime_provider == "fake",
                 "scheduler_projection_refreshed": self.scheduler_projection_refreshed,
                 "local_work_trajectory_mutated": self.local_work_trajectory_mutated,
+                "exchange_artifact_store_mutated": False,
+                "admission_ledger_mutated": False,
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SchedulerDaemonHarnessPolicy:
+    """Deterministic retry/deadline/cancellation policy over harness runs."""
+
+    cancelled: bool = False
+    deadline_epoch_seconds: int | None = None
+    now_epoch_seconds: int | None = None
+    max_attempts: int = 1
+    retry_stop_reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class SchedulerDaemonHarnessPolicyAttempt:
+    """One policy-controlled harness attempt."""
+
+    attempt_index: int
+    harness: SchedulerDaemonHarnessResult
+    retryable: bool = False
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a JSON-compatible policy attempt payload."""
+
+        return {
+            "attempt_index": self.attempt_index,
+            "retryable": self.retryable,
+            "harness": self.harness.to_json_dict(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SchedulerDaemonHarnessPolicyResult:
+    """Result of applying policy to one or more bounded harness attempts."""
+
+    request: SchedulerDaemonHarnessRequest
+    policy: SchedulerDaemonHarnessPolicy
+    attempts: tuple[SchedulerDaemonHarnessPolicyAttempt, ...] = ()
+    stop_reason: SchedulerDaemonHarnessPolicyStopReason = "harness_completed"
+    stop_detail: str = ""
+
+    @property
+    def attempt_count(self) -> int:
+        """Return completed policy attempt count."""
+
+        return len(self.attempts)
+
+    @property
+    def total_run_count(self) -> int:
+        """Return task-run count across all policy attempts."""
+
+        return sum(attempt.harness.total_run_count for attempt in self.attempts)
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a JSON-compatible policy result payload."""
+
+        return {
+            "ok": True,
+            "control_path": str(Path(self.request.control_path)),
+            "policy": {
+                "cancelled": self.policy.cancelled,
+                "deadline_epoch_seconds": self.policy.deadline_epoch_seconds,
+                "now_epoch_seconds": self.policy.now_epoch_seconds,
+                "max_attempts": self.policy.max_attempts,
+                "retry_stop_reasons": list(self.policy.retry_stop_reasons),
+            },
+            "attempt_count": self.attempt_count,
+            "total_run_count": self.total_run_count,
+            "stop_reason": self.stop_reason,
+            "stop_detail": self.stop_detail,
+            "attempts": [attempt.to_json_dict() for attempt in self.attempts],
+            "authority_split": {
+                "policy_authority": "host-owned-harness-policy",
+                "harness_authority": "host-owned-bounded-process-harness",
+                "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                "scheduler_state_authority": "scheduler_snapshot_and_event_log",
+                "starts_os_service": False,
+                "scheduler_projection_refreshed": False,
+                "local_work_trajectory_mutated": False,
                 "exchange_artifact_store_mutated": False,
                 "admission_ledger_mutated": False,
             },
@@ -254,11 +344,93 @@ def run_scheduler_daemon_harness(
     )
 
 
+def run_scheduler_daemon_harness_with_policy(
+    request: SchedulerDaemonHarnessRequest,
+    policy: SchedulerDaemonHarnessPolicy | None = None,
+    *,
+    runtime_registry: AgentRuntimeAdapterRegistry | None = None,
+    sandbox_registry: SandboxProviderRegistry | None = None,
+    artifact_store: InMemoryArtifactVersionStore | None = None,
+) -> SchedulerDaemonHarnessPolicyResult:
+    """Apply deterministic policy around bounded harness attempts."""
+
+    active_policy = policy or SchedulerDaemonHarnessPolicy()
+    _validate_harness_policy(active_policy)
+    if active_policy.cancelled:
+        return SchedulerDaemonHarnessPolicyResult(
+            request=request,
+            policy=active_policy,
+            stop_reason="cancelled",
+            stop_detail="policy cancelled before harness execution",
+        )
+    if _deadline_exceeded(active_policy):
+        return SchedulerDaemonHarnessPolicyResult(
+            request=request,
+            policy=active_policy,
+            stop_reason="deadline_exceeded",
+            stop_detail=(
+                "policy deadline exceeded before harness execution: "
+                f"now={active_policy.now_epoch_seconds}, "
+                f"deadline={active_policy.deadline_epoch_seconds}"
+            ),
+        )
+
+    attempts: list[SchedulerDaemonHarnessPolicyAttempt] = []
+    for attempt_index in range(1, active_policy.max_attempts + 1):
+        harness = run_scheduler_daemon_harness(
+            request,
+            runtime_registry=runtime_registry,
+            sandbox_registry=sandbox_registry,
+            artifact_store=artifact_store,
+        )
+        retryable = harness.stop_reason in active_policy.retry_stop_reasons
+        attempts.append(
+            SchedulerDaemonHarnessPolicyAttempt(
+                attempt_index=attempt_index,
+                harness=harness,
+                retryable=retryable,
+            )
+        )
+        if not retryable:
+            return SchedulerDaemonHarnessPolicyResult(
+                request=request,
+                policy=active_policy,
+                attempts=tuple(attempts),
+                stop_reason="harness_completed",
+                stop_detail=f"harness stopped with {harness.stop_reason!r}",
+            )
+
+    return SchedulerDaemonHarnessPolicyResult(
+        request=request,
+        policy=active_policy,
+        attempts=tuple(attempts),
+        stop_reason="max_attempts_reached",
+        stop_detail=f"retryable harness stop reason persisted for {active_policy.max_attempts} attempts",
+    )
+
+
 def _validate_harness_request(request: SchedulerDaemonHarnessRequest) -> None:
     if request.max_cycles < 0:
         raise ValueError("scheduler daemon harness max_cycles must be non-negative")
     if request.max_loop_failures is not None and request.max_loop_failures < 0:
         raise ValueError("scheduler daemon harness max_loop_failures must be non-negative")
+
+
+def _validate_harness_policy(policy: SchedulerDaemonHarnessPolicy) -> None:
+    if policy.max_attempts < 0:
+        raise ValueError("scheduler daemon harness policy max_attempts must be non-negative")
+    if policy.deadline_epoch_seconds is not None and policy.now_epoch_seconds is None:
+        raise ValueError("scheduler daemon harness policy deadline requires now_epoch_seconds")
+    if policy.max_attempts == 0 and not policy.cancelled and not _deadline_exceeded(policy):
+        raise ValueError("scheduler daemon harness policy max_attempts must be positive")
+
+
+def _deadline_exceeded(policy: SchedulerDaemonHarnessPolicy) -> bool:
+    return (
+        policy.deadline_epoch_seconds is not None
+        and policy.now_epoch_seconds is not None
+        and policy.now_epoch_seconds >= policy.deadline_epoch_seconds
+    )
 
 
 def _stop_reason_for_lifecycle_state(state: str) -> SchedulerDaemonHarnessStopReason:

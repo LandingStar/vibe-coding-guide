@@ -393,7 +393,9 @@ _SCHEDULER_LIFECYCLE_USAGE = (
     "[--daemon-id ID] [--run-id ID] [--timestamp TIMESTAMP] "
     "[--stale-after-seconds N] [--now-epoch-seconds N] "
     "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
-    "[--max-runtime-failures N] [--max-cycles N] [--max-loop-failures N]"
+    "[--max-runtime-failures N] [--max-cycles N] [--max-loop-failures N] "
+    "[--policy-cancelled] [--deadline-epoch-seconds N] "
+    "[--max-attempts N] [--retry-stop-reasons REASON[,REASON...]]"
 )
 
 
@@ -1727,10 +1729,18 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
     max_runtime_failures: int | None = 1
     max_cycles = 1
     max_loop_failures: int | None = 1
+    policy_cancelled = False
+    deadline_epoch_seconds: int | None = None
+    max_attempts = 1
+    retry_stop_reasons: tuple[str, ...] = ()
 
     i = 1
     while i < len(args):
         arg = args[i]
+        if arg == "--policy-cancelled":
+            policy_cancelled = True
+            i += 1
+            continue
         if arg in {
             "--control-path",
             "--snapshot-path",
@@ -1746,6 +1756,9 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             "--max-runtime-failures",
             "--max-cycles",
             "--max-loop-failures",
+            "--deadline-epoch-seconds",
+            "--max-attempts",
+            "--retry-stop-reasons",
         }:
             if i + 1 >= len(args):
                 print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
@@ -1815,6 +1828,26 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
                     print("--max-loop-failures must be an integer", file=sys.stderr)
                     return 1
+            elif arg == "--deadline-epoch-seconds":
+                try:
+                    deadline_epoch_seconds = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--deadline-epoch-seconds must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-attempts":
+                try:
+                    max_attempts = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-attempts must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--retry-stop-reasons":
+                retry_stop_reasons = tuple(
+                    item.strip()
+                    for item in value.split(",")
+                    if item.strip()
+                )
             i += 2
             continue
         print(f"Unknown scheduler lifecycle option: {arg}", file=sys.stderr)
@@ -1856,9 +1889,10 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             SchedulerDaemonLifecycleRunOnceRequest,
             SchedulerDaemonLoopStopPolicy,
             SchedulerDaemonHarnessRequest,
+            SchedulerDaemonHarnessPolicy,
             apply_scheduler_daemon_lifecycle_action,
             inspect_scheduler_daemon_lifecycle_control,
-            run_scheduler_daemon_harness,
+            run_scheduler_daemon_harness_with_policy,
             run_scheduler_daemon_lifecycle_once,
         )
 
@@ -1883,7 +1917,7 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                 )
             )
         elif lifecycle_action == "harness":
-            result = run_scheduler_daemon_harness(
+            result = run_scheduler_daemon_harness_with_policy(
                 SchedulerDaemonHarnessRequest(
                     control_path=control,
                     max_cycles=max_cycles,
@@ -1898,6 +1932,13 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     stale_now_epoch_seconds=now_epoch_seconds,
                     stale_after_seconds=stale_after_seconds,
                     max_loop_failures=max_loop_failures,
+                ),
+                SchedulerDaemonHarnessPolicy(
+                    cancelled=policy_cancelled,
+                    deadline_epoch_seconds=deadline_epoch_seconds,
+                    now_epoch_seconds=now_epoch_seconds,
+                    max_attempts=max_attempts,
+                    retry_stop_reasons=retry_stop_reasons,
                 )
             )
         else:

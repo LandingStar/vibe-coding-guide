@@ -1205,8 +1205,10 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
     assert start.returncode == 0, start.stderr
     assert harness.returncode == 0, harness.stderr
     payload = json.loads(harness.stdout)
-    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["stop_reason"] == "harness_completed"
+    assert payload["attempt_count"] == 1
     assert payload["total_run_count"] == 1
+    assert payload["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
     assert payload["authority_split"]["starts_os_service"] is False
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
@@ -1214,6 +1216,50 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
     assert "scheduler lifecycle harness currently supports only --runtime-provider fake" in rejected.stderr
     assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    cancelled = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "harness",
+            "--control-path",
+            ".codex/scheduler/missing-control.json",
+            "--policy-cancelled",
+            "--max-attempts",
+            "2",
+        ],
+        cwd=project,
+    )
+    deadline = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "harness",
+            "--control-path",
+            ".codex/scheduler/missing-control.json",
+            "--deadline-epoch-seconds",
+            "100",
+            "--now-epoch-seconds",
+            "100",
+        ],
+        cwd=project,
+    )
+
+    assert cancelled.returncode == 0, cancelled.stderr
+    assert deadline.returncode == 0, deadline.stderr
+    cancelled_payload = json.loads(cancelled.stdout)
+    deadline_payload = json.loads(deadline.stdout)
+    assert cancelled_payload["stop_reason"] == "cancelled"
+    assert cancelled_payload["attempt_count"] == 0
+    assert cancelled_payload["policy"]["max_attempts"] == 2
+    assert deadline_payload["stop_reason"] == "deadline_exceeded"
+    assert deadline_payload["attempt_count"] == 0
+    assert not (project / ".codex" / "scheduler" / "missing-control.json").exists()
 
 
 def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
