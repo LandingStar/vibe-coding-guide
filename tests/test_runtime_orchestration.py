@@ -95,6 +95,8 @@ from src.runtime.orchestration import (
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SupervisorAgentStorageBindingRequest,
     SupervisorStorageBindingEvidenceSummary,
     admit_exchange_artifact_version_to_scheduler,
@@ -160,6 +162,7 @@ from src.runtime.orchestration import (
     submit_scheduler_task_batch,
     submit_scheduler_task_batch_with_persistence,
     submit_scheduler_task,
+    supervisor_storage_binding_evidence_summary_to_artifact,
     validate_exchange_artifact,
     summarize_scheduler_queue,
     wake_dependent_tasks,
@@ -4980,36 +4983,9 @@ def test_supervisor_agent_storage_binding_requires_supervisor_session_and_run() 
 
 
 def test_supervisor_storage_binding_evidence_round_trips_summary(tmp_path) -> None:
-    workflow = run_scheduler_supervisor_dogfood_workflow(
-        SchedulerSupervisorDogfoodWorkflowRequest(
-            project_root=tmp_path,
-            fixture="simple",
-            timestamp="2026-06-21T11:20:00+00:00",
-            supervisor_id="supervisor:evidence",
-            session_id="session:evidence",
-            run_id="run:evidence",
-            host_id="host:evidence",
-            requested_by="agent:guide",
-        )
-    )
-    binding = build_supervisor_dogfood_storage_binding(
-        workflow,
-        agent_id="agent:supervisor-evidence",
-        context_session_id="context-session:evidence",
-    )
-    evidence = build_supervisor_storage_binding_evidence(
-        binding,
-        evidence_id="supervisor-binding:evidence",
-        timestamp="2026-06-21T11:20:01+00:00",
-        metadata={"workflow_surface": "supervisor-dogfood-workflow"},
-    )
-    evidence_path = default_supervisor_storage_binding_evidence_path(
+    summary, evidence_path, workflow = _supervisor_storage_binding_evidence_summary(
         tmp_path,
-        evidence.evidence_id,
     )
-
-    write = write_supervisor_storage_binding_evidence(evidence, evidence_path)
-    summary = read_supervisor_storage_binding_evidence_summary(write.evidence_path)
     payload = summary.to_json_dict()
 
     assert isinstance(summary, SupervisorStorageBindingEvidenceSummary)
@@ -5050,6 +5026,132 @@ def test_supervisor_storage_binding_evidence_round_trips_summary(tmp_path) -> No
     raw_payload = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert "binding" in raw_payload
     assert raw_payload["binding"]["home_registration"]["audit_state"] == "requested"
+
+
+def test_supervisor_storage_binding_evidence_summary_maps_to_exchange_artifact(tmp_path) -> None:
+    summary, evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+
+    artifact = supervisor_storage_binding_evidence_summary_to_artifact(summary)
+    restored = exchange_artifact_from_json_dict(exchange_artifact_to_json_dict(artifact))
+
+    assert artifact.artifact_id == (
+        "supervisor-storage-binding-evidence:supervisor-binding:evidence"
+    )
+    assert artifact.kind == "retention"
+    assert artifact.intent == "inform"
+    assert artifact.producer == "supervisor:evidence"
+    assert artifact.audience == ("scheduler", "workspace-registration")
+    assert artifact.lifecycle_state == "accepted"
+    assert artifact.created_at == "2026-06-21T11:20:01+00:00"
+    assert artifact.version == "v1"
+    assert artifact.scope.agent_id == "agent:supervisor-evidence"
+    assert artifact.scope.lane_id == "lane:dogfood"
+    assert artifact.scope.runtime_session_id == "fake-session-1"
+    assert artifact.scope.task_id == ""
+    assert artifact.scope.context_id == ""
+    assert artifact.visibility_policy.audience == (
+        "scheduler",
+        "workspace-registration",
+        "agent:supervisor-evidence",
+    )
+    assert validate_exchange_artifact(artifact) == ()
+    assert part_types(artifact) == (
+        "structured",
+        "storage_manifest",
+        "evidence",
+        "ref",
+        "log",
+    )
+    assert restored == artifact
+    store = JsonArtifactVersionStore(tmp_path / "binding-exchange-artifacts.json")
+    stored = store.put(artifact)
+    assert stored.artifact == artifact
+    assert store.get(artifact.artifact_id, "v1").artifact == artifact
+
+    structured = artifact.parts[0].data
+    assert structured["product_type"] == SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
+    assert structured["schema_version"] == SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION
+    assert structured["evidence_product_type"] == "supervisor_storage_binding_evidence"
+    assert structured["evidence_schema_version"] == "1"
+    assert structured["evidence_id"] == "supervisor-binding:evidence"
+    assert structured["evidence_path"] == str(evidence_path)
+    assert structured["binding_id"] == "supervisor-storage-binding:context-session-evidence"
+    assert structured["scheduler_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert structured["scheduler_context_ids"] == [
+        "context:dogfood-prepare",
+        "context:dogfood-verify",
+    ]
+    assert structured["scheduler_lane_ids"] == ["lane:dogfood"]
+    assert structured["runtime_session_ids"] == ["fake-session-1"]
+    assert structured["home_registration_id"] == "home-reg:context-session-evidence"
+    assert structured["scratch_ids"] == [
+        "scratch:dogfood:prepare",
+        "scratch:dogfood:verify",
+    ]
+    assert structured["metadata"] == {"workflow_surface": "supervisor-dogfood-workflow"}
+    assert structured["authority_split"]["evidence_written"] is True
+    assert structured["authority_split"]["scheduler_state_mutated"] is False
+    assert structured["authority_split"]["agent_home_directory_created"] is False
+    assert structured["authority_split"]["scratch_directories_created"] is False
+    assert structured["authority_split"]["scratch_manifest_written"] is False
+    assert structured["authority_split"]["cleanup_executed"] is False
+    assert structured["authority_split"]["scheduler_projection_refreshed"] is False
+    assert structured["authority_split"]["local_work_trajectory_mutated"] is False
+
+    storage_manifest = artifact.parts[1].data
+    assert storage_manifest["product_type"] == SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
+    assert storage_manifest["binding_id"] == structured["binding_id"]
+    assert storage_manifest["scratch_count"] == 2
+    evidence = artifact.parts[2].data
+    assert evidence == {
+        "product_type": "supervisor_storage_binding_evidence",
+        "schema_version": "1",
+        "evidence_id": "supervisor-binding:evidence",
+        "evidence_path": str(evidence_path),
+        "binding_id": "supervisor-storage-binding:context-session-evidence",
+        "timestamp": "2026-06-21T11:20:01+00:00",
+    }
+    assert artifact.parts[3].ref is not None
+    assert artifact.parts[3].ref.ref_kind == "file"
+    assert artifact.parts[3].ref.ref_id == "supervisor-binding:evidence"
+    assert artifact.parts[3].ref.path == str(evidence_path)
+    assert artifact.parts[4].log is not None
+    assert artifact.parts[4].log.action == (
+        "supervisor_storage_binding_evidence_projected"
+    )
+
+    serialized = json.dumps(exchange_artifact_to_json_dict(artifact), sort_keys=True)
+    assert '"binding"' not in serialized
+
+
+def test_supervisor_storage_binding_evidence_artifact_accepts_explicit_identity(
+    tmp_path,
+) -> None:
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+
+    artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id="artifact:binding-evidence",
+        version="v2",
+        producer="agent:projection",
+        audience=("agent:consumer",),
+        created_at="2026-06-21T12:00:00+00:00",
+    )
+
+    assert artifact.artifact_id == "artifact:binding-evidence"
+    assert artifact.version == "v2"
+    assert artifact.producer == "agent:projection"
+    assert artifact.audience == ("agent:consumer",)
+    assert artifact.created_at == "2026-06-21T12:00:00+00:00"
+    assert artifact.visibility_policy.audience == (
+        "agent:consumer",
+        "agent:supervisor-evidence",
+    )
+    assert validate_exchange_artifact(artifact) == ()
 
 
 def test_supervisor_storage_binding_evidence_rejects_wrong_product_and_schema(tmp_path) -> None:
@@ -9762,6 +9864,41 @@ def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
             f"{completed.stderr or completed.stdout}"
         )
     return completed
+
+
+def _supervisor_storage_binding_evidence_summary(
+    tmp_path: Path,
+) -> tuple[SupervisorStorageBindingEvidenceSummary, Path, object]:
+    workflow = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            fixture="simple",
+            timestamp="2026-06-21T11:20:00+00:00",
+            supervisor_id="supervisor:evidence",
+            session_id="session:evidence",
+            run_id="run:evidence",
+            host_id="host:evidence",
+            requested_by="agent:guide",
+        )
+    )
+    binding = build_supervisor_dogfood_storage_binding(
+        workflow,
+        agent_id="agent:supervisor-evidence",
+        context_session_id="context-session:evidence",
+    )
+    evidence = build_supervisor_storage_binding_evidence(
+        binding,
+        evidence_id="supervisor-binding:evidence",
+        timestamp="2026-06-21T11:20:01+00:00",
+        metadata={"workflow_surface": "supervisor-dogfood-workflow"},
+    )
+    evidence_path = default_supervisor_storage_binding_evidence_path(
+        tmp_path,
+        evidence.evidence_id,
+    )
+    write = write_supervisor_storage_binding_evidence(evidence, evidence_path)
+    summary = read_supervisor_storage_binding_evidence_summary(write.evidence_path)
+    return summary, evidence_path, workflow
 
 
 class _FailingRuntime:

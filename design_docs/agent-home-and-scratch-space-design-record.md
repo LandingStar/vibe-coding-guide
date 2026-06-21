@@ -189,6 +189,7 @@ It also provides mapping helpers:
 3. `cleanup_receipt_to_artifact()`
 4. `build_supervisor_agent_storage_binding()`
 5. `build_supervisor_storage_binding_evidence()`
+6. `supervisor_storage_binding_evidence_summary_to_artifact()`
 
 These helpers represent storage governance products as `ExchangeArtifact`
 instances using `structured`, `storage_manifest`, and `log` payload parts. The
@@ -221,6 +222,18 @@ The durable evidence support is still product/readback-only. It does not create
 agent home directories, create scratch directories, write scratch manifests,
 approve home registration, run cleanup, refresh scheduler projection, mutate
 scheduler state, or mutate Local Work Trajectory.
+
+`supervisor_storage_binding_evidence_summary_to_artifact()` projects the compact
+evidence summary into a valid `ExchangeArtifact` with `structured`,
+`storage_manifest`, `evidence`, `ref`, and `log` parts. This makes the durable
+binding evidence versionable in the existing exact-version artifact store while
+still avoiding raw `binding` payload embedding in the exchange artifact.
+
+The projection is still contract/readback-only. It does not admit scheduler
+work, mark artifacts consumed, create agent home directories, create scratch
+directories, write scratch manifests, approve home registration, run cleanup,
+refresh scheduler projection, mutate scheduler state, or mutate Local Work
+Trajectory.
 
 ## Audit Requirements
 

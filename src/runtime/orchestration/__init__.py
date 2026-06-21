@@ -321,6 +321,8 @@ from .supervisor_storage_binding import (
     build_supervisor_agent_storage_binding,
 )
 from .supervisor_storage_binding_evidence import (
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE,
     SUPERVISOR_STORAGE_BINDING_EVIDENCE_SCHEMA_VERSION,
     SupervisorStorageBindingEvidence,
@@ -329,6 +331,7 @@ from .supervisor_storage_binding_evidence import (
     build_supervisor_storage_binding_evidence,
     default_supervisor_storage_binding_evidence_path,
     read_supervisor_storage_binding_evidence_summary,
+    supervisor_storage_binding_evidence_summary_to_artifact,
     write_supervisor_storage_binding_evidence,
 )
 from .scheduler_host_runner import (
@@ -600,6 +603,8 @@ __all__ = [
     "SCHEDULER_AUTHORIZATION_READBACK_SCHEMA_VERSION",
     "SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE",
     "SUPERVISOR_STORAGE_BINDING_EVIDENCE_SCHEMA_VERSION",
+    "SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE",
+    "SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION",
     "GitWorktreeCommandReceiptSummary",
     "GitWorktreeReceiptSummary",
     "DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID",
@@ -697,6 +702,7 @@ __all__ = [
     "run_sandbox_allocation_cleanup_over_receipts",
     "read_scheduler_loop_evidence_summary",
     "read_supervisor_storage_binding_evidence_summary",
+    "supervisor_storage_binding_evidence_summary_to_artifact",
     "read_scheduler_daemon_lifecycle_control",
     "inspect_scheduler_daemon_lifecycle_control",
     "inspect_scheduler_authorization",

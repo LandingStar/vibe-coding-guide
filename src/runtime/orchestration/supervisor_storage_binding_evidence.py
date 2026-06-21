@@ -7,12 +7,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .exchange import (
+    ExchangeArtifact,
+    ExchangeLog,
+    ExchangePayloadPart,
+    ExchangeReference,
+    ExchangeScope,
+    VisibilityPolicy,
+)
 from .supervisor_storage_binding import SupervisorAgentStorageBinding
 
 SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE = (
     "supervisor_storage_binding_evidence"
 )
 SUPERVISOR_STORAGE_BINDING_EVIDENCE_SCHEMA_VERSION = "1"
+SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE = (
+    "supervisor_storage_binding_artifact"
+)
+SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION = "1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +253,82 @@ def read_supervisor_storage_binding_evidence_summary(
     return _supervisor_storage_binding_evidence_summary_from_payload(path, payload)
 
 
+def supervisor_storage_binding_evidence_summary_to_artifact(
+    summary: SupervisorStorageBindingEvidenceSummary,
+    *,
+    artifact_id: str = "",
+    version: str = "v1",
+    producer: str = "",
+    audience: tuple[str, ...] = ("scheduler", "workspace-registration"),
+    created_at: str = "",
+) -> ExchangeArtifact:
+    """Project a compact supervisor storage binding evidence summary to exchange."""
+
+    resolved_artifact_id = (
+        artifact_id or f"supervisor-storage-binding-evidence:{summary.evidence_id}"
+    )
+    resolved_producer = producer or summary.supervisor_id or summary.requested_by
+    resolved_created_at = created_at or summary.timestamp
+    compact_data = _supervisor_storage_binding_artifact_data(summary)
+    storage_data = _supervisor_storage_binding_storage_manifest_data(summary)
+    evidence_data = _supervisor_storage_binding_evidence_reference_data(summary)
+
+    return ExchangeArtifact(
+        artifact_id=resolved_artifact_id,
+        kind="retention",
+        intent="inform",
+        producer=resolved_producer,
+        audience=audience,
+        scope=ExchangeScope(
+            lane_id=_single_or_empty(summary.scheduler_lane_ids),
+            task_id=_single_or_empty(summary.scheduler_task_ids),
+            context_id=_single_or_empty(summary.scheduler_context_ids),
+            agent_id=summary.agent_id,
+            runtime_session_id=_single_or_empty(summary.runtime_session_ids),
+        ),
+        lifecycle_state="accepted",
+        visibility_policy=VisibilityPolicy(
+            audience=tuple(_unique_non_empty((*audience, summary.agent_id))),
+            cross_lane=len(summary.scheduler_lane_ids) > 1,
+            contains_sensitive_content=False,
+            redaction_required=False,
+        ),
+        created_at=resolved_created_at,
+        version=version,
+        parts=(
+            ExchangePayloadPart(part_type="structured", data=compact_data),
+            ExchangePayloadPart(part_type="storage_manifest", data=storage_data),
+            ExchangePayloadPart(part_type="evidence", data=evidence_data),
+            ExchangePayloadPart(
+                part_type="ref",
+                ref=ExchangeReference(
+                    ref_kind="file",
+                    ref_id=summary.evidence_id,
+                    version=summary.schema_version,
+                    path=str(summary.evidence_path),
+                    label="Supervisor storage binding evidence",
+                ),
+            ),
+            ExchangePayloadPart(
+                part_type="log",
+                log=ExchangeLog(
+                    timestamp=resolved_created_at,
+                    actor=resolved_producer,
+                    action="supervisor_storage_binding_evidence_projected",
+                    channel="exchange-artifact-projection",
+                    summary=(
+                        "Projected supervisor storage binding evidence "
+                        f"{summary.evidence_id} for {summary.agent_id}."
+                    ),
+                    related_run_ids=tuple(
+                        _unique_non_empty((summary.run_id, *summary.runtime_session_ids))
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def _supervisor_storage_binding_evidence_summary_from_payload(
     path: Path,
     payload: Mapping[str, Any],
@@ -289,6 +377,85 @@ def _supervisor_storage_binding_evidence_summary_from_payload(
         authority_split=_required_mapping(payload, "authority_split", path),
         metadata=_required_mapping(payload, "metadata", path),
     )
+
+
+def _supervisor_storage_binding_artifact_data(
+    summary: SupervisorStorageBindingEvidenceSummary,
+) -> dict[str, object]:
+    return {
+        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+        "schema_version": SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
+        "evidence_product_type": summary.product_type,
+        "evidence_schema_version": summary.schema_version,
+        "evidence_id": summary.evidence_id,
+        "evidence_path": str(summary.evidence_path),
+        "timestamp": summary.timestamp,
+        "binding_id": summary.binding_id,
+        "supervisor_id": summary.supervisor_id,
+        "session_id": summary.session_id,
+        "run_id": summary.run_id,
+        "host_id": summary.host_id,
+        "requested_by": summary.requested_by,
+        "agent_id": summary.agent_id,
+        "context_session_id": summary.context_session_id,
+        "scheduler_task_ids": list(summary.scheduler_task_ids),
+        "scheduler_context_ids": list(summary.scheduler_context_ids),
+        "scheduler_lane_ids": list(summary.scheduler_lane_ids),
+        "runtime_session_ids": list(summary.runtime_session_ids),
+        "home_registration_id": summary.home_registration_id,
+        "home_registration_audit_state": summary.home_registration_audit_state,
+        "scratch_count": summary.scratch_count,
+        "scratch_ids": list(summary.scratch_ids),
+        "source_snapshot_path": summary.source_snapshot_path,
+        "authority_split": dict(summary.authority_split),
+        "metadata": dict(summary.metadata),
+    }
+
+
+def _supervisor_storage_binding_storage_manifest_data(
+    summary: SupervisorStorageBindingEvidenceSummary,
+) -> dict[str, object]:
+    return {
+        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+        "schema_version": SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
+        "evidence_id": summary.evidence_id,
+        "evidence_path": str(summary.evidence_path),
+        "binding_id": summary.binding_id,
+        "agent_id": summary.agent_id,
+        "context_session_id": summary.context_session_id,
+        "home_registration_id": summary.home_registration_id,
+        "home_registration_audit_state": summary.home_registration_audit_state,
+        "scratch_count": summary.scratch_count,
+        "scratch_ids": list(summary.scratch_ids),
+        "authority_split": dict(summary.authority_split),
+    }
+
+
+def _supervisor_storage_binding_evidence_reference_data(
+    summary: SupervisorStorageBindingEvidenceSummary,
+) -> dict[str, object]:
+    return {
+        "product_type": summary.product_type,
+        "schema_version": summary.schema_version,
+        "evidence_id": summary.evidence_id,
+        "evidence_path": str(summary.evidence_path),
+        "binding_id": summary.binding_id,
+        "timestamp": summary.timestamp,
+    }
+
+
+def _single_or_empty(values: tuple[str, ...]) -> str:
+    return values[0] if len(values) == 1 else ""
+
+
+def _unique_non_empty(values: tuple[str, ...]) -> tuple[str, ...]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value and value not in seen:
+            ordered.append(value)
+            seen.add(value)
+    return tuple(ordered)
 
 
 def _required_str(payload: Mapping[str, Any], key: str, path: Path) -> str:
