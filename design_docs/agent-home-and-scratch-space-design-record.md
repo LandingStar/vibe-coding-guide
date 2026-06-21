@@ -188,6 +188,7 @@ It also provides mapping helpers:
 2. `scratch_manifest_to_artifact()`
 3. `cleanup_receipt_to_artifact()`
 4. `build_supervisor_agent_storage_binding()`
+5. `build_supervisor_storage_binding_evidence()`
 
 These helpers represent storage governance products as `ExchangeArtifact`
 instances using `structured`, `storage_manifest`, and `log` payload parts. The
@@ -207,6 +208,19 @@ snapshot readback to:
 It remains readback-only. It does not create agent home directories, create
 scratch directories, write scratch manifests, approve home registration, run
 cleanup, refresh scheduler projection, or mutate Local Work Trajectory.
+
+`build_supervisor_storage_binding_evidence()` and the companion
+`write_supervisor_storage_binding_evidence()` /
+`read_supervisor_storage_binding_evidence_summary()` helpers make that binding
+durable as an explicit evidence JSON product under `.codex/scheduler/evidence`.
+The raw evidence embeds the binding payload for audit/replay, while the summary
+readback exposes compact identity, scheduler, storage, metadata, and authority
+facts without embedding raw binding internals.
+
+The durable evidence support is still product/readback-only. It does not create
+agent home directories, create scratch directories, write scratch manifests,
+approve home registration, run cleanup, refresh scheduler projection, mutate
+scheduler state, or mutate Local Work Trajectory.
 
 ## Audit Requirements
 

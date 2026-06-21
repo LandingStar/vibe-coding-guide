@@ -11,12 +11,15 @@ from src.runtime.orchestration import (
     HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE,
     SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE,
     SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE,
     HostSchedulerRunEvidenceSummary,
     SandboxAllocationReceiptEvidenceSummary,
     SchedulerLoopEvidenceSummary,
+    SupervisorStorageBindingEvidenceSummary,
     read_host_scheduler_run_evidence_summary,
     read_sandbox_allocation_receipt_evidence_summary,
     read_scheduler_loop_evidence_summary,
+    read_supervisor_storage_binding_evidence_summary,
 )
 
 HostEvidenceCardStatus = Literal[
@@ -32,6 +35,7 @@ HostEvidenceSummary: TypeAlias = (
     HostSchedulerRunEvidenceSummary
     | SchedulerLoopEvidenceSummary
     | SandboxAllocationReceiptEvidenceSummary
+    | SupervisorStorageBindingEvidenceSummary
 )
 
 
@@ -238,6 +242,8 @@ def _host_evidence_presentation_card(
         return _scheduler_loop_evidence_presentation_card(summary)
     if isinstance(summary, SandboxAllocationReceiptEvidenceSummary):
         return _sandbox_allocation_receipt_evidence_presentation_card(summary)
+    if isinstance(summary, SupervisorStorageBindingEvidenceSummary):
+        return _supervisor_storage_binding_evidence_presentation_card(summary)
     return _host_scheduler_run_evidence_presentation_card(summary)
 
 
@@ -570,6 +576,113 @@ def _sandbox_allocation_receipt_evidence_presentation_card(
     )
 
 
+def _supervisor_storage_binding_evidence_presentation_card(
+    summary: SupervisorStorageBindingEvidenceSummary,
+) -> HostEvidencePresentationCard:
+    authority_split = dict(summary.authority_split)
+    evidence_metadata = dict(summary.metadata)
+    host_surface = (
+        _metadata_str(evidence_metadata, "workflow_surface")
+        or "supervisor-storage-binding-evidence"
+    )
+    key_facts = (
+        HostEvidencePresentationFact("Evidence product", summary.product_type),
+        HostEvidencePresentationFact("Supervisor", summary.supervisor_id),
+        HostEvidencePresentationFact("Session", summary.session_id),
+        HostEvidencePresentationFact("Run", summary.run_id),
+        HostEvidencePresentationFact("Agent", summary.agent_id),
+        HostEvidencePresentationFact("Context session", summary.context_session_id),
+        HostEvidencePresentationFact("Scheduler tasks", str(len(summary.scheduler_task_ids))),
+        HostEvidencePresentationFact("Scheduler contexts", str(len(summary.scheduler_context_ids))),
+        HostEvidencePresentationFact("Scheduler lanes", str(len(summary.scheduler_lane_ids))),
+        HostEvidencePresentationFact("Runtime sessions", str(len(summary.runtime_session_ids))),
+        HostEvidencePresentationFact("Scratch spaces", str(summary.scratch_count)),
+        HostEvidencePresentationFact("Home audit", summary.home_registration_audit_state),
+    )
+    refs = [
+        HostEvidencePresentationRef("Evidence", str(summary.evidence_path)),
+    ]
+    if summary.source_snapshot_path:
+        refs.append(
+            HostEvidencePresentationRef("Source snapshot", summary.source_snapshot_path)
+        )
+    if summary.home_registration_id:
+        refs.append(
+            HostEvidencePresentationRef(
+                "Home registration",
+                summary.home_registration_id,
+                ref_kind="agent_home_registration",
+            )
+        )
+    for scratch_id in summary.scratch_ids:
+        refs.append(
+            HostEvidencePresentationRef(
+                f"Scratch {scratch_id}",
+                scratch_id,
+                ref_kind="agent_scratch_space",
+            )
+        )
+
+    authority_clues = tuple(
+        HostEvidencePresentationFact(label, _object_to_text(authority_split.get(key)))
+        for label, key in (
+            ("Binding authority", "binding_authority"),
+            ("Evidence authority", "evidence_authority"),
+            ("Scheduler state mutated", "scheduler_state_mutated"),
+            ("Home persisted", "agent_home_registration_persisted"),
+            ("Home directory created", "agent_home_directory_created"),
+            ("Scratch directories created", "scratch_directories_created"),
+            ("Scratch manifest written", "scratch_manifest_written"),
+            ("Cleanup executed", "cleanup_executed"),
+            ("Scheduler projection refreshed", "scheduler_projection_refreshed"),
+            ("Evidence written", "evidence_written"),
+            ("Local trajectory mutated", "local_work_trajectory_mutated"),
+        )
+        if key in authority_split
+    )
+
+    return HostEvidencePresentationCard(
+        id=summary.evidence_id,
+        title=f"Supervisor storage binding evidence {summary.evidence_id}",
+        subtitle=" · ".join(
+            part
+            for part in (
+                host_surface,
+                summary.supervisor_id,
+                f"{len(summary.scheduler_task_ids)} task(s)",
+            )
+            if part
+        ),
+        status="completed",
+        severity="info",
+        timestamp=summary.timestamp,
+        runtime_providers=(),
+        host_surface=host_surface,
+        invocation_id=summary.run_id or summary.evidence_id,
+        requested_by=summary.requested_by,
+        stop_reason="readback_available",
+        stop_detail="Supervisor storage binding evidence was read successfully.",
+        run_count=len(summary.runtime_session_ids),
+        output_count=summary.scratch_count,
+        permission_review_count=0,
+        key_facts=key_facts,
+        refs=tuple(refs),
+        authority_clues=authority_clues,
+        metadata={
+            "evidence_product_type": summary.product_type,
+            "binding_id": summary.binding_id,
+            "host_id": summary.host_id,
+            "scheduler_task_ids": list(summary.scheduler_task_ids),
+            "scheduler_context_ids": list(summary.scheduler_context_ids),
+            "scheduler_lane_ids": list(summary.scheduler_lane_ids),
+            "runtime_session_ids": list(summary.runtime_session_ids),
+            "scratch_ids": list(summary.scratch_ids),
+            "source_snapshot_path": summary.source_snapshot_path,
+            "evidence_metadata": evidence_metadata,
+        },
+    )
+
+
 def _host_evidence_presentation_error_row(
     error: HostEvidenceReadError,
     *,
@@ -854,6 +967,8 @@ def _read_host_evidence_summary(path: Path) -> HostEvidenceSummary:
         return read_scheduler_loop_evidence_summary(path)
     if product_type == SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE:
         return read_sandbox_allocation_receipt_evidence_summary(path)
+    if product_type == SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE:
+        return read_supervisor_storage_binding_evidence_summary(path)
     raise ValueError(
         "host scheduler evidence artifact has unsupported product_type "
         f"{product_type!r}: {path}"

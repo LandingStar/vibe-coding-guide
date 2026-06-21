@@ -48,12 +48,15 @@ from src.runtime.orchestration import (
     TaskDependency,
     TaskRunRecord,
     build_sandbox_allocation_receipt_evidence,
+    build_supervisor_storage_binding_evidence,
+    default_supervisor_storage_binding_evidence_path,
     run_persisted_scheduler_once,
     read_scheduler_state_snapshot,
     scheduler_task_batch_submission_to_artifact,
     submit_scheduler_task_batch_with_persistence,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_state_snapshot,
+    write_supervisor_storage_binding_evidence,
 )
 from src.workflow.checkpoint import write_checkpoint
 from tools.progress_graph import (
@@ -85,6 +88,8 @@ from tools.progress_graph import (
     QoderSmokeTaskConfig,
     HostEvidenceBundle,
     HostEvidenceReadError,
+    SchedulerSupervisorDogfoodWorkflowRequest,
+    build_supervisor_dogfood_storage_binding,
     host_scheduler_evidence_dir,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
@@ -95,6 +100,7 @@ from tools.progress_graph import (
     run_host_owned_qoder_smoke,
     run_host_runtime_dogfood_harness,
     run_persisted_scheduler_once_and_refresh_projection,
+    run_scheduler_supervisor_dogfood_workflow,
     scheduler_work_trajectory_json_path,
     set_local_work_trajectory_anchor,
     start_single_line_trajectory,
@@ -1398,6 +1404,71 @@ def test_host_evidence_bundle_reads_sandbox_allocation_cleanup_evidence(
     ]
     assert any(ref["label"] == "Source evidence" for ref in card["refs"])
     assert any(ref["label"] == "Worktree task-1" for ref in card["refs"])
+
+
+def test_host_evidence_bundle_reads_supervisor_storage_binding_evidence(
+    tmp_path: Path,
+) -> None:
+    workflow = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            timestamp="2026-06-21T11:45:00+00:00",
+            supervisor_id="supervisor:host-evidence",
+            session_id="session:host-evidence",
+            run_id="run:host-evidence",
+            host_id="host:host-evidence",
+            requested_by="agent:guide",
+        )
+    )
+    binding = build_supervisor_dogfood_storage_binding(
+        workflow,
+        agent_id="agent:host-evidence",
+        context_session_id="context-session:host-evidence",
+    )
+    evidence = build_supervisor_storage_binding_evidence(
+        binding,
+        evidence_id="supervisor-binding:host-evidence",
+        timestamp="2026-06-21T11:45:01+00:00",
+        metadata={"workflow_surface": "supervisor-dogfood-workflow"},
+    )
+    evidence_path = default_supervisor_storage_binding_evidence_path(
+        tmp_path,
+        evidence.evidence_id,
+    )
+    write_supervisor_storage_binding_evidence(evidence, evidence_path)
+
+    bundle = read_host_evidence_bundle(tmp_path)
+    payload = bundle.to_json_dict()
+    presentation = build_host_evidence_presentation(bundle)
+    presentation_payload = presentation.to_json_dict()
+    card = presentation_payload["cards"][0]
+
+    assert payload["evidence_count"] == 1
+    assert payload["summaries"][0]["product_type"] == "supervisor_storage_binding_evidence"
+    assert payload["summaries"][0]["evidence_id"] == "supervisor-binding:host-evidence"
+    assert payload["summaries"][0]["agent_id"] == "agent:host-evidence"
+    assert payload["summaries"][0]["context_session_id"] == "context-session:host-evidence"
+    assert "binding" not in payload["summaries"][0]
+    assert presentation_payload["status"] == "ok"
+    assert card["id"] == "supervisor-binding:host-evidence"
+    assert card["title"] == (
+        "Supervisor storage binding evidence supervisor-binding:host-evidence"
+    )
+    assert card["status"] == "completed"
+    assert card["host_surface"] == "supervisor-dogfood-workflow"
+    assert card["stop_reason"] == "readback_available"
+    assert card["run_count"] == 1
+    assert card["output_count"] == 2
+    assert {"label": "Agent", "value": "agent:host-evidence"} in card["key_facts"]
+    assert {"label": "Scratch spaces", "value": "2"} in card["key_facts"]
+    assert {
+        "label": "Local trajectory mutated",
+        "value": "false",
+    } in card["authority_clues"]
+    assert card["metadata"]["evidence_product_type"] == "supervisor_storage_binding_evidence"
+    assert card["metadata"]["scheduler_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert any(ref["label"] == "Source snapshot" for ref in card["refs"])
+    assert any(ref["ref_kind"] == "agent_home_registration" for ref in card["refs"])
 
 
 def test_host_evidence_cleanup_evidence_failed_state_takes_precedence(

@@ -96,6 +96,7 @@ from src.runtime.orchestration import (
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
     SupervisorAgentStorageBindingRequest,
+    SupervisorStorageBindingEvidenceSummary,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
@@ -108,6 +109,8 @@ from src.runtime.orchestration import (
     build_runtime_registry_from_config,
     build_sandbox_allocation_receipt_evidence,
     build_scheduler_loop_evidence,
+    build_supervisor_storage_binding_evidence,
+    default_supervisor_storage_binding_evidence_path,
     default_sandbox_allocation_receipt_evidence_path,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
@@ -168,10 +171,12 @@ from src.runtime.orchestration import (
     read_host_scheduler_run_evidence_summaries,
     read_host_scheduler_run_evidence_summary,
     read_scheduler_loop_evidence_summary,
+    read_supervisor_storage_binding_evidence_summary,
     run_sandbox_allocation_cleanup_over_receipts,
     write_scheduler_state_snapshot,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
+    write_supervisor_storage_binding_evidence,
 )
 from tools.progress_graph import (
     HostSandboxReceiptWorkflowRequest,
@@ -4972,6 +4977,107 @@ def test_supervisor_agent_storage_binding_requires_supervisor_session_and_run() 
             ),
             state,
         )
+
+
+def test_supervisor_storage_binding_evidence_round_trips_summary(tmp_path) -> None:
+    workflow = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            fixture="simple",
+            timestamp="2026-06-21T11:20:00+00:00",
+            supervisor_id="supervisor:evidence",
+            session_id="session:evidence",
+            run_id="run:evidence",
+            host_id="host:evidence",
+            requested_by="agent:guide",
+        )
+    )
+    binding = build_supervisor_dogfood_storage_binding(
+        workflow,
+        agent_id="agent:supervisor-evidence",
+        context_session_id="context-session:evidence",
+    )
+    evidence = build_supervisor_storage_binding_evidence(
+        binding,
+        evidence_id="supervisor-binding:evidence",
+        timestamp="2026-06-21T11:20:01+00:00",
+        metadata={"workflow_surface": "supervisor-dogfood-workflow"},
+    )
+    evidence_path = default_supervisor_storage_binding_evidence_path(
+        tmp_path,
+        evidence.evidence_id,
+    )
+
+    write = write_supervisor_storage_binding_evidence(evidence, evidence_path)
+    summary = read_supervisor_storage_binding_evidence_summary(write.evidence_path)
+    payload = summary.to_json_dict()
+
+    assert isinstance(summary, SupervisorStorageBindingEvidenceSummary)
+    assert payload["product_type"] == "supervisor_storage_binding_evidence"
+    assert payload["schema_version"] == "1"
+    assert payload["evidence_id"] == "supervisor-binding:evidence"
+    assert payload["evidence_path"] == str(evidence_path)
+    assert payload["binding_id"] == "supervisor-storage-binding:context-session-evidence"
+    assert payload["supervisor_id"] == "supervisor:evidence"
+    assert payload["session_id"] == "session:evidence"
+    assert payload["run_id"] == "run:evidence"
+    assert payload["host_id"] == "host:evidence"
+    assert payload["requested_by"] == "agent:guide"
+    assert payload["agent_id"] == "agent:supervisor-evidence"
+    assert payload["context_session_id"] == "context-session:evidence"
+    assert payload["scheduler_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert payload["scheduler_context_ids"] == [
+        "context:dogfood-prepare",
+        "context:dogfood-verify",
+    ]
+    assert payload["scheduler_lane_ids"] == ["lane:dogfood"]
+    assert payload["runtime_session_ids"] == ["fake-session-1"]
+    assert payload["home_registration_id"] == "home-reg:context-session-evidence"
+    assert payload["home_registration_audit_state"] == "requested"
+    assert payload["scratch_count"] == 2
+    assert payload["scratch_ids"] == ["scratch:dogfood:prepare", "scratch:dogfood:verify"]
+    assert payload["source_snapshot_path"] == str(workflow.snapshot_path)
+    assert payload["metadata"] == {"workflow_surface": "supervisor-dogfood-workflow"}
+    assert payload["authority_split"]["evidence_written"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["scratch_manifest_written"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    raw_payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert "binding" in raw_payload
+    assert raw_payload["binding"]["home_registration"]["audit_state"] == "requested"
+
+
+def test_supervisor_storage_binding_evidence_rejects_wrong_product_and_schema(tmp_path) -> None:
+    wrong_product = tmp_path / "wrong-product.json"
+    wrong_product.write_text(
+        json.dumps(
+            {
+                "product_type": "other",
+                "schema_version": "1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    wrong_schema = tmp_path / "wrong-schema.json"
+    wrong_schema.write_text(
+        json.dumps(
+            {
+                "product_type": "supervisor_storage_binding_evidence",
+                "schema_version": "999",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="has product_type"):
+        read_supervisor_storage_binding_evidence_summary(wrong_product)
+    with pytest.raises(ValueError, match="has schema_version"):
+        read_supervisor_storage_binding_evidence_summary(wrong_schema)
 
 
 def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:
