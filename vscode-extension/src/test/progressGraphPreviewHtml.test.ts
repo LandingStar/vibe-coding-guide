@@ -654,7 +654,82 @@ test('buildProgressGraphPreviewHtml renders selectable cleanup receipt evidence 
   assert.match(html, /current receipt · cleanup required · \.codex\/scheduler\/evidence\/allocation-receipts\.json/);
   assert.match(html, /source receipt · cleanup required · E:\/workspace\/example\/\.codex\/scheduler\/evidence\/source-allocation\.json/);
   assert.match(html, /required allocation-1, allocation-2/);
+  assert.match(html, /id="pgHostSchedulerCleanupOutcomeDiff"/);
+  assert.match(html, /data-pg-cleanup-outcome-diff-count="0"/);
+  assert.match(html, /No visible source\/cleanup sandbox receipt pair is available for diff/);
   assert.doesNotMatch(html, /data-pg-cleanup-evidence-path="E:\/workspace\/sandboxes\/task-1-worktree"/);
+});
+
+test('buildProgressGraphPreviewHtml renders cleanup outcome diff from visible receipt pair', () => {
+  const presentation = coerceHostEvidencePresentation({
+    generated_at: '2026-06-21T07:25:00.000Z',
+    project_root: 'E:/workspace/example',
+    evidence_dir: 'E:/workspace/example/.codex/scheduler/evidence',
+    status: 'ok',
+    card_count: 1,
+    error_count: 0,
+    empty_message: '',
+    cards: [
+      {
+        id: 'workflow-cleanup',
+        title: 'Sandbox cleanup evidence workflow-cleanup',
+        subtitle: 'host-sandbox-receipt-workflow · cleanup settled',
+        status: 'completed',
+        severity: 'info',
+        timestamp: '2026-06-21T07:20:00+08:00',
+        runtime_providers: ['git-worktree'],
+        host_surface: 'host-sandbox-receipt-workflow',
+        invocation_id: 'workflow-cleanup',
+        requested_by: 'operator-or-host',
+        stop_reason: 'cleanup_settled',
+        stop_detail: 'cleanup completed for one allocation',
+        run_count: 0,
+        output_count: 0,
+        permission_review_count: 0,
+        key_facts: [
+          { label: 'Evidence product', value: 'sandbox_allocation_receipt_evidence' },
+          { label: 'Cleanup required before', value: '1' },
+          { label: 'Cleanup required', value: '0' },
+          { label: 'Cleanup completed', value: '1' },
+          { label: 'Cleanup failed', value: '0' },
+        ],
+        refs: [
+          { label: 'Cleanup evidence', target: '.codex/scheduler/evidence/workflow-cleanup.json', ref_kind: 'path' },
+          { label: 'Source evidence', target: '.codex/scheduler/evidence/workflow-allocation.json', ref_kind: 'path' },
+          { label: 'Worktree task-1', target: 'E:/workspace/sandboxes/task-1-worktree', ref_kind: 'path' },
+        ],
+        authority_clues: [
+          { label: 'Cleanup executed', value: 'true' },
+          { label: 'Local trajectory mutated', value: 'false' },
+        ],
+        metadata: {
+          evidence_product_type: 'sandbox_allocation_receipt_evidence',
+          cleanup_state_counts: { required: 0, completed: 1, failed: 0 },
+          cleanup_completed_allocation_ids: ['allocation-1'],
+        },
+      },
+    ],
+    error_rows: [],
+  });
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: presentation,
+  }));
+
+  assert.match(html, /Cleanup outcome diff/);
+  assert.match(html, /data-pg-cleanup-outcome-diff-count="1"/);
+  assert.match(html, /data-pg-cleanup-outcome-diff-row="workflow-cleanup"/);
+  assert.match(html, /Before/);
+  assert.match(html, /required before: 1/);
+  assert.match(html, /After/);
+  assert.match(html, /required=0 · completed=1 · failed=0/);
+  assert.match(html, /Changed allocations/);
+  assert.match(html, /allocation-1/);
+  assert.match(html, /Source receipt/);
+  assert.match(html, /\.codex\/scheduler\/evidence\/workflow-allocation\.json/);
+  assert.match(html, /Cleanup receipt/);
+  assert.match(html, /\.codex\/scheduler\/evidence\/workflow-cleanup\.json/);
+  assert.doesNotMatch(html, /data-pg-cleanup-outcome-diff-row="E:\/workspace\/sandboxes\/task-1-worktree"/);
 });
 
 test('buildProgressGraphPreviewHtml renders isolated malformed host evidence rows', () => {

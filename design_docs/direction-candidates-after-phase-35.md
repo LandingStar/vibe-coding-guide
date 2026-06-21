@@ -1,18 +1,18 @@
 # Direction Candidates — After Phase 35
 
-## 2026-06-21 补充候选：Host UX daemon-loop sandbox receipt workflow mode 收口后的下一步
+## 2026-06-21 补充候选：Host UX cleanup outcome diff 收口后的下一步
 
-- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-ux-daemon-loop-sandbox-receipt-workflow-mode.md` 已完成并关闭；VS Code Scheduler Operator 的 `Sandbox Receipt Workflow` 控件已支持 `run-once` 与 bounded `daemon-loop` 两种模式，daemon-loop 显式采集 `max ticks`、`max runs per tick`、`max runtime failures`，并复用既有 `doc-based-coding scheduler sandbox-receipt-workflow` CLI surface。
-- 候选 1：`Host UX Cleanup Outcome Diff For Sandbox Receipt Workflow`
-  - 做什么：在 Host UX 中只读对比 allocation evidence 与 cleanup evidence，展示 cleanup required / completed / failed id 变化和每个 allocation 的状态转移。
-  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`、`review/host-ux-daemon-loop-sandbox-receipt-workflow-mode-2026-06-21.md`
-- 候选 2：`Evidence-Aware Workflow Defaults`
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-outcome-diff-sandbox-receipt-workflow.md` 已完成并关闭；VS Code Scheduler Operator 的 `Sandbox Receipt Cleanup` 控件已能从可见 Host Evidence receipt refs 派生只读 cleanup outcome diff，展示 before / after / changed allocations / source receipt / cleanup receipt。
+- 候选 1：`Evidence-Aware Workflow Defaults For Sandbox Receipt Workflow`
   - 做什么：从可见 Host Evidence receipt candidates 预填 workflow path/id 字段，但不自动勾选 cleanup、不自动执行 workflow。
-  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`
+  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`、`review/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-2026-06-21.md`
+- 候选 2：`Backend-Enriched Cleanup Diff Payload`
+  - 做什么：在 Host Evidence presentation 中暴露更结构化的 cleanup diff payload，减少 UI 从 generic card facts 推断 before/after 语义。
+  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`
 - 候选 3：`Scheduler Projection Refresh Integration`
   - 做什么：在 workflow 完成后提供显式 projection refresh follow-up，使 scheduler-derived trajectory projection 可在同一 Host UX flow 内检查。
-  - 依据：`design_docs/host-ux-daemon-loop-sandbox-receipt-workflow-mode-followup-direction-analysis.md`
-- 当前倾向：默认先进入候选 1。两种 workflow mode 已能产生 allocation/cleanup evidence pair，下一步最有价值的是把 evidence pair 的结果差异读清楚；这保持只读和 fake-runtime 边界，不扩大调度/runtime 权限。
+  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。receipt role 和 diff 现在已经足够可见，安全的下一步是降低 operator 手动复制 path/id 的成本，同时保持不自动勾选 cleanup、不自动运行任何 mutation action。
 
 ## 2026-06-21 补充候选：git-worktree sandbox provider spike 收口后的下一步
 

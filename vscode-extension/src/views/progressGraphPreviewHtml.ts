@@ -240,6 +240,18 @@ type SchedulerCleanupReceiptCandidate = {
   detail: string;
 };
 
+type SchedulerCleanupOutcomeDiffRow = {
+  id: string;
+  title: string;
+  status: string;
+  beforeSummary: string;
+  afterSummary: string;
+  sourcePath: string;
+  cleanupPath: string;
+  currentPath: string;
+  changedAllocationIds: string[];
+};
+
 export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
   freshness: ProgressGraphPreviewFreshness;
   freshnessLabel: string;
@@ -2157,6 +2169,46 @@ function buildParallelPreviewHtml(
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
+  .pg-host-scheduler-cleanup-diff {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(163, 218, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.1);
+  }
+  .pg-host-scheduler-cleanup-diff-row {
+    display: grid;
+    gap: 7px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+  .pg-host-scheduler-cleanup-diff-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 7px;
+  }
+  .pg-host-scheduler-cleanup-diff-fact {
+    min-width: 0;
+    padding: 6px 7px;
+    border-radius: 7px;
+    background: rgba(0, 0, 0, 0.13);
+  }
+  .pg-host-scheduler-cleanup-diff-label {
+    color: rgba(248, 244, 239, 0.52);
+    font-size: 0.64rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .pg-host-scheduler-cleanup-diff-value {
+    margin-top: 2px;
+    color: rgba(248, 244, 239, 0.86);
+    font-size: 0.7rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
   .pg-host-scheduler-candidates {
     display: grid;
     gap: 9px;
@@ -3505,6 +3557,7 @@ function buildSchedulerCleanupReceiptAction(
   presentation: ProgressGraphPreviewHostEvidencePresentation | null,
 ): string {
   const candidates = buildSchedulerCleanupReceiptCandidates(presentation);
+  const outcomeDiff = buildSchedulerCleanupOutcomeDiff(presentation);
   const candidateList = candidates.length
     ? `<div class="pg-host-scheduler-cleanup-candidates">
       <p class="pg-host-evidence-group-title">Receipt evidence candidates</p>
@@ -3519,6 +3572,7 @@ function buildSchedulerCleanupReceiptAction(
     <p class="pg-host-control-card-subtitle">select visible sandbox_allocation_receipt_evidence or enter a manual path · explicit scheduler cleanup-receipts invocation</p>
   </div>
   ${candidateList}
+  ${outcomeDiff}
   <div class="pg-host-scheduler-cleanup-row">
     <input
       id="pgHostCleanupEvidencePath"
@@ -3595,6 +3649,87 @@ function buildSchedulerCleanupReceiptCandidates(
   return candidates;
 }
 
+function buildSchedulerCleanupOutcomeDiff(
+  presentation: ProgressGraphPreviewHostEvidencePresentation | null,
+): string {
+  const rows = buildSchedulerCleanupOutcomeDiffRows(presentation);
+  const rowHtml = rows.length
+    ? rows.map(buildSchedulerCleanupOutcomeDiffRow).join('')
+    : `<p class="pg-host-control-card-subtitle">No visible source/cleanup sandbox receipt pair is available for diff.</p>`;
+  return `<div id="pgHostSchedulerCleanupOutcomeDiff" class="pg-host-scheduler-cleanup-diff" data-pg-cleanup-outcome-diff-count="${rows.length}">
+    <div class="pg-host-evidence-title-wrap">
+      <p class="pg-host-evidence-group-title">Cleanup outcome diff</p>
+      <p class="pg-host-control-card-subtitle">read-only comparison from visible Host Evidence receipt refs</p>
+    </div>
+    ${rowHtml}
+  </div>`;
+}
+
+function buildSchedulerCleanupOutcomeDiffRows(
+  presentation: ProgressGraphPreviewHostEvidencePresentation | null,
+): SchedulerCleanupOutcomeDiffRow[] {
+  if (!presentation) {
+    return [];
+  }
+  return presentation.cards
+    .filter(isSandboxAllocationReceiptEvidenceCard)
+    .map((card) => {
+      const sourcePath = findReceiptRefPath(card, 'source receipt');
+      const cleanupPath = findReceiptRefPath(card, 'cleanup receipt')
+        || (isCleanupOutcomeCard(card) ? findReceiptRefPath(card, 'current receipt') : '');
+      if (!sourcePath || !cleanupPath) {
+        return null;
+      }
+      const currentPath = findReceiptRefPath(card, 'current receipt');
+      const stateCounts = readCleanupStateCounts(card);
+      const requiredIds = readUnknownStringArray(card.metadata.cleanup_required_allocation_ids);
+      const failedIds = readUnknownStringArray(card.metadata.cleanup_failed_allocation_ids);
+      const completedIds = readUnknownStringArray(card.metadata.cleanup_completed_allocation_ids);
+      return {
+        id: card.id,
+        title: card.title || card.id,
+        status: summarizeCleanupState(card).status || card.status || 'unknown',
+        beforeSummary: `required before: ${readFactValue(card, 'Cleanup required before', readFactValue(card, 'Source cleanup required', 'unknown'))}`,
+        afterSummary: [
+          `required=${stateCounts.required}`,
+          `completed=${stateCounts.completed}`,
+          `failed=${stateCounts.failed}`,
+        ].join(' · '),
+        sourcePath,
+        cleanupPath,
+        currentPath,
+        changedAllocationIds: Array.from(new Set([
+          ...completedIds,
+          ...failedIds,
+          ...requiredIds,
+        ].filter(Boolean))),
+      } satisfies SchedulerCleanupOutcomeDiffRow;
+    })
+    .filter((row): row is SchedulerCleanupOutcomeDiffRow => row !== null);
+}
+
+function buildSchedulerCleanupOutcomeDiffRow(row: SchedulerCleanupOutcomeDiffRow): string {
+  const changed = row.changedAllocationIds.length ? row.changedAllocationIds.join(', ') : 'not listed';
+  const facts = [
+    ['Before', row.beforeSummary],
+    ['After', row.afterSummary],
+    ['Changed allocations', changed],
+    ['Source receipt', row.sourcePath],
+    ['Cleanup receipt', row.cleanupPath],
+    ...(row.currentPath && row.currentPath !== row.cleanupPath ? [['Current receipt', row.currentPath]] : []),
+  ].map(([label, value]) => `<div class="pg-host-scheduler-cleanup-diff-fact">
+      <div class="pg-host-scheduler-cleanup-diff-label">${escapeHtml(label)}</div>
+      <div class="pg-host-scheduler-cleanup-diff-value">${escapeHtml(value)}</div>
+    </div>`).join('');
+  return `<article class="pg-host-scheduler-cleanup-diff-row" data-pg-cleanup-outcome-diff-row="${escapeHtml(row.id)}">
+    <div class="pg-host-evidence-chip-row">
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(row.status.includes('failed') ? 'failed' : row.status.includes('required') ? 'warning' : 'completed')}">${escapeHtml(row.status)}</span>
+      <span class="pg-host-evidence-badge">${escapeHtml(row.title)}</span>
+    </div>
+    <div class="pg-host-scheduler-cleanup-diff-grid">${facts}</div>
+  </article>`;
+}
+
 function isSandboxAllocationReceiptEvidenceCard(card: ProgressGraphPreviewHostEvidenceCard): boolean {
   if (card.metadata.evidence_product_type === 'sandbox_allocation_receipt_evidence') {
     return true;
@@ -3625,6 +3760,65 @@ function cleanupReceiptRefRole(label: string): string {
     return 'cleanup receipt';
   }
   return 'current receipt';
+}
+
+function findReceiptRefPath(card: ProgressGraphPreviewHostEvidenceCard, role: string): string {
+  const ref = card.refs.find((candidate) => (
+    isReceiptEvidencePathRef(candidate)
+    && cleanupReceiptRefRole(candidate.label) === role
+  ));
+  return ref?.target ?? '';
+}
+
+function isCleanupOutcomeCard(card: ProgressGraphPreviewHostEvidenceCard): boolean {
+  const executed = readFactValue(card, 'Cleanup executed', '').toLowerCase() === 'true'
+    || card.authorityClues.some((fact) => (
+      fact.label.toLowerCase() === 'cleanup executed'
+      && fact.value.toLowerCase() === 'true'
+    ));
+  return executed
+    || card.hostSurface.toLowerCase().includes('cleanup')
+    || card.stopReason.toLowerCase().includes('cleanup_settled');
+}
+
+function readCleanupStateCounts(card: ProgressGraphPreviewHostEvidenceCard): {
+  required: string;
+  completed: string;
+  failed: string;
+} {
+  const stateCounts = isRecord(card.metadata.cleanup_state_counts)
+    ? card.metadata.cleanup_state_counts
+    : {};
+  return {
+    required: readStateCountOrFact(card, stateCounts, 'required', 'Cleanup required'),
+    completed: readStateCountOrFact(card, stateCounts, 'completed', 'Cleanup completed'),
+    failed: readStateCountOrFact(card, stateCounts, 'failed', 'Cleanup failed'),
+  };
+}
+
+function readStateCountOrFact(
+  card: ProgressGraphPreviewHostEvidenceCard,
+  stateCounts: Record<string, unknown>,
+  key: string,
+  factLabel: string,
+): string {
+  const value = stateCounts[key];
+  if (typeof value === 'number' || typeof value === 'string') {
+    return String(value);
+  }
+  return readFactValue(card, factLabel, '0');
+}
+
+function readFactValue(
+  card: ProgressGraphPreviewHostEvidenceCard,
+  label: string,
+  fallback: string,
+): string {
+  const normalized = label.toLowerCase();
+  const fact = [...card.keyFacts, ...card.authorityClues].find((candidate) => (
+    candidate.label.toLowerCase() === normalized
+  ));
+  return fact?.value ?? fallback;
 }
 
 function summarizeCleanupState(card: ProgressGraphPreviewHostEvidenceCard): { status: string; detail: string } {
