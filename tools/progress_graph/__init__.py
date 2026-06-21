@@ -23,6 +23,12 @@ from .host_evidence import (
     host_scheduler_evidence_dir,
     read_host_evidence_bundle,
 )
+from .host_sandbox_receipt_workflow import (
+    HostSandboxReceiptWorkflowRequest,
+    HostSandboxReceiptWorkflowResult,
+    HostSandboxReceiptWorkflowStep,
+    run_host_sandbox_receipt_workflow,
+)
 from .model import (
     CrossGraphEdge,
     ProgressCluster,
@@ -123,6 +129,7 @@ __all__ = [
     "run_host_authorized_scheduler_daemon_loop_and_refresh_projection",
     "run_host_authorized_scheduler_once_and_refresh_projection",
     "run_host_runtime_dogfood_harness",
+    "run_host_sandbox_receipt_workflow",
     "run_persisted_scheduler_once_and_refresh_projection",
     "run_scheduler_operator_workflow",
     "scheduler_work_trajectory_json_path",
@@ -138,6 +145,9 @@ __all__ = [
     "HostRuntimeDogfoodHarnessResult",
     "HostOwnedQoderSmokeRunConfig",
     "HostOwnedQoderSmokeRunResult",
+    "HostSandboxReceiptWorkflowRequest",
+    "HostSandboxReceiptWorkflowResult",
+    "HostSandboxReceiptWorkflowStep",
     "QoderSmokeTaskConfig",
     "build_qoder_smoke_scheduler_state",
     "build_host_evidence_presentation",

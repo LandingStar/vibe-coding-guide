@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Daemon Loop Git-Worktree Opt-In",
-  "recorded_at": "2026-06-20T22:24:44.077410+00:00",
+  "title": "Host Workflow For Allocate-Read-Cleanup-Read",
+  "recorded_at": "2026-06-21T01:32:44.957035+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
-  "guide_context": "design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md",
+  "guide_context": "design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,22 +13,22 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Daemon Loop Git-Worktree Opt-In",
+    "title": "Host Workflow For Allocate-Read-Cleanup-Read",
     "lane_count": 1,
-    "event_count": 4,
-    "relation_count": 3,
+    "event_count": 5,
+    "relation_count": 4,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "daemon git opt-in",
+      "label": "host workflow",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md"
+        "context": "design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md"
       }
     }
   },
@@ -36,59 +36,72 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Open daemon loop git-worktree opt-in planning gate",
+      "title": "Open host workflow allocate-read-cleanup-read planning gate",
       "kind": "start",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-20T22:08:33.303052+00:00",
-        "activated_at": "2026-06-20T22:08:33.303052+00:00",
+        "created_at": "2026-06-20T22:28:02.257059+00:00",
+        "activated_at": "2026-06-20T22:28:02.257059+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T22:10:08.727286+00:00"
+        "completed_at": "2026-06-21T01:09:51.363691+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Implement daemon-loop git-worktree opt-in",
+      "title": "Implement backend host workflow helper",
       "kind": "task",
       "status": "completed",
       "order": 2,
-      "summary": "Implementation is in progress: daemon host adapter now mirrors one-shot git-worktree opt-in shape; next step is focused runtime and Host Evidence readback tests.",
+      "summary": "Inspect existing contracts, implement workflow request/result helper around run-once or daemon-loop allocation, Host Evidence readback, explicit cleanup, and post-cleanup readback.",
       "metadata": {
-        "created_at": "2026-06-20T22:10:20.453801+00:00",
+        "created_at": "2026-06-21T01:10:00.863949+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-06-20T22:13:06.855961+00:00",
-        "completed_at": "2026-06-20T22:19:31.839008+00:00"
+        "completed_at": "2026-06-21T01:17:05.793424+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Validate and write back daemon-loop opt-in slice",
+      "title": "Validate host workflow helper",
       "kind": "validation",
       "status": "completed",
       "order": 3,
-      "summary": "Run focused daemon-loop regression, close the planning gate, record review evidence and follow-up direction, then update project status files.",
+      "summary": "Run py_compile, focused workflow tests, adjacent host/git workflow regression, focused Host Evidence cleanup readback regression, and full runtime orchestration tests.",
       "metadata": {
-        "created_at": "2026-06-20T22:19:37.513299+00:00",
+        "created_at": "2026-06-21T01:22:22.724466+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T22:24:14.318889+00:00"
+        "completed_at": "2026-06-21T01:31:56.927504+00:00"
       }
     },
     "event:004": {
       "id": "event:004",
       "lane_id": "lane:main",
-      "title": "Close daemon-loop git-worktree opt-in trajectory",
-      "kind": "close",
+      "title": "Write back host workflow slice status",
+      "kind": "writeback",
       "status": "completed",
       "order": 4,
-      "summary": "Implementation, validation, review evidence, follow-up direction, and project status writeback are complete.",
+      "summary": "Close planning gate, update review evidence, follow-up direction, Checklist, Phase Map, checkpoint, and trajectory state.",
       "metadata": {
-        "created_at": "2026-06-20T22:24:38.256881+00:00",
+        "created_at": "2026-06-21T01:32:06.962281+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-20T22:24:44.076891+00:00"
+        "completed_at": "2026-06-21T01:32:13.402705+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Close Host Workflow For Allocate-Read-Cleanup-Read",
+      "kind": "close",
+      "status": "completed",
+      "order": 5,
+      "summary": "Backend workflow helper slice is implemented, validated, written back, and ready for local commit.",
+      "metadata": {
+        "created_at": "2026-06-21T01:32:35.461727+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-21T01:32:44.957035+00:00"
       }
     }
   },
@@ -114,6 +127,15 @@
     {
       "source_event_id": "event:003",
       "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
       "kind": "sequence",
       "summary": "",
       "metadata": {

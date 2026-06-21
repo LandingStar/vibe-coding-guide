@@ -166,9 +166,11 @@ from src.runtime.orchestration import (
     write_scheduler_loop_evidence,
 )
 from tools.progress_graph import (
+    HostSandboxReceiptWorkflowRequest,
     SchedulerOperatorWorkflowRequest,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
+    run_host_sandbox_receipt_workflow,
     run_scheduler_operator_workflow,
 )
 
@@ -6537,29 +6539,7 @@ def test_host_scheduler_daemon_loop_git_worktree_opt_in_writes_allocation_eviden
     tmp_path,
 ) -> None:
     repo = _git_repo(tmp_path)
-    task = _scheduled_task(
-        "task-1",
-        state="ready",
-        edit_lease=EditScopeLease(
-            lease_id="lease-1",
-            task_id="task-1",
-            allowed_artifacts=("src/app.py",),
-            lease_mode="write",
-        ),
-        sandbox_profile=SandboxProfile(
-            profile_id="worktree",
-            profile_kind="git-worktree",
-            mount_policy="lease-scoped",
-        ),
-        context_scope=ContextScope(
-            context_id="context:task-1",
-            lane_id="lane-main",
-            required_refs=(
-                ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
-            ),
-        ),
-        output_artifact_id="task-1:result",
-    )
+    task = _workflow_git_worktree_task()
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
     evidence_path = tmp_path / ".codex" / "scheduler" / "evidence" / "daemon-allocation-receipts.json"
@@ -6642,6 +6622,176 @@ def test_host_scheduler_daemon_loop_git_worktree_opt_in_writes_allocation_eviden
     assert {"label": "Evidence written", "value": "true"} in host_card["authority_clues"]
 
     GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
+
+
+def test_host_sandbox_receipt_workflow_run_once_cleans_and_reads_back(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    task = _workflow_git_worktree_task()
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-run-allocation.json"
+    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-run-cleanup.json"
+    write_scheduler_state_snapshot(
+        _state_with_acquired_git_worktree_lease(task),
+        snapshot_path,
+    )
+
+    result = run_host_sandbox_receipt_workflow(
+        HostSandboxReceiptWorkflowRequest(
+            project_root=tmp_path,
+            mode="run_once",
+            run_once_request=HostSchedulerRunRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    timestamp="2026-06-21T08:45:00+08:00",
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="workflow-run-once",
+                        requested_providers=("fake",),
+                        requested_by="host:test",
+                    ),
+                ),
+                workspace_root=str(repo),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+                sandbox_allocation_evidence_id="workflow-run-allocation",
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp="2026-06-21T08:45:00+08:00",
+            ),
+            cleanup=True,
+            cleanup_evidence_id="workflow-run-cleanup",
+            cleanup_evidence_path=cleanup_path,
+            timestamp="2026-06-21T08:45:00+08:00",
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    payload = result.to_json_dict()
+    allocation_summary = read_sandbox_allocation_receipt_evidence_summary(allocation_path)
+    cleanup_summary = read_sandbox_allocation_receipt_evidence_summary(cleanup_path)
+    allocation = allocation_summary.allocations_by_task_id["task-1"]
+    cleaned = cleanup_summary.allocations_by_task_id["task-1"]
+    allocation_card = payload["allocation_readback_presentation"]["cards"][0]
+    cleanup_card = payload["cleanup_readback_presentation"]["cards"][0]
+
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "host-sandbox-receipt-workflow"
+    assert payload["workflow_mode"] == "run_once"
+    assert payload["paths"]["allocation_evidence_path"] == str(allocation_path)
+    assert payload["paths"]["cleanup_evidence_path"] == str(cleanup_path)
+    assert [step["name"] for step in payload["steps"]] == [
+        "runHostSchedulerOnce",
+        "readAllocationEvidence",
+        "cleanupReceipts",
+        "readCleanupEvidence",
+    ]
+    assert payload["authority_split"]["cleanup_requested"] is True
+    assert payload["authority_split"]["cleanup_executed"] is True
+    assert payload["authority_split"]["cleanup_evidence_written"] is True
+    assert payload["run_result"]["sandbox_allocation_evidence_written"] is True
+    assert payload["cleanup_result"]["cleaned_allocation_ids"] == [allocation.allocation_id]
+    assert allocation.cleanup_required is True
+    assert cleaned.cleanup_required is False
+    assert cleaned.git_worktree_receipt is not None
+    assert cleaned.git_worktree_receipt.cleanup_state == "completed"
+    assert not Path(cleaned.git_worktree_receipt.worktree_path).exists()
+    assert allocation_card["status"] == "partial"
+    assert cleanup_card["status"] == "completed"
+    assert cleanup_card["stop_reason"] == "cleanup_settled"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-1"].state == "complete"
+
+    json.dumps(payload, ensure_ascii=False)
+
+
+def test_host_sandbox_receipt_workflow_daemon_loop_cleans_and_reads_back(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    task = _workflow_git_worktree_task()
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
+    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
+    write_scheduler_state_snapshot(
+        _state_with_acquired_git_worktree_lease(task),
+        snapshot_path,
+    )
+
+    result = run_host_sandbox_receipt_workflow(
+        HostSandboxReceiptWorkflowRequest(
+            project_root=tmp_path,
+            mode="daemon_loop",
+            daemon_loop_request=HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+                runtime_config=RuntimeRegistryWiringConfig(
+                    providers=("fake",),
+                    timestamp="2026-06-21T08:50:00+08:00",
+                    host_invocation=RuntimeHostInvocation(
+                        surface="host-authorized-adapter",
+                        invocation_id="workflow-daemon-loop",
+                        requested_providers=("fake",),
+                        requested_by="host:test",
+                    ),
+                ),
+                workspace_root=str(repo),
+                git_worktree_sandbox_root=tmp_path / "sandboxes",
+                sandbox_allocation_evidence_id="workflow-loop-allocation",
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp="2026-06-21T08:50:00+08:00",
+            ),
+            cleanup=True,
+            cleanup_evidence_id="workflow-loop-cleanup",
+            cleanup_evidence_path=cleanup_path,
+            timestamp="2026-06-21T08:50:00+08:00",
+        ),
+        artifact_store=InMemoryArtifactVersionStore(),
+    )
+    payload = result.to_json_dict()
+    cleanup_summary = read_sandbox_allocation_receipt_evidence_summary(cleanup_path)
+    cleaned = cleanup_summary.allocations_by_task_id["task-1"]
+
+    assert payload["ok"] is True
+    assert payload["workflow_mode"] == "daemon_loop"
+    assert [step["name"] for step in payload["steps"]] == [
+        "runHostSchedulerDaemonLoop",
+        "readAllocationEvidence",
+        "cleanupReceipts",
+        "readCleanupEvidence",
+    ]
+    assert payload["run_result"]["sandbox_allocation_evidence_written"] is True
+    assert payload["run_result"]["total_run_count"] == 1
+    assert payload["allocation_readback_presentation"]["cards"][0]["status"] == "partial"
+    assert payload["cleanup_readback_presentation"]["cards"][0]["status"] == "completed"
+    assert payload["authority_split"]["host_daemon_loop_executed"] is True
+    assert payload["authority_split"]["cleanup_executed"] is True
+    assert cleaned.cleanup_required is False
+    assert cleaned.git_worktree_receipt is not None
+    assert cleaned.git_worktree_receipt.cleanup_state == "completed"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-1"].state == "complete"
+
+
+def test_host_sandbox_receipt_workflow_cleanup_outputs_require_cleanup_opt_in(
+    tmp_path,
+) -> None:
+    with pytest.raises(ValueError, match="cleanup evidence output requires cleanup=True"):
+        run_host_sandbox_receipt_workflow(
+            HostSandboxReceiptWorkflowRequest(
+                project_root=tmp_path,
+                mode="run_once",
+                run_once_request=HostSchedulerRunRequest(
+                    snapshot_path=tmp_path / "scheduler-state.json",
+                    event_log_path=tmp_path / "scheduler-events.jsonl",
+                    workspace_root=str(tmp_path),
+                    git_worktree_sandbox_root=tmp_path / "sandboxes",
+                    sandbox_allocation_evidence_id="allocation",
+                ),
+                cleanup_evidence_path=tmp_path / "cleanup.json",
+            )
+        )
 
 
 def test_host_scheduler_daemon_loop_mock_qoder_writes_scheduler_loop_evidence(tmp_path) -> None:
@@ -8640,6 +8790,32 @@ def _git_worktree_task() -> ScheduledTask:
         input_artifact_refs=(
             ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
         ),
+    )
+
+
+def _workflow_git_worktree_task() -> ScheduledTask:
+    return _scheduled_task(
+        "task-1",
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        context_scope=ContextScope(
+            context_id="context:task-1",
+            lane_id="lane-main",
+            required_refs=(
+                ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
+            ),
+        ),
+        output_artifact_id="task-1:result",
     )
 
 
