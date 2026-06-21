@@ -2539,6 +2539,25 @@ function buildParallelPreviewHtml(
       evidencePathInput.focus();
     });
   }
+  for (const button of document.querySelectorAll('[data-pg-workflow-evidence-prefill]')) {
+    button.addEventListener('click', (event) => {
+      const target = event.currentTarget;
+      const evidenceIdInput = document.getElementById('pgHostSandboxWorkflowAllocationEvidenceId');
+      const evidencePathInput = document.getElementById('pgHostSandboxWorkflowAllocationEvidencePath');
+      if (
+        !(target instanceof HTMLButtonElement)
+        || !(evidenceIdInput instanceof HTMLInputElement)
+        || !(evidencePathInput instanceof HTMLInputElement)
+      ) {
+        return;
+      }
+      evidenceIdInput.value = target.dataset.pgWorkflowEvidenceId || '';
+      evidencePathInput.value = target.dataset.pgWorkflowEvidencePath || '';
+      evidenceIdInput.dispatchEvent(new Event('input', { bubbles: true }));
+      evidencePathInput.dispatchEvent(new Event('input', { bubbles: true }));
+      evidencePathInput.focus();
+    });
+  }
   const readTextInput = (id) => {
     const input = document.getElementById(id);
     return input instanceof HTMLInputElement ? input.value.trim() : '';
@@ -3596,20 +3615,36 @@ function buildSchedulerCleanupReceiptCandidate(
   candidate: SchedulerCleanupReceiptCandidate,
   actionRunning: boolean,
 ): string {
+  const workflowEvidenceId = schedulerEvidenceIdFromPath(candidate.path);
   return `<article class="pg-host-scheduler-cleanup-candidate" data-pg-cleanup-evidence-candidate="${escapeHtml(candidate.id)}">
     <div>
       <p class="pg-host-scheduler-cleanup-candidate-title">${escapeHtml(candidate.label)}</p>
       <p class="pg-host-scheduler-cleanup-candidate-meta">${escapeHtml(candidate.role)} · ${escapeHtml(candidate.status)} · ${escapeHtml(candidate.path)}</p>
       <p class="pg-host-scheduler-cleanup-candidate-meta">${escapeHtml(candidate.detail)}</p>
     </div>
-    <button
-      class="pg-host-scheduler-operator-button"
-      type="button"
-      data-pg-cleanup-evidence-select="true"
-      data-pg-cleanup-evidence-path="${escapeHtml(candidate.path)}"
-      ${actionRunning ? 'disabled' : ''}
-    >Select</button>
+    <div class="pg-host-scheduler-candidate-actions">
+      <button
+        class="pg-host-scheduler-operator-button"
+        type="button"
+        data-pg-cleanup-evidence-select="true"
+        data-pg-cleanup-evidence-path="${escapeHtml(candidate.path)}"
+        ${actionRunning ? 'disabled' : ''}
+      >Select</button>
+      <button
+        class="pg-host-scheduler-operator-button"
+        type="button"
+        data-pg-workflow-evidence-prefill="true"
+        data-pg-workflow-evidence-id="${escapeHtml(workflowEvidenceId)}"
+        data-pg-workflow-evidence-path="${escapeHtml(candidate.path)}"
+        ${actionRunning ? 'disabled' : ''}
+      >Use for workflow</button>
+    </div>
   </article>`;
+}
+
+function schedulerEvidenceIdFromPath(path: string): string {
+  const normalized = path.replace(/\\/g, '/').split('/').filter(Boolean).pop() || path;
+  return normalized.replace(/\.json$/i, '').trim();
 }
 
 function buildSchedulerCleanupReceiptCandidates(

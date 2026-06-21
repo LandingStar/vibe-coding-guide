@@ -1,18 +1,19 @@
 # Direction Candidates — After Phase 35
 
-## 2026-06-21 补充候选：Host UX cleanup outcome diff 收口后的下一步
+## 2026-06-21 补充候选：Host UX evidence-aware workflow defaults 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-outcome-diff-sandbox-receipt-workflow.md` 已完成并关闭；VS Code Scheduler Operator 的 `Sandbox Receipt Cleanup` 控件已能从可见 Host Evidence receipt refs 派生只读 cleanup outcome diff，展示 before / after / changed allocations / source receipt / cleanup receipt。
-- 候选 1：`Evidence-Aware Workflow Defaults For Sandbox Receipt Workflow`
-  - 做什么：从可见 Host Evidence receipt candidates 预填 workflow path/id 字段，但不自动勾选 cleanup、不自动执行 workflow。
-  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`、`review/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-2026-06-21.md`
-- 候选 2：`Backend-Enriched Cleanup Diff Payload`
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-evidence-aware-workflow-defaults-sandbox-receipt-workflow.md` 已完成并关闭；visible sandbox receipt evidence candidates 现在提供显式 `Use for workflow` 动作，只预填 workflow allocation evidence id/path，不自动勾选 cleanup、不自动执行 workflow。
+- 候选 1：`Backend-Enriched Cleanup Diff Payload`
   - 做什么：在 Host Evidence presentation 中暴露更结构化的 cleanup diff payload，减少 UI 从 generic card facts 推断 before/after 语义。
-  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`
-- 候选 3：`Scheduler Projection Refresh Integration`
+  - 依据：`design_docs/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-followup-direction-analysis.md`、`review/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-2026-06-21.md`
+- 候选 2：`Scheduler Projection Refresh Integration`
   - 做什么：在 workflow 完成后提供显式 projection refresh follow-up，使 scheduler-derived trajectory projection 可在同一 Host UX flow 内检查。
-  - 依据：`design_docs/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow-followup-direction-analysis.md`
-- 当前倾向：默认先进入候选 1。receipt role 和 diff 现在已经足够可见，安全的下一步是降低 operator 手动复制 path/id 的成本，同时保持不自动勾选 cleanup、不自动运行任何 mutation action。
+  - 依据：`design_docs/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-followup-direction-analysis.md`
+- 候选 3：`Host UX Sandbox Receipt Branch Pause`
+  - 做什么：暂停这条 Host UX 分支，回到 scheduler/orchestration backend 切片，等真实 host-run evidence 暴露更明确 gap 后再继续 UI。
+  - 依据：`design_docs/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 3。当前 operator path 已经可用，继续叠 UI 控件的边际收益下降；只有真实 receipt evidence 显示 presentation-derived cleanup diff 不够稳时，再切候选 1。
 
 ## 2026-06-21 补充候选：git-worktree sandbox provider spike 收口后的下一步
 
