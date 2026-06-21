@@ -96,6 +96,7 @@ from src.runtime.orchestration import (
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SupervisorAgentStorageBindingRequest,
     SupervisorStorageBindingEvidenceSummary,
@@ -163,6 +164,7 @@ from src.runtime.orchestration import (
     submit_scheduler_task_batch_with_persistence,
     submit_scheduler_task,
     supervisor_storage_binding_evidence_summary_to_artifact,
+    validate_supervisor_storage_binding_artifact_refs,
     validate_exchange_artifact,
     summarize_scheduler_queue,
     wake_dependent_tasks,
@@ -5154,6 +5156,162 @@ def test_supervisor_storage_binding_evidence_artifact_accepts_explicit_identity(
     assert validate_exchange_artifact(artifact) == ()
 
 
+def test_supervisor_storage_binding_artifact_refs_validate_exact_version(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    binding_artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id="binding:context-session-evidence",
+        version="v7",
+    )
+    JsonArtifactVersionStore(store_path).put(binding_artifact)
+    submission = SchedulerTaskSubmission(
+        task_id="task-consume-binding",
+        title="Consume binding",
+        instruction="Use the exact supervisor binding artifact.",
+        agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:consumer"),
+        input_artifact_refs=(
+            ExchangeReference(
+                ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                ref_id="binding:context-session-evidence",
+                version="v7",
+            ),
+        ),
+    )
+
+    validation = validate_supervisor_storage_binding_artifact_refs(
+        submission,
+        store_path,
+    )
+
+    assert validation.ok is True
+    assert validation.checked_count == 1
+    assert validation.checked_refs[0].ref_id == "binding:context-session-evidence"
+    validation.raise_for_errors()
+
+
+def test_supervisor_storage_binding_artifact_refs_report_invalid_refs(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(_accepted_contract_artifact(version="v1"))
+    store.put(
+        ExchangeArtifact(
+            artifact_id="binding:ambiguous",
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:one",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:two",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:ambiguous",
+                    },
+                ),
+            ),
+        )
+    )
+    missing_version = SchedulerTaskSubmission(
+        task_id="task-missing-version",
+        title="Missing version",
+        instruction="Should fail before store lookup.",
+        agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:consumer"),
+        input_artifact_refs=(
+            ExchangeReference(
+                ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                ref_id="binding:missing-version",
+            ),
+        ),
+    )
+    missing_artifact = SchedulerTaskSubmission(
+        task_id="task-missing-artifact",
+        title="Missing artifact",
+        instruction="Should fail closed.",
+        agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:consumer"),
+        input_artifact_refs=(
+            ExchangeReference(
+                ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                ref_id="binding:not-found",
+                version="v1",
+            ),
+        ),
+    )
+    wrong_product = SchedulerTaskSubmission(
+        task_id="task-wrong-product",
+        title="Wrong product",
+        instruction="Should reject non-binding artifact.",
+        agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:consumer"),
+        input_artifact_refs=(
+            ExchangeReference(
+                ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                ref_id="server-api",
+                version="v1",
+            ),
+        ),
+    )
+    ambiguous_product = SchedulerTaskSubmission(
+        task_id="task-ambiguous-product",
+        title="Ambiguous product",
+        instruction="Should reject ambiguous binding artifact payloads.",
+        agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+        context_scope=ContextScope(context_id="context:consumer"),
+        input_artifact_refs=(
+            ExchangeReference(
+                ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                ref_id="binding:ambiguous",
+                version="v1",
+            ),
+        ),
+    )
+
+    assert validate_supervisor_storage_binding_artifact_refs(
+        missing_version,
+        store_path,
+    ).errors == (
+        "task 'task-missing-version' supervisor storage binding artifact ref "
+        "'binding:missing-version' requires non-empty version",
+    )
+    assert "not found" in validate_supervisor_storage_binding_artifact_refs(
+        missing_artifact,
+        store_path,
+    ).errors[0]
+    wrong = validate_supervisor_storage_binding_artifact_refs(
+        wrong_product,
+        store_path,
+    )
+    assert wrong.ok is False
+    assert "does not contain structured product_type" in wrong.errors[0]
+    ambiguous = validate_supervisor_storage_binding_artifact_refs(
+        ambiguous_product,
+        store_path,
+    )
+    assert ambiguous.ok is False
+    assert "contains multiple" in ambiguous.errors[0]
+    with pytest.raises(ValueError, match="supervisor storage binding artifact ref"):
+        wrong.raise_for_errors()
+
+
 def test_supervisor_storage_binding_evidence_rejects_wrong_product_and_schema(tmp_path) -> None:
     wrong_product = tmp_path / "wrong-product.json"
     wrong_product.write_text(
@@ -5232,6 +5390,99 @@ def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> 
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert not projection_path.exists()
     assert not local_trajectory_path.exists()
+
+
+def test_admit_exchange_artifact_version_validates_binding_refs_when_enabled(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    store = JsonArtifactVersionStore(store_path)
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    binding_artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id="binding:context-session-evidence",
+        version="v7",
+    )
+    submission_artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-consume-binding",
+            title="Consume binding",
+            instruction="Use the exact supervisor binding artifact.",
+            agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:consumer"),
+            input_artifact_refs=(
+                ExchangeReference(
+                    ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                    ref_id="binding:context-session-evidence",
+                    version="v7",
+                ),
+            ),
+        ),
+        artifact_id="submission:consume-binding",
+        version="v1",
+    )
+    store.put(binding_artifact)
+    store.put(submission_artifact)
+
+    result = admit_exchange_artifact_version_to_scheduler(
+        artifact_store_path=store_path,
+        artifact_id="submission:consume-binding",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        validate_binding_artifact_refs=True,
+    )
+
+    assert tuple(task.task_id for task in result.submitted_tasks) == (
+        "task-consume-binding",
+    )
+    restored = read_scheduler_state_snapshot(snapshot_path)
+    assert restored.tasks["task-consume-binding"].input_artifact_refs[0].ref_kind == (
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND
+    )
+
+
+def test_admit_exchange_artifact_version_rejects_missing_binding_ref_before_mutation(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    store = JsonArtifactVersionStore(store_path)
+    submission_artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-bad-binding-ref",
+            title="Bad binding ref",
+            instruction="Should not be admitted.",
+            agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:consumer"),
+            input_artifact_refs=(
+                ExchangeReference(
+                    ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                    ref_id="binding:not-found",
+                    version="v1",
+                ),
+            ),
+        ),
+        artifact_id="submission:bad-binding-ref",
+        version="v1",
+    )
+    store.put(submission_artifact)
+
+    with pytest.raises(ValueError, match="binding:not-found"):
+        admit_exchange_artifact_version_to_scheduler(
+            artifact_store_path=store_path,
+            artifact_id="submission:bad-binding-ref",
+            version="v1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            validate_binding_artifact_refs=True,
+        )
+
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
 
 
 def test_admit_exchange_artifact_version_submits_exact_batch(tmp_path) -> None:

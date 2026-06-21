@@ -14,6 +14,7 @@ from .exchange import (
     ExchangeReference,
     ExchangeScope,
 )
+from .exchange_store import JsonArtifactVersionStore
 from .runtime_adapter import AgentSpec
 from .scheduler import (
     ContextScope,
@@ -28,6 +29,24 @@ from .scheduler import (
 
 TASK_SUBMISSION_PRODUCT_TYPE = "scheduler_task_submission"
 TASK_BATCH_SUBMISSION_PRODUCT_TYPE = "scheduler_task_batch_submission"
+SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND = "supervisor_storage_binding_artifact"
+
+
+@dataclass(frozen=True, slots=True)
+class BindingArtifactReferenceValidation:
+    """Read-only validation result for supervisor binding artifact references."""
+
+    ok: bool
+    checked_refs: tuple[ExchangeReference, ...] = ()
+    errors: tuple[str, ...] = ()
+
+    @property
+    def checked_count(self) -> int:
+        return len(self.checked_refs)
+
+    def raise_for_errors(self) -> None:
+        if not self.ok:
+            raise ValueError("; ".join(self.errors))
 
 
 @dataclass(frozen=True, slots=True)
@@ -404,6 +423,7 @@ def admit_exchange_artifact_version_to_scheduler(
     event_log_path: str | Path,
     replace_existing: bool = False,
     timestamp: str = "",
+    validate_binding_artifact_refs: bool = False,
 ) -> PersistedExchangeArtifactAdmissionResult:
     """Admit one exact stored ExchangeArtifact version into scheduler state.
 
@@ -412,7 +432,6 @@ def admit_exchange_artifact_version_to_scheduler(
     admission.
     """
 
-    from .exchange_store import JsonArtifactVersionStore
     from .scheduler_store import read_scheduler_state_snapshot
 
     if not artifact_id:
@@ -440,6 +459,11 @@ def admit_exchange_artifact_version_to_scheduler(
     event_timestamp = timestamp or artifact.created_at
 
     if product_type == TASK_SUBMISSION_PRODUCT_TYPE:
+        if validate_binding_artifact_refs:
+            validate_supervisor_storage_binding_artifact_refs(
+                scheduler_task_submission_from_artifact(artifact),
+                store_path,
+            ).raise_for_errors()
         persisted_single = submit_scheduler_task_with_persistence(
             state,
             artifact,
@@ -462,6 +486,13 @@ def admit_exchange_artifact_version_to_scheduler(
             snapshot_existed=snapshot_existed,
         )
 
+    if validate_binding_artifact_refs:
+        batch = scheduler_task_batch_submission_from_artifact(artifact)
+        for submission in batch.tasks:
+            validate_supervisor_storage_binding_artifact_refs(
+                submission,
+                store_path,
+            ).raise_for_errors()
     persisted_batch = submit_scheduler_task_batch_with_persistence(
         state,
         artifact,
@@ -577,6 +608,65 @@ def _submit_scheduler_task_submission(
     )
 
 
+def validate_supervisor_storage_binding_artifact_refs(
+    submission: SchedulerTaskSubmission,
+    artifact_store_path: str | Path,
+) -> BindingArtifactReferenceValidation:
+    """Validate exact supervisor storage binding artifact refs for one task."""
+
+    refs = tuple(
+        ref
+        for ref in submission.input_artifact_refs
+        if ref.ref_kind == SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND
+    )
+    if not refs:
+        return BindingArtifactReferenceValidation(ok=True)
+
+    store_path = Path(artifact_store_path)
+    store = JsonArtifactVersionStore(store_path)
+    errors: list[str] = []
+    checked: list[ExchangeReference] = []
+    for ref in refs:
+        if not ref.ref_id:
+            errors.append(
+                f"task {submission.task_id!r} supervisor storage binding artifact ref "
+                "requires non-empty ref_id"
+            )
+            continue
+        if not ref.version:
+            errors.append(
+                f"task {submission.task_id!r} supervisor storage binding artifact ref "
+                f"{ref.ref_id!r} requires non-empty version"
+            )
+            continue
+        try:
+            record = store.get(ref.ref_id, ref.version)
+        except KeyError:
+            errors.append(
+                "supervisor storage binding artifact version not found in "
+                f"{store_path}: {ref.ref_id!r}@{ref.version!r}"
+            )
+            continue
+        except Exception as exc:
+            errors.append(str(exc))
+            continue
+
+        payload_errors = _validate_supervisor_storage_binding_artifact_payload(
+            record.artifact,
+            ref=ref,
+        )
+        if payload_errors:
+            errors.extend(payload_errors)
+            continue
+        checked.append(ref)
+
+    return BindingArtifactReferenceValidation(
+        ok=not errors,
+        checked_refs=tuple(checked),
+        errors=tuple(errors),
+    )
+
+
 def _find_submission_payload(artifact: ExchangeArtifact) -> Mapping[str, object]:
     matches = [
         part.data
@@ -595,6 +685,38 @@ def _find_submission_payload(artifact: ExchangeArtifact) -> Mapping[str, object]
             f"{TASK_SUBMISSION_PRODUCT_TYPE!r} payloads"
         )
     return matches[0]
+
+
+def _validate_supervisor_storage_binding_artifact_payload(
+    artifact: ExchangeArtifact,
+    *,
+    ref: ExchangeReference,
+) -> tuple[str, ...]:
+    from .supervisor_storage_binding_evidence import (
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+    )
+
+    matches = [
+        part.data
+        for part in artifact.parts
+        if part.part_type == "structured"
+        and part.data.get("product_type") == SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
+    ]
+    if not matches:
+        return (
+            "supervisor storage binding artifact ref "
+            f"{ref.ref_id!r}@{ref.version!r} resolved to exchange artifact "
+            f"{artifact.artifact_id!r}@{artifact.version!r}, but it does not contain "
+            f"structured product_type={SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE!r}",
+        )
+    if len(matches) > 1:
+        return (
+            "supervisor storage binding artifact ref "
+            f"{ref.ref_id!r}@{ref.version!r} resolved to exchange artifact "
+            f"{artifact.artifact_id!r}@{artifact.version!r}, but it contains multiple "
+            f"{SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE!r} payloads",
+        )
+    return ()
 
 
 def _find_batch_submission_payload(artifact: ExchangeArtifact) -> Mapping[str, object]:

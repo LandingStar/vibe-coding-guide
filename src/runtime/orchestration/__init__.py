@@ -242,8 +242,10 @@ from .scheduler_store import (
     write_scheduler_state_snapshot,
 )
 from .scheduler_submission import (
+    BindingArtifactReferenceValidation,
     TASK_BATCH_SUBMISSION_PRODUCT_TYPE,
     TASK_SUBMISSION_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     PersistedExchangeArtifactAdmissionResult,
     PersistedSchedulerTaskBatchSubmissionResult,
     PersistedSchedulerTaskSubmissionResult,
@@ -260,6 +262,7 @@ from .scheduler_submission import (
     submit_scheduler_task_batch_with_persistence,
     submit_scheduler_task,
     submit_scheduler_task_with_persistence,
+    validate_supervisor_storage_binding_artifact_refs,
 )
 from .scheduler_runner import (
     PersistedSchedulerRunOnceResult,
@@ -553,6 +556,7 @@ __all__ = [
     "TaskSpec",
     "TASK_BATCH_SUBMISSION_PRODUCT_TYPE",
     "TASK_SUBMISSION_PRODUCT_TYPE",
+    "SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND",
     "PersistedSchedulerTaskBatchSubmissionResult",
     "PersistedSchedulerTaskSubmissionResult",
     "PersistedExchangeArtifactAdmissionResult",
@@ -628,6 +632,7 @@ __all__ = [
     "SchedulerTaskBatchSubmissionResult",
     "SchedulerTaskSubmission",
     "SchedulerTaskSubmissionResult",
+    "BindingArtifactReferenceValidation",
     "advance_work_item_from_execution_result",
     "agent_home_registration_to_artifact",
     "build_landing_artifact",
@@ -723,6 +728,7 @@ __all__ = [
     "submit_scheduler_task_batch_with_persistence",
     "submit_scheduler_task",
     "submit_scheduler_task_with_persistence",
+    "validate_supervisor_storage_binding_artifact_refs",
     "summarize_scheduler_queue",
     "task_to_runtime_spec",
     "utc_admission_timestamp",

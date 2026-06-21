@@ -235,6 +235,28 @@ directories, write scratch manifests, approve home registration, run cleanup,
 refresh scheduler projection, mutate scheduler state, or mutate Local Work
 Trajectory.
 
+Downstream scheduler submissions can now opt into an exact binding artifact
+input convention with:
+
+```text
+ExchangeReference(
+    ref_kind="supervisor_storage_binding_artifact",
+    ref_id="<binding artifact id>",
+    version="<exact artifact version>",
+)
+```
+
+`validate_supervisor_storage_binding_artifact_refs()` verifies these references
+against the local exact-version artifact store and confirms the target artifact
+contains exactly one compact `supervisor_storage_binding_artifact` structured
+payload. `admit_exchange_artifact_version_to_scheduler()` can run this check as
+an explicit preflight via `validate_binding_artifact_refs=True`.
+
+This readiness check remains read-only until admission is explicitly requested:
+it does not mark artifacts consumed, read raw evidence JSON, create storage
+directories, write manifests, run cleanup, refresh scheduler projection, or
+mutate Local Work Trajectory.
+
 ## Audit Requirements
 
 The system should record:
