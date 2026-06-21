@@ -537,10 +537,14 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert "schedulerLifecycleRunOnce" in names
         assert "schedulerLifecycleHarness" in names
         assert "schedulerDaemonSupervisorStep" in names
+        assert "schedulerSupervisorDogfoodWorkflow" in names
         control_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleControl")
         run_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleRunOnce")
         harness_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleHarness")
         supervisor_tool = next(tool for tool in tools if tool.name == "schedulerDaemonSupervisorStep")
+        supervisor_workflow_tool = next(
+            tool for tool in tools if tool.name == "schedulerSupervisorDogfoodWorkflow"
+        )
         assert control_tool.inputSchema["required"] == ["action", "controlPath"]
         assert "daemonId" in control_tool.inputSchema["properties"]
         assert "local-work-trajectory.json" in control_tool.description
@@ -561,6 +565,10 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert "statusReadbackAt" in supervisor_tool.inputSchema["properties"]
         assert "policyCancelled" in supervisor_tool.inputSchema["properties"]
         assert "host-managed daemon supervisor step" in supervisor_tool.description
+        assert "fixture" in supervisor_workflow_tool.inputSchema["properties"]
+        assert "controlPath" in supervisor_workflow_tool.inputSchema["properties"]
+        assert "scheduler projection" in supervisor_workflow_tool.description
+        assert "local-work-trajectory.json" in supervisor_workflow_tool.description
 
         start_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(
@@ -642,6 +650,35 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert supervisor_payload["harness_policy_result"]["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
         assert supervisor_payload["status_before"]["lifecycle_state"] == "running"
         assert supervisor_payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+        supervisor_workflow_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerSupervisorDogfoodWorkflow",
+                    arguments={
+                        "fixture": "simple",
+                        "supervisorId": "supervisor-workflow-server",
+                        "sessionId": "session-workflow-server",
+                        "runId": "run-workflow-server",
+                        "timestamp": "2026-06-20T00:33:00+00:00",
+                        "replaceExisting": True,
+                    },
+                )
+            )
+        )
+        workflow_payload = json.loads(supervisor_workflow_result.root.content[0].text)
+        assert workflow_payload["ok"] is True
+        assert workflow_payload["runtime_provider"] == "fake"
+        assert workflow_payload["workflow_surface"] == "scheduler-supervisor-dogfood-workflow"
+        assert workflow_payload["supervisor_result"]["supervisor_id"] == "supervisor-workflow-server"
+        assert workflow_payload["supervisor_result"]["session_id"] == "session-workflow-server"
+        assert workflow_payload["supervisor_result"]["total_run_count"] == 2
+        assert workflow_payload["final_readback"]["queue_summary"]["task_state_counts"] == {
+            "complete": 2
+        }
+        assert workflow_payload["authority_split"]["scheduler_projection_refreshed"] is False
+        assert workflow_payload["authority_split"]["cleanup_executed"] is False
+        assert workflow_payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())
 

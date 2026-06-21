@@ -104,7 +104,15 @@ Keep the lifecycle split:
    identity, cancellation-source metadata, and lifecycle status readback while
    remaining fake-runtime-only in CLI/MCP. It does not start a service, refresh
    projection, execute cleanup, or mutate agent-owned Local Work Trajectory.
-21. Controlled host-runtime dogfood uses
+21. Supervisor dogfood workflow uses
+   `doc-based-coding scheduler supervisor-dogfood-workflow` or
+   `schedulerSupervisorDogfoodWorkflow` when the current gate needs the complete
+   deterministic sequence: seed a scheduler dogfood fixture, admit the exact
+   version, start lifecycle control, run one supervisor step, and read back final
+   scheduler/supervisor facts. It is fake-runtime-only, does not refresh
+   scheduler projection, execute cleanup, start a service, or mutate
+   agent-owned Local Work Trajectory.
+22. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -424,6 +432,8 @@ Recommended operator workflow:
 ```text
 schedulerOperatorWorkflow
 doc-based-coding scheduler operator-workflow ...
+schedulerSupervisorDogfoodWorkflow
+doc-based-coding scheduler supervisor-dogfood-workflow ...
 doc-based-coding resources read dbc://exchange-artifacts/bundle
 admitExchangeArtifact
 doc-based-coding scheduler admit-exchange-artifact ...
@@ -438,6 +448,10 @@ Prefer `schedulerOperatorWorkflow` or `doc-based-coding scheduler
 operator-workflow` when the current gate wants the complete operator sequence
 through one shared contract. Prefer the lower-level commands/tools when the
 gate is specifically validating an individual lifecycle step.
+Prefer `schedulerSupervisorDogfoodWorkflow` or `doc-based-coding scheduler
+supervisor-dogfood-workflow` when the current gate wants the complete
+supervisor sequence through seed, exact admission, lifecycle start, supervisor
+step, and final readback.
 
 Expected shared workflow behavior:
 
@@ -453,6 +467,17 @@ Expected shared workflow behavior:
    loop/projection steps.
 6. The shared workflow does not run live providers, start a background daemon,
    mark ExchangeArtifacts consumed, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
+
+Expected supervisor dogfood workflow behavior:
+
+1. Seed one deterministic scheduler dogfood fixture (`simple` or `multilane`).
+2. Admit the exact fixture artifact/version into scheduler snapshot/event-log
+   state.
+3. Start lifecycle control explicitly.
+4. Run one fake-runtime host-managed supervisor step.
+5. Read final lifecycle and scheduler queue facts.
+6. Do not refresh scheduler projection, run cleanup, start a service, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
 
 ## Submit

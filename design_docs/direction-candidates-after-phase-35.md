@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Supervisor dogfood workflow 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-supervisor-dogfood-workflow.md` 已完成并关闭；当前 `tools.progress_graph.scheduler_supervisor_dogfood_workflow`、CLI `doc-based-coding scheduler supervisor-dogfood-workflow` 与 MCP tool `schedulerSupervisorDogfoodWorkflow` 已能 deterministic fake-runtime 地完成 seed fixture、exact admission、lifecycle start、supervisor step 与 final readback。
+- 候选 1：`Agent Home / Context Session Binding Over Supervisor Runs`
+  - 做什么：把 agent home / temporary scratch / context session lifecycle 绑定到 supervisor run identity 和 harness attempts，形成 storage lifecycle anchor。
+  - 依据：`design_docs/supervisor-dogfood-workflow-followup-direction-analysis.md`、`review/supervisor-dogfood-workflow-2026-06-21.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 候选 2：`Host UX Readback For Supervisor Workflow`
+  - 做什么：在 Host UX 中展示 supervisor workflow status/result readback，提升 operator 可见性。
+  - 依据：`design_docs/supervisor-dogfood-workflow-followup-direction-analysis.md`
+- 候选 3：`Supervisor Workflow Evidence Product`
+  - 做什么：为 supervisor dogfood workflow runs 写出 durable evidence artifact，供后续 UI/audit/replay 使用。
+  - 依据：`design_docs/supervisor-dogfood-workflow-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。supervisor workflow 已证明 run identity sequence，下一步更缺的是 agent-owned storage/context ownership；Host UX 和 durable evidence 更适合作为该 binding 的消费者。
+
 ## 2026-06-21 补充候选：Daemon supervisor CLI/MCP surface 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-daemon-supervisor-cli-mcp-surface.md` 已完成并关闭；当前 CLI `doc-based-coding scheduler lifecycle supervisor-step` 与 MCP tool `schedulerDaemonSupervisorStep` 可直接调用 host-managed daemon supervisor step，返回 supervisor identity、status readback 与 `harness_policy_result`。

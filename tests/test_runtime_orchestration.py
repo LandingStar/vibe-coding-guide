@@ -174,10 +174,12 @@ from src.runtime.orchestration import (
 from tools.progress_graph import (
     HostSandboxReceiptWorkflowRequest,
     SchedulerOperatorWorkflowRequest,
+    SchedulerSupervisorDogfoodWorkflowRequest,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
     run_host_sandbox_receipt_workflow,
     run_scheduler_operator_workflow,
+    run_scheduler_supervisor_dogfood_workflow,
 )
 
 
@@ -4789,6 +4791,94 @@ def test_scheduler_operator_workflow_duplicate_admission_stops_dependent_steps(t
     assert payload["authority_split"]["provider_executed"] is False
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert not (tmp_path / ".codex" / "scheduler" / "evidence" / "duplicate-should-not-run.json").exists()
+
+
+def test_scheduler_supervisor_dogfood_workflow_full_simple_flow(tmp_path) -> None:
+    result = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            fixture="simple",
+            timestamp="2026-06-21T10:00:00+00:00",
+            supervisor_id="supervisor:test",
+            session_id="session:test",
+            run_id="run:test",
+            host_id="host:test",
+            requested_by="agent:test",
+            status_readback_at="2026-06-21T10:00:01+00:00",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["name"] for step in payload["steps"]] == [
+        "seedFixture",
+        "admit",
+        "startLifecycle",
+        "supervisorStep",
+        "readFinalStatus",
+    ]
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["fixture_result"]["task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
+    assert payload["lifecycle_start_result"]["control"]["state"] == "running"
+    assert payload["supervisor_result"]["supervisor_id"] == "supervisor:test"
+    assert payload["supervisor_result"]["session_id"] == "session:test"
+    assert payload["supervisor_result"]["total_run_count"] == 2
+    assert payload["supervisor_result"]["status_before"]["queue_summary"]["task_state_counts"] == {
+        "proposed": 2
+    }
+    assert payload["supervisor_result"]["status_after"]["queue_summary"]["task_state_counts"] == {
+        "complete": 2
+    }
+    assert payload["final_readback"]["completed_task_ids"] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["lifecycle_control_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (tmp_path / ".codex" / "scheduler" / "scheduler-daemon-control.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_supervisor_dogfood_workflow_multilane_flow(tmp_path) -> None:
+    result = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            fixture="multilane",
+            max_ticks=4,
+            max_runs_per_tick=2,
+            timestamp="2026-06-21T10:10:00+00:00",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["fixture_result"]["lane_ids"] == [
+        "lane:api",
+        "lane:data",
+        "lane:client",
+        "lane:qa",
+    ]
+    assert payload["admission_result"]["dependency_count"] == 4
+    assert payload["supervisor_result"]["total_run_count"] == 4
+    assert payload["final_readback"]["queue_summary"]["task_state_counts"] == {"complete": 4}
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
 
 
 def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:

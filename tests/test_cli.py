@@ -82,6 +82,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "project" in proc.stdout
     assert "seed-dogfood-fixture" in proc.stdout
     assert "operator-workflow" in proc.stdout
+    assert "supervisor-dogfood-workflow" in proc.stdout
     assert "cleanup-receipts" in proc.stdout
     assert "sandbox-receipt-workflow" in proc.stdout
 
@@ -142,6 +143,18 @@ def test_scheduler_operator_workflow_help_describes_opt_in_mutation() -> None:
     assert "--run-loop" in proc.stdout
     assert "--refresh-projection" in proc.stdout
     assert "opt-in" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_supervisor_dogfood_workflow_help_describes_fake_runtime_sequence() -> None:
+    proc = _run_cli(["scheduler", "supervisor-dogfood-workflow", "--help"])
+
+    assert proc.returncode == 0
+    assert "--fixture simple|multilane" in proc.stdout
+    assert "--supervisor-id ID" in proc.stdout
+    assert "seeds a deterministic fixture" in proc.stdout
+    assert "fake-runtime-only" in proc.stdout
+    assert "does not refresh scheduler projection" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -1376,6 +1389,70 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert rejected.returncode == 1
     assert "scheduler lifecycle supervisor-step currently supports only --runtime-provider fake" in rejected.stderr
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_supervisor_dogfood_workflow_cli_runs_shared_surface(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "supervisor-dogfood-workflow",
+            "--supervisor-id",
+            "supervisor-cli-dogfood",
+            "--session-id",
+            "session-cli-dogfood",
+            "--run-id",
+            "run-cli-dogfood",
+            "--host-id",
+            "host-cli",
+            "--requested-by",
+            "agent:test",
+            "--timestamp",
+            "2026-06-21T10:20:00+00:00",
+            "--status-readback-at",
+            "2026-06-21T10:20:01+00:00",
+        ],
+        cwd=project,
+    )
+    rejected = _run_cli(
+        [
+            "scheduler",
+            "supervisor-dogfood-workflow",
+            "--runtime-provider",
+            "qoder",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "scheduler-supervisor-dogfood-workflow"
+    assert [step["status"] for step in payload["steps"]] == [
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+        "completed",
+    ]
+    assert payload["supervisor_result"]["supervisor_id"] == "supervisor-cli-dogfood"
+    assert payload["supervisor_result"]["session_id"] == "session-cli-dogfood"
+    assert payload["supervisor_result"]["total_run_count"] == 2
+    assert payload["final_readback"]["queue_summary"]["task_state_counts"] == {"complete": 2}
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert rejected.returncode == 1
+    assert (
+        "scheduler supervisor-dogfood-workflow currently supports only --runtime-provider fake"
+        in rejected.stderr
+    )
+    assert (project / ".codex" / "scheduler" / "scheduler-daemon-control.json").exists()
     assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 

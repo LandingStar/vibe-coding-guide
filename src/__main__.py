@@ -369,6 +369,21 @@ _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
+_SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE = (
+    "Usage: doc-based-coding scheduler supervisor-dogfood-workflow "
+    "[--fixture simple|multilane] [--artifact-id ID --version VERSION] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] [--control-path PATH] "
+    "[--runtime-provider fake] [--max-cycles N] [--max-loop-failures N] "
+    "[--max-ticks N] [--max-runs-per-tick N] [--max-runtime-failures N] "
+    "[--max-attempts N] [--retry-stop-reasons REASON[,REASON...]] "
+    "[--allow-duplicate-admission] [--replace-existing] "
+    "[--actor ACTOR] [--timestamp TIMESTAMP] [--created-at TIMESTAMP] "
+    "[--daemon-id ID] [--lifecycle-run-id ID] [--supervisor-id ID] "
+    "[--session-id ID] [--run-id ID] [--host-id ID] [--requested-by ACTOR] "
+    "[--status-readback-at TIMESTAMP]"
+)
+
 _SCHEDULER_CLEANUP_RECEIPTS_USAGE = (
     "Usage: doc-based-coding scheduler cleanup-receipts "
     "--input-evidence-path PATH [--output-evidence-path PATH] "
@@ -426,6 +441,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
             "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n"
+            "  supervisor-dogfood-workflow Run deterministic fake supervisor dogfood sequence\n"
             "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n"
             "  sandbox-receipt-workflow Run host allocation/readback/cleanup/readback receipt workflow\n",
         )
@@ -450,6 +466,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_seed_dogfood_fixture(args[1:])
     if sub == "operator-workflow":
         return cmd_scheduler_operator_workflow(args[1:])
+    if sub == "supervisor-dogfood-workflow":
+        return cmd_scheduler_supervisor_dogfood_workflow(args[1:])
     if sub == "cleanup-receipts":
         return cmd_scheduler_cleanup_receipts(args[1:])
     if sub == "sandbox-receipt-workflow":
@@ -457,7 +475,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -888,6 +906,231 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
             "Error running scheduler operator workflow",
             e,
             category="scheduler_operator_workflow_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_supervisor_dogfood_workflow(args: list[str]) -> int:
+    """Run deterministic fake-runtime supervisor dogfood workflow."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE + "\n\n"
+            "This shared workflow seeds a deterministic fixture, admits it into "
+            "scheduler state, starts lifecycle control, runs one host-managed "
+            "supervisor step, and reads back final scheduler/supervisor facts. "
+            "It is fake-runtime-only and does not refresh scheduler projection, "
+            "run cleanup, start a service, or mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    fixture = "simple"
+    artifact_id = ""
+    version = ""
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    control_path = ""
+    runtime_provider = "fake"
+    max_cycles = 1
+    max_loop_failures: int | None = 1
+    max_ticks = 3
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+    max_attempts = 1
+    retry_stop_reasons: tuple[str, ...] = ()
+    allow_duplicate_admission = False
+    replace_existing = False
+    actor = "operator-cli"
+    timestamp = ""
+    created_at = ""
+    daemon_id = ""
+    lifecycle_run_id = ""
+    supervisor_id = ""
+    session_id = ""
+    run_id = ""
+    host_id = ""
+    requested_by = ""
+    status_readback_at = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--fixture",
+            "--artifact-id",
+            "--version",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--control-path",
+            "--runtime-provider",
+            "--max-cycles",
+            "--max-loop-failures",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+            "--max-attempts",
+            "--retry-stop-reasons",
+            "--actor",
+            "--timestamp",
+            "--created-at",
+            "--daemon-id",
+            "--lifecycle-run-id",
+            "--supervisor-id",
+            "--session-id",
+            "--run-id",
+            "--host-id",
+            "--requested-by",
+            "--status-readback-at",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--fixture":
+                fixture = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--control-path":
+                control_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--created-at":
+                created_at = value
+            elif arg == "--daemon-id":
+                daemon_id = value
+            elif arg == "--lifecycle-run-id":
+                lifecycle_run_id = value
+            elif arg == "--supervisor-id":
+                supervisor_id = value
+            elif arg == "--session-id":
+                session_id = value
+            elif arg == "--run-id":
+                run_id = value
+            elif arg == "--host-id":
+                host_id = value
+            elif arg == "--requested-by":
+                requested_by = value
+            elif arg == "--status-readback-at":
+                status_readback_at = value
+            elif arg == "--retry-stop-reasons":
+                retry_stop_reasons = tuple(
+                    item.strip()
+                    for item in value.split(",")
+                    if item.strip()
+                )
+            else:
+                try:
+                    parsed = int(value)
+                except ValueError:
+                    print(_SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE, file=sys.stderr)
+                    print(f"{arg} must be an integer", file=sys.stderr)
+                    return 1
+                if arg == "--max-cycles":
+                    max_cycles = parsed
+                elif arg == "--max-loop-failures":
+                    max_loop_failures = parsed
+                elif arg == "--max-ticks":
+                    max_ticks = parsed
+                elif arg == "--max-runs-per-tick":
+                    max_runs_per_tick = parsed
+                elif arg == "--max-runtime-failures":
+                    max_runtime_failures = parsed
+                elif arg == "--max-attempts":
+                    max_attempts = parsed
+            i += 2
+            continue
+        print(f"Unknown scheduler supervisor-dogfood-workflow option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE, file=sys.stderr)
+        return 1
+
+    if fixture not in {"simple", "multilane"}:
+        print(_SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE, file=sys.stderr)
+        print("--fixture must be simple or multilane", file=sys.stderr)
+        return 1
+    if runtime_provider != "fake":
+        print(
+            "scheduler supervisor-dogfood-workflow currently supports only "
+            "--runtime-provider fake; real providers require host-owned injected runtime wiring",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from tools.progress_graph import (
+            SchedulerSupervisorDogfoodWorkflowRequest,
+            run_scheduler_supervisor_dogfood_workflow,
+        )
+
+        result = run_scheduler_supervisor_dogfood_workflow(
+            SchedulerSupervisorDogfoodWorkflowRequest(
+                project_root=root,
+                fixture=fixture,  # type: ignore[arg-type]
+                artifact_id=artifact_id,
+                version=version,
+                artifact_store_path=artifact_store_path or None,
+                admission_ledger_path=admission_ledger_path or None,
+                snapshot_path=snapshot_path or None,
+                event_log_path=event_log_path or None,
+                control_path=control_path or None,
+                runtime_provider=runtime_provider,
+                max_cycles=max_cycles,
+                max_loop_failures=max_loop_failures,
+                max_ticks=max_ticks,
+                max_runs_per_tick=max_runs_per_tick,
+                max_runtime_failures=max_runtime_failures,
+                max_attempts=max_attempts,
+                retry_stop_reasons=retry_stop_reasons,
+                allow_duplicate_admission=allow_duplicate_admission,
+                replace_existing=replace_existing,
+                actor=actor,
+                timestamp=timestamp,
+                created_at=created_at,
+                daemon_id=daemon_id or "daemon:supervisor-dogfood",
+                lifecycle_run_id=lifecycle_run_id or "lifecycle-run:supervisor-dogfood",
+                supervisor_id=supervisor_id or "supervisor:dogfood",
+                session_id=session_id,
+                run_id=run_id or "supervisor-run:dogfood",
+                host_id=host_id,
+                requested_by=requested_by,
+                status_readback_at=status_readback_at,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler supervisor dogfood workflow",
+            e,
+            category="scheduler_supervisor_dogfood_workflow_failed",
         )
 
     payload = result.to_json_dict()

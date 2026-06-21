@@ -1581,6 +1581,140 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["supervisorId", "controlPath"],
                 },
             ),
+            Tool(
+                name="schedulerSupervisorDogfoodWorkflow",
+                description=(
+                    "Run the deterministic fake-runtime supervisor dogfood "
+                    "workflow: seed a scheduler fixture, admit it, start "
+                    "lifecycle control, execute one host-managed supervisor "
+                    "step, and read final scheduler/supervisor facts. This "
+                    "does not start a daemon service, refresh scheduler "
+                    "projection, run cleanup, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "fixture": {
+                            "type": "string",
+                            "description": "Fixture selector: simple or multilane. Default simple.",
+                        },
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Optional artifact id override for the seeded fixture.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Optional fixture artifact version override.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Relative paths resolve under the MCP project root.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional admission ledger path. Relative paths resolve under the MCP project root.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Optional scheduler snapshot path. Relative paths resolve under the MCP project root.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event log path. Relative paths resolve under the MCP project root.",
+                        },
+                        "controlPath": {
+                            "type": "string",
+                            "description": "Optional scheduler daemon lifecycle control path. Relative paths resolve under the MCP project root.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Defaults to 'fake'; only 'fake' is accepted.",
+                        },
+                        "maxCycles": {
+                            "type": "integer",
+                            "description": "Bounded harness max cycles. Default 1.",
+                        },
+                        "maxLoopFailures": {
+                            "type": "integer",
+                            "description": "Maximum loop failure stop reasons before the harness attempt stops. Default 1.",
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "Bounded loop max ticks. Default 3.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "Bounded loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "Runtime failure stop threshold. Default 1.",
+                        },
+                        "maxAttempts": {
+                            "type": "integer",
+                            "description": "Maximum supervisor policy attempts. Default 1.",
+                        },
+                        "retryStopReasons": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Harness stop reasons that should be retried until maxAttempts.",
+                        },
+                        "allowDuplicateAdmission": {
+                            "type": "boolean",
+                            "description": "Allow duplicate exact artifact admission.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace an existing fixture artifact version in the store.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Admission actor label. Default mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional deterministic timestamp for workflow steps.",
+                        },
+                        "createdAt": {
+                            "type": "string",
+                            "description": "Optional fixture artifact created_at timestamp.",
+                        },
+                        "daemonId": {
+                            "type": "string",
+                            "description": "Optional lifecycle daemon id.",
+                        },
+                        "lifecycleRunId": {
+                            "type": "string",
+                            "description": "Optional lifecycle run id.",
+                        },
+                        "supervisorId": {
+                            "type": "string",
+                            "description": "Optional host-owned supervisor identity.",
+                        },
+                        "sessionId": {
+                            "type": "string",
+                            "description": "Optional host-owned supervisor session identity.",
+                        },
+                        "runId": {
+                            "type": "string",
+                            "description": "Optional host-owned supervisor run identity.",
+                        },
+                        "hostId": {
+                            "type": "string",
+                            "description": "Optional host identity for readback.",
+                        },
+                        "requestedBy": {
+                            "type": "string",
+                            "description": "Optional actor/requester identity.",
+                        },
+                        "statusReadbackAt": {
+                            "type": "string",
+                            "description": "Optional deterministic timestamp label for supervisor status readback.",
+                        },
+                    },
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -1894,6 +2028,38 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 deadline_epoch_seconds=arguments.get("deadlineEpochSeconds"),
                 max_attempts=arguments.get("maxAttempts", 1),
                 retry_stop_reasons=arguments.get("retryStopReasons"),
+            )
+        elif name == "schedulerSupervisorDogfoodWorkflow":
+            result = tools.scheduler_supervisor_dogfood_workflow(
+                fixture=arguments.get("fixture", "simple"),
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                control_path=arguments.get("controlPath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                max_cycles=arguments.get("maxCycles", 1),
+                max_loop_failures=arguments.get("maxLoopFailures", 1),
+                max_ticks=arguments.get("maxTicks", 3),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
+                max_attempts=arguments.get("maxAttempts", 1),
+                retry_stop_reasons=arguments.get("retryStopReasons"),
+                allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
+                replace_existing=arguments.get("replaceExisting", False),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
+                created_at=arguments.get("createdAt", ""),
+                daemon_id=arguments.get("daemonId", ""),
+                lifecycle_run_id=arguments.get("lifecycleRunId", ""),
+                supervisor_id=arguments.get("supervisorId", ""),
+                session_id=arguments.get("sessionId", ""),
+                run_id=arguments.get("runId", ""),
+                host_id=arguments.get("hostId", ""),
+                requested_by=arguments.get("requestedBy", ""),
+                status_readback_at=arguments.get("statusReadbackAt", ""),
             )
         else:
             result = {"error": f"Unknown tool: {name}"}

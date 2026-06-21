@@ -1862,6 +1862,116 @@ class GovernanceTools:
         payload["runtime_provider"] = normalized_runtime_provider
         return payload
 
+    def scheduler_supervisor_dogfood_workflow(
+        self,
+        *,
+        fixture: str = "simple",
+        artifact_id: str = "",
+        version: str = "",
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        snapshot_path: str = "",
+        event_log_path: str = "",
+        control_path: str = "",
+        runtime_provider: str = "fake",
+        max_cycles: int = 1,
+        max_loop_failures: int | None = 1,
+        max_ticks: int = 3,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        max_attempts: int = 1,
+        retry_stop_reasons: list[str] | tuple[str, ...] | None = None,
+        allow_duplicate_admission: bool = False,
+        replace_existing: bool = False,
+        actor: str = "mcp",
+        timestamp: str = "",
+        created_at: str = "",
+        daemon_id: str = "",
+        lifecycle_run_id: str = "",
+        supervisor_id: str = "",
+        session_id: str = "",
+        run_id: str = "",
+        host_id: str = "",
+        requested_by: str = "",
+        status_readback_at: str = "",
+    ) -> dict[str, Any]:
+        """Run the deterministic fake-runtime supervisor dogfood workflow."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerSupervisorDogfoodWorkflow currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "explicit host permission and adapter registry configuration."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-supervisor-dogfood-workflow",
+                    "fixture_seeded": False,
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "lifecycle_control_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "supervisor_step_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "cleanup_executed": False,
+                    "local_work_trajectory_mutated": False,
+                },
+            }
+        if fixture not in {"simple", "multilane"}:
+            return {
+                "ok": False,
+                "error": "schedulerSupervisorDogfoodWorkflow fixture must be simple or multilane.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from tools.progress_graph import (
+            SchedulerSupervisorDogfoodWorkflowRequest,
+            run_scheduler_supervisor_dogfood_workflow,
+        )
+
+        result = run_scheduler_supervisor_dogfood_workflow(
+            SchedulerSupervisorDogfoodWorkflowRequest(
+                project_root=self._project_root,
+                fixture=fixture,  # type: ignore[arg-type]
+                artifact_id=artifact_id,
+                version=version,
+                artifact_store_path=artifact_store_path or None,
+                admission_ledger_path=admission_ledger_path or None,
+                snapshot_path=snapshot_path or None,
+                event_log_path=event_log_path or None,
+                control_path=control_path or None,
+                runtime_provider=normalized_runtime_provider,
+                max_cycles=max_cycles,
+                max_loop_failures=max_loop_failures,
+                max_ticks=max_ticks,
+                max_runs_per_tick=max_runs_per_tick,
+                max_runtime_failures=max_runtime_failures,
+                max_attempts=max_attempts,
+                retry_stop_reasons=tuple(retry_stop_reasons or ()),
+                allow_duplicate_admission=allow_duplicate_admission,
+                replace_existing=replace_existing,
+                actor=actor or "mcp",
+                timestamp=timestamp,
+                created_at=created_at,
+                daemon_id=daemon_id or "daemon:supervisor-dogfood",
+                lifecycle_run_id=lifecycle_run_id or "lifecycle-run:supervisor-dogfood",
+                supervisor_id=supervisor_id or "supervisor:dogfood",
+                session_id=session_id,
+                run_id=run_id or "supervisor-run:dogfood",
+                host_id=host_id,
+                requested_by=requested_by,
+                status_readback_at=status_readback_at,
+            )
+        )
+        payload = result.to_json_dict()
+        payload["runtime_provider"] = normalized_runtime_provider
+        return payload
+
     def scheduler_operator_workflow(
         self,
         *,
