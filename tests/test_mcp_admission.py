@@ -16,9 +16,11 @@ from src.runtime.orchestration import (
     ContextScope,
     EditLeaseLifecycleRecord,
     EditScopeLease,
+    ExchangeReference,
     JsonArtifactVersionStore,
     JsonExchangeArtifactAdmissionLedger,
     JsonlSchedulerEventLog,
+    SandboxProfile,
     SchedulerTaskSubmission,
     SchedulerState,
     ScheduledTask,
@@ -519,6 +521,133 @@ def test_mcp_server_exposes_and_routes_scheduler_cleanup_receipts(tmp_path: Path
     summary = read_sandbox_allocation_receipt_evidence_summary(output_path)
     assert summary.allocations_by_task_id["task-1"].cleanup_required is False
     assert not Path(receipt.worktree_path).exists()
+
+
+def test_mcp_server_exposes_and_routes_scheduler_sandbox_receipt_workflow(
+    tmp_path: Path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
+    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
+    task = ScheduledTask(
+        task_id="task-1",
+        title="MCP workflow task",
+        instruction="Produce fake runtime output.",
+        agent=AgentSpec(agent_id="agent:mcp-workflow", runtime_provider="fake"),
+        state="ready",
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        context_scope=ContextScope(
+            context_id="context:mcp-workflow",
+            lane_id="lane-main",
+            required_refs=(
+                ExchangeReference(ref_kind="file", ref_id="readme", path="README.md"),
+            ),
+        ),
+        output_artifact_id="task-1:result",
+    )
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={task.task_id: task},
+            edit_lease_lifecycle={
+                "lease-1": EditLeaseLifecycleRecord(
+                    lease_id="lease-1",
+                    task_id=task.task_id,
+                    state="acquired",
+                    mode="write",
+                    allowed_artifacts=("src/app.py",),
+                    acquired_at="2026-06-21T09:45:00+08:00",
+                )
+            },
+        ),
+        snapshot_path,
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerSandboxReceiptWorkflow" in names
+        workflow_tool = next(tool for tool in tools if tool.name == "schedulerSandboxReceiptWorkflow")
+        assert "mode" in workflow_tool.inputSchema["required"]
+        assert "allocationEvidenceId" in workflow_tool.inputSchema["required"]
+        assert "cleanupEvidencePath" in workflow_tool.inputSchema["properties"]
+        assert "local-work-trajectory.json" in workflow_tool.description
+
+        result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerSandboxReceiptWorkflow",
+                    arguments={
+                        "mode": "daemon-loop",
+                        "snapshotPath": ".codex/scheduler/scheduler-state.json",
+                        "eventLogPath": ".codex/scheduler/scheduler-events.jsonl",
+                        "workspaceRoot": "repo",
+                        "gitWorktreeSandboxRoot": "sandboxes",
+                        "allocationEvidenceId": "workflow-loop-allocation",
+                        "allocationEvidencePath": ".codex/scheduler/evidence/workflow-loop-allocation.json",
+                        "cleanup": True,
+                        "cleanupEvidenceId": "workflow-loop-cleanup",
+                        "cleanupEvidencePath": ".codex/scheduler/evidence/workflow-loop-cleanup.json",
+                        "timestamp": "2026-06-21T09:50:00+08:00",
+                    },
+                )
+            )
+        )
+        payload = json.loads(result.root.content[0].text)
+        assert payload["ok"] is True
+        assert payload["workflow_mode"] == "daemon_loop"
+        assert [step["name"] for step in payload["steps"]] == [
+            "runHostSchedulerDaemonLoop",
+            "readAllocationEvidence",
+            "cleanupReceipts",
+            "readCleanupEvidence",
+        ]
+        assert payload["authority_split"]["host_daemon_loop_executed"] is True
+        assert payload["authority_split"]["cleanup_executed"] is True
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    asyncio.run(exercise_server())
+    cleanup_summary = read_sandbox_allocation_receipt_evidence_summary(cleanup_path)
+    cleaned = cleanup_summary.allocations_by_task_id["task-1"]
+    assert cleaned.cleanup_required is False
+    assert cleaned.git_worktree_receipt is not None
+    assert cleaned.git_worktree_receipt.cleanup_state == "completed"
+    assert not Path(cleaned.git_worktree_receipt.worktree_path).exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_governance_tools_scheduler_sandbox_receipt_workflow_rejects_cleanup_output_without_cleanup(
+    tmp_path: Path,
+) -> None:
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    payload = tools.scheduler_sandbox_receipt_workflow(
+        mode="run-once",
+        snapshot_path=".codex/scheduler/scheduler-state.json",
+        event_log_path=".codex/scheduler/scheduler-events.jsonl",
+        workspace_root="repo",
+        git_worktree_sandbox_root="sandboxes",
+        allocation_evidence_id="workflow-allocation",
+        cleanup_evidence_path=".codex/scheduler/evidence/workflow-cleanup.json",
+    )
+
+    assert payload["ok"] is False
+    assert "cleanup evidence output requires cleanup=True" in payload["error"]
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
 
 def _allocated_git_worktree(project: Path, repo: Path):

@@ -1212,6 +1212,100 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerSandboxReceiptWorkflow",
+                description=(
+                    "Run the host sandbox receipt workflow: host allocation, durable "
+                    "sandbox allocation receipt evidence readback, optional explicit "
+                    "cleanup, and post-cleanup Host Evidence readback. Supports "
+                    "run-once and daemon-loop modes over fake runtime wiring. Cleanup "
+                    "runs only when cleanup=true. This does not refresh projection, "
+                    "start a daemon service, run real providers, mutate "
+                    "ExchangeArtifact/admission ledger state, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "description": "Workflow mode: run-once or daemon-loop.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler state snapshot JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler event log JSONL path. Relative paths resolve under the MCP project root.",
+                        },
+                        "workspaceRoot": {
+                            "type": "string",
+                            "description": "Source git repository root for git-worktree allocation. Relative paths resolve under the MCP project root.",
+                        },
+                        "gitWorktreeSandboxRoot": {
+                            "type": "string",
+                            "description": "Git-worktree sandbox root. Relative paths resolve under the MCP project root.",
+                        },
+                        "allocationEvidenceId": {
+                            "type": "string",
+                            "description": "Required sandbox_allocation_receipt_evidence id.",
+                        },
+                        "allocationEvidencePath": {
+                            "type": "string",
+                            "description": "Optional allocation evidence output path.",
+                        },
+                        "cleanup": {
+                            "type": "boolean",
+                            "description": "Whether to run explicit cleanup. Default false.",
+                        },
+                        "cleanupEvidenceId": {
+                            "type": "string",
+                            "description": "Optional cleanup evidence id. Requires cleanup=true.",
+                        },
+                        "cleanupEvidencePath": {
+                            "type": "string",
+                            "description": "Optional cleanup evidence output path. Requires cleanup=true.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Current tool only supports fake.",
+                        },
+                        "maxRuns": {
+                            "type": "integer",
+                            "description": "run-once max runs. Default 1.",
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "daemon-loop max ticks. Default 1.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "daemon-loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "daemon-loop runtime failure stop threshold. Default 1.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for scheduler and evidence events.",
+                        },
+                        "gitExecutable": {
+                            "type": "string",
+                            "description": "Optional git executable path/name. Defaults to git.",
+                        },
+                    },
+                    "required": [
+                        "mode",
+                        "snapshotPath",
+                        "eventLogPath",
+                        "workspaceRoot",
+                        "gitWorktreeSandboxRoot",
+                        "allocationEvidenceId",
+                    ],
+                },
+            ),
+            Tool(
                 name="schedulerLifecycleControl",
                 description=(
                     "Read or mutate the scheduler daemon lifecycle control file. "
@@ -1535,6 +1629,26 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerSandboxReceiptWorkflow":
+            result = tools.scheduler_sandbox_receipt_workflow(
+                mode=arguments.get("mode", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                workspace_root=arguments.get("workspaceRoot", ""),
+                git_worktree_sandbox_root=arguments.get("gitWorktreeSandboxRoot", ""),
+                allocation_evidence_id=arguments.get("allocationEvidenceId", ""),
+                allocation_evidence_path=arguments.get("allocationEvidencePath", ""),
+                cleanup=arguments.get("cleanup", False),
+                cleanup_evidence_id=arguments.get("cleanupEvidenceId", ""),
+                cleanup_evidence_path=arguments.get("cleanupEvidencePath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                max_runs=arguments.get("maxRuns", 1),
+                max_ticks=arguments.get("maxTicks", 1),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
+                timestamp=arguments.get("timestamp", ""),
+                git_executable=arguments.get("gitExecutable", "git"),
             )
         elif name == "schedulerLifecycleControl":
             result = tools.scheduler_lifecycle_control(

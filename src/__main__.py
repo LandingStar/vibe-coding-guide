@@ -375,6 +375,17 @@ _SCHEDULER_CLEANUP_RECEIPTS_USAGE = (
     "[--output-evidence-id ID] [--timestamp TIMESTAMP] [--git-executable PATH]"
 )
 
+_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE = (
+    "Usage: doc-based-coding scheduler sandbox-receipt-workflow "
+    "--mode run-once|daemon-loop --snapshot-path PATH --event-log-path PATH "
+    "--workspace-root PATH --git-worktree-sandbox-root PATH "
+    "--allocation-evidence-id ID [--allocation-evidence-path PATH] "
+    "[--cleanup] [--cleanup-evidence-id ID] [--cleanup-evidence-path PATH] "
+    "[--runtime-provider fake] [--max-runs N] [--max-ticks N] "
+    "[--max-runs-per-tick N] [--max-runtime-failures N] "
+    "[--timestamp TIMESTAMP] [--git-executable PATH]"
+)
+
 _SCHEDULER_LIFECYCLE_USAGE = (
     "Usage: doc-based-coding scheduler lifecycle "
     "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once> "
@@ -410,7 +421,8 @@ def cmd_scheduler(args: list[str]) -> int:
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
             "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n"
-            "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n",
+            "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n"
+            "  sandbox-receipt-workflow Run host allocation/readback/cleanup/readback receipt workflow\n",
         )
         return 0
 
@@ -435,10 +447,12 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_operator_workflow(args[1:])
     if sub == "cleanup-receipts":
         return cmd_scheduler_cleanup_receipts(args[1:])
+    if sub == "sandbox-receipt-workflow":
+        return cmd_scheduler_sandbox_receipt_workflow(args[1:])
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|cleanup-receipts> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -954,6 +968,253 @@ def cmd_scheduler_cleanup_receipts(args: list[str]) -> int:
             "Error running scheduler cleanup receipts",
             e,
             category="scheduler_cleanup_receipts_failed",
+        )
+
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_sandbox_receipt_workflow(args: list[str]) -> int:
+    """Run host sandbox receipt allocate/read/cleanup/read workflow."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE + "\n\n"
+            "This composes host allocation, durable sandbox allocation receipt "
+            "evidence readback, explicit cleanup, and post-cleanup Host Evidence "
+            "readback. Cleanup runs only with --cleanup. This does not refresh "
+            "projection, start a daemon service, run real providers, mutate "
+            "ExchangeArtifact/admission ledger state, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    mode = ""
+    snapshot_path = ""
+    event_log_path = ""
+    workspace_root = ""
+    git_worktree_sandbox_root = ""
+    allocation_evidence_id = ""
+    allocation_evidence_path = ""
+    cleanup = False
+    cleanup_evidence_id = ""
+    cleanup_evidence_path = ""
+    runtime_provider = "fake"
+    timestamp = ""
+    git_executable = "git"
+    max_runs: int | None = 1
+    max_ticks = 1
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--cleanup":
+            cleanup = True
+            i += 1
+            continue
+        if arg in {
+            "--mode",
+            "--snapshot-path",
+            "--event-log-path",
+            "--workspace-root",
+            "--git-worktree-sandbox-root",
+            "--allocation-evidence-id",
+            "--allocation-evidence-path",
+            "--cleanup-evidence-id",
+            "--cleanup-evidence-path",
+            "--runtime-provider",
+            "--max-runs",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+            "--timestamp",
+            "--git-executable",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--mode":
+                mode = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--workspace-root":
+                workspace_root = value
+            elif arg == "--git-worktree-sandbox-root":
+                git_worktree_sandbox_root = value
+            elif arg == "--allocation-evidence-id":
+                allocation_evidence_id = value
+            elif arg == "--allocation-evidence-path":
+                allocation_evidence_path = value
+            elif arg == "--cleanup-evidence-id":
+                cleanup_evidence_id = value
+            elif arg == "--cleanup-evidence-path":
+                cleanup_evidence_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--git-executable":
+                git_executable = value
+            elif arg == "--max-runs":
+                try:
+                    max_runs = int(value)
+                except ValueError:
+                    print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-runs must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-ticks":
+                try:
+                    max_ticks = int(value)
+                except ValueError:
+                    print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-ticks must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runs-per-tick":
+                try:
+                    max_runs_per_tick = int(value)
+                except ValueError:
+                    print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-runs-per-tick must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-runtime-failures":
+                try:
+                    max_runtime_failures = int(value)
+                except ValueError:
+                    print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+                    print("--max-runtime-failures must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler sandbox-receipt-workflow option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+        return 1
+
+    normalized_mode = mode.replace("_", "-")
+    missing = [
+        name
+        for name, value in (
+            ("--mode", normalized_mode),
+            ("--snapshot-path", snapshot_path),
+            ("--event-log-path", event_log_path),
+            ("--workspace-root", workspace_root),
+            ("--git-worktree-sandbox-root", git_worktree_sandbox_root),
+            ("--allocation-evidence-id", allocation_evidence_id),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if normalized_mode not in {"run-once", "daemon-loop"}:
+        print(_SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE, file=sys.stderr)
+        print("--mode must be run-once or daemon-loop", file=sys.stderr)
+        return 1
+    if runtime_provider != "fake":
+        print(
+            "scheduler sandbox-receipt-workflow currently supports only "
+            "--runtime-provider fake; real providers require host-owned injected runtime wiring",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    snapshot = _resolve_project_path(root, snapshot_path)
+    event_log = _resolve_project_path(root, event_log_path)
+    source_repo = _resolve_project_path(root, workspace_root)
+    sandbox_root = _resolve_project_path(root, git_worktree_sandbox_root)
+    allocation_path = (
+        _resolve_project_path(root, allocation_evidence_path)
+        if allocation_evidence_path
+        else None
+    )
+    cleanup_path = (
+        _resolve_project_path(root, cleanup_evidence_path)
+        if cleanup_evidence_path
+        else None
+    )
+
+    try:
+        from .runtime.orchestration import (
+            HostSchedulerDaemonLoopRequest,
+            HostSchedulerRunRequest,
+            RuntimeHostInvocation,
+            RuntimeRegistryWiringConfig,
+            SchedulerDaemonLoopStopPolicy,
+        )
+        from tools.progress_graph import (
+            HostSandboxReceiptWorkflowRequest,
+            run_host_sandbox_receipt_workflow,
+        )
+
+        runtime_config = RuntimeRegistryWiringConfig(
+            providers=("fake",),
+            timestamp=timestamp,
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id=f"cli:scheduler sandbox-receipt-workflow:{normalized_mode}",
+                requested_providers=("fake",),
+                requested_by="operator-cli",
+                reason="scheduler sandbox receipt workflow",
+            ),
+        )
+        workflow_mode = "run_once" if normalized_mode == "run-once" else "daemon_loop"
+        run_once_request = None
+        daemon_loop_request = None
+        if workflow_mode == "run_once":
+            run_once_request = HostSchedulerRunRequest(
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                runtime_config=runtime_config,
+                max_runs=max_runs,
+                workspace_root=str(source_repo),
+                git_worktree_sandbox_root=sandbox_root,
+                sandbox_allocation_evidence_id=allocation_evidence_id,
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp=timestamp,
+            )
+        else:
+            daemon_loop_request = HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                runtime_config=runtime_config,
+                stop_policy=SchedulerDaemonLoopStopPolicy(
+                    max_ticks=max_ticks,
+                    max_runs_per_tick=max_runs_per_tick,
+                    max_runtime_failures=max_runtime_failures,
+                ),
+                workspace_root=str(source_repo),
+                git_worktree_sandbox_root=sandbox_root,
+                sandbox_allocation_evidence_id=allocation_evidence_id,
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp=timestamp,
+                metadata={"surface": "cli:scheduler sandbox-receipt-workflow"},
+            )
+        result = run_host_sandbox_receipt_workflow(
+            HostSandboxReceiptWorkflowRequest(
+                project_root=root,
+                mode=workflow_mode,
+                run_once_request=run_once_request,
+                daemon_loop_request=daemon_loop_request,
+                cleanup=cleanup,
+                cleanup_evidence_id=cleanup_evidence_id,
+                cleanup_evidence_path=cleanup_path,
+                timestamp=timestamp,
+                git_executable=git_executable,
+                cleanup_metadata={"surface": "cli:scheduler sandbox-receipt-workflow"},
+            )
+        )
+        payload = result.to_json_dict()
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler sandbox receipt workflow",
+            e,
+            category="scheduler_sandbox_receipt_workflow_failed",
         )
 
     _print_json(payload)

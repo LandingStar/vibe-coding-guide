@@ -1110,6 +1110,167 @@ class GovernanceTools:
 
         return result.to_json_dict()
 
+    def scheduler_sandbox_receipt_workflow(
+        self,
+        *,
+        mode: str,
+        snapshot_path: str,
+        event_log_path: str,
+        workspace_root: str,
+        git_worktree_sandbox_root: str,
+        allocation_evidence_id: str,
+        allocation_evidence_path: str = "",
+        cleanup: bool = False,
+        cleanup_evidence_id: str = "",
+        cleanup_evidence_path: str = "",
+        runtime_provider: str = "fake",
+        max_runs: int | None = 1,
+        max_ticks: int = 1,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        timestamp: str = "",
+        git_executable: str = "git",
+    ) -> dict[str, Any]:
+        """Run host sandbox receipt allocate/read/cleanup/read workflow."""
+
+        normalized_mode = (mode or "").replace("_", "-")
+        missing = [
+            name
+            for name, value in (
+                ("mode", normalized_mode),
+                ("snapshotPath", snapshot_path),
+                ("eventLogPath", event_log_path),
+                ("workspaceRoot", workspace_root),
+                ("gitWorktreeSandboxRoot", git_worktree_sandbox_root),
+                ("allocationEvidenceId", allocation_evidence_id),
+            )
+            if not value
+        ]
+        if missing:
+            return {
+                "ok": False,
+                "error": "schedulerSandboxReceiptWorkflow requires " + ", ".join(missing) + ".",
+            }
+        if normalized_mode not in {"run-once", "daemon-loop"}:
+            return {
+                "ok": False,
+                "error": "schedulerSandboxReceiptWorkflow mode must be run-once or daemon-loop.",
+                "mode": mode,
+            }
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerSandboxReceiptWorkflow currently supports only runtimeProvider='fake'; "
+                    "real providers require host-owned injected runtime wiring."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        snapshot = resolve_path(snapshot_path)
+        event_log = resolve_path(event_log_path)
+        source_repo = resolve_path(workspace_root)
+        sandbox_root = resolve_path(git_worktree_sandbox_root)
+        allocation_path = resolve_path(allocation_evidence_path) if allocation_evidence_path else None
+        cleanup_path = resolve_path(cleanup_evidence_path) if cleanup_evidence_path else None
+
+        from ..runtime.orchestration import (
+            HostSchedulerDaemonLoopRequest,
+            HostSchedulerRunRequest,
+            RuntimeHostInvocation,
+            RuntimeRegistryWiringConfig,
+            SchedulerDaemonLoopStopPolicy,
+        )
+        from tools.progress_graph import (
+            HostSandboxReceiptWorkflowRequest,
+            run_host_sandbox_receipt_workflow,
+        )
+
+        runtime_config = RuntimeRegistryWiringConfig(
+            providers=("fake",),
+            timestamp=timestamp,
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id=f"mcp:schedulerSandboxReceiptWorkflow:{normalized_mode}",
+                requested_providers=("fake",),
+                requested_by="mcp",
+                reason="scheduler sandbox receipt workflow",
+            ),
+        )
+        workflow_mode = "run_once" if normalized_mode == "run-once" else "daemon_loop"
+        run_once_request = None
+        daemon_loop_request = None
+        if workflow_mode == "run_once":
+            run_once_request = HostSchedulerRunRequest(
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                runtime_config=runtime_config,
+                max_runs=max_runs,
+                workspace_root=str(source_repo),
+                git_worktree_sandbox_root=sandbox_root,
+                sandbox_allocation_evidence_id=allocation_evidence_id,
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp=timestamp,
+            )
+        else:
+            daemon_loop_request = HostSchedulerDaemonLoopRequest(
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                runtime_config=runtime_config,
+                stop_policy=SchedulerDaemonLoopStopPolicy(
+                    max_ticks=max_ticks,
+                    max_runs_per_tick=max_runs_per_tick,
+                    max_runtime_failures=max_runtime_failures,
+                ),
+                workspace_root=str(source_repo),
+                git_worktree_sandbox_root=sandbox_root,
+                sandbox_allocation_evidence_id=allocation_evidence_id,
+                sandbox_allocation_evidence_path=allocation_path,
+                timestamp=timestamp,
+                metadata={"surface": "mcp:schedulerSandboxReceiptWorkflow"},
+            )
+        try:
+            result = run_host_sandbox_receipt_workflow(
+                HostSandboxReceiptWorkflowRequest(
+                    project_root=self._project_root,
+                    mode=workflow_mode,
+                    run_once_request=run_once_request,
+                    daemon_loop_request=daemon_loop_request,
+                    cleanup=cleanup,
+                    cleanup_evidence_id=cleanup_evidence_id,
+                    cleanup_evidence_path=cleanup_path,
+                    timestamp=timestamp,
+                    git_executable=git_executable or "git",
+                    cleanup_metadata={"surface": "mcp:schedulerSandboxReceiptWorkflow"},
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "workflow_mode": workflow_mode,
+                "snapshot_path": str(snapshot),
+                "event_log_path": str(event_log),
+                "authority_split": {
+                    "scheduler_state_read": True,
+                    "scheduler_state_mutated": False,
+                    "runtime_provider_executed": False,
+                    "sandbox_provider_executed": False,
+                    "cleanup_requested": cleanup,
+                    "cleanup_executed": False,
+                    "local_work_trajectory_mutated": False,
+                },
+            }
+
+        return result.to_json_dict()
+
     def scheduler_run_once_and_project(
         self,
         *,
