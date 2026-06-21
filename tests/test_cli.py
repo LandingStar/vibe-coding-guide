@@ -78,6 +78,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "inspect-state" in proc.stdout
     assert "tick" in proc.stdout
     assert "daemon-loop" in proc.stdout
+    assert "lifecycle" in proc.stdout
     assert "project" in proc.stdout
     assert "seed-dogfood-fixture" in proc.stdout
     assert "operator-workflow" in proc.stdout
@@ -1119,6 +1120,98 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert rejected.returncode == 1
     assert "only --runtime-provider fake" in rejected.stderr
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_provider(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        SchedulerState,
+        SchedulerTaskSubmission,
+        scheduler_task_submission_to_artifact,
+        submit_scheduler_task_with_persistence,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-harness-cli",
+                title="Harness CLI task",
+                instruction="Complete through lifecycle harness.",
+                agent=AgentSpec(agent_id="agent:harness-cli", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:harness-cli"),
+                output_artifact_id="task-harness-cli:result",
+            ),
+            artifact_id="submission:harness-cli",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-21T00:10:00+00:00",
+    )
+    start = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "start",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--daemon-id",
+            "daemon-cli",
+        ],
+        cwd=project,
+    )
+    harness = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "harness",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--max-cycles",
+            "3",
+            "--max-ticks",
+            "2",
+            "--max-runs-per-tick",
+            "1",
+            "--timestamp",
+            "2026-06-21T00:11:00+00:00",
+        ],
+        cwd=project,
+    )
+    rejected = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "harness",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--runtime-provider",
+            "qoder",
+        ],
+        cwd=project,
+    )
+
+    assert start.returncode == 0, start.stderr
+    assert harness.returncode == 0, harness.stderr
+    payload = json.loads(harness.stdout)
+    assert payload["stop_reason"] == "no_ready_tasks"
+    assert payload["total_run_count"] == 1
+    assert payload["authority_split"]["starts_os_service"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert rejected.returncode == 1
+    assert "scheduler lifecycle harness currently supports only --runtime-provider fake" in rejected.stderr
     assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 

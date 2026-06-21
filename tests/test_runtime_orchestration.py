@@ -89,6 +89,7 @@ from src.runtime.orchestration import (
     HostSchedulerDaemonLoopResult,
     SchedulerDaemonLifecycleRequest,
     SchedulerDaemonLifecycleRunOnceRequest,
+    SchedulerDaemonHarnessRequest,
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
@@ -137,6 +138,7 @@ from src.runtime.orchestration import (
     run_ready_task,
     run_scheduled_task_with_registry,
     run_scheduler_daemon_loop,
+    run_scheduler_daemon_harness,
     run_scheduler_daemon_lifecycle_once,
     run_scheduler_daemon_tick,
     roll_up_work_item,
@@ -5906,6 +5908,187 @@ def test_scheduler_daemon_lifecycle_run_once_consumes_cancel_without_running_loo
     assert payload["authority_split"]["scheduler_state_mutated"] is False
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
     assert not event_log_path.exists()
+
+
+def test_scheduler_daemon_harness_drains_fake_runtime_until_no_ready_tasks(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+
+    result = run_scheduler_daemon_harness(
+        SchedulerDaemonHarnessRequest(
+            control_path=control_path,
+            max_cycles=3,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert result.stop_reason == "no_ready_tasks"
+    assert result.cycle_count == 1
+    assert result.total_run_count == 1
+    assert payload["authority_split"]["starts_os_service"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["cycles"][0]["loop_stop_reason"] == "no_ready_tasks"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "complete"
+
+
+def test_scheduler_daemon_harness_stops_paused_without_scheduler_mutation(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="pause",
+            timestamp="101",
+        )
+    )
+
+    result = run_scheduler_daemon_harness(
+        SchedulerDaemonHarnessRequest(
+            control_path=control_path,
+            max_cycles=2,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+
+    assert result.stop_reason == "paused"
+    assert result.cycles[0].skipped is True
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
+    assert not event_log_path.exists()
+
+
+def test_scheduler_daemon_harness_stops_shutdown_without_scheduler_mutation(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="shutdown",
+            timestamp="101",
+        )
+    )
+
+    result = run_scheduler_daemon_harness(
+        SchedulerDaemonHarnessRequest(
+            control_path=control_path,
+            max_cycles=2,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+
+    assert result.stop_reason == "stopped"
+    assert result.cycles[0].skipped is True
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
+    assert not event_log_path.exists()
+
+
+def test_scheduler_daemon_harness_consumes_cancelling_lifecycle(tmp_path) -> None:
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(tasks={"task-a": _scheduled_task("task-a", output_artifact_id="task-a:result")}),
+        snapshot_path,
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="start",
+            daemon_id="daemon-1",
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            timestamp="100",
+        )
+    )
+    apply_scheduler_daemon_lifecycle_action(
+        SchedulerDaemonLifecycleRequest(
+            control_path=control_path,
+            action="cancel",
+            timestamp="101",
+        )
+    )
+
+    result = run_scheduler_daemon_harness(
+        SchedulerDaemonHarnessRequest(
+            control_path=control_path,
+            max_cycles=2,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+    control = read_scheduler_daemon_lifecycle_control(control_path)
+
+    assert result.stop_reason == "cancelled"
+    assert result.cycles[0].skipped is True
+    assert control.state == "cancelled"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-a"].state == "proposed"
+
+
+def test_scheduler_daemon_harness_zero_cycles_does_not_inspect_or_mutate(tmp_path) -> None:
+    control_path = tmp_path / "missing-control.json"
+
+    result = run_scheduler_daemon_harness(
+        SchedulerDaemonHarnessRequest(
+            control_path=control_path,
+            max_cycles=0,
+            stop_policy=SchedulerDaemonLoopStopPolicy(max_ticks=2, max_runs_per_tick=1),
+            timestamp="110",
+        )
+    )
+
+    assert result.stop_reason == "max_cycles_reached"
+    assert result.stop_detail == "max_cycles is 0"
+    assert result.cycles == ()
+    assert not control_path.exists()
 
 
 def test_scheduler_loop_evidence_writes_and_reads_summary(tmp_path) -> None:

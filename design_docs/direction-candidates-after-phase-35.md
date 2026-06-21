@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Host-managed scheduler daemon process harness 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md` 已完成并关闭；当前 backend scheduler/orchestration 线已有 bounded host-managed harness，可通过 `doc-based-coding scheduler lifecycle harness` 复用既有 lifecycle-gated run-once，输出 cycle summary 与 authority split。
+- 候选 1：`Retry / Deadline / Cancellation Policy Over Harness Results`
+  - 做什么：围绕 harness stop reason 与 lifecycle state 定义 retry、deadline、timeout、cancel precedence 的第一版策略合同。
+  - 依据：`design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md`、`review/host-managed-scheduler-daemon-process-harness-2026-06-21.md`
+- 候选 2：`MCP Surface For Host-Managed Harness`
+  - 做什么：将 harness 暴露为 MCP 工具，保持 fake-runtime-only 默认与显式 path 输入，使 Codex/MCP host 可直接跑 bounded host-managed cycles。
+  - 依据：`design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md`
+- 候选 3：`Agent Home / Context Session Binding`
+  - 做什么：将 agent home / scratch governance products 与 scheduler runtime session / harness cycle 绑定，形成可运行的 storage lifecycle 钩子。
+  - 依据：`design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 当前倾向：默认先进入候选 1。CLI 已经提供 operator harness path；先补 retry/deadline/cancellation policy 会更深地提升 scheduler 鲁棒性，并为之后 MCP/Host UX/agent home 绑定提供更稳定的结果语义。
+
 ## 2026-06-21 补充候选：暂停 Host UX sandbox receipt 分支后的 backend orchestration 下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-evidence-aware-workflow-defaults-sandbox-receipt-workflow.md` 已完成并关闭；当前建议暂停继续叠加 Host UX sandbox receipt 控件，除非真实 evidence 暴露 cleanup diff 推断不足。

@@ -388,12 +388,12 @@ _SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE = (
 
 _SCHEDULER_LIFECYCLE_USAGE = (
     "Usage: doc-based-coding scheduler lifecycle "
-    "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once> "
+    "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once|harness> "
     "--control-path PATH [--snapshot-path PATH] [--event-log-path PATH] "
     "[--daemon-id ID] [--run-id ID] [--timestamp TIMESTAMP] "
     "[--stale-after-seconds N] [--now-epoch-seconds N] "
     "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
-    "[--max-runtime-failures N]"
+    "[--max-runtime-failures N] [--max-cycles N] [--max-loop-failures N]"
 )
 
 
@@ -1689,8 +1689,8 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
         print(
             _SCHEDULER_LIFECYCLE_USAGE + "\n\n"
             "This reads or writes only the scheduler daemon lifecycle control file, "
-            "except run-once, which may mutate scheduler snapshot/event-log state "
-            "through the bounded fake-runtime daemon loop. It does not refresh "
+            "except run-once and harness, which may mutate scheduler snapshot/event-log state "
+            "through bounded fake-runtime daemon loops. It does not refresh "
             "scheduler projection, run real providers, mutate exchange artifacts, "
             "or mutate Local Work Trajectory.",
         )
@@ -1706,6 +1706,7 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
         "cancel",
         "shutdown",
         "run-once",
+        "harness",
     }
     if lifecycle_action not in allowed_actions:
         print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
@@ -1724,6 +1725,8 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
     max_ticks = 1
     max_runs_per_tick: int | None = 1
     max_runtime_failures: int | None = 1
+    max_cycles = 1
+    max_loop_failures: int | None = 1
 
     i = 1
     while i < len(args):
@@ -1741,6 +1744,8 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             "--max-ticks",
             "--max-runs-per-tick",
             "--max-runtime-failures",
+            "--max-cycles",
+            "--max-loop-failures",
         }:
             if i + 1 >= len(args):
                 print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
@@ -1796,6 +1801,20 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
                     print("--max-runtime-failures must be an integer", file=sys.stderr)
                     return 1
+            elif arg == "--max-cycles":
+                try:
+                    max_cycles = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-cycles must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-loop-failures":
+                try:
+                    max_loop_failures = int(value)
+                except ValueError:
+                    print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+                    print("--max-loop-failures must be an integer", file=sys.stderr)
+                    return 1
             i += 2
             continue
         print(f"Unknown scheduler lifecycle option: {arg}", file=sys.stderr)
@@ -1820,9 +1839,9 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
             print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
             return 1
-    if lifecycle_action == "run-once" and runtime_provider != "fake":
+    if lifecycle_action in {"run-once", "harness"} and runtime_provider != "fake":
         print(
-            "scheduler lifecycle run-once currently supports only --runtime-provider fake; "
+            f"scheduler lifecycle {lifecycle_action} currently supports only --runtime-provider fake; "
             "real providers require host-owned injected runtime wiring",
             file=sys.stderr,
         )
@@ -1836,8 +1855,10 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             SchedulerDaemonLifecycleRequest,
             SchedulerDaemonLifecycleRunOnceRequest,
             SchedulerDaemonLoopStopPolicy,
+            SchedulerDaemonHarnessRequest,
             apply_scheduler_daemon_lifecycle_action,
             inspect_scheduler_daemon_lifecycle_control,
+            run_scheduler_daemon_harness,
             run_scheduler_daemon_lifecycle_once,
         )
 
@@ -1859,6 +1880,24 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     runtime_provider=runtime_provider,
                     timestamp=timestamp,
                     workspace_root=str(root),
+                )
+            )
+        elif lifecycle_action == "harness":
+            result = run_scheduler_daemon_harness(
+                SchedulerDaemonHarnessRequest(
+                    control_path=control,
+                    max_cycles=max_cycles,
+                    stop_policy=SchedulerDaemonLoopStopPolicy(
+                        max_ticks=max_ticks,
+                        max_runs_per_tick=max_runs_per_tick,
+                        max_runtime_failures=max_runtime_failures,
+                    ),
+                    runtime_provider=runtime_provider,
+                    timestamp=timestamp,
+                    workspace_root=str(root),
+                    stale_now_epoch_seconds=now_epoch_seconds,
+                    stale_after_seconds=stale_after_seconds,
+                    max_loop_failures=max_loop_failures,
                 )
             )
         else:
