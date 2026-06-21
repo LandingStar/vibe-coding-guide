@@ -1721,6 +1721,147 @@ class GovernanceTools:
         payload["runtime_provider"] = normalized_runtime_provider
         return payload
 
+    def scheduler_daemon_supervisor_step(
+        self,
+        *,
+        supervisor_id: str,
+        control_path: str,
+        runtime_provider: str = "fake",
+        timestamp: str = "",
+        session_id: str = "",
+        run_id: str = "",
+        host_id: str = "",
+        requested_by: str = "",
+        status_readback_at: str = "",
+        cancellation_source: str = "",
+        cancellation_reason: str = "",
+        max_cycles: int = 1,
+        max_loop_failures: int | None = 1,
+        max_ticks: int = 1,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        stale_after_seconds: int | None = None,
+        now_epoch_seconds: int | None = None,
+        policy_cancelled: bool = False,
+        deadline_epoch_seconds: int | None = None,
+        max_attempts: int = 1,
+        retry_stop_reasons: list[str] | tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """Run one host-managed daemon supervisor step."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "error": (
+                    "schedulerDaemonSupervisorStep currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "explicit host permission and adapter registry configuration."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "supervisor_authority": "host-owned-daemon-supervisor-contract",
+                    "policy_authority": "host-owned-harness-policy",
+                    "harness_authority": "host-owned-bounded-process-harness",
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+        if not supervisor_id:
+            return {
+                "ok": False,
+                "error": "schedulerDaemonSupervisorStep requires supervisorId.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+        if not control_path:
+            return {
+                "ok": False,
+                "error": "schedulerDaemonSupervisorStep requires controlPath.",
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from ..runtime.orchestration import (
+            SchedulerDaemonHarnessPolicy,
+            SchedulerDaemonHarnessRequest,
+            SchedulerDaemonLoopStopPolicy,
+            SchedulerDaemonSupervisorRequest,
+            run_scheduler_daemon_supervisor_step,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        control = resolve_path(control_path)
+        try:
+            result = run_scheduler_daemon_supervisor_step(
+                SchedulerDaemonSupervisorRequest(
+                    supervisor_id=supervisor_id,
+                    session_id=session_id,
+                    run_id=run_id,
+                    host_id=host_id,
+                    requested_by=requested_by,
+                    status_readback_at=status_readback_at,
+                    cancellation_source=cancellation_source,
+                    cancellation_reason=cancellation_reason,
+                    harness_request=SchedulerDaemonHarnessRequest(
+                        control_path=control,
+                        max_cycles=max_cycles,
+                        stop_policy=SchedulerDaemonLoopStopPolicy(
+                            max_ticks=max_ticks,
+                            max_runs_per_tick=max_runs_per_tick,
+                            max_runtime_failures=max_runtime_failures,
+                        ),
+                        runtime_provider=normalized_runtime_provider,
+                        timestamp=timestamp,
+                        workspace_root=str(self._project_root),
+                        stale_now_epoch_seconds=now_epoch_seconds,
+                        stale_after_seconds=stale_after_seconds,
+                        max_loop_failures=max_loop_failures,
+                    ),
+                    policy=SchedulerDaemonHarnessPolicy(
+                        cancelled=policy_cancelled,
+                        deadline_epoch_seconds=deadline_epoch_seconds,
+                        now_epoch_seconds=now_epoch_seconds,
+                        max_attempts=max_attempts,
+                        retry_stop_reasons=tuple(retry_stop_reasons or ()),
+                    ),
+                )
+            )
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": str(exc),
+                "control_path": str(control),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "supervisor_authority": "host-owned-daemon-supervisor-contract",
+                    "policy_authority": "host-owned-harness-policy",
+                    "harness_authority": "host-owned-bounded-process-harness",
+                    "lifecycle_authority": "scheduler_daemon_lifecycle_control_file",
+                    "lifecycle_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "exchange_artifact_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                },
+            }
+
+        payload = result.to_json_dict()
+        payload["runtime_provider"] = normalized_runtime_provider
+        return payload
+
     def scheduler_operator_workflow(
         self,
         *,

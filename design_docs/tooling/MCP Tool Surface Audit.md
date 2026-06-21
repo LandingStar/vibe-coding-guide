@@ -149,6 +149,7 @@
 | `schedulerLifecycleControl` | `action*`, `controlPath*`, `snapshotPath`, `eventLogPath`, `daemonId`, `runId`, `timestamp`, `staleAfterSeconds`, `nowEpochSeconds` | 读写 scheduler daemon lifecycle control file；只做 deterministic control-file operation，不运行 provider、不刷新 projection、不写 local trajectory | 调度 lifecycle control |
 | `schedulerLifecycleRunOnce` | `controlPath*`, `runtimeProvider`, `timestamp`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures` | 在 lifecycle state 允许时执行一次 bounded fake-runtime lifecycle-gated loop；paused/cancelled/stopped/stale 会跳过 scheduler mutation；`runtimeProvider` 当前只允许 `fake` | 调度 lifecycle execution |
 | `schedulerLifecycleHarness` | `controlPath*`, `runtimeProvider`, `timestamp`, `maxCycles`, `maxLoopFailures`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `staleAfterSeconds`, `nowEpochSeconds`, `policyCancelled`, `deadlineEpochSeconds`, `maxAttempts`, `retryStopReasons` | 通过 `run_scheduler_daemon_harness_with_policy()` 运行 policy-controlled bounded harness；支持 cancelled/deadline preflight 与 explicit retry stop reasons；不启动 daemon service、不刷新 projection、不执行 cleanup、不写 local trajectory；`runtimeProvider` 当前只允许 `fake` | 调度 lifecycle harness / policy |
+| `schedulerDaemonSupervisorStep` | `supervisorId*`, `controlPath*`, `runtimeProvider`, `timestamp`, `sessionId`, `runId`, `hostId`, `requestedBy`, `statusReadbackAt`, `cancellationSource`, `cancellationReason`, `maxCycles`, `maxLoopFailures`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `staleAfterSeconds`, `nowEpochSeconds`, `policyCancelled`, `deadlineEpochSeconds`, `maxAttempts`, `retryStopReasons` | 通过 `run_scheduler_daemon_supervisor_step()` 运行一轮 host-managed supervisor step；在 policy-controlled bounded harness 外增加 supervisor/session/run identity、cancellation-source metadata 与 lifecycle status readback；不启动 daemon service、不刷新 projection、不执行 cleanup、不写 local trajectory；`runtimeProvider` 当前只允许 `fake` | 调度 daemon supervisor / policy |
 
 合并判断：
 
@@ -162,6 +163,7 @@
 - 当前保留为独立工具是合理的，因为它们分别对应 submit / project / run+project 三个不同 lifecycle action，同时避免把 scheduler mutation 误解为 trajectory mutation。
 - 当前端到端冒烟顺序已固化为 `schedulerSubmitTasks -> schedulerProjection -> schedulerRunOnceAndProject`，并由 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 及 bootstrap 副本提供 agent 操作提示；该提示词只用于 scheduler lifecycle 验证，不替代 `localTrajectory`。
 - `schedulerLifecycleHarness` 不替代 `schedulerLifecycleRunOnce`：前者是 host-managed bounded harness + policy wrapper，可能执行多个 harness attempts；后者是单次 lifecycle-gated loop。需要只跑一次 lifecycle decision 时保留 run-once，关注 retry/deadline/cancel policy 时使用 harness。
+- `schedulerDaemonSupervisorStep` 不替代 `schedulerLifecycleHarness`：前者是在 harness/policy 外增加 host-owned supervisor identity 与 status readback 的调用层；需要纯 policy harness 验证时保留 harness，关注 host supervisor/session/run readback 时使用 supervisor step。
 
 ## 2026-06-19 增量：Scheduler Operator Workflow Tool
 

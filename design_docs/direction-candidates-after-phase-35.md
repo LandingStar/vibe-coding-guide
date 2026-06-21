@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：Daemon supervisor CLI/MCP surface 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-daemon-supervisor-cli-mcp-surface.md` 已完成并关闭；当前 CLI `doc-based-coding scheduler lifecycle supervisor-step` 与 MCP tool `schedulerDaemonSupervisorStep` 可直接调用 host-managed daemon supervisor step，返回 supervisor identity、status readback 与 `harness_policy_result`。
+- 候选 1：`Supervisor Dogfood Workflow`
+  - 做什么：建立 deterministic fake-runtime supervisor dogfood workflow，串联 scheduler task seed、lifecycle start、supervisor step invocation、scheduler/supervisor readback，证明 CLI/MCP surface 的实际使用顺序。
+  - 依据：`design_docs/daemon-supervisor-cli-mcp-surface-followup-direction-analysis.md`、`review/daemon-supervisor-cli-mcp-surface-2026-06-21.md`
+- 候选 2：`Agent Home / Context Session Binding Over Supervisor Runs`
+  - 做什么：把 agent home / temporary scratch / context session lifecycle 绑定到 supervisor run identity 和 harness attempts，形成 storage lifecycle anchor。
+  - 依据：`design_docs/daemon-supervisor-cli-mcp-surface-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 候选 3：`Host UX Readback For Supervisor Status`
+  - 做什么：在 Host UX 中展示 supervisor status/result readback，提升 operator 可见性。
+  - 依据：`design_docs/daemon-supervisor-cli-mcp-surface-followup-direction-analysis.md`
+- 当前倾向：默认先进入候选 1。supervisor 已可被 CLI/MCP 调用，下一步风险在工作流顺序与证据质量；先做 deterministic dogfood workflow，可以为后续 agent-home/session binding 和 Host UX readback 提供稳定证据。
+
 ## 2026-06-21 补充候选：Host-managed daemon supervisor contract 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-managed-daemon-supervisor-contract.md` 已完成并关闭；当前 runtime 层已有 `SchedulerDaemonSupervisorRequest` / `SchedulerDaemonSupervisorStatus` / `SchedulerDaemonSupervisorResult` 与 `run_scheduler_daemon_supervisor_step()`，可在 policy-controlled bounded harness 外提供 host/session/run identity、cancellation source、deadline/status readback 与 authority split。

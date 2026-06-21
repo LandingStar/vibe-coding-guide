@@ -1473,6 +1473,114 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "required": ["controlPath"],
                 },
             ),
+            Tool(
+                name="schedulerDaemonSupervisorStep",
+                description=(
+                    "Run one host-managed daemon supervisor step over the "
+                    "policy-controlled bounded scheduler lifecycle harness using "
+                    "the built-in fake runtime only. Returns host/session/run "
+                    "identity, cancellation-source metadata, lifecycle status "
+                    "readback, and harness policy result. This does not start a "
+                    "daemon service, refresh scheduler projection, run cleanup, "
+                    "mutate ExchangeArtifact/admission ledger state, or mutate "
+                    "agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "supervisorId": {
+                            "type": "string",
+                            "description": "Required host-owned supervisor identity.",
+                        },
+                        "controlPath": {
+                            "type": "string",
+                            "description": "Scheduler daemon lifecycle control JSON path. Relative paths resolve under the MCP project root.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Defaults to 'fake'; only 'fake' is accepted in this MCP surface.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for lifecycle-gated harness attempts.",
+                        },
+                        "sessionId": {
+                            "type": "string",
+                            "description": "Optional host-owned supervisor session identity.",
+                        },
+                        "runId": {
+                            "type": "string",
+                            "description": "Optional host-owned supervisor run identity.",
+                        },
+                        "hostId": {
+                            "type": "string",
+                            "description": "Optional host identity for readback.",
+                        },
+                        "requestedBy": {
+                            "type": "string",
+                            "description": "Optional actor/requester identity.",
+                        },
+                        "statusReadbackAt": {
+                            "type": "string",
+                            "description": "Optional deterministic timestamp label for supervisor status readback.",
+                        },
+                        "cancellationSource": {
+                            "type": "string",
+                            "description": "Optional source label when policyCancelled is true.",
+                        },
+                        "cancellationReason": {
+                            "type": "string",
+                            "description": "Optional reason when policyCancelled is true.",
+                        },
+                        "maxCycles": {
+                            "type": "integer",
+                            "description": "Bounded harness max cycles per policy attempt. Default 1.",
+                        },
+                        "maxLoopFailures": {
+                            "type": "integer",
+                            "description": "Maximum loop failure stop reasons before the harness attempt stops. Default 1.",
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "Bounded loop max ticks for each lifecycle run-once. Default 1.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "Bounded loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "Runtime failure stop threshold. Default 1.",
+                        },
+                        "staleAfterSeconds": {
+                            "type": "integer",
+                            "description": "Optional heartbeat stale threshold in seconds for lifecycle inspection.",
+                        },
+                        "nowEpochSeconds": {
+                            "type": "integer",
+                            "description": "Optional deterministic current epoch seconds for deadline and stale inspection.",
+                        },
+                        "policyCancelled": {
+                            "type": "boolean",
+                            "description": "If true, supervisor stops before lifecycle control readback or scheduler mutation.",
+                        },
+                        "deadlineEpochSeconds": {
+                            "type": "integer",
+                            "description": "Optional deadline epoch seconds. Requires nowEpochSeconds.",
+                        },
+                        "maxAttempts": {
+                            "type": "integer",
+                            "description": "Maximum policy attempts. Default 1.",
+                        },
+                        "retryStopReasons": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Harness stop reasons that should be retried until maxAttempts.",
+                        },
+                    },
+                    "required": ["supervisorId", "controlPath"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -1750,6 +1858,31 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 control_path=arguments.get("controlPath", ""),
                 runtime_provider=arguments.get("runtimeProvider", "fake"),
                 timestamp=arguments.get("timestamp", ""),
+                max_cycles=arguments.get("maxCycles", 1),
+                max_loop_failures=arguments.get("maxLoopFailures", 1),
+                max_ticks=arguments.get("maxTicks", 1),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
+                stale_after_seconds=arguments.get("staleAfterSeconds"),
+                now_epoch_seconds=arguments.get("nowEpochSeconds"),
+                policy_cancelled=arguments.get("policyCancelled", False),
+                deadline_epoch_seconds=arguments.get("deadlineEpochSeconds"),
+                max_attempts=arguments.get("maxAttempts", 1),
+                retry_stop_reasons=arguments.get("retryStopReasons"),
+            )
+        elif name == "schedulerDaemonSupervisorStep":
+            result = tools.scheduler_daemon_supervisor_step(
+                supervisor_id=arguments.get("supervisorId", ""),
+                control_path=arguments.get("controlPath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                timestamp=arguments.get("timestamp", ""),
+                session_id=arguments.get("sessionId", ""),
+                run_id=arguments.get("runId", ""),
+                host_id=arguments.get("hostId", ""),
+                requested_by=arguments.get("requestedBy", ""),
+                status_readback_at=arguments.get("statusReadbackAt", ""),
+                cancellation_source=arguments.get("cancellationSource", ""),
+                cancellation_reason=arguments.get("cancellationReason", ""),
                 max_cycles=arguments.get("maxCycles", 1),
                 max_loop_failures=arguments.get("maxLoopFailures", 1),
                 max_ticks=arguments.get("maxTicks", 1),

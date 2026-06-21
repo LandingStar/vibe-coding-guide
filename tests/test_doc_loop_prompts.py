@@ -139,7 +139,10 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding scheduler operator-workflow" in text
         assert "doc-based-coding scheduler lifecycle <action>" in text
         assert "doc-based-coding scheduler lifecycle run-once" in text
+        assert "doc-based-coding scheduler lifecycle supervisor-step" in text
         assert "admit` / `runLoop` / `refreshProjection`" in text
+        assert "schedulerDaemonSupervisorStep" in text
+        assert "cancellation-source metadata" in text
         assert "localTrajectory" in text
         assert ".codex/progress-graph/local-work-trajectory.json" in text
         assert ".codex/progress-graph/scheduler-work-trajectory.json" in text

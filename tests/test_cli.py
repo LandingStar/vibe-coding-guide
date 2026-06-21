@@ -1262,6 +1262,124 @@ def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_p
     assert not (project / ".codex" / "scheduler" / "missing-control.json").exists()
 
 
+def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_real_provider(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        SchedulerState,
+        SchedulerTaskSubmission,
+        scheduler_task_submission_to_artifact,
+        submit_scheduler_task_with_persistence,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-supervisor-cli",
+                title="Supervisor CLI task",
+                instruction="Complete through supervisor CLI.",
+                agent=AgentSpec(agent_id="agent:supervisor-cli", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:supervisor-cli"),
+                output_artifact_id="task-supervisor-cli:result",
+            ),
+            artifact_id="submission:supervisor-cli",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-21T01:10:00+00:00",
+    )
+    start = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "start",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--daemon-id",
+            "daemon-supervisor-cli",
+            "--run-id",
+            "lifecycle-run-cli",
+        ],
+        cwd=project,
+    )
+    supervisor = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "supervisor-step",
+            "--supervisor-id",
+            "supervisor-cli",
+            "--session-id",
+            "session-cli",
+            "--run-id",
+            "supervisor-run-cli",
+            "--host-id",
+            "host-cli",
+            "--requested-by",
+            "agent:test",
+            "--status-readback-at",
+            "2026-06-21T01:11:00+00:00",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--max-cycles",
+            "3",
+            "--max-ticks",
+            "2",
+            "--max-runs-per-tick",
+            "1",
+            "--timestamp",
+            "2026-06-21T01:11:00+00:00",
+        ],
+        cwd=project,
+    )
+    rejected = _run_cli(
+        [
+            "scheduler",
+            "lifecycle",
+            "supervisor-step",
+            "--supervisor-id",
+            "supervisor-cli",
+            "--control-path",
+            ".codex/scheduler/scheduler-daemon-control.json",
+            "--runtime-provider",
+            "qoder",
+        ],
+        cwd=project,
+    )
+
+    assert start.returncode == 0, start.stderr
+    assert supervisor.returncode == 0, supervisor.stderr
+    payload = json.loads(supervisor.stdout)
+    assert payload["supervisor_id"] == "supervisor-cli"
+    assert payload["session_id"] == "session-cli"
+    assert payload["run_id"] == "supervisor-run-cli"
+    assert payload["requested_by"] == "agent:test"
+    assert payload["stop_reason"] == "harness_completed"
+    assert payload["attempted_harness"] is True
+    assert payload["attempt_count"] == 1
+    assert payload["total_run_count"] == 1
+    assert payload["status_before"]["lifecycle_state"] == "running"
+    assert payload["status_before"]["queue_summary"]["task_state_counts"] == {"proposed": 1}
+    assert payload["status_after"]["queue_summary"]["task_state_counts"] == {"complete": 1}
+    assert payload["harness_policy_result"]["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
+    assert payload["authority_split"]["starts_os_service"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert rejected.returncode == 1
+    assert "scheduler lifecycle supervisor-step currently supports only --runtime-provider fake" in rejected.stderr
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)

@@ -388,14 +388,17 @@ _SCHEDULER_SANDBOX_RECEIPT_WORKFLOW_USAGE = (
 
 _SCHEDULER_LIFECYCLE_USAGE = (
     "Usage: doc-based-coding scheduler lifecycle "
-    "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once|harness> "
+    "<inspect|start|heartbeat|pause|resume|cancel|shutdown|run-once|harness|supervisor-step> "
     "--control-path PATH [--snapshot-path PATH] [--event-log-path PATH] "
     "[--daemon-id ID] [--run-id ID] [--timestamp TIMESTAMP] "
     "[--stale-after-seconds N] [--now-epoch-seconds N] "
     "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
     "[--max-runtime-failures N] [--max-cycles N] [--max-loop-failures N] "
     "[--policy-cancelled] [--deadline-epoch-seconds N] "
-    "[--max-attempts N] [--retry-stop-reasons REASON[,REASON...]]"
+    "[--max-attempts N] [--retry-stop-reasons REASON[,REASON...]] "
+    "[--supervisor-id ID] [--session-id ID] [--host-id ID] "
+    "[--requested-by ACTOR] [--status-readback-at TIMESTAMP] "
+    "[--cancellation-source SOURCE] [--cancellation-reason REASON]"
 )
 
 
@@ -1709,6 +1712,7 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
         "shutdown",
         "run-once",
         "harness",
+        "supervisor-step",
     }
     if lifecycle_action not in allowed_actions:
         print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
@@ -1733,6 +1737,13 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
     deadline_epoch_seconds: int | None = None
     max_attempts = 1
     retry_stop_reasons: tuple[str, ...] = ()
+    supervisor_id = ""
+    session_id = ""
+    host_id = ""
+    requested_by = ""
+    status_readback_at = ""
+    cancellation_source = ""
+    cancellation_reason = ""
 
     i = 1
     while i < len(args):
@@ -1759,6 +1770,13 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             "--deadline-epoch-seconds",
             "--max-attempts",
             "--retry-stop-reasons",
+            "--supervisor-id",
+            "--session-id",
+            "--host-id",
+            "--requested-by",
+            "--status-readback-at",
+            "--cancellation-source",
+            "--cancellation-reason",
         }:
             if i + 1 >= len(args):
                 print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
@@ -1848,6 +1866,20 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     for item in value.split(",")
                     if item.strip()
                 )
+            elif arg == "--supervisor-id":
+                supervisor_id = value
+            elif arg == "--session-id":
+                session_id = value
+            elif arg == "--host-id":
+                host_id = value
+            elif arg == "--requested-by":
+                requested_by = value
+            elif arg == "--status-readback-at":
+                status_readback_at = value
+            elif arg == "--cancellation-source":
+                cancellation_source = value
+            elif arg == "--cancellation-reason":
+                cancellation_reason = value
             i += 2
             continue
         print(f"Unknown scheduler lifecycle option: {arg}", file=sys.stderr)
@@ -1872,12 +1904,16 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
             print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
             return 1
-    if lifecycle_action in {"run-once", "harness"} and runtime_provider != "fake":
+    if lifecycle_action in {"run-once", "harness", "supervisor-step"} and runtime_provider != "fake":
         print(
             f"scheduler lifecycle {lifecycle_action} currently supports only --runtime-provider fake; "
             "real providers require host-owned injected runtime wiring",
             file=sys.stderr,
         )
+        return 1
+    if lifecycle_action == "supervisor-step" and not supervisor_id:
+        print(_SCHEDULER_LIFECYCLE_USAGE, file=sys.stderr)
+        print("Missing required option(s): --supervisor-id", file=sys.stderr)
         return 1
 
     root = _find_project_root()
@@ -1890,10 +1926,12 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
             SchedulerDaemonLoopStopPolicy,
             SchedulerDaemonHarnessRequest,
             SchedulerDaemonHarnessPolicy,
+            SchedulerDaemonSupervisorRequest,
             apply_scheduler_daemon_lifecycle_action,
             inspect_scheduler_daemon_lifecycle_control,
             run_scheduler_daemon_harness_with_policy,
             run_scheduler_daemon_lifecycle_once,
+            run_scheduler_daemon_supervisor_step,
         )
 
         if lifecycle_action == "inspect":
@@ -1939,6 +1977,41 @@ def cmd_scheduler_lifecycle(args: list[str]) -> int:
                     now_epoch_seconds=now_epoch_seconds,
                     max_attempts=max_attempts,
                     retry_stop_reasons=retry_stop_reasons,
+                )
+            )
+        elif lifecycle_action == "supervisor-step":
+            result = run_scheduler_daemon_supervisor_step(
+                SchedulerDaemonSupervisorRequest(
+                    supervisor_id=supervisor_id,
+                    session_id=session_id,
+                    run_id=run_id,
+                    host_id=host_id,
+                    requested_by=requested_by,
+                    status_readback_at=status_readback_at,
+                    cancellation_source=cancellation_source,
+                    cancellation_reason=cancellation_reason,
+                    harness_request=SchedulerDaemonHarnessRequest(
+                        control_path=control,
+                        max_cycles=max_cycles,
+                        stop_policy=SchedulerDaemonLoopStopPolicy(
+                            max_ticks=max_ticks,
+                            max_runs_per_tick=max_runs_per_tick,
+                            max_runtime_failures=max_runtime_failures,
+                        ),
+                        runtime_provider=runtime_provider,
+                        timestamp=timestamp,
+                        workspace_root=str(root),
+                        stale_now_epoch_seconds=now_epoch_seconds,
+                        stale_after_seconds=stale_after_seconds,
+                        max_loop_failures=max_loop_failures,
+                    ),
+                    policy=SchedulerDaemonHarnessPolicy(
+                        cancelled=policy_cancelled,
+                        deadline_epoch_seconds=deadline_epoch_seconds,
+                        now_epoch_seconds=now_epoch_seconds,
+                        max_attempts=max_attempts,
+                        retry_stop_reasons=retry_stop_reasons,
+                    ),
                 )
             )
         else:

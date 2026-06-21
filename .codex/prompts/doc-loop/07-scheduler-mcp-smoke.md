@@ -97,7 +97,14 @@ Keep the lifecycle split:
    explicit cancelled/deadline preflight and retry over listed harness stop
    reasons. It remains fake-runtime-only in MCP, does not refresh projection,
    and does not mutate agent-owned Local Work Trajectory.
-20. Controlled host-runtime dogfood uses
+20. Scheduler daemon supervisor step uses
+   `doc-based-coding scheduler lifecycle supervisor-step` or
+   `schedulerDaemonSupervisorStep` to run one host-managed supervisor step over
+   the policy-controlled bounded harness. It adds supervisor/session/run
+   identity, cancellation-source metadata, and lifecycle status readback while
+   remaining fake-runtime-only in CLI/MCP. It does not start a service, refresh
+   projection, execute cleanup, or mutate agent-owned Local Work Trajectory.
+21. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 

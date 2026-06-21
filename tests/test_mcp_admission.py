@@ -403,6 +403,109 @@ def test_governance_tools_scheduler_lifecycle_harness_retries_policy_stop_reason
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-harness-retry-mcp"].state == "proposed"
 
 
+def test_governance_tools_scheduler_daemon_supervisor_step_surface(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    control_path = tmp_path / "scheduler-daemon-control.json"
+    missing_control_path = tmp_path / "missing-control.json"
+    submit_scheduler_task_with_persistence(
+        SchedulerState(),
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-supervisor-mcp",
+                title="Supervisor MCP task",
+                instruction="Complete through supervisor MCP.",
+                agent=AgentSpec(agent_id="agent:supervisor-mcp", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:supervisor-mcp"),
+                output_artifact_id="task-supervisor-mcp:result",
+            ),
+            artifact_id="submission:supervisor-mcp",
+        ),
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        timestamp="2026-06-21T17:30:00+08:00",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    cancelled = tools.scheduler_daemon_supervisor_step(
+        supervisor_id="supervisor-mcp",
+        control_path=str(missing_control_path),
+        policy_cancelled=True,
+        cancellation_source="operator",
+        cancellation_reason="manual stop",
+        max_attempts=2,
+    )
+    deadline = tools.scheduler_daemon_supervisor_step(
+        supervisor_id="supervisor-mcp",
+        control_path=str(missing_control_path),
+        deadline_epoch_seconds=200,
+        now_epoch_seconds=200,
+    )
+    rejected = tools.scheduler_daemon_supervisor_step(
+        supervisor_id="supervisor-mcp",
+        control_path=str(control_path),
+        runtime_provider="qoder",
+    )
+    missing_supervisor = tools.scheduler_daemon_supervisor_step(
+        supervisor_id="",
+        control_path=str(control_path),
+    )
+
+    start = tools.scheduler_lifecycle_control(
+        action="start",
+        control_path=str(control_path),
+        snapshot_path=str(snapshot_path),
+        event_log_path=str(event_log_path),
+        daemon_id="daemon-supervisor-mcp",
+        run_id="lifecycle-run-mcp",
+        timestamp="2026-06-21T17:31:00+08:00",
+    )
+    ran = tools.scheduler_daemon_supervisor_step(
+        supervisor_id="supervisor-mcp",
+        session_id="session-mcp",
+        run_id="supervisor-run-mcp",
+        host_id="host-mcp",
+        requested_by="agent:test",
+        status_readback_at="2026-06-21T17:32:00+08:00",
+        control_path=str(control_path),
+        max_cycles=2,
+        max_ticks=2,
+        timestamp="2026-06-21T17:32:00+08:00",
+    )
+
+    assert cancelled["ok"] is True
+    assert cancelled["stop_reason"] == "cancelled"
+    assert cancelled["attempted_harness"] is False
+    assert cancelled["attempt_count"] == 0
+    assert "cancelled by operator" in cancelled["stop_detail"]
+    assert deadline["ok"] is True
+    assert deadline["stop_reason"] == "deadline_exceeded"
+    assert deadline["attempt_count"] == 0
+    assert not missing_control_path.exists()
+    assert rejected["ok"] is False
+    assert rejected["runtime_provider"] == "qoder"
+    assert "runtimeProvider='fake' only" in rejected["error"]
+    assert missing_supervisor["ok"] is False
+    assert "requires supervisorId" in missing_supervisor["error"]
+    assert start["ok"] is True
+    assert ran["ok"] is True
+    assert ran["supervisor_id"] == "supervisor-mcp"
+    assert ran["session_id"] == "session-mcp"
+    assert ran["run_id"] == "supervisor-run-mcp"
+    assert ran["stop_reason"] == "harness_completed"
+    assert ran["attempt_count"] == 1
+    assert ran["total_run_count"] == 1
+    assert ran["status_before"]["queue_summary"]["task_state_counts"] == {"proposed": 1}
+    assert ran["status_after"]["queue_summary"]["task_state_counts"] == {"complete": 1}
+    assert ran["harness_policy_result"]["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
+    assert ran["runtime_provider"] == "fake"
+    assert read_scheduler_state_snapshot(snapshot_path).tasks["task-supervisor-mcp"].state == "complete"
+    assert ran["authority_split"]["scheduler_projection_refreshed"] is False
+    assert ran["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
 def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
@@ -433,9 +536,11 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert "schedulerLifecycleControl" in names
         assert "schedulerLifecycleRunOnce" in names
         assert "schedulerLifecycleHarness" in names
+        assert "schedulerDaemonSupervisorStep" in names
         control_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleControl")
         run_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleRunOnce")
         harness_tool = next(tool for tool in tools if tool.name == "schedulerLifecycleHarness")
+        supervisor_tool = next(tool for tool in tools if tool.name == "schedulerDaemonSupervisorStep")
         assert control_tool.inputSchema["required"] == ["action", "controlPath"]
         assert "daemonId" in control_tool.inputSchema["properties"]
         assert "local-work-trajectory.json" in control_tool.description
@@ -450,6 +555,12 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert "deadlineEpochSeconds" in harness_tool.inputSchema["properties"]
         assert "retryStopReasons" in harness_tool.inputSchema["properties"]
         assert "policy-controlled bounded scheduler lifecycle harness" in harness_tool.description
+        assert supervisor_tool.inputSchema["required"] == ["supervisorId", "controlPath"]
+        assert "sessionId" in supervisor_tool.inputSchema["properties"]
+        assert "cancellationSource" in supervisor_tool.inputSchema["properties"]
+        assert "statusReadbackAt" in supervisor_tool.inputSchema["properties"]
+        assert "policyCancelled" in supervisor_tool.inputSchema["properties"]
+        assert "host-managed daemon supervisor step" in supervisor_tool.description
 
         start_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(
@@ -505,6 +616,32 @@ def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path)
         assert cancelled_payload["stop_reason"] == "cancelled"
         assert cancelled_payload["attempt_count"] == 0
         assert cancelled_payload["policy"]["max_attempts"] == 2
+
+        supervisor_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerDaemonSupervisorStep",
+                    arguments={
+                        "supervisorId": "supervisor-server",
+                        "controlPath": str(control_path),
+                        "runtimeProvider": "fake",
+                        "sessionId": "session-server",
+                        "runId": "run-server",
+                        "statusReadbackAt": "2026-06-20T00:32:00+00:00",
+                        "maxTicks": 2,
+                        "timestamp": "2026-06-20T00:32:00+00:00",
+                    },
+                )
+            )
+        )
+        supervisor_payload = json.loads(supervisor_result.root.content[0].text)
+        assert supervisor_payload["ok"] is True
+        assert supervisor_payload["supervisor_id"] == "supervisor-server"
+        assert supervisor_payload["session_id"] == "session-server"
+        assert supervisor_payload["runtime_provider"] == "fake"
+        assert supervisor_payload["harness_policy_result"]["attempts"][0]["harness"]["stop_reason"] == "no_ready_tasks"
+        assert supervisor_payload["status_before"]["lifecycle_state"] == "running"
+        assert supervisor_payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())
 
