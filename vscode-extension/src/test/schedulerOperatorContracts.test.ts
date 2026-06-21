@@ -11,7 +11,7 @@ function flagCount(args: string[], flag: string): number {
   return args.filter((arg) => arg === flag).length;
 }
 
-function assertOnlyExplicitActionFlag(args: string[], expectedFlag: string): void {
+function assertOnlyExplicitActionFlag(args: string[], expectedFlag: string | null): void {
   for (const flag of ['--admit', '--run-loop', '--refresh-projection']) {
     assert.equal(flagCount(args, flag), flag === expectedFlag ? 1 : 0);
   }
@@ -184,4 +184,126 @@ test('scheduler operator cleanup receipts action maps to explicit cleanup CLI su
   assert.equal(flagCount(args, '--admit'), 0);
   assert.equal(flagCount(args, '--run-loop'), 0);
   assert.equal(flagCount(args, '--refresh-projection'), 0);
+});
+
+test('scheduler operator run-once sandbox receipt workflow requires explicit inputs', () => {
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'runSandboxReceiptWorkflow',
+      workflowMode: 'daemon-loop',
+      workspaceRoot: 'repo',
+      gitWorktreeSandboxRoot: 'sandboxes',
+      allocationEvidenceId: 'allocation',
+    }),
+    null,
+  );
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'runSandboxReceiptWorkflow',
+      workflowMode: 'run-once',
+      workspaceRoot: '',
+      gitWorktreeSandboxRoot: 'sandboxes',
+      allocationEvidenceId: 'allocation',
+    }),
+    null,
+  );
+  assert.equal(
+    coerceSchedulerOperatorActionMessage({
+      command: 'schedulerOperatorAction',
+      action: 'runSandboxReceiptWorkflow',
+      workflowMode: 'run-once',
+      workspaceRoot: 'repo',
+      gitWorktreeSandboxRoot: 'sandboxes',
+      allocationEvidenceId: 'allocation',
+      cleanup: true,
+      cleanupEvidenceId: 'cleanup',
+    }),
+    null,
+  );
+
+  const action = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'runSandboxReceiptWorkflow',
+    workflowMode: 'run-once',
+    workspaceRoot: ' repo ',
+    gitWorktreeSandboxRoot: ' sandboxes ',
+    allocationEvidenceId: ' allocation ',
+    allocationEvidencePath: ' .codex/scheduler/evidence/allocation.json ',
+    cleanup: true,
+    cleanupEvidenceId: ' cleanup ',
+    cleanupEvidencePath: ' .codex/scheduler/evidence/cleanup.json ',
+  });
+
+  assert.deepEqual(action, {
+    kind: 'runSandboxReceiptWorkflow',
+    mode: 'run-once',
+    workspaceRoot: 'repo',
+    gitWorktreeSandboxRoot: 'sandboxes',
+    allocationEvidenceId: 'allocation',
+    allocationEvidencePath: '.codex/scheduler/evidence/allocation.json',
+    cleanup: true,
+    cleanupEvidenceId: 'cleanup',
+    cleanupEvidencePath: '.codex/scheduler/evidence/cleanup.json',
+  } satisfies SchedulerOperatorAction);
+});
+
+test('scheduler operator run-once sandbox receipt workflow maps to explicit workflow CLI surface', () => {
+  const args = buildSchedulerOperatorWorkflowArgs({
+    kind: 'runSandboxReceiptWorkflow',
+    mode: 'run-once',
+    workspaceRoot: 'repo',
+    gitWorktreeSandboxRoot: 'sandboxes',
+    allocationEvidenceId: 'workflow-allocation',
+    allocationEvidencePath: '.codex/scheduler/evidence/workflow-allocation.json',
+    cleanup: false,
+    cleanupEvidenceId: '',
+    cleanupEvidencePath: '',
+  });
+
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'sandbox-receipt-workflow']);
+  assert.deepEqual(args.slice(args.indexOf('--mode'), args.indexOf('--mode') + 2), ['--mode', 'run-once']);
+  assert.ok(args.includes('--snapshot-path'));
+  assert.ok(args.includes('.codex/scheduler/scheduler-state.json'));
+  assert.ok(args.includes('--event-log-path'));
+  assert.ok(args.includes('.codex/scheduler/scheduler-events.jsonl'));
+  assert.ok(args.includes('--workspace-root'));
+  assert.ok(args.includes('repo'));
+  assert.ok(args.includes('--git-worktree-sandbox-root'));
+  assert.ok(args.includes('sandboxes'));
+  assert.ok(args.includes('--allocation-evidence-id'));
+  assert.ok(args.includes('workflow-allocation'));
+  assert.ok(args.includes('--allocation-evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/workflow-allocation.json'));
+  assert.ok(args.includes('--runtime-provider'));
+  assert.ok(args.includes('fake'));
+  assert.ok(args.includes('--max-runs'));
+  assert.ok(args.includes('1'));
+  assertOnlyExplicitActionFlag(args, null);
+  assert.equal(flagCount(args, '--cleanup'), 0);
+  assert.equal(flagCount(args, '--cleanup-evidence-id'), 0);
+  assert.equal(flagCount(args, '--cleanup-evidence-path'), 0);
+});
+
+test('scheduler operator run-once sandbox receipt workflow only sends cleanup output when requested', () => {
+  const args = buildSchedulerOperatorWorkflowArgs({
+    kind: 'runSandboxReceiptWorkflow',
+    mode: 'run-once',
+    workspaceRoot: 'repo',
+    gitWorktreeSandboxRoot: 'sandboxes',
+    allocationEvidenceId: 'workflow-allocation',
+    allocationEvidencePath: '',
+    cleanup: true,
+    cleanupEvidenceId: 'workflow-cleanup',
+    cleanupEvidencePath: '.codex/scheduler/evidence/workflow-cleanup.json',
+  });
+
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'sandbox-receipt-workflow']);
+  assert.ok(args.includes('--cleanup'));
+  assert.ok(args.includes('--cleanup-evidence-id'));
+  assert.ok(args.includes('workflow-cleanup'));
+  assert.ok(args.includes('--cleanup-evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/workflow-cleanup.json'));
+  assert.equal(flagCount(args, '--allocation-evidence-path'), 0);
 });

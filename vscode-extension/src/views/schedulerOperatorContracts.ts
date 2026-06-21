@@ -2,7 +2,18 @@ export type SchedulerOperatorAction =
   | { kind: 'admit'; artifactId: string; version: string }
   | { kind: 'runLoop' }
   | { kind: 'project' }
-  | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean };
+  | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
+  | {
+      kind: 'runSandboxReceiptWorkflow';
+      mode: 'run-once';
+      workspaceRoot: string;
+      gitWorktreeSandboxRoot: string;
+      allocationEvidenceId: string;
+      allocationEvidencePath: string;
+      cleanup: boolean;
+      cleanupEvidenceId: string;
+      cleanupEvidencePath: string;
+    };
 
 export type SchedulerOperatorWebviewMessage = {
   command?: unknown;
@@ -11,6 +22,14 @@ export type SchedulerOperatorWebviewMessage = {
   version?: unknown;
   evidencePath?: unknown;
   confirmed?: unknown;
+  workflowMode?: unknown;
+  workspaceRoot?: unknown;
+  gitWorktreeSandboxRoot?: unknown;
+  allocationEvidenceId?: unknown;
+  allocationEvidencePath?: unknown;
+  cleanup?: unknown;
+  cleanupEvidenceId?: unknown;
+  cleanupEvidencePath?: unknown;
 };
 
 export type SchedulerOperatorWorkflowArgsOptions = {
@@ -57,6 +76,58 @@ export function coerceSchedulerOperatorActionMessage(
       kind: 'cleanupReceipts',
       evidencePath: message.evidencePath.trim(),
       confirmed: true,
+    };
+  }
+  if (message.action === 'runSandboxReceiptWorkflow') {
+    if (message.workflowMode !== 'run-once') {
+      return null;
+    }
+    if (typeof message.workspaceRoot !== 'string' || !message.workspaceRoot.trim()) {
+      return null;
+    }
+    if (
+      typeof message.gitWorktreeSandboxRoot !== 'string'
+      || !message.gitWorktreeSandboxRoot.trim()
+    ) {
+      return null;
+    }
+    if (
+      typeof message.allocationEvidenceId !== 'string'
+      || !message.allocationEvidenceId.trim()
+    ) {
+      return null;
+    }
+    const cleanup = message.cleanup === true;
+    if (cleanup) {
+      if (
+        typeof message.cleanupEvidenceId !== 'string'
+        || !message.cleanupEvidenceId.trim()
+      ) {
+        return null;
+      }
+      if (
+        typeof message.cleanupEvidencePath !== 'string'
+        || !message.cleanupEvidencePath.trim()
+      ) {
+        return null;
+      }
+    }
+    return {
+      kind: 'runSandboxReceiptWorkflow',
+      mode: 'run-once',
+      workspaceRoot: message.workspaceRoot.trim(),
+      gitWorktreeSandboxRoot: message.gitWorktreeSandboxRoot.trim(),
+      allocationEvidenceId: message.allocationEvidenceId.trim(),
+      allocationEvidencePath: typeof message.allocationEvidencePath === 'string'
+        ? message.allocationEvidencePath.trim()
+        : '',
+      cleanup,
+      cleanupEvidenceId: cleanup && typeof message.cleanupEvidenceId === 'string'
+        ? message.cleanupEvidenceId.trim()
+        : '',
+      cleanupEvidencePath: cleanup && typeof message.cleanupEvidencePath === 'string'
+        ? message.cleanupEvidencePath.trim()
+        : '',
     };
   }
   return null;
@@ -121,6 +192,41 @@ export function buildSchedulerOperatorWorkflowArgs(
       '--output-evidence-path',
       `.codex/scheduler/evidence/${evidenceId}.json`,
     ];
+  }
+  if (action.kind === 'runSandboxReceiptWorkflow') {
+    const args = [
+      'scheduler',
+      'sandbox-receipt-workflow',
+      '--mode',
+      action.mode,
+      '--snapshot-path',
+      '.codex/scheduler/scheduler-state.json',
+      '--event-log-path',
+      '.codex/scheduler/scheduler-events.jsonl',
+      '--workspace-root',
+      action.workspaceRoot,
+      '--git-worktree-sandbox-root',
+      action.gitWorktreeSandboxRoot,
+      '--allocation-evidence-id',
+      action.allocationEvidenceId,
+      '--runtime-provider',
+      'fake',
+      '--max-runs',
+      '1',
+    ];
+    if (action.allocationEvidencePath) {
+      args.push('--allocation-evidence-path', action.allocationEvidencePath);
+    }
+    if (action.cleanup) {
+      args.push(
+        '--cleanup',
+        '--cleanup-evidence-id',
+        action.cleanupEvidenceId,
+        '--cleanup-evidence-path',
+        action.cleanupEvidencePath,
+      );
+    }
+    return args;
   }
   return [
     ...baseArgs,

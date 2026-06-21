@@ -569,6 +569,22 @@ function summarizeActionPayload(action: string, payload: Record<string, unknown>
     const evidenceId = readString(payload.output_evidence_id, '');
     return `cleanup receipts · cleaned=${cleanedCount} · failed=${failedCount} · skipped=${skippedCount}${evidenceId ? ` · evidence=${evidenceId}` : ''}`;
   }
+  if (action === 'runSandboxReceiptWorkflow') {
+    const mode = readString(payload.workflow_mode, 'unknown');
+    const steps = readObjectArray(payload.steps);
+    const completed = steps.filter((step) => readString(step.status, '') === 'completed').length;
+    const failed = steps.filter((step) => readString(step.status, '') === 'failed').length;
+    const paths = readRecord(payload.paths);
+    const allocationPath = readString(paths.allocation_evidence_path, '');
+    const cleanupPath = readString(paths.cleanup_evidence_path, '');
+    return [
+      `sandbox receipt workflow · mode=${mode}`,
+      `steps=${completed}/${steps.length}`,
+      failed ? `failed=${failed}` : '',
+      allocationPath ? `allocation=${allocationPath}` : '',
+      cleanupPath ? `cleanup=${cleanupPath}` : '',
+    ].filter(Boolean).join(' · ');
+  }
   return 'action completed';
 }
 

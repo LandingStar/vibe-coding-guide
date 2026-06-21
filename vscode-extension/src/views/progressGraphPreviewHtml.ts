@@ -790,8 +790,9 @@ function buildParallelPreviewHtml(
   }
   .pg-host-chrome-content {
     display: grid;
-    overflow: hidden;
-    max-height: var(--pg-host-chrome-expanded-height, 960px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    max-height: min(var(--pg-host-chrome-expanded-height, 960px), calc(100vh - 18px));
     opacity: 1;
     transform: translateY(0);
     transform-origin: top center;
@@ -2066,6 +2067,38 @@ function buildParallelPreviewHtml(
   .pg-host-scheduler-cleanup-input::placeholder {
     color: rgba(248, 244, 239, 0.42);
   }
+  .pg-host-scheduler-workflow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 8px;
+  }
+  .pg-host-scheduler-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .pg-host-scheduler-field label {
+    color: rgba(248, 244, 239, 0.7);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .pg-host-scheduler-field[data-pg-wide-field="true"] {
+    grid-column: 1 / -1;
+  }
+  .pg-host-scheduler-workflow-details {
+    display: grid;
+    gap: 8px;
+  }
+  .pg-host-scheduler-workflow-details summary {
+    color: rgba(248, 244, 239, 0.76);
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .pg-host-scheduler-workflow-details[open] {
+    padding-top: 2px;
+  }
   .pg-host-scheduler-cleanup-confirm {
     display: flex;
     gap: 7px;
@@ -2438,6 +2471,24 @@ function buildParallelPreviewHtml(
       evidencePathInput.focus();
     });
   }
+  const readTextInput = (id) => {
+    const input = document.getElementById(id);
+    return input instanceof HTMLInputElement ? input.value.trim() : '';
+  };
+  const readCheckbox = (id) => {
+    const input = document.getElementById(id);
+    return input instanceof HTMLInputElement ? input.checked : false;
+  };
+  const focusFirstMissingInput = (ids) => {
+    for (const id of ids) {
+      const input = document.getElementById(id);
+      if (input instanceof HTMLInputElement && !input.value.trim()) {
+        input.focus();
+        return true;
+      }
+    }
+    return false;
+  };
   for (const button of document.querySelectorAll('[data-pg-scheduler-action]')) {
     button.addEventListener('click', (event) => {
       const target = event.currentTarget;
@@ -2455,8 +2506,47 @@ function buildParallelPreviewHtml(
         }
         return;
       }
+      const workflowCleanup = readCheckbox('pgHostSandboxWorkflowCleanup');
+      const workflowPayload = {
+        workflowMode: 'run-once',
+        workspaceRoot: readTextInput('pgHostSandboxWorkflowWorkspaceRoot'),
+        gitWorktreeSandboxRoot: readTextInput('pgHostSandboxWorkflowSandboxRoot'),
+        allocationEvidenceId: readTextInput('pgHostSandboxWorkflowAllocationEvidenceId'),
+        allocationEvidencePath: readTextInput('pgHostSandboxWorkflowAllocationEvidencePath'),
+        cleanup: workflowCleanup,
+        cleanupEvidenceId: workflowCleanup ? readTextInput('pgHostSandboxWorkflowCleanupEvidenceId') : '',
+        cleanupEvidencePath: workflowCleanup ? readTextInput('pgHostSandboxWorkflowCleanupEvidencePath') : '',
+      };
+      if (action === 'runSandboxReceiptWorkflow') {
+        if (workflowCleanup) {
+          const cleanupDetails = document.getElementById('pgHostSandboxWorkflowCleanupDetails');
+          if (cleanupDetails instanceof HTMLDetailsElement) {
+            cleanupDetails.open = true;
+          }
+        }
+        const missing = [
+          'pgHostSandboxWorkflowWorkspaceRoot',
+          'pgHostSandboxWorkflowSandboxRoot',
+          'pgHostSandboxWorkflowAllocationEvidenceId',
+          ...(workflowCleanup ? [
+            'pgHostSandboxWorkflowCleanupEvidenceId',
+            'pgHostSandboxWorkflowCleanupEvidencePath',
+          ] : []),
+        ];
+        if (focusFirstMissingInput(missing)) {
+          return;
+        }
+      }
       target.disabled = true;
-      target.textContent = action === 'admit' ? 'Admitting...' : action === 'runLoop' ? 'Running...' : action === 'cleanupReceipts' ? 'Cleaning...' : 'Refreshing...';
+      target.textContent = action === 'admit'
+        ? 'Admitting...'
+        : action === 'runLoop'
+          ? 'Running...'
+          : action === 'cleanupReceipts'
+            ? 'Cleaning...'
+            : action === 'runSandboxReceiptWorkflow'
+              ? 'Running workflow...'
+              : 'Refreshing...';
       vscode.postMessage({
         command: 'schedulerOperatorAction',
         action,
@@ -2464,6 +2554,7 @@ function buildParallelPreviewHtml(
         version: target.dataset.pgVersion || '',
         evidencePath,
         confirmed: cleanupConfirmed,
+        ...workflowPayload,
       });
     });
   }
@@ -3167,6 +3258,7 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
     workflow.authorizationReadback,
     workflow.authorizationReadError,
   );
+  const sandboxWorkflowAction = buildSchedulerSandboxReceiptWorkflowAction(lastAction.status === 'running');
   const cleanupAction = buildSchedulerCleanupReceiptAction(
     lastAction.status === 'running',
     state.hostEvidencePresentation,
@@ -3200,11 +3292,112 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   <div class="pg-host-scheduler-operator-grid">${exchangeFacts || pathFacts}${schedulerFacts}</div>
   ${schedulerReadError}
   ${authorizationReadback}
+  ${sandboxWorkflowAction}
   ${cleanupAction}
   ${readError}
   ${candidateList}
   ${errors}
   ${lastActionHtml}
+</section>`;
+}
+
+function buildSchedulerSandboxReceiptWorkflowAction(actionRunning: boolean): string {
+  return `<section id="pgHostSandboxReceiptWorkflow" class="pg-host-scheduler-cleanup-form">
+  <div class="pg-host-evidence-title-wrap">
+    <h3 class="pg-host-scheduler-candidate-title">Sandbox Receipt Workflow</h3>
+    <p class="pg-host-control-card-subtitle">run-once allocate/readback with optional explicit cleanup/readback · scheduler sandbox-receipt-workflow</p>
+  </div>
+  <div class="pg-host-scheduler-workflow-grid">
+    <div class="pg-host-scheduler-field" data-pg-wide-field="true">
+      <label for="pgHostSandboxWorkflowWorkspaceRoot">workspace root</label>
+      <input
+        id="pgHostSandboxWorkflowWorkspaceRoot"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="source git repository root"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+    <div class="pg-host-scheduler-field" data-pg-wide-field="true">
+      <label for="pgHostSandboxWorkflowSandboxRoot">git-worktree sandbox root</label>
+      <input
+        id="pgHostSandboxWorkflowSandboxRoot"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder=".codex/scheduler/sandboxes"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowAllocationEvidenceId">allocation evidence id</label>
+      <input
+        id="pgHostSandboxWorkflowAllocationEvidenceId"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="vscode-workflow-allocation"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+    <div class="pg-host-scheduler-field">
+      <label for="pgHostSandboxWorkflowAllocationEvidencePath">allocation evidence path</label>
+      <input
+        id="pgHostSandboxWorkflowAllocationEvidencePath"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder=".codex/scheduler/evidence/vscode-workflow-allocation.json"
+        ${actionRunning ? 'disabled' : ''}
+      >
+    </div>
+  </div>
+  <label class="pg-host-scheduler-cleanup-confirm" for="pgHostSandboxWorkflowCleanup">
+    <input id="pgHostSandboxWorkflowCleanup" type="checkbox" ${actionRunning ? 'disabled' : ''}>
+    <span>Also run explicit cleanup and post-cleanup readback in this workflow.</span>
+  </label>
+  <details id="pgHostSandboxWorkflowCleanupDetails" class="pg-host-scheduler-workflow-details">
+    <summary>Cleanup evidence output settings</summary>
+    <div class="pg-host-scheduler-workflow-grid">
+      <div class="pg-host-scheduler-field">
+        <label for="pgHostSandboxWorkflowCleanupEvidenceId">cleanup evidence id</label>
+        <input
+          id="pgHostSandboxWorkflowCleanupEvidenceId"
+          class="pg-host-scheduler-cleanup-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="vscode-workflow-cleanup"
+          ${actionRunning ? 'disabled' : ''}
+        >
+      </div>
+      <div class="pg-host-scheduler-field">
+        <label for="pgHostSandboxWorkflowCleanupEvidencePath">cleanup evidence path</label>
+        <input
+          id="pgHostSandboxWorkflowCleanupEvidencePath"
+          class="pg-host-scheduler-cleanup-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder=".codex/scheduler/evidence/vscode-workflow-cleanup.json"
+          ${actionRunning ? 'disabled' : ''}
+        >
+      </div>
+    </div>
+  </details>
+  <div class="pg-host-scheduler-candidate-actions">
+    <button
+      class="pg-host-scheduler-operator-button"
+      type="button"
+      data-pg-scheduler-action="runSandboxReceiptWorkflow"
+      ${actionRunning ? 'disabled' : ''}
+    >Run receipt workflow</button>
+  </div>
 </section>`;
 }
 

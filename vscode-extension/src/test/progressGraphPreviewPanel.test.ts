@@ -121,10 +121,15 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /buildSchedulerOperatorWorkflowArgs/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'operator-workflow'/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'cleanup-receipts'/);
+  assert.match(schedulerOperatorContractSource, /'scheduler',\s*'sandbox-receipt-workflow'/);
   assert.match(schedulerOperatorContractSource, /'--admit'/);
   assert.match(schedulerOperatorContractSource, /'--run-loop'/);
   assert.match(schedulerOperatorContractSource, /'--refresh-projection'/);
   assert.match(schedulerOperatorContractSource, /'--input-evidence-path'/);
+  assert.match(schedulerOperatorContractSource, /'--workspace-root'/);
+  assert.match(schedulerOperatorContractSource, /'--git-worktree-sandbox-root'/);
+  assert.match(schedulerOperatorContractSource, /'--allocation-evidence-id'/);
+  assert.match(schedulerOperatorContractSource, /'--cleanup-evidence-path'/);
   assert.match(schedulerOperatorContractSource, /'--output-evidence-id'/);
   assert.match(schedulerOperatorContractSource, /vscode-cleanup-/);
   assert.match(schedulerOperatorContractSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
@@ -136,6 +141,8 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'loop_result'\)/);
   assert.match(schedulerOperatorSource, /readNestedWorkflowResult\(payload,\s*'projection_result'\)/);
   assert.match(schedulerOperatorSource, /action === 'cleanupReceipts'/);
+  assert.match(schedulerOperatorSource, /action === 'runSandboxReceiptWorkflow'/);
+  assert.match(schedulerOperatorSource, /allocation_evidence_path/);
   assert.match(schedulerOperatorSource, /cleaned_allocation_ids/);
   assert.match(schedulerOperatorSource, /failed_allocation_ids/);
   assert.match(schedulerOperatorSource, /importlib\.metadata\.distribution\("doc-based-coding-runtime"\)/);
