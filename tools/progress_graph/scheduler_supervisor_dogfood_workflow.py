@@ -22,8 +22,11 @@ from src.runtime.orchestration import (
     SchedulerDaemonLifecycleRequest,
     SchedulerDaemonLoopStopPolicy,
     SchedulerDaemonSupervisorRequest,
+    SupervisorAgentStorageBinding,
+    SupervisorAgentStorageBindingRequest,
     admit_exchange_artifact_version_with_ledger,
     apply_scheduler_daemon_lifecycle_action,
+    build_supervisor_agent_storage_binding,
     default_exchange_artifact_admission_ledger_path,
     default_exchange_artifact_store_path,
     inspect_scheduler_daemon_lifecycle_control,
@@ -449,6 +452,42 @@ def run_scheduler_supervisor_dogfood_workflow(
         lifecycle_start_result=lifecycle_start_result,
         supervisor_result=supervisor_result,
         final_readback=final_readback,
+    )
+
+
+def build_supervisor_dogfood_storage_binding(
+    result: SchedulerSupervisorDogfoodWorkflowResult,
+    *,
+    agent_id: str = "",
+    context_session_id: str = "",
+    scratch_root: str = ".codex/scratch",
+    home_root: str = ".codex/agents",
+    expires_at: str = "",
+    purpose: str = "Bind supervisor dogfood run to agent-private storage context.",
+    capability_domain: str = "scheduler-supervisor-dogfood",
+) -> SupervisorAgentStorageBinding:
+    """Build storage binding readback for a completed supervisor workflow result."""
+
+    state = read_scheduler_state_snapshot(result.snapshot_path)
+    request = result.request
+    return build_supervisor_agent_storage_binding(
+        SupervisorAgentStorageBindingRequest(
+            supervisor_id=request.supervisor_id,
+            session_id=request.session_id,
+            run_id=request.run_id,
+            host_id=request.host_id,
+            requested_by=request.requested_by,
+            agent_id=agent_id,
+            context_session_id=context_session_id,
+            scratch_root=scratch_root,
+            home_root=home_root,
+            created_at=request.timestamp or request.created_at,
+            expires_at=expires_at,
+            purpose=purpose,
+            capability_domain=capability_domain,
+        ),
+        state,
+        source_snapshot_path=result.snapshot_path,
     )
 
 

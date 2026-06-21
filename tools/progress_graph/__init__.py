@@ -74,6 +74,7 @@ from .scheduler_supervisor_dogfood_workflow import (
     SchedulerSupervisorDogfoodWorkflowRequest,
     SchedulerSupervisorDogfoodWorkflowResult,
     SchedulerSupervisorDogfoodWorkflowStep,
+    build_supervisor_dogfood_storage_binding,
     run_scheduler_supervisor_dogfood_workflow,
 )
 from .scheduler_dogfood import (
@@ -144,6 +145,7 @@ __all__ = [
     "run_persisted_scheduler_once_and_refresh_projection",
     "run_scheduler_operator_workflow",
     "run_scheduler_supervisor_dogfood_workflow",
+    "build_supervisor_dogfood_storage_binding",
     "scheduler_work_trajectory_json_path",
     "HostEvidenceBundle",
     "HostEvidencePresentation",

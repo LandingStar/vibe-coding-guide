@@ -187,11 +187,26 @@ It also provides mapping helpers:
 1. `agent_home_registration_to_artifact()`
 2. `scratch_manifest_to_artifact()`
 3. `cleanup_receipt_to_artifact()`
+4. `build_supervisor_agent_storage_binding()`
 
 These helpers represent storage governance products as `ExchangeArtifact`
 instances using `structured`, `storage_manifest`, and `log` payload parts. The
 implementation is intentionally product-only: it does not create directories,
 delete files, archive scratch content, or persist agent homes.
+
+`build_supervisor_agent_storage_binding()` is the first binding product over a
+host-managed supervisor run. It connects supervisor identity and scheduler
+snapshot readback to:
+
+1. a context-session id;
+2. scheduler task / context / lane ids;
+3. runtime session ids from scheduler run records;
+4. one `AgentHomeRegistration` request;
+5. task-derived `AgentScratchSpace` records.
+
+It remains readback-only. It does not create agent home directories, create
+scratch directories, write scratch manifests, approve home registration, run
+cleanup, refresh scheduler projection, or mutate Local Work Trajectory.
 
 ## Audit Requirements
 

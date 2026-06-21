@@ -313,6 +313,13 @@ from .scheduler_daemon_supervisor import (
     SchedulerDaemonSupervisorStopReason,
     run_scheduler_daemon_supervisor_step,
 )
+from .supervisor_storage_binding import (
+    DEFAULT_SUPERVISOR_BINDING_HOME_ROOT,
+    DEFAULT_SUPERVISOR_BINDING_SCRATCH_ROOT,
+    SupervisorAgentStorageBinding,
+    SupervisorAgentStorageBindingRequest,
+    build_supervisor_agent_storage_binding,
+)
 from .scheduler_host_runner import (
     HostSchedulerRunRequest,
     HostSchedulerRunResult,
@@ -562,6 +569,8 @@ __all__ = [
     "SchedulerDaemonSupervisorResult",
     "SchedulerDaemonSupervisorStatus",
     "SchedulerDaemonSupervisorStopReason",
+    "SupervisorAgentStorageBinding",
+    "SupervisorAgentStorageBindingRequest",
     "HostSchedulerDaemonLoopRequest",
     "HostSchedulerDaemonLoopResult",
     "HostSchedulerRunRequest",
@@ -583,6 +592,8 @@ __all__ = [
     "DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID",
     "DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_BATCH_ID",
     "DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION",
+    "DEFAULT_SUPERVISOR_BINDING_HOME_ROOT",
+    "DEFAULT_SUPERVISOR_BINDING_SCRATCH_ROOT",
     "SchedulerLoopEvidence",
     "SchedulerLoopEvidenceSummary",
     "SchedulerLoopEvidenceWriteResult",
@@ -608,6 +619,7 @@ __all__ = [
     "build_scheduler_loop_evidence",
     "build_scheduler_operator_dogfood_batch",
     "build_scheduler_operator_multilane_dogfood_batch",
+    "build_supervisor_agent_storage_binding",
     "cleanup_receipt_to_artifact",
     "dispatch_landing_consumer_payload",
     "default_exchange_artifact_store_path",

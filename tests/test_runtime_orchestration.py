@@ -95,10 +95,12 @@ from src.runtime.orchestration import (
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
+    SupervisorAgentStorageBindingRequest,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
     apply_scheduler_daemon_lifecycle_action,
+    build_supervisor_agent_storage_binding,
     cleanup_receipt_to_artifact,
     classify_edit_lease_conflict,
     build_orchestration_preflight_bundle,
@@ -175,6 +177,7 @@ from tools.progress_graph import (
     HostSandboxReceiptWorkflowRequest,
     SchedulerOperatorWorkflowRequest,
     SchedulerSupervisorDogfoodWorkflowRequest,
+    build_supervisor_dogfood_storage_binding,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
     run_host_sandbox_receipt_workflow,
@@ -4879,6 +4882,96 @@ def test_scheduler_supervisor_dogfood_workflow_multilane_flow(tmp_path) -> None:
     assert payload["supervisor_result"]["total_run_count"] == 4
     assert payload["final_readback"]["queue_summary"]["task_state_counts"] == {"complete": 4}
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+
+
+def test_supervisor_dogfood_storage_binding_maps_run_identity_and_scheduler_facts(tmp_path) -> None:
+    result = run_scheduler_supervisor_dogfood_workflow(
+        SchedulerSupervisorDogfoodWorkflowRequest(
+            project_root=tmp_path,
+            fixture="simple",
+            timestamp="2026-06-21T11:00:00+00:00",
+            supervisor_id="supervisor:binding",
+            session_id="session:binding",
+            run_id="run:binding",
+            host_id="host:binding",
+            requested_by="agent:guide",
+        )
+    )
+
+    binding = build_supervisor_dogfood_storage_binding(
+        result,
+        agent_id="agent:supervisor-binding",
+        context_session_id="context-session:binding",
+        scratch_root=".codex/scratch/supervisor-binding",
+        home_root=".codex/agents",
+        expires_at="2026-06-22T11:00:00+00:00",
+    )
+    payload = binding.to_json_dict()
+
+    assert payload["binding_id"] == "supervisor-storage-binding:context-session-binding"
+    assert payload["supervisor_id"] == "supervisor:binding"
+    assert payload["session_id"] == "session:binding"
+    assert payload["run_id"] == "run:binding"
+    assert payload["host_id"] == "host:binding"
+    assert payload["requested_by"] == "agent:guide"
+    assert payload["agent_id"] == "agent:supervisor-binding"
+    assert payload["context_session_id"] == "context-session:binding"
+    assert payload["scheduler_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
+    assert payload["scheduler_context_ids"] == [
+        "context:dogfood-prepare",
+        "context:dogfood-verify",
+    ]
+    assert payload["scheduler_lane_ids"] == ["lane:dogfood"]
+    assert payload["runtime_session_ids"] == ["fake-session-1"]
+    assert payload["home_registration"]["registration_id"] == (
+        "home-reg:context-session-binding"
+    )
+    assert payload["home_registration"]["audit_state"] == "requested"
+    assert payload["home_registration"]["requested_path_hint"] == (
+        ".codex/agents/agent-supervisor-binding"
+    )
+    assert [scratch["task_id"] for scratch in payload["scratch_spaces"]] == [
+        "dogfood:prepare",
+        "dogfood:verify",
+    ]
+    assert payload["scratch_spaces"][0]["agent_id"] == "agent:dogfood-prepare"
+    assert payload["scratch_spaces"][0]["path"] == (
+        ".codex/scratch/supervisor-binding/dogfood:prepare"
+    )
+    assert payload["scratch_spaces"][0]["run_id"] == "fake-run-1"
+    assert payload["scratch_spaces"][1]["run_id"] == "fake-run-1"
+    assert payload["source_snapshot_path"] == str(result.snapshot_path)
+    assert payload["authority_split"]["agent_home_registration_persisted"] is False
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["scratch_manifest_written"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_supervisor_agent_storage_binding_requires_supervisor_session_and_run() -> None:
+    state = SchedulerState()
+
+    with pytest.raises(ValueError, match="requires session_id"):
+        build_supervisor_agent_storage_binding(
+            SupervisorAgentStorageBindingRequest(
+                supervisor_id="supervisor:missing-session",
+                session_id="",
+                run_id="run:1",
+            ),
+            state,
+        )
+
+    with pytest.raises(ValueError, match="requires run_id"):
+        build_supervisor_agent_storage_binding(
+            SupervisorAgentStorageBindingRequest(
+                supervisor_id="supervisor:missing-run",
+                session_id="session:1",
+                run_id="",
+            ),
+            state,
+        )
 
 
 def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> None:
