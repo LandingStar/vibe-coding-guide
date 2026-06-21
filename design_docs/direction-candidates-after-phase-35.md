@@ -1,5 +1,23 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-21 补充候选：暂停 Host UX sandbox receipt 分支后的 backend orchestration 下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-21-evidence-aware-workflow-defaults-sandbox-receipt-workflow.md` 已完成并关闭；当前建议暂停继续叠加 Host UX sandbox receipt 控件，除非真实 evidence 暴露 cleanup diff 推断不足。
+- 现有 backend 基础：runtime adapter / scheduler state / durable event log / bounded daemon loop / lifecycle control file / CLI+MCP lifecycle surface / git-worktree sandbox receipt workflow 均已存在，当前缺口不再是“scheduler skeleton”，而是 host-owned background process harness。
+- 候选 1：`Host-Managed Scheduler Daemon Process Harness`
+  - 做什么：围绕已有 lifecycle control 与 lifecycle-gated run-once helper 增加一个本地主机拥有的、可测试的 bounded process harness，负责循环 inspect、heartbeat、run-once、stop reason 与 evidence/log 输出。
+  - 依据：`design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md`、`design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md`、`design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md`
+- 候选 2：`Retry / Deadline / Cancellation Policy Over Lifecycle`
+  - 做什么：在现有 lifecycle 与 task state 上收口 retry、timeout、deadline、cancel policy。
+  - 依据：`design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md`
+- 候选 3：`Qoder Runtime Provider Dogfood Over Existing Host Loop`
+  - 做什么：在 host-owned 路径下用真实 Qoder provider 做受控 scheduler task dogfood。
+  - 依据：`design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md`、`docs/qoder-host-provisioning-check-guide.md`
+- 候选 4：`Agent Home / Context Session Binding`
+  - 做什么：把 agent storage governance products 与 scheduler runtime session 绑定，使 persistent agent home / temporary scratch 成为可运行资源。
+  - 依据：`design_docs/backend-orchestration-after-host-ux-sandbox-branch-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 当前倾向：默认先进入候选 1。它补的是当前后端调度链条的运行时缺口，不依赖 live Qoder，也不继续扩大 Host UX；后续 retry/deadline 和 agent home 绑定都更适合建立在这个 harness 之上。
+
 ## 2026-06-21 补充候选：Host UX evidence-aware workflow defaults 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-outcome-diff-sandbox-receipt-workflow.md` 已完成并关闭；VS Code Scheduler Operator 的 `Sandbox Receipt Cleanup` 控件已能从可见 Host Evidence receipt refs 派生只读 cleanup outcome diff，展示 before / after / changed allocations / source receipt / cleanup receipt。
