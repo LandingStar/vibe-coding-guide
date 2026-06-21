@@ -212,6 +212,7 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
   assert.match(html, /id="pgHostCleanupConfirm"/);
   assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
   assert.match(html, /scheduler cleanup-receipts/);
+  assert.match(html, /No sandbox receipt evidence candidates are currently visible in Host Evidence/);
   assert.match(html, /No scheduler-admission candidates are currently present/);
   assert.match(html, /id="pgHostEvidencePanel"/);
   assert.match(html, /Host Evidence/);
@@ -282,6 +283,9 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /data-pg-scheduler-action="runLoop"/);
   assert.match(html, /data-pg-scheduler-action="project"/);
   assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
+  assert.match(html, /querySelectorAll\('\[data-pg-cleanup-evidence-select\]'\)/);
+  assert.match(html, /target\.dataset\.pgCleanupEvidencePath \|\| ''/);
+  assert.match(html, /evidencePathInput\.dispatchEvent\(new Event\('input', \{ bubbles: true \}\)\)/);
   assert.match(html, /const evidencePath = evidencePathInput instanceof HTMLInputElement \? evidencePathInput\.value\.trim\(\) : ''/);
   assert.match(html, /const cleanupConfirmed = cleanupConfirmInput instanceof HTMLInputElement \? cleanupConfirmInput\.checked : false/);
   assert.match(html, /action === 'cleanupReceipts' && \(!evidencePath \|\| !cleanupConfirmed\)/);
@@ -553,6 +557,70 @@ test('buildProgressGraphPreviewHtml renders cleanup receipt evidence cards', () 
   assert.match(html, /Worktree task-1: E:\/workspace\/sandboxes\/task-1-worktree/);
   assert.match(html, /Cleanup executed: true/);
   assert.match(html, /Local trajectory mutated: false/);
+});
+
+test('buildProgressGraphPreviewHtml renders selectable cleanup receipt evidence candidates', () => {
+  const presentation = coerceHostEvidencePresentation({
+    generated_at: '2026-06-21T07:15:00.000Z',
+    project_root: 'E:/workspace/example',
+    evidence_dir: 'E:/workspace/example/.codex/scheduler/evidence',
+    status: 'ok',
+    card_count: 1,
+    error_count: 0,
+    empty_message: '',
+    cards: [
+      {
+        id: 'allocation-receipts',
+        title: 'Sandbox cleanup evidence allocation-receipts',
+        subtitle: 'host-run · 2 allocation(s) · cleanup required',
+        status: 'warning',
+        severity: 'warning',
+        timestamp: '2026-06-21T07:10:00+08:00',
+        runtime_providers: ['git-worktree'],
+        host_surface: 'host-run',
+        invocation_id: 'allocation-receipts',
+        requested_by: 'operator-or-host',
+        stop_reason: 'cleanup_required',
+        stop_detail: '2 git-worktree allocation cleanup receipt(s) still require cleanup.',
+        run_count: 0,
+        output_count: 0,
+        permission_review_count: 0,
+        key_facts: [
+          { label: 'Evidence product', value: 'sandbox_allocation_receipt_evidence' },
+          { label: 'Cleanup required', value: '2' },
+        ],
+        refs: [
+          { label: 'Evidence', target: '.codex/scheduler/evidence/allocation-receipts.json', ref_kind: 'path' },
+          { label: 'Source evidence', target: 'E:/workspace/example/.codex/scheduler/evidence/source-allocation.json', ref_kind: 'path' },
+          { label: 'Worktree task-1', target: 'E:/workspace/sandboxes/task-1-worktree', ref_kind: 'path' },
+        ],
+        authority_clues: [
+          { label: 'Cleanup executed', value: 'false' },
+          { label: 'Local trajectory mutated', value: 'false' },
+        ],
+        metadata: {
+          evidence_product_type: 'sandbox_allocation_receipt_evidence',
+          cleanup_state_counts: { required: 2 },
+          cleanup_required_allocation_ids: ['allocation-1', 'allocation-2'],
+        },
+      },
+    ],
+    error_rows: [],
+  });
+
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    hostEvidencePresentation: presentation,
+  }));
+
+  assert.match(html, /Receipt evidence candidates/);
+  assert.match(html, /data-pg-cleanup-evidence-candidate="allocation-receipts:1"/);
+  assert.match(html, /data-pg-cleanup-evidence-select="true"/);
+  assert.match(html, /data-pg-cleanup-evidence-path="\.codex\/scheduler\/evidence\/allocation-receipts\.json"/);
+  assert.match(html, /data-pg-cleanup-evidence-path="E:\/workspace\/example\/\.codex\/scheduler\/evidence\/source-allocation\.json"/);
+  assert.match(html, /current receipt · cleanup required · \.codex\/scheduler\/evidence\/allocation-receipts\.json/);
+  assert.match(html, /source receipt · cleanup required · E:\/workspace\/example\/\.codex\/scheduler\/evidence\/source-allocation\.json/);
+  assert.match(html, /required allocation-1, allocation-2/);
+  assert.doesNotMatch(html, /data-pg-cleanup-evidence-path="E:\/workspace\/sandboxes\/task-1-worktree"/);
 });
 
 test('buildProgressGraphPreviewHtml renders isolated malformed host evidence rows', () => {

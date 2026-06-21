@@ -231,6 +231,15 @@ export type ProgressGraphPreviewHostEvidencePresentation = {
   emptyMessage: string;
 };
 
+type SchedulerCleanupReceiptCandidate = {
+  id: string;
+  path: string;
+  label: string;
+  role: string;
+  status: string;
+  detail: string;
+};
+
 export type ProgressGraphPreviewState = ProgressGraphPreviewArtifactState & {
   freshness: ProgressGraphPreviewFreshness;
   freshnessLabel: string;
@@ -2068,6 +2077,37 @@ function buildParallelPreviewHtml(
   .pg-host-scheduler-cleanup-confirm input {
     margin: 0;
   }
+  .pg-host-scheduler-cleanup-candidates {
+    display: grid;
+    gap: 7px;
+  }
+  .pg-host-scheduler-cleanup-candidate-list {
+    display: grid;
+    gap: 6px;
+  }
+  .pg-host-scheduler-cleanup-candidate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 8px;
+    border: 1px solid rgba(163, 218, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.14);
+  }
+  .pg-host-scheduler-cleanup-candidate-title {
+    margin: 0;
+    color: rgba(248, 244, 239, 0.9);
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+  .pg-host-scheduler-cleanup-candidate-meta {
+    margin: 2px 0 0;
+    color: rgba(248, 244, 239, 0.58);
+    font-size: 0.68rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
   .pg-host-scheduler-candidates {
     display: grid;
     gap: 9px;
@@ -2386,6 +2426,18 @@ function buildParallelPreviewHtml(
   document.getElementById('pgHostRevealButton')?.addEventListener('click', () => {
     vscode.postMessage({ command: 'revealArtifact' });
   });
+  for (const button of document.querySelectorAll('[data-pg-cleanup-evidence-select]')) {
+    button.addEventListener('click', (event) => {
+      const target = event.currentTarget;
+      const evidencePathInput = document.getElementById('pgHostCleanupEvidencePath');
+      if (!(target instanceof HTMLButtonElement) || !(evidencePathInput instanceof HTMLInputElement)) {
+        return;
+      }
+      evidencePathInput.value = target.dataset.pgCleanupEvidencePath || '';
+      evidencePathInput.dispatchEvent(new Event('input', { bubbles: true }));
+      evidencePathInput.focus();
+    });
+  }
   for (const button of document.querySelectorAll('[data-pg-scheduler-action]')) {
     button.addEventListener('click', (event) => {
       const target = event.currentTarget;
@@ -3115,7 +3167,10 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
     workflow.authorizationReadback,
     workflow.authorizationReadError,
   );
-  const cleanupAction = buildSchedulerCleanupReceiptAction(lastAction.status === 'running');
+  const cleanupAction = buildSchedulerCleanupReceiptAction(
+    lastAction.status === 'running',
+    state.hostEvidencePresentation,
+  );
   const errors = exchange?.errors.length
     ? buildHostEvidenceChipGroup('Exchange read errors', exchange.errors)
     : '';
@@ -3153,12 +3208,25 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
 </section>`;
 }
 
-function buildSchedulerCleanupReceiptAction(actionRunning: boolean): string {
+function buildSchedulerCleanupReceiptAction(
+  actionRunning: boolean,
+  presentation: ProgressGraphPreviewHostEvidencePresentation | null,
+): string {
+  const candidates = buildSchedulerCleanupReceiptCandidates(presentation);
+  const candidateList = candidates.length
+    ? `<div class="pg-host-scheduler-cleanup-candidates">
+      <p class="pg-host-evidence-group-title">Receipt evidence candidates</p>
+      <div class="pg-host-scheduler-cleanup-candidate-list">
+        ${candidates.map((candidate) => buildSchedulerCleanupReceiptCandidate(candidate, actionRunning)).join('')}
+      </div>
+    </div>`
+    : `<p class="pg-host-control-card-subtitle">No sandbox receipt evidence candidates are currently visible in Host Evidence.</p>`;
   return `<section id="pgHostSchedulerCleanupReceipts" class="pg-host-scheduler-cleanup-form">
   <div class="pg-host-evidence-title-wrap">
     <h3 class="pg-host-scheduler-candidate-title">Sandbox Receipt Cleanup</h3>
-    <p class="pg-host-control-card-subtitle">manual sandbox_allocation_receipt_evidence path · explicit scheduler cleanup-receipts invocation</p>
+    <p class="pg-host-control-card-subtitle">select visible sandbox_allocation_receipt_evidence or enter a manual path · explicit scheduler cleanup-receipts invocation</p>
   </div>
+  ${candidateList}
   <div class="pg-host-scheduler-cleanup-row">
     <input
       id="pgHostCleanupEvidencePath"
@@ -3176,6 +3244,124 @@ function buildSchedulerCleanupReceiptAction(actionRunning: boolean): string {
     <span>I confirm this explicitly runs cleanup for receipt-marked git-worktree sandboxes and writes updated evidence.</span>
   </label>
 </section>`;
+}
+
+function buildSchedulerCleanupReceiptCandidate(
+  candidate: SchedulerCleanupReceiptCandidate,
+  actionRunning: boolean,
+): string {
+  return `<article class="pg-host-scheduler-cleanup-candidate" data-pg-cleanup-evidence-candidate="${escapeHtml(candidate.id)}">
+    <div>
+      <p class="pg-host-scheduler-cleanup-candidate-title">${escapeHtml(candidate.label)}</p>
+      <p class="pg-host-scheduler-cleanup-candidate-meta">${escapeHtml(candidate.role)} · ${escapeHtml(candidate.status)} · ${escapeHtml(candidate.path)}</p>
+      <p class="pg-host-scheduler-cleanup-candidate-meta">${escapeHtml(candidate.detail)}</p>
+    </div>
+    <button
+      class="pg-host-scheduler-operator-button"
+      type="button"
+      data-pg-cleanup-evidence-select="true"
+      data-pg-cleanup-evidence-path="${escapeHtml(candidate.path)}"
+      ${actionRunning ? 'disabled' : ''}
+    >Select</button>
+  </article>`;
+}
+
+function buildSchedulerCleanupReceiptCandidates(
+  presentation: ProgressGraphPreviewHostEvidencePresentation | null,
+): SchedulerCleanupReceiptCandidate[] {
+  if (!presentation) {
+    return [];
+  }
+
+  const candidates: SchedulerCleanupReceiptCandidate[] = [];
+  const seen = new Set<string>();
+  for (const card of presentation.cards) {
+    if (!isSandboxAllocationReceiptEvidenceCard(card)) {
+      continue;
+    }
+    const cleanupSummary = summarizeCleanupState(card);
+    for (const ref of card.refs) {
+      if (!isReceiptEvidencePathRef(ref)) {
+        continue;
+      }
+      const role = cleanupReceiptRefRole(ref.label);
+      const key = `${role}\u0000${ref.target}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      candidates.push({
+        id: `${card.id}:${candidates.length + 1}`,
+        path: ref.target,
+        label: `${card.title} · ${ref.label}`,
+        role,
+        status: cleanupSummary.status || card.status || 'unknown',
+        detail: cleanupSummary.detail || card.stopDetail || 'sandbox allocation receipt evidence',
+      });
+    }
+  }
+  return candidates;
+}
+
+function isSandboxAllocationReceiptEvidenceCard(card: ProgressGraphPreviewHostEvidenceCard): boolean {
+  if (card.metadata.evidence_product_type === 'sandbox_allocation_receipt_evidence') {
+    return true;
+  }
+  return card.keyFacts.some((fact) => (
+    fact.label.toLowerCase() === 'evidence product'
+    && fact.value === 'sandbox_allocation_receipt_evidence'
+  ));
+}
+
+function isReceiptEvidencePathRef(ref: ProgressGraphPreviewHostEvidenceRef): boolean {
+  if (ref.refKind !== 'path' || !ref.target.trim()) {
+    return false;
+  }
+  const label = ref.label.toLowerCase();
+  const target = ref.target.replace(/\\/g, '/').toLowerCase();
+  return label.includes('evidence')
+    && target.includes('.codex/scheduler/evidence/')
+    && target.endsWith('.json');
+}
+
+function cleanupReceiptRefRole(label: string): string {
+  const normalized = label.toLowerCase();
+  if (normalized.includes('source')) {
+    return 'source receipt';
+  }
+  if (normalized.includes('cleanup')) {
+    return 'cleanup receipt';
+  }
+  return 'current receipt';
+}
+
+function summarizeCleanupState(card: ProgressGraphPreviewHostEvidenceCard): { status: string; detail: string } {
+  const stateCounts = card.metadata.cleanup_state_counts;
+  const cleanupStateParts = isRecord(stateCounts)
+    ? Object.entries(stateCounts)
+      .filter(([, value]) => typeof value === 'number' || typeof value === 'string')
+      .map(([label, value]) => `${label}: ${String(value)}`)
+    : [];
+  const requiredIds = readUnknownStringArray(card.metadata.cleanup_required_allocation_ids);
+  const failedIds = readUnknownStringArray(card.metadata.cleanup_failed_allocation_ids);
+  const completedIds = readUnknownStringArray(card.metadata.cleanup_completed_allocation_ids);
+  const status = failedIds.length
+    ? 'cleanup failed'
+    : requiredIds.length
+      ? 'cleanup required'
+      : completedIds.length
+        ? 'cleanup settled'
+        : card.stopReason || card.status;
+  const detailParts = [
+    cleanupStateParts.length ? `states ${cleanupStateParts.join(', ')}` : '',
+    requiredIds.length ? `required ${requiredIds.join(', ')}` : '',
+    failedIds.length ? `failed ${failedIds.join(', ')}` : '',
+    completedIds.length ? `completed ${completedIds.join(', ')}` : '',
+  ].filter(Boolean);
+  return {
+    status,
+    detail: detailParts.join(' · '),
+  };
 }
 
 function buildSchedulerAuthorizationReadbackSection(
@@ -3940,6 +4126,15 @@ function readStringArray(value: unknown): string[] {
     return [];
   }
   return value.filter((item): item is string => typeof item === 'string');
+}
+
+function readUnknownStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item) => typeof item === 'string' || typeof item === 'number')
+    .map((item) => String(item));
 }
 
 function injectIntoHtmlDocument(
