@@ -1,6 +1,6 @@
 # Checkpoint - 2026-06-22T16:35:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Live Qoder runtime provider dogfood completed
+Post-v1.0 - Agent orchestration / post-Qoder direction analysis ready
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -16,18 +16,22 @@ Post-v1.0 - Agent orchestration / Live Qoder runtime provider dogfood completed
 - [x] Update provisioning guide and scheduler smoke prompts.
 - [x] Validate py_compile, focused Qoder CLI/runtime/helper/prompt tests, readiness-negative smoke, diff check, and `analyze_changes`.
 - [x] Record review evidence.
+- [x] Add post-Qoder follow-up direction analysis and update global direction candidates.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Gate: Live Qoder Runtime Provider Dogfood - source: design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
 - Review Evidence: Live Qoder Runtime Provider Dogfood Review - source: review/live-qoder-runtime-provider-dogfood-2026-06-22.md
+- Current Direction Analysis: Live Qoder Runtime Provider Dogfood Follow-Up Direction Analysis - source: design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md
 - Prior Source: Host UX Operator Dogfood Closure Control Follow-Up Direction Analysis - source: design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
 - Possible Next Direction: Credentialed live Qoder success after host provisions `qoder-agent-sdk` and supported auth.
-- Possible Next Direction: Return to scheduler/operator orchestration surfaces without widening live provider execution.
+- Recommended Default Direction: Return to scheduler/operator orchestration surfaces without widening live provider execution.
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
+- design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md
+- design_docs/direction-candidates-after-phase-35.md
 - review/live-qoder-runtime-provider-dogfood-2026-06-22.md
 - docs/qoder-host-provisioning-check-guide.md
 - .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
