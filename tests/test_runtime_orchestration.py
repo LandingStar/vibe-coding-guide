@@ -115,6 +115,7 @@ from src.runtime.orchestration import (
     build_supervisor_storage_binding_evidence,
     default_supervisor_storage_binding_evidence_path,
     default_sandbox_allocation_receipt_evidence_path,
+    seed_scheduler_operator_binding_consumer_dogfood_fixture,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     drain_preflighted_ready_tasks,
@@ -4623,6 +4624,94 @@ def test_seed_scheduler_operator_multilane_dogfood_fixture_creates_candidate_onl
         "dogfood:client-integration",
         "dogfood:integration-verify",
     )
+
+
+def test_seed_scheduler_operator_binding_consumer_fixture_creates_compact_ref_pair(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    evidence_path = (
+        tmp_path
+        / ".codex"
+        / "scheduler"
+        / "evidence"
+        / "fixture-supervisor-storage-binding-dogfood.json"
+    )
+
+    result = seed_scheduler_operator_binding_consumer_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+        created_at="2026-06-22T01:00:00+08:00",
+    )
+    payload = result.to_json_dict()
+    records = JsonArtifactVersionStore(store_path).list_records()
+    bundle = inspect_exchange_artifact_store(store_path)
+    binding_record = JsonArtifactVersionStore(store_path).get(
+        "fixture:supervisor-storage-binding-dogfood",
+        "v1",
+    )
+    submission_record = JsonArtifactVersionStore(store_path).get(
+        "fixture:scheduler-operator-binding-consumer-dogfood",
+        "v1",
+    )
+    batch = scheduler_task_batch_submission_from_artifact(submission_record.artifact)
+
+    assert payload["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    assert payload["batch_id"] == "batch:scheduler-operator-binding-consumer-dogfood"
+    assert payload["task_ids"] == ["dogfood:binding-consumer"]
+    assert payload["lane_ids"] == ["lane:binding-consumer"]
+    assert payload["dependency_ids"] == []
+    assert payload["binding_artifact_ids"] == ["fixture:supervisor-storage-binding-dogfood"]
+    assert payload["binding_artifact_versions"] == ["v1"]
+    assert payload["recommended_operator_workflow_options"] == [
+        "--inspect-binding-refs",
+        "--admit",
+    ]
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert len(records) == 2
+    assert not snapshot_path.exists()
+    assert not ledger_path.exists()
+    assert not evidence_path.exists()
+    assert bundle.admission_candidate_count == 1
+
+    structured_parts = [
+        part.data
+        for part in binding_record.artifact.parts
+        if part.part_type == "structured"
+    ]
+    assert structured_parts[0]["product_type"] == "supervisor_storage_binding_artifact"
+    assert structured_parts[0]["binding_id"] == (
+        "supervisor-storage-binding:context-session-dogfood-binding-consumer"
+    )
+    assert structured_parts[0]["authority_split"]["evidence_written"] is False
+    assert structured_parts[0]["metadata"]["raw_evidence_json_written"] is False
+
+    assert len(batch.tasks) == 1
+    ref = batch.tasks[0].input_artifact_refs[0]
+    assert ref.ref_kind == SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND
+    assert ref.ref_id == "fixture:supervisor-storage-binding-dogfood"
+    assert ref.version == "v1"
+
+
+def test_seed_scheduler_operator_binding_consumer_fixture_rejects_duplicate_keys(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+
+    with pytest.raises(ValueError, match="requires distinct artifact version keys"):
+        seed_scheduler_operator_binding_consumer_dogfood_fixture(
+            tmp_path,
+            artifact_store_path=store_path,
+            artifact_id="fixture:duplicate",
+            binding_artifact_id="fixture:duplicate",
+        )
+
+    assert not store_path.exists()
 
 
 def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_path) -> None:

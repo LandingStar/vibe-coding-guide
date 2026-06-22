@@ -515,6 +515,10 @@ Prefer `schedulerBindingReferenceInspect` or `doc-based-coding scheduler
 inspect-binding-refs` before admission when the candidate task consumes
 `supervisor_storage_binding_artifact` refs and the inspection is intentionally
 separate from the shared operator workflow.
+Use `doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer`
+when a gate needs a deterministic compact supervisor storage binding artifact
+plus a scheduler submission that consumes it. Then run
+`schedulerOperatorWorkflow` with `inspectBindingRefs=true` and `admit=true`.
 
 Expected shared workflow behavior:
 

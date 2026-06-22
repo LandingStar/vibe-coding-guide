@@ -358,7 +358,8 @@ _SCHEDULER_PROJECT_USAGE = (
 
 _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE = (
     "Usage: doc-based-coding scheduler seed-dogfood-fixture "
-    "[--fixture simple|multilane] [--artifact-store-path PATH] [--artifact-id ID] [--version VERSION] "
+    "[--fixture simple|multilane|binding-consumer] "
+    "[--artifact-store-path PATH] [--artifact-id ID] [--version VERSION] "
     "[--replace-existing] [--created-at TIMESTAMP]"
 )
 
@@ -631,8 +632,10 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
             _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE + "\n\n"
             "This writes only a controlled ExchangeArtifact scheduler-admission candidate. "
             "The default fixture is simple; --fixture multilane writes a richer fake-runtime "
-            "cross-lane candidate. It does not admit tasks, run providers, refresh scheduler "
-            "projection, write Host Evidence, or mutate Local Work Trajectory.",
+            "cross-lane candidate; --fixture binding-consumer writes a compact supervisor "
+            "storage binding artifact and a scheduler submission that consumes it. It does "
+            "not admit tasks, run providers, refresh scheduler projection, write raw binding "
+            "evidence JSON, write Host Evidence, or mutate Local Work Trajectory.",
         )
         return 0
 
@@ -681,17 +684,23 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
     root = _find_project_root()
     try:
         from .runtime.orchestration import (
+            DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_DOGFOOD_ARTIFACT_ID,
+            DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_DOGFOOD_VERSION,
             DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
             DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
             DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_ARTIFACT_ID,
             DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION,
+            seed_scheduler_operator_binding_consumer_dogfood_fixture,
             seed_scheduler_operator_dogfood_fixture,
             seed_scheduler_operator_multilane_dogfood_fixture,
         )
 
-        if fixture not in {"simple", "multilane"}:
+        if fixture not in {"simple", "multilane", "binding-consumer"}:
             print(_SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE, file=sys.stderr)
-            print("--fixture must be simple or multilane", file=sys.stderr)
+            print(
+                "--fixture must be simple, multilane, or binding-consumer",
+                file=sys.stderr,
+            )
             return 1
         target_store = (
             _resolve_project_path(root, artifact_store_path)
@@ -707,6 +716,17 @@ def cmd_scheduler_seed_dogfood_fixture(args: list[str]) -> int:
                 version=version or DEFAULT_SCHEDULER_OPERATOR_MULTILANE_DOGFOOD_VERSION,
                 replace_existing=replace_existing,
                 created_at=created_at or "2026-06-19T00:00:00+00:00",
+            )
+        elif fixture == "binding-consumer":
+            result = seed_scheduler_operator_binding_consumer_dogfood_fixture(
+                root,
+                artifact_store_path=target_store,
+                artifact_id=artifact_id
+                or DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_DOGFOOD_ARTIFACT_ID,
+                version=version
+                or DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_DOGFOOD_VERSION,
+                replace_existing=replace_existing,
+                created_at=created_at or "2026-06-22T00:00:00+00:00",
             )
         else:
             result = seed_scheduler_operator_dogfood_fixture(

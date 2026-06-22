@@ -128,10 +128,12 @@ def test_scheduler_seed_dogfood_fixture_help_describes_non_goals() -> None:
 
     assert proc.returncode == 0
     assert "--artifact-store-path PATH" in proc.stdout
-    assert "--fixture simple|multilane" in proc.stdout
+    assert "--fixture simple|multilane|binding-consumer" in proc.stdout
     assert "--replace-existing" in proc.stdout
     assert "controlled ExchangeArtifact scheduler-admission candidate" in proc.stdout
     assert "multilane" in proc.stdout
+    assert "binding-consumer" in proc.stdout
+    assert "raw binding evidence JSON" in proc.stdout
     assert "does not admit tasks" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
@@ -1024,6 +1026,98 @@ def test_scheduler_operator_workflow_cli_inspects_binding_refs_before_admission(
     assert payload["request"]["inspect_binding_refs"] is True
     assert payload["authority_split"]["scheduler_state_mutated"] is True
     assert payload["authority_split"]["provider_executed"] is False
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_binding_consumer_fixture_cli_inspects_admits_and_reads_summary(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    seed = _run_cli(
+        [
+            "scheduler",
+            "seed-dogfood-fixture",
+            "--fixture",
+            "binding-consumer",
+            "--created-at",
+            "2026-06-22T02:00:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    seeded = json.loads(seed.stdout)
+    assert seeded["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    assert seeded["task_ids"] == ["dogfood:binding-consumer"]
+    assert seeded["binding_artifact_ids"] == ["fixture:supervisor-storage-binding-dogfood"]
+    assert seeded["recommended_operator_workflow_options"] == [
+        "--inspect-binding-refs",
+        "--admit",
+    ]
+    assert not (
+        project
+        / ".codex"
+        / "scheduler"
+        / "evidence"
+        / "fixture-supervisor-storage-binding-dogfood.json"
+    ).exists()
+
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "fixture:scheduler-operator-binding-consumer-dogfood",
+            "--version",
+            "v1",
+            "--inspect-binding-refs",
+            "--admit",
+            "--timestamp",
+            "2026-06-22T02:10:00+08:00",
+        ],
+        cwd=project,
+    )
+    readback = _run_cli(
+        [
+            "scheduler",
+            "inspect-admissions",
+            "--artifact-id",
+            "fixture:scheduler-operator-binding-consumer-dogfood",
+            "--version",
+            "v1",
+        ],
+        cwd=project,
+    )
+
+    assert workflow.returncode == 0, workflow.stderr
+    payload = json.loads(workflow.stdout)
+    assert payload["ok"] is True
+    assert payload["binding_reference_inspection"]["ok"] is True
+    assert payload["binding_reference_inspection"]["binding_ref_count"] == 1
+    assert payload["binding_reference_inspection"]["tasks"][0]["binding_refs"][0][
+        "ref_id"
+    ] == "fixture:supervisor-storage-binding-dogfood"
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "dogfood:binding-consumer",
+    ]
+    summary = payload["admission_result"]["binding_reference_summary"]
+    assert summary["enabled"] is True
+    assert summary["ok"] is True
+    assert summary["binding_ref_count"] == 1
+    assert summary["checked_ref_count"] == 1
+    assert summary["raw_evidence_json_read"] is False
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+
+    assert readback.returncode == 0, readback.stderr
+    admissions = json.loads(readback.stdout)
+    assert admissions["record_count"] == 1
+    ledger_summary = admissions["records"][0]["binding_reference_summary"]
+    assert ledger_summary["enabled"] is True
+    assert ledger_summary["ok"] is True
+    assert ledger_summary["binding_ref_count"] == 1
+    assert ledger_summary["tasks"][0]["task_id"] == "dogfood:binding-consumer"
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

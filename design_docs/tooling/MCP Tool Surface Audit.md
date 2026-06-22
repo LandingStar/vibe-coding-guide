@@ -169,6 +169,7 @@
 - `schedulerSupervisorDogfoodWorkflow` 不替代 `schedulerDaemonSupervisorStep`：前者是完整 dogfood 序列，会 seed fixture、admit、start lifecycle 并执行 supervisor step；后者是单次 supervisor invocation primitive。验证完整 operator sequence 时用 workflow，验证 supervisor step contract 时保留单步工具。
 - `schedulerBindingReferenceInspect` 不替代 `admitExchangeArtifact`：前者是 admission 前的只读 binding-ref inspection，不写 scheduler/admission state；后者是 explicit admission 写工具。存在 supervisor storage binding artifact refs 时，应先 inspect，再由 operator 明确选择是否 admit。
 - 当 explicit binding-ref preflight 由 operator workflow 或 admission wrapper 启用时，admission ledger/readback 可携带 compact `binding_reference_summary`，只记录 counts、task/ref ids 与 errors，不保存 raw supervisor storage binding evidence JSON 或 raw binding payload。
+- `doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer` 提供 CLI/deterministic fixture：写入一个 compact supervisor storage binding artifact 与一个 consuming scheduler submission。MCP 侧暂不新增 seed tool；使用既有 `schedulerOperatorWorkflow(inspectBindingRefs=true, admit=true)` 消费该 fixture 并验证 ledger readback。
 
 ## 2026-06-19 增量：Scheduler Operator Workflow Tool
 

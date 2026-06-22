@@ -185,6 +185,7 @@
 
 ### Post-v1.0 工作（无 Phase 编号，按方向候选推进）
 
+- Supervisor Storage Binding Consumer Fixture 完成：新增 deterministic `binding-consumer` scheduler operator fixture，可 seed compact supervisor storage binding artifact 与 consuming scheduler submission，并通过 `schedulerOperatorWorkflow(inspectBindingRefs=true, admit=true)` 验证 admission ledger `binding_reference_summary` readback；聚焦 runtime/CLI/MCP/prompt 验证通过。
 - Payload + Handoff Footprint Controlled Dogfood 完成：baseline `StubWorker` payload path 与 latest handoff footprint 恢复面在 controlled dogfood 中可一起成立；live DashScope `LLMWorker` 返回 schema-valid `completed` report，但真实 payload candidate 仍会漂移到 schema 不接受的枚举值（如 `upsert`、`text/markdown`），因此被保守归一化层丢弃；结果已记录到 `review/payload-handoff-footprint-controlled-dogfood-2026-04-16.md`
 - LLMWorker Live Payload Contract Hardening 完成：prompt contract 显式枚举允许值并补齐禁止示例，`content_type` 只做极窄 alias normalization，且当 LLM 主动尝试 payload 但所有 candidate 都被 guard 拒绝时，`status` 从 `completed` 下调为 `partial`；定向 55 passed, 1 skipped，全量 946 passed, 2 skipped
 - Live Payload Rerun Verification 完成：单次受控 live DashScope rerun 在临时目录中返回合法 `artifact_payloads`，最终 payload writeback 成功命中 `docs/controlled-dogfood-llm.md`；结果记录于 `review/live-payload-rerun-verification-2026-04-16.md`

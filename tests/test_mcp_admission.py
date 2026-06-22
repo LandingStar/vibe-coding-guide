@@ -33,6 +33,7 @@ from src.runtime.orchestration import (
     read_scheduler_state_snapshot,
     read_sandbox_allocation_receipt_evidence_summary,
     scheduler_task_submission_to_artifact,
+    seed_scheduler_operator_binding_consumer_dogfood_fixture,
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     submit_scheduler_task_with_persistence,
@@ -405,6 +406,59 @@ def test_mcp_scheduler_operator_workflow_writes_binding_summary_to_ledger(
         assert summary["binding_ref_count"] == 1
         assert summary["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:mcp-ledger"
         assert summary["raw_evidence_json_read"] is False
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    seed_scheduler_operator_binding_consumer_dogfood_fixture(
+        tmp_path,
+        created_at="2026-06-22T02:30:00+08:00",
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorWorkflow",
+                    arguments={
+                        "artifactId": "fixture:scheduler-operator-binding-consumer-dogfood",
+                        "version": "v1",
+                        "inspectBindingRefs": True,
+                        "admit": True,
+                        "timestamp": "2026-06-22T02:40:00+08:00",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+        readback = inspect_exchange_artifact_admission_ledger(
+            ledger_path,
+            artifact_id="fixture:scheduler-operator-binding-consumer-dogfood",
+            artifact_version="v1",
+        ).to_json_dict()
+        summary = readback["records"][0]["binding_reference_summary"]
+
+        assert payload["ok"] is True
+        assert payload["binding_reference_inspection"]["ok"] is True
+        assert payload["binding_reference_inspection"]["binding_ref_count"] == 1
+        assert payload["binding_reference_inspection"]["tasks"][0]["binding_refs"][0][
+            "ref_id"
+        ] == "fixture:supervisor-storage-binding-dogfood"
+        assert payload["admission_result"]["submitted_task_ids"] == [
+            "dogfood:binding-consumer",
+        ]
+        assert payload["admission_result"]["binding_reference_summary"]["enabled"] is True
+        assert summary["ok"] is True
+        assert summary["binding_ref_count"] == 1
+        assert summary["checked_ref_count"] == 1
+        assert summary["tasks"][0]["task_id"] == "dogfood:binding-consumer"
+        assert summary["raw_evidence_json_read"] is False
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 

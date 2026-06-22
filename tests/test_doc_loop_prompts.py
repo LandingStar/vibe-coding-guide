@@ -145,6 +145,8 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerSupervisorDogfoodWorkflow" in text
         assert "schedulerBindingReferenceInspect" in text
         assert "doc-based-coding scheduler inspect-binding-refs" in text
+        assert "doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer" in text
+        assert "inspectBindingRefs=true" in text
         assert "supervisor_storage_binding_artifact" in text
         assert "supervisor_storage_binding_reference_inspection" in text
         assert "validate_supervisor_storage_binding_artifact_refs" in text
