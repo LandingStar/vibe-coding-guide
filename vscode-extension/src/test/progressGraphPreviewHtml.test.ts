@@ -202,6 +202,8 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
 
   assert.match(html, /id="pgHostSchedulerOperatorPanel"/);
   assert.match(html, /Scheduler Operator/);
+  assert.match(html, /Run dogfood closure/);
+  assert.match(html, /data-pg-scheduler-action="operatorDogfoodClosure"/);
   assert.match(html, /dbc:\/\/exchange-artifacts\/bundle/);
   assert.match(html, /id="pgHostSchedulerAuthorizationReadback"/);
   assert.match(html, /authorization unavailable/);
@@ -306,6 +308,7 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /Admit \+ Consume/);
   assert.match(html, /data-pg-scheduler-action="runLoop"/);
   assert.match(html, /data-pg-scheduler-action="project"/);
+  assert.match(html, /data-pg-scheduler-action="operatorDogfoodClosure"/);
   assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
   assert.match(html, /data-pg-scheduler-action="runSandboxReceiptWorkflow"/);
   assert.match(html, /const workflowPayload = \{/);
@@ -323,6 +326,8 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /cleanupDetails\.open = true/);
   assert.match(html, /workflowMode === 'daemon-loop'/);
   assert.match(html, /isPositiveIntegerText\(input\.value\.trim\(\)\)/);
+  assert.match(html, /action === 'operatorDogfoodClosure'/);
+  assert.match(html, /Closing dogfood\.\.\./);
   assert.match(html, /focusFirstMissingInput\(missing\)/);
   assert.match(html, /querySelectorAll\('\[data-pg-cleanup-evidence-select\]'\)/);
   assert.match(html, /target\.dataset\.pgCleanupEvidencePath \|\| ''/);
@@ -348,6 +353,66 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
   assert.match(html, /inspectBindingRefs: target\.dataset\.pgInspectBindingRefs === 'true'/);
   assert.match(html, /markConsumedOnSuccess,/);
+});
+
+test('buildProgressGraphPreviewHtml renders operator dogfood closure last-action summary', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      lastAction: {
+        action: 'operatorDogfoodClosure',
+        status: 'succeeded',
+        startedAt: '2026-06-22T10:00:00.000Z',
+        completedAt: '2026-06-22T10:00:02.000Z',
+        summary: 'dogfood closure ok · fixture=binding-consumer',
+        stdout: '{"ok":true}',
+        stderr: '',
+        payload: {
+          ok: true,
+          workflow_surface: 'scheduler-operator-dogfood-closure',
+          closure_summary: {
+            artifact_id: 'fixture:scheduler-operator-binding-consumer-dogfood',
+            version: 'v1',
+            fixture: 'binding-consumer',
+            lifecycle_state: 'consumed',
+            admission_status: 'admitted',
+            binding_summary_ok: true,
+            consumed: true,
+            loop_evidence_id: 'vscode-operator-closure-smoke',
+            loop_stop_reason: 'no_ready_tasks',
+            scheduler_projection_lane_count: 1,
+            scheduler_projection_event_count: 3,
+            scheduler_projection_relation_count: 2,
+            host_evidence_status: 'ok',
+            host_evidence_card_count: 1,
+          },
+          authority_split: {
+            provider_executed: true,
+            exchange_store_mutated: true,
+            admission_ledger_mutated: true,
+            scheduler_state_mutated: true,
+            scheduler_projection_refreshed: true,
+            evidence_written: true,
+            host_evidence_read: true,
+            local_work_trajectory_mutated: false,
+            starts_background_process: false,
+          },
+        },
+      },
+    },
+  }));
+
+  assert.match(html, /data-pg-operator-closure-summary="true"/);
+  assert.match(html, /Operator dogfood closure/);
+  assert.match(html, /shared fake-runtime closure product/);
+  assert.match(html, /fixture:scheduler-operator-binding-consumer-dogfood@v1/);
+  assert.match(html, /binding-consumer/);
+  assert.match(html, /consumed/);
+  assert.match(html, /vscode-operator-closure-smoke/);
+  assert.match(html, /1 lanes · 3 events · 2 relations/);
+  assert.match(html, /Local trajectory mutated/);
+  assert.match(html, />false<\/div>/);
+  assert.match(html, /Background process/);
 });
 
 test('buildProgressGraphPreviewHtml renders binding readiness and latest admission summaries', () => {

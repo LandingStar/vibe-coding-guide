@@ -8,6 +8,7 @@ export type SchedulerOperatorAction =
     }
   | { kind: 'runLoop' }
   | { kind: 'project' }
+  | { kind: 'operatorDogfoodClosure' }
   | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
   | {
       kind: 'runSandboxReceiptWorkflow';
@@ -80,6 +81,9 @@ export function coerceSchedulerOperatorActionMessage(
   }
   if (message.action === 'project') {
     return { kind: 'project' };
+  }
+  if (message.action === 'operatorDogfoodClosure') {
+    return { kind: 'operatorDogfoodClosure' };
   }
   if (message.action === 'cleanupReceipts') {
     if (typeof message.evidencePath !== 'string' || !message.evidencePath.trim()) {
@@ -222,6 +226,43 @@ export function buildSchedulerOperatorWorkflowArgs(
       evidenceId,
       '--evidence-path',
       `.codex/scheduler/evidence/${evidenceId}.json`,
+    ];
+  }
+  if (action.kind === 'operatorDogfoodClosure') {
+    const evidenceId = options.evidenceId
+      ?? `vscode-operator-closure-${(options.now ?? Date.now)()}`;
+    return [
+      'scheduler',
+      'operator-dogfood-closure',
+      '--fixture',
+      'binding-consumer',
+      '--artifact-store-path',
+      '.codex/orchestration/exchange-artifacts.json',
+      '--admission-ledger-path',
+      '.codex/orchestration/exchange-artifact-admissions.json',
+      '--snapshot-path',
+      '.codex/scheduler/scheduler-state.json',
+      '--event-log-path',
+      '.codex/scheduler/scheduler-events.jsonl',
+      '--projection-output-path',
+      '.codex/progress-graph/scheduler-work-trajectory.json',
+      '--runtime-provider',
+      'fake',
+      '--max-ticks',
+      '3',
+      '--max-runs-per-tick',
+      '1',
+      '--max-runtime-failures',
+      '1',
+      '--evidence-id',
+      evidenceId,
+      '--evidence-path',
+      `.codex/scheduler/evidence/${evidenceId}.json`,
+      '--actor',
+      options.actor ?? DEFAULT_OPERATOR_ACTOR,
+      '--guide-context',
+      'vscode-scheduler-operator',
+      '--replace-existing',
     ];
   }
   if (action.kind === 'cleanupReceipts') {

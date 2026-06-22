@@ -6,13 +6,13 @@
 - 已完成候选 1：`MCP Surface For Operator Dogfood Closure`
   - 完成情况：`design_docs/stages/planning-gate/2026-06-22-operator-dogfood-closure-mcp-surface.md` 已完成并关闭；MCP tool `schedulerOperatorDogfoodClosure` 已复用同一 backend closure product，保持 fake-runtime-only 和同一 JSON result shape。
   - 依据：`design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md`、`review/operator-dogfood-closure-mcp-surface-2026-06-22.md`、`src/mcp/server.py`
-- 候选 2：`Host UX Operator Dogfood Closure Control`
-  - 做什么：在 Host UX 中提供一键运行完整 operator closure 的控件，并展示 compact closure summary。
-  - 依据：`design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md`、`docs/host-interaction-model.md`
+- 已完成候选 2：`Host UX Operator Dogfood Closure Control`
+  - 完成情况：`design_docs/stages/planning-gate/2026-06-22-host-ux-operator-dogfood-closure-control.md` 已完成并关闭；Scheduler Operator Host UX 已新增 `Run dogfood closure` 控件，复用 shared CLI closure product，并结构化展示 `closure_summary` / `authority_split`。
+  - 依据：`design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md`、`review/host-ux-operator-dogfood-closure-control-2026-06-22.md`、`vscode-extension/src/views/schedulerOperatorContracts.ts`
 - 候选 3：`Live Qoder Runtime Provider Dogfood`
   - 做什么：使用真实 Qoder-backed runtime provider 运行一个受控 scheduler task，进入 credential/runtime readiness 和 isolation policy gate。
-  - 依据：`design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md`、`review/research-compass.md`
-- 当前倾向：若继续产品面，默认先进入候选 2。runtime / CLI / MCP 已对齐，Host UX 可以消费稳定 closure 产品；若回到后端 runtime 证明，则进入候选 3，但必须另开 live-runtime gate。
+  - 依据：`design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md`、`review/research-compass.md`
+- 当前倾向：默认进入候选 3。fake-runtime runtime / CLI / MCP / Host UX 已对齐，下一步更高价值是单独开 live-runtime gate 验证真实 Qoder provider、host authorization、evidence readback 与 isolation policy。
 
 ## 2026-06-22 补充候选：Host UX consumed ExchangeArtifact operator flow 收口后的下一步
 

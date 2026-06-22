@@ -51,6 +51,10 @@ test('scheduler operator click sequence maps webview messages to shared workflow
       command: 'schedulerOperatorAction',
       action: 'project',
     },
+    {
+      command: 'schedulerOperatorAction',
+      action: 'operatorDogfoodClosure',
+    },
   ];
   const actions = messages.map((message) => coerceSchedulerOperatorActionMessage(message));
 
@@ -64,6 +68,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
     },
     { kind: 'runLoop' },
     { kind: 'project' },
+    { kind: 'operatorDogfoodClosure' },
   ] satisfies SchedulerOperatorAction[]);
 
   const admitArgs = buildSchedulerOperatorWorkflowArgs(actions[0]!, { now: () => 123456 });
@@ -97,6 +102,39 @@ test('scheduler operator click sequence maps webview messages to shared workflow
   assertOnlyExplicitActionFlag(projectArgs, '--refresh-projection');
   assert.ok(projectArgs.includes('--guide-context'));
   assert.ok(projectArgs.includes('vscode-scheduler-operator'));
+
+  const closureArgs = buildSchedulerOperatorWorkflowArgs(actions[3]!, {
+    evidenceId: 'vscode-operator-closure-smoke',
+  });
+  assert.deepEqual(closureArgs.slice(0, 2), ['scheduler', 'operator-dogfood-closure']);
+  assertOnlyExplicitActionFlag(closureArgs, null);
+  assert.ok(closureArgs.includes('--fixture'));
+  assert.ok(closureArgs.includes('binding-consumer'));
+  assert.ok(closureArgs.includes('--artifact-store-path'));
+  assert.ok(closureArgs.includes('.codex/orchestration/exchange-artifacts.json'));
+  assert.ok(closureArgs.includes('--admission-ledger-path'));
+  assert.ok(closureArgs.includes('.codex/orchestration/exchange-artifact-admissions.json'));
+  assert.ok(closureArgs.includes('--snapshot-path'));
+  assert.ok(closureArgs.includes('.codex/scheduler/scheduler-state.json'));
+  assert.ok(closureArgs.includes('--event-log-path'));
+  assert.ok(closureArgs.includes('.codex/scheduler/scheduler-events.jsonl'));
+  assert.ok(closureArgs.includes('--projection-output-path'));
+  assert.ok(closureArgs.includes('.codex/progress-graph/scheduler-work-trajectory.json'));
+  assert.ok(closureArgs.includes('--runtime-provider'));
+  assert.ok(closureArgs.includes('fake'));
+  assert.ok(closureArgs.includes('--max-ticks'));
+  assert.ok(closureArgs.includes('3'));
+  assert.ok(closureArgs.includes('--max-runs-per-tick'));
+  assert.ok(closureArgs.includes('1'));
+  assert.ok(closureArgs.includes('--max-runtime-failures'));
+  assert.ok(closureArgs.includes('--evidence-id'));
+  assert.ok(closureArgs.includes('vscode-operator-closure-smoke'));
+  assert.ok(closureArgs.includes('--evidence-path'));
+  assert.ok(closureArgs.includes('.codex/scheduler/evidence/vscode-operator-closure-smoke.json'));
+  assert.ok(closureArgs.includes('--actor'));
+  assert.ok(closureArgs.includes('vscode-scheduler-operator'));
+  assert.ok(closureArgs.includes('--guide-context'));
+  assert.ok(closureArgs.includes('--replace-existing'));
 });
 
 test('scheduler operator admission omits binding inspection unless requested', () => {
@@ -157,6 +195,19 @@ test('scheduler operator run-loop args can derive deterministic evidence path fr
   assert.ok(args.includes('vscode-operator-42'));
   assert.ok(args.includes('--evidence-path'));
   assert.ok(args.includes('.codex/scheduler/evidence/vscode-operator-42.json'));
+});
+
+test('scheduler operator dogfood closure args can derive deterministic evidence path from clock', () => {
+  const args = buildSchedulerOperatorWorkflowArgs(
+    { kind: 'operatorDogfoodClosure' },
+    { now: () => 42 },
+  );
+
+  assert.deepEqual(args.slice(0, 2), ['scheduler', 'operator-dogfood-closure']);
+  assert.ok(args.includes('--evidence-id'));
+  assert.ok(args.includes('vscode-operator-closure-42'));
+  assert.ok(args.includes('--evidence-path'));
+  assert.ok(args.includes('.codex/scheduler/evidence/vscode-operator-closure-42.json'));
 });
 
 test('scheduler operator cleanup receipts action requires path and explicit confirmation', () => {

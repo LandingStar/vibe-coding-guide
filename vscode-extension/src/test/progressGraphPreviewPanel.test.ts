@@ -120,6 +120,7 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorSource, /dbc:\/\/exchange-artifacts\/bundle/);
   assert.match(schedulerOperatorSource, /buildSchedulerOperatorWorkflowArgs/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'operator-workflow'/);
+  assert.match(schedulerOperatorContractSource, /'scheduler',\s*'operator-dogfood-closure'/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'cleanup-receipts'/);
   assert.match(schedulerOperatorContractSource, /'scheduler',\s*'sandbox-receipt-workflow'/);
   assert.match(schedulerOperatorContractSource, /'--admit'/);
@@ -132,6 +133,11 @@ test('preview panel wires scheduler operator workflow through the shared CLI sur
   assert.match(schedulerOperatorContractSource, /'--cleanup-evidence-path'/);
   assert.match(schedulerOperatorContractSource, /'--output-evidence-id'/);
   assert.match(schedulerOperatorContractSource, /vscode-cleanup-/);
+  assert.match(schedulerOperatorContractSource, /vscode-operator-closure-/);
+  assert.match(schedulerOperatorContractSource, /kind:\s*'operatorDogfoodClosure'/);
+  assert.match(schedulerOperatorSource, /action === 'operatorDogfoodClosure'/);
+  assert.match(schedulerOperatorSource, /readRecord\(payload\.closure_summary\)/);
+  assert.match(schedulerOperatorSource, /readRecord\(payload\.authority_split\)/);
   assert.match(schedulerOperatorContractSource, /'--artifact-store-path',\s*'\.codex\/orchestration\/exchange-artifacts\.json'/);
   assert.match(schedulerOperatorContractSource, /'--admission-ledger-path',\s*'\.codex\/orchestration\/exchange-artifact-admissions\.json'/);
   assert.match(schedulerOperatorContractSource, /'--projection-output-path',\s*'\.codex\/progress-graph\/scheduler-work-trajectory\.json'/);

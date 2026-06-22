@@ -2339,6 +2339,14 @@ function buildParallelPreviewHtml(
   .pg-host-scheduler-action-result[data-pg-action-status="failed"] {
     border-color: rgba(255, 178, 166, 0.22);
   }
+  .pg-host-scheduler-closure-summary {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(163, 218, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+  }
   .pg-host-scheduler-output {
     max-height: 140px;
     margin: 0;
@@ -2731,7 +2739,9 @@ function buildParallelPreviewHtml(
             ? 'Cleaning...'
             : action === 'runSandboxReceiptWorkflow'
               ? 'Running workflow...'
-              : 'Refreshing...';
+              : action === 'operatorDogfoodClosure'
+                ? 'Closing dogfood...'
+                : 'Refreshing...';
       vscode.postMessage({
         command: 'schedulerOperatorAction',
         action,
@@ -3461,6 +3471,7 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
         <span class="pg-host-evidence-badge">${escapeHtml(lastAction.action || 'scheduler action')}</span>
       </div>
       <p class="pg-host-control-card-subtitle">${escapeHtml(lastAction.summary || 'action completed')}</p>
+      ${buildSchedulerOperatorClosureSummary(lastAction.payload)}
       ${lastAction.stderr ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stderr)}</pre>` : ''}
       ${lastAction.stdout ? `<pre class="pg-host-scheduler-output">${escapeHtml(lastAction.stdout)}</pre>` : ''}
     </div>`;
@@ -3472,6 +3483,7 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
       <p class="pg-host-control-card-subtitle">resource=${escapeHtml(workflow.exchangeResourceUri)} · explicit admit / bounded run / projection refresh</p>
     </div>
     <div class="pg-host-scheduler-operator-actions">
+      <button class="pg-host-scheduler-operator-button secondary" type="button" data-pg-scheduler-action="operatorDogfoodClosure" ${lastAction.status === 'running' ? 'disabled' : ''}>Run dogfood closure</button>
       <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="runLoop" ${lastAction.status === 'running' ? 'disabled' : ''}>Run bounded loop</button>
       <button class="pg-host-scheduler-operator-button" type="button" data-pg-scheduler-action="project" ${lastAction.status === 'running' ? 'disabled' : ''}>Refresh projection</button>
     </div>
@@ -3486,6 +3498,63 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   ${errors}
   ${lastActionHtml}
 </section>`;
+}
+
+function buildSchedulerOperatorClosureSummary(payload: Record<string, unknown> | null): string {
+  if (!payload || readString(payload.workflow_surface, '') !== 'scheduler-operator-dogfood-closure') {
+    return '';
+  }
+
+  const closureSummary = readRecord(payload.closure_summary);
+  const authoritySplit = readRecord(payload.authority_split);
+  const summaryFacts = [
+    ['Artifact', [
+      readString(closureSummary.artifact_id, ''),
+      readString(closureSummary.version, ''),
+    ].filter(Boolean).join('@')],
+    ['Fixture', readString(closureSummary.fixture, '')],
+    ['Lifecycle', readString(closureSummary.lifecycle_state, '')],
+    ['Admission', readString(closureSummary.admission_status, '')],
+    ['Binding ok', String(readBoolean(closureSummary.binding_summary_ok))],
+    ['Consumed', String(readBoolean(closureSummary.consumed))],
+    ['Loop evidence', readString(closureSummary.loop_evidence_id, '')],
+    ['Loop stop', readString(closureSummary.loop_stop_reason, '')],
+    ['Projection', [
+      `${readNumber(closureSummary.scheduler_projection_lane_count)} lanes`,
+      `${readNumber(closureSummary.scheduler_projection_event_count)} events`,
+      `${readNumber(closureSummary.scheduler_projection_relation_count)} relations`,
+    ].join(' · ')],
+    ['Host evidence', [
+      readString(closureSummary.host_evidence_status, ''),
+      `${readNumber(closureSummary.host_evidence_card_count)} card(s)`,
+    ].filter(Boolean).join(' · ')],
+  ].filter(([, value]) => value);
+  const authorityFacts = [
+    ['Provider executed', String(readBoolean(authoritySplit.provider_executed))],
+    ['Exchange mutated', String(readBoolean(authoritySplit.exchange_store_mutated))],
+    ['Ledger mutated', String(readBoolean(authoritySplit.admission_ledger_mutated))],
+    ['Scheduler mutated', String(readBoolean(authoritySplit.scheduler_state_mutated))],
+    ['Projection refreshed', String(readBoolean(authoritySplit.scheduler_projection_refreshed))],
+    ['Evidence written', String(readBoolean(authoritySplit.evidence_written))],
+    ['Host evidence read', String(readBoolean(authoritySplit.host_evidence_read))],
+    ['Local trajectory mutated', String(readBoolean(authoritySplit.local_work_trajectory_mutated))],
+    ['Background process', String(readBoolean(authoritySplit.starts_background_process))],
+  ];
+  return `<section class="pg-host-scheduler-closure-summary" data-pg-operator-closure-summary="true">
+    <div class="pg-host-evidence-title-wrap">
+      <h3 class="pg-host-scheduler-candidate-title">Operator dogfood closure</h3>
+      <p class="pg-host-control-card-subtitle">shared fake-runtime closure product · compact readback</p>
+    </div>
+    <div class="pg-host-scheduler-operator-grid">${summaryFacts.map(buildSchedulerFact).join('')}</div>
+    <div class="pg-host-scheduler-operator-grid">${authorityFacts.map(buildSchedulerFact).join('')}</div>
+  </section>`;
+}
+
+function buildSchedulerFact([label, value]: [string, string]): string {
+  return `<div class="pg-host-evidence-fact">
+    <div class="pg-host-evidence-label">${escapeHtml(label)}</div>
+    <div class="pg-host-evidence-value">${escapeHtml(value)}</div>
+  </div>`;
 }
 
 function buildSchedulerSandboxReceiptWorkflowAction(actionRunning: boolean): string {
@@ -4792,6 +4861,10 @@ function readObjectArray(value: unknown): Record<string, unknown>[] {
   return value.filter(isRecord);
 }
 
+function readRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
 function readObjectCollection(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
     return value.filter(isRecord);
@@ -4812,6 +4885,10 @@ function readNullableString(value: unknown): string | null {
 
 function readNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readBoolean(value: unknown): boolean {
+  return typeof value === 'boolean' ? value : false;
 }
 
 function readStringRecord(value: unknown): Record<string, string> {

@@ -692,6 +692,26 @@ function summarizeActionPayload(action: string, payload: Record<string, unknown>
       cleanupPath ? `cleanup=${cleanupPath}` : '',
     ].filter(Boolean).join(' · ');
   }
+  if (action === 'operatorDogfoodClosure') {
+    const closureSummary = readRecord(payload.closure_summary);
+    const authoritySplit = readRecord(payload.authority_split);
+    const ok = readBoolean(payload.ok);
+    const fixture = readString(closureSummary.fixture, 'unknown');
+    const lifecycle = readString(closureSummary.lifecycle_state, 'unknown');
+    const evidenceId = readString(closureSummary.loop_evidence_id, '');
+    const hostCards = readNumber(closureSummary.host_evidence_card_count);
+    const projectionEvents = readNumber(closureSummary.scheduler_projection_event_count);
+    const agentTrajectoryMutation = readBoolean(authoritySplit.local_work_trajectory_mutated);
+    return [
+      `dogfood closure ${ok ? 'ok' : 'not ok'}`,
+      `fixture=${fixture}`,
+      `lifecycle=${lifecycle}`,
+      evidenceId ? `evidence=${evidenceId}` : '',
+      `host cards=${hostCards}`,
+      `projection events=${projectionEvents}`,
+      `local trajectory mutated=${agentTrajectoryMutation}`,
+    ].filter(Boolean).join(' · ');
+  }
   return 'action completed';
 }
 
