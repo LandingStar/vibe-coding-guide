@@ -40,6 +40,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
       action: 'admit',
       artifactId: 'scheduler-operator-dogfood-multilane',
       version: 'v1',
+      inspectBindingRefs: true,
     },
     {
       command: 'schedulerOperatorAction',
@@ -57,6 +58,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
       kind: 'admit',
       artifactId: 'scheduler-operator-dogfood-multilane',
       version: 'v1',
+      inspectBindingRefs: true,
     },
     { kind: 'runLoop' },
     { kind: 'project' },
@@ -69,6 +71,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
     admitArgs.slice(admitArgs.indexOf('--artifact-id'), admitArgs.indexOf('--artifact-id') + 4),
     ['--artifact-id', 'scheduler-operator-dogfood-multilane', '--version', 'v1'],
   );
+  assert.ok(admitArgs.includes('--inspect-binding-refs'));
 
   const loopArgs = buildSchedulerOperatorWorkflowArgs(actions[1]!, {
     evidenceId: 'vscode-operator-smoke',
@@ -91,6 +94,26 @@ test('scheduler operator click sequence maps webview messages to shared workflow
   assertOnlyExplicitActionFlag(projectArgs, '--refresh-projection');
   assert.ok(projectArgs.includes('--guide-context'));
   assert.ok(projectArgs.includes('vscode-scheduler-operator'));
+});
+
+test('scheduler operator admission omits binding inspection unless requested', () => {
+  const action = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'admit',
+    artifactId: 'submission:plain',
+    version: 'v1',
+  });
+
+  assert.deepEqual(action, {
+    kind: 'admit',
+    artifactId: 'submission:plain',
+    version: 'v1',
+    inspectBindingRefs: false,
+  } satisfies SchedulerOperatorAction);
+
+  const args = buildSchedulerOperatorWorkflowArgs(action!);
+  assertOnlyExplicitActionFlag(args, '--admit');
+  assert.equal(flagCount(args, '--inspect-binding-refs'), 0);
 });
 
 test('scheduler operator click contract rejects incomplete admission messages', () => {

@@ -262,6 +262,8 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
             batchId: 'batch-maze',
             admissionStatus: 'not_admitted',
             latestAdmissionStatus: '',
+            bindingReferenceReadiness: null,
+            latestBindingReferenceSummary: null,
           },
         ],
         errors: [],
@@ -297,6 +299,7 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /data-pg-scheduler-action="admit"/);
   assert.match(html, /data-pg-artifact-id="submission:maze"/);
   assert.match(html, /data-pg-version="v1"/);
+  assert.match(html, /data-pg-inspect-binding-refs="false"/);
   assert.match(html, /data-pg-scheduler-action="runLoop"/);
   assert.match(html, /data-pg-scheduler-action="project"/);
   assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
@@ -339,6 +342,121 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /Scheduler events/);
   assert.match(html, />9<\/div>/);
   assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
+  assert.match(html, /inspectBindingRefs: target\.dataset\.pgInspectBindingRefs === 'true'/);
+});
+
+test('buildProgressGraphPreviewHtml renders binding readiness and latest admission summaries', () => {
+  const bindingRef = {
+    refKind: 'supervisor_storage_binding_artifact',
+    refId: 'fixture:supervisor-storage-binding-dogfood',
+    version: 'v1',
+    path: '',
+    label: '',
+  };
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      exchange: {
+        exists: true,
+        storePath: 'E:/workspace/example/.codex/orchestration/exchange-artifacts.json',
+        artifactCount: 2,
+        versionCount: 2,
+        admissionCandidateCount: 1,
+        admissionLedgerPath: 'E:/workspace/example/.codex/orchestration/exchange-artifact-admissions.json',
+        admissionLedgerExists: true,
+        candidates: [
+          {
+            artifactId: 'fixture:scheduler-operator-binding-consumer-dogfood',
+            version: 'v1',
+            productType: 'scheduler_task_submission',
+            taskIds: ['dogfood:binding-consumer'],
+            taskCount: 1,
+            batchId: '',
+            admissionStatus: 'admitted',
+            latestAdmissionStatus: 'admitted',
+            bindingReferenceReadiness: {
+              enabled: true,
+              ok: true,
+              sourceArtifactId: 'fixture:scheduler-operator-binding-consumer-dogfood',
+              sourceArtifactVersion: 'v1',
+              submissionProductType: 'scheduler_task_submission',
+              taskCount: 1,
+              bindingRefCount: 1,
+              checkedRefCount: 1,
+              errorCount: 0,
+              errors: [],
+              tasks: [
+                {
+                  taskId: 'dogfood:binding-consumer',
+                  title: 'Consume supervisor storage binding',
+                  ok: true,
+                  bindingRefCount: 1,
+                  checkedRefCount: 1,
+                  errorCount: 0,
+                  bindingRefs: [bindingRef],
+                  checkedRefs: [bindingRef],
+                  errors: [],
+                },
+              ],
+              rawEvidenceJsonRead: false,
+              ledgerId: '',
+              status: '',
+              timestamp: '',
+              actor: '',
+              surface: '',
+              errorSummary: '',
+            },
+            latestBindingReferenceSummary: {
+              enabled: true,
+              ok: true,
+              sourceArtifactId: 'fixture:scheduler-operator-binding-consumer-dogfood',
+              sourceArtifactVersion: 'v1',
+              submissionProductType: 'scheduler_task_submission',
+              taskCount: 1,
+              bindingRefCount: 1,
+              checkedRefCount: 1,
+              errorCount: 0,
+              errors: [],
+              tasks: [
+                {
+                  taskId: 'dogfood:binding-consumer',
+                  title: 'Consume supervisor storage binding',
+                  ok: true,
+                  bindingRefCount: 1,
+                  checkedRefCount: 1,
+                  errorCount: 0,
+                  bindingRefs: [bindingRef],
+                  checkedRefs: [bindingRef],
+                  errors: [],
+                },
+              ],
+              rawEvidenceJsonRead: false,
+              ledgerId: 'exchange-artifact-admission-1',
+              status: 'admitted',
+              timestamp: '2026-06-22T02:10:00+08:00',
+              actor: 'vscode-scheduler-operator',
+              surface: 'cli:scheduler_operator_workflow',
+              errorSummary: '',
+            },
+          },
+        ],
+        errors: [],
+      },
+    },
+  }));
+
+  assert.match(html, /fixture:scheduler-operator-binding-consumer-dogfood@v1/);
+  assert.match(html, /data-pg-inspect-binding-refs="true"/);
+  assert.match(html, /Binding readiness/);
+  assert.match(html, /current exact-version preflight · 1 binding ref\(s\) · 1 checked · raw evidence read=false/);
+  assert.match(html, /Latest binding admission/);
+  assert.match(html, /latest ledger compact summary · 1 binding ref\(s\) · 1 checked · ledger=exchange-artifact-admission-1 · actor=vscode-scheduler-operator · raw evidence read=false/);
+  assert.match(html, /data-pg-binding-task-id="dogfood:binding-consumer"/);
+  assert.match(html, /dogfood:binding-consumer · Consume supervisor storage binding/);
+  assert.match(html, /input: supervisor_storage_binding_artifact · fixture:supervisor-storage-binding-dogfood@v1/);
+  assert.match(html, /checked: supervisor_storage_binding_artifact · fixture:supervisor-storage-binding-dogfood@v1/);
+  assert.match(html, />admitted<\/span>/);
+  assert.doesNotMatch(html, /raw evidence read=true/);
 });
 
 test('buildProgressGraphPreviewHtml renders scheduler authorization readback task diagnostics', () => {

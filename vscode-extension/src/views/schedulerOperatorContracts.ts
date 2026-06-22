@@ -1,5 +1,5 @@
 export type SchedulerOperatorAction =
-  | { kind: 'admit'; artifactId: string; version: string }
+  | { kind: 'admit'; artifactId: string; version: string; inspectBindingRefs: boolean }
   | { kind: 'runLoop' }
   | { kind: 'project' }
   | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
@@ -23,6 +23,7 @@ export type SchedulerOperatorWebviewMessage = {
   action?: unknown;
   artifactId?: unknown;
   version?: unknown;
+  inspectBindingRefs?: unknown;
   evidencePath?: unknown;
   confirmed?: unknown;
   workflowMode?: unknown;
@@ -63,6 +64,7 @@ export function coerceSchedulerOperatorActionMessage(
       kind: 'admit',
       artifactId: message.artifactId,
       version: message.version,
+      inspectBindingRefs: message.inspectBindingRefs === true,
     };
   }
   if (message.action === 'runLoop') {
@@ -181,7 +183,7 @@ export function buildSchedulerOperatorWorkflowArgs(
     options.actor ?? DEFAULT_OPERATOR_ACTOR,
   ];
   if (action.kind === 'admit') {
-    return [
+    const args = [
       ...baseArgs,
       '--artifact-id',
       action.artifactId,
@@ -189,6 +191,10 @@ export function buildSchedulerOperatorWorkflowArgs(
       action.version,
       '--admit',
     ];
+    if (action.inspectBindingRefs) {
+      args.push('--inspect-binding-refs');
+    }
+    return args;
   }
   if (action.kind === 'runLoop') {
     const evidenceId = options.evidenceId ?? `vscode-operator-${(options.now ?? Date.now)()}`;

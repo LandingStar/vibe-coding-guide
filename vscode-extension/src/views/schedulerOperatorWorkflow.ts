@@ -26,6 +26,49 @@ export type SchedulerOperatorExchangeCandidate = {
   batchId: string;
   admissionStatus: string;
   latestAdmissionStatus: string;
+  bindingReferenceReadiness: SchedulerOperatorBindingReferenceSummary | null;
+  latestBindingReferenceSummary: SchedulerOperatorBindingReferenceSummary | null;
+};
+
+export type SchedulerOperatorBindingReference = {
+  refKind: string;
+  refId: string;
+  version: string;
+  path: string;
+  label: string;
+};
+
+export type SchedulerOperatorBindingReferenceTaskSummary = {
+  taskId: string;
+  title: string;
+  ok: boolean;
+  bindingRefCount: number;
+  checkedRefCount: number;
+  errorCount: number;
+  bindingRefs: SchedulerOperatorBindingReference[];
+  checkedRefs: SchedulerOperatorBindingReference[];
+  errors: string[];
+};
+
+export type SchedulerOperatorBindingReferenceSummary = {
+  enabled: boolean;
+  ok: boolean;
+  sourceArtifactId: string;
+  sourceArtifactVersion: string;
+  submissionProductType: string;
+  taskCount: number;
+  bindingRefCount: number;
+  checkedRefCount: number;
+  errorCount: number;
+  errors: string[];
+  tasks: SchedulerOperatorBindingReferenceTaskSummary[];
+  rawEvidenceJsonRead: boolean;
+  ledgerId: string;
+  status: string;
+  timestamp: string;
+  actor: string;
+  surface: string;
+  errorSummary: string;
 };
 
 export type SchedulerOperatorExchangeSummary = {
@@ -438,6 +481,12 @@ function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperato
       batchId: readString(candidate.batch_id, ''),
       admissionStatus: readString(admissionState.status, 'unknown'),
       latestAdmissionStatus: readString(admissionState.latest_status, ''),
+      bindingReferenceReadiness: coerceBindingReferenceSummary(
+        readRecord(candidate.binding_reference_readiness),
+      ),
+      latestBindingReferenceSummary: coerceBindingReferenceSummary(
+        readRecord(candidate.latest_binding_reference_summary),
+      ),
     }));
   });
 
@@ -451,6 +500,62 @@ function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperato
     admissionLedgerExists: readBoolean(value.admission_ledger_exists),
     candidates,
     errors: readStringArray(value.errors),
+  };
+}
+
+function coerceBindingReferenceSummary(
+  value: Record<string, unknown>,
+): SchedulerOperatorBindingReferenceSummary | null {
+  if (Object.keys(value).length === 0) {
+    return null;
+  }
+  return {
+    enabled: readBoolean(value.enabled),
+    ok: readBoolean(value.ok),
+    sourceArtifactId: readString(value.source_artifact_id, ''),
+    sourceArtifactVersion: readString(value.source_artifact_version, ''),
+    submissionProductType: readString(value.submission_product_type, ''),
+    taskCount: readNumber(value.task_count),
+    bindingRefCount: readNumber(value.binding_ref_count),
+    checkedRefCount: readNumber(value.checked_ref_count),
+    errorCount: readNumber(value.error_count),
+    errors: readStringArray(value.errors),
+    tasks: readObjectArray(value.tasks).map(coerceBindingReferenceTaskSummary),
+    rawEvidenceJsonRead: readBoolean(value.raw_evidence_json_read),
+    ledgerId: readString(value.ledger_id, ''),
+    status: readString(value.status, ''),
+    timestamp: readString(value.timestamp, ''),
+    actor: readString(value.actor, ''),
+    surface: readString(value.surface, ''),
+    errorSummary: readString(value.error_summary, ''),
+  };
+}
+
+function coerceBindingReferenceTaskSummary(
+  value: Record<string, unknown>,
+): SchedulerOperatorBindingReferenceTaskSummary {
+  return {
+    taskId: readString(value.task_id, ''),
+    title: readString(value.title, ''),
+    ok: readBoolean(value.ok),
+    bindingRefCount: readNumber(value.binding_ref_count),
+    checkedRefCount: readNumber(value.checked_ref_count),
+    errorCount: readNumber(value.error_count),
+    bindingRefs: readObjectArray(value.binding_refs).map(coerceBindingReference),
+    checkedRefs: readObjectArray(value.checked_refs).map(coerceBindingReference),
+    errors: readStringArray(value.errors),
+  };
+}
+
+function coerceBindingReference(
+  value: Record<string, unknown>,
+): SchedulerOperatorBindingReference {
+  return {
+    refKind: readString(value.ref_kind, ''),
+    refId: readString(value.ref_id, ''),
+    version: readString(value.version, ''),
+    path: readString(value.path, ''),
+    label: readString(value.label, ''),
   };
 }
 

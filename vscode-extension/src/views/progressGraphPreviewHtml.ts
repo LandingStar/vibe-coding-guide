@@ -1,6 +1,9 @@
 import type {
   SchedulerAuthorizationReadback,
   SchedulerAuthorizationTaskSummary,
+  SchedulerOperatorBindingReference,
+  SchedulerOperatorBindingReferenceSummary,
+  SchedulerOperatorBindingReferenceTaskSummary,
   SchedulerOperatorExchangeCandidate,
   SchedulerOperatorWorkflowState,
 } from './schedulerOperatorWorkflow';
@@ -2254,6 +2257,62 @@ function buildParallelPreviewHtml(
     line-height: 1.45;
     overflow-wrap: anywhere;
   }
+  .pg-host-scheduler-binding-section {
+    display: grid;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid rgba(163, 218, 255, 0.12);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.12);
+  }
+  .pg-host-scheduler-binding-section[data-pg-binding-ok="true"] {
+    border-color: rgba(95, 224, 170, 0.16);
+  }
+  .pg-host-scheduler-binding-section[data-pg-binding-ok="false"] {
+    border-color: rgba(255, 178, 166, 0.22);
+  }
+  .pg-host-scheduler-binding-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .pg-host-scheduler-binding-title {
+    margin: 0;
+    color: #f8f4ef;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+  .pg-host-scheduler-binding-meta {
+    margin: 2px 0 0;
+    color: rgba(248, 244, 239, 0.62);
+    font-size: 0.68rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-scheduler-binding-task-list {
+    display: grid;
+    gap: 7px;
+  }
+  .pg-host-scheduler-binding-task {
+    display: grid;
+    gap: 5px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .pg-host-scheduler-binding-task-title {
+    margin: 0;
+    color: rgba(248, 244, 239, 0.82);
+    font-size: 0.7rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+  .pg-host-scheduler-binding-ref-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
   .pg-host-scheduler-action-result {
     display: grid;
     gap: 7px;
@@ -2665,6 +2724,7 @@ function buildParallelPreviewHtml(
         action,
         artifactId: target.dataset.pgArtifactId || '',
         version: target.dataset.pgVersion || '',
+        inspectBindingRefs: target.dataset.pgInspectBindingRefs === 'true',
         evidencePath,
         confirmed: cleanupConfirmed,
         ...workflowPayload,
@@ -4017,6 +4077,8 @@ function buildSchedulerOperatorCandidate(
     candidate.latestAdmissionStatus ? `latest=${candidate.latestAdmissionStatus}` : '',
     candidate.batchId ? `batch=${candidate.batchId}` : '',
   ].filter(Boolean).join(' · ');
+  const bindingVisibility = buildSchedulerOperatorCandidateBindingVisibility(candidate);
+  const inspectBindingRefs = candidate.bindingReferenceReadiness ? 'true' : 'false';
   return `<article class="pg-host-scheduler-candidate">
     <div class="pg-host-scheduler-candidate-head">
       <div>
@@ -4031,11 +4093,114 @@ function buildSchedulerOperatorCandidate(
           data-pg-scheduler-action="admit"
           data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
           data-pg-version="${escapeHtml(candidate.version)}"
+          data-pg-inspect-binding-refs="${inspectBindingRefs}"
           ${actionRunning || alreadyAdmitted ? 'disabled' : ''}
         >${alreadyAdmitted ? 'Admitted' : 'Admit'}</button>
       </div>
     </div>
+    ${bindingVisibility}
   </article>`;
+}
+
+function buildSchedulerOperatorCandidateBindingVisibility(
+  candidate: SchedulerOperatorExchangeCandidate,
+): string {
+  const sections = [
+    buildSchedulerBindingReferenceSummarySection(
+      'Binding readiness',
+      candidate.bindingReferenceReadiness,
+      'current exact-version preflight',
+    ),
+    buildSchedulerBindingReferenceSummarySection(
+      'Latest binding admission',
+      candidate.latestBindingReferenceSummary,
+      'latest ledger compact summary',
+    ),
+  ].filter(Boolean).join('');
+  return sections
+    ? `<div class="pg-host-scheduler-binding-visibility">${sections}</div>`
+    : '';
+}
+
+function buildSchedulerBindingReferenceSummarySection(
+  title: string,
+  summary: SchedulerOperatorBindingReferenceSummary | null,
+  subtitle: string,
+): string {
+  if (!summary) {
+    return '';
+  }
+  const badgeStatus = summary.ok ? 'ok' : 'failed';
+  const statusLabel = summary.status || (summary.ok ? 'ok' : 'not ok');
+  const meta = [
+    subtitle,
+    `${summary.bindingRefCount} binding ref(s)`,
+    `${summary.checkedRefCount} checked`,
+    summary.errorCount ? `${summary.errorCount} error(s)` : '',
+    summary.ledgerId ? `ledger=${summary.ledgerId}` : '',
+    summary.actor ? `actor=${summary.actor}` : '',
+    summary.rawEvidenceJsonRead ? 'raw evidence read=true' : 'raw evidence read=false',
+  ].filter(Boolean).join(' · ');
+  const taskRows = summary.tasks.length
+    ? `<div class="pg-host-scheduler-binding-task-list">${summary.tasks.map(buildSchedulerBindingReferenceTaskRow).join('')}</div>`
+    : '';
+  const errors = summary.errors.length || summary.errorSummary
+    ? buildHostEvidenceChipGroup('Binding errors', [
+      ...summary.errors,
+      summary.errorSummary,
+    ].filter(Boolean))
+    : '';
+  return `<section class="pg-host-scheduler-binding-section" data-pg-binding-section="${escapeHtml(title)}" data-pg-binding-ok="${summary.ok ? 'true' : 'false'}">
+    <div class="pg-host-scheduler-binding-head">
+      <div>
+        <h4 class="pg-host-scheduler-binding-title">${escapeHtml(title)}</h4>
+        <p class="pg-host-scheduler-binding-meta">${escapeHtml(meta)}</p>
+      </div>
+      <span class="pg-host-evidence-badge" data-pg-evidence-status="${escapeHtml(badgeStatus)}">${escapeHtml(statusLabel)}</span>
+    </div>
+    ${taskRows}
+    ${errors}
+  </section>`;
+}
+
+function buildSchedulerBindingReferenceTaskRow(
+  task: SchedulerOperatorBindingReferenceTaskSummary,
+): string {
+  const refs = task.bindingRefs.length
+    ? task.bindingRefs.map((ref) => buildSchedulerBindingReferenceChip('input', ref)).join('')
+    : '<span class="pg-host-evidence-chip"><span>input refs: none</span></span>';
+  const checked = task.checkedRefs.length
+    ? task.checkedRefs.map((ref) => buildSchedulerBindingReferenceChip('checked', ref)).join('')
+    : '<span class="pg-host-evidence-chip"><span>checked refs: none</span></span>';
+  const errors = task.errors.length
+    ? buildHostEvidenceChipGroup('Task binding errors', task.errors)
+    : '';
+  const taskMeta = [
+    `${task.bindingRefCount} input`,
+    `${task.checkedRefCount} checked`,
+    task.errorCount ? `${task.errorCount} error(s)` : '',
+  ].filter(Boolean).join(' · ');
+  return `<article class="pg-host-scheduler-binding-task" data-pg-binding-task-id="${escapeHtml(task.taskId)}">
+    <p class="pg-host-scheduler-binding-task-title">${escapeHtml(task.taskId || 'unknown task')}${task.title ? ` · ${escapeHtml(task.title)}` : ''}</p>
+    <p class="pg-host-scheduler-binding-meta">${escapeHtml(taskMeta)}</p>
+    <div class="pg-host-scheduler-binding-ref-row">${refs}</div>
+    <div class="pg-host-scheduler-binding-ref-row">${checked}</div>
+    ${errors}
+  </article>`;
+}
+
+function buildSchedulerBindingReferenceChip(
+  prefix: string,
+  ref: SchedulerOperatorBindingReference,
+): string {
+  const version = ref.version ? `@${ref.version}` : '';
+  const path = ref.path ? ` · ${ref.path}` : '';
+  const label = [
+    `${prefix}: ${ref.refKind || 'ref'}`,
+    `${ref.refId || 'unknown'}${version}`,
+    ref.label,
+  ].filter(Boolean).join(' · ');
+  return `<span class="pg-host-evidence-chip"><span>${escapeHtml(`${label}${path}`)}</span></span>`;
 }
 
 function buildCompanionCard(state: ProgressGraphPreviewState): string {

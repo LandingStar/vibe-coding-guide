@@ -185,6 +185,7 @@
 
 ### Post-v1.0 工作（无 Phase 编号，按方向候选推进）
 
+- Host UX Binding Reference Visibility 完成：Scheduler Operator Host UX 现在从 `dbc://exchange-artifacts/bundle` 读取 compact `binding_reference_readiness` / `latest_binding_reference_summary`，候选卡片显示 `Binding readiness` 与 `Latest binding admission`，并在存在 binding readiness 时让 Admit 动作携带 `inspectBindingRefs=true`，复用 shared operator workflow 的 `--inspect-binding-refs` 路径；聚焦 extension/backend 验证和截图验证通过。
 - Exchange Store Binding Admission Summary Projection 完成：`inspect_exchange_artifact_store()` 现会在 admission candidate 上投影 compact `binding_reference_readiness` 与 `latest_binding_reference_summary`，CLI/MCP `dbc://exchange-artifacts/bundle` 和 operator workflow candidate bundle 可直接读到 binding readiness / latest admission summary；聚焦 runtime/CLI/MCP 验证通过。
 - Supervisor Storage Binding Consumer Fixture 完成：新增 deterministic `binding-consumer` scheduler operator fixture，可 seed compact supervisor storage binding artifact 与 consuming scheduler submission，并通过 `schedulerOperatorWorkflow(inspectBindingRefs=true, admit=true)` 验证 admission ledger `binding_reference_summary` readback；聚焦 runtime/CLI/MCP/prompt 验证通过。
 - Payload + Handoff Footprint Controlled Dogfood 完成：baseline `StubWorker` payload path 与 latest handoff footprint 恢复面在 controlled dogfood 中可一起成立；live DashScope `LLMWorker` 返回 schema-valid `completed` report，但真实 payload candidate 仍会漂移到 schema 不接受的枚举值（如 `upsert`、`text/markdown`），因此被保守归一化层丢弃；结果已记录到 `review/payload-handoff-footprint-controlled-dogfood-2026-04-16.md`
