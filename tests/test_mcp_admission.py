@@ -281,6 +281,7 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         assert "schedulerOperatorWorkflow" in names
         workflow_tool = next(tool for tool in tools if tool.name == "schedulerOperatorWorkflow")
         assert "admit" in workflow_tool.inputSchema["properties"]
+        assert "inspectBindingRefs" in workflow_tool.inputSchema["properties"]
         assert "runLoop" in workflow_tool.inputSchema["properties"]
         assert "refreshProjection" in workflow_tool.inputSchema["properties"]
 
@@ -316,6 +317,47 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         assert payload["projection_result"]["lane_count"] == 4
         assert payload["projection_result"]["event_count"] == 6
         assert payload["host_evidence_presentation"]["card_count"] == 1
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_operator_workflow_inspects_binding_refs(tmp_path: Path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    _write_binding_ref_submission_artifacts(
+        store_path,
+        artifact_id="submission:mcp-operator-binding",
+        binding_ref_id="binding:mcp-operator",
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorWorkflow",
+                    arguments={
+                        "artifactId": "submission:mcp-operator-binding",
+                        "version": "v1",
+                        "inspectBindingRefs": True,
+                        "admit": True,
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+        assert payload["ok"] is True
+        assert payload["steps"][1]["name"] == "inspectBindingRefs"
+        assert payload["steps"][1]["status"] == "completed"
+        assert payload["binding_reference_inspection"]["ok"] is True
+        assert payload["binding_reference_inspection"]["tasks"][0]["binding_refs"][0][
+            "ref_id"
+        ] == "binding:mcp-operator"
+        assert payload["admission_result"]["submitted_task_ids"] == [
+            "task-mcp-binding-inspect",
+        ]
+        assert payload["authority_split"]["scheduler_state_mutated"] is True
+        assert payload["authority_split"]["provider_executed"] is False
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())

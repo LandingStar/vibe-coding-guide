@@ -140,6 +140,7 @@ def test_scheduler_operator_workflow_help_describes_opt_in_mutation() -> None:
     proc = _run_cli(["scheduler", "operator-workflow", "--help"])
 
     assert proc.returncode == 0
+    assert "--inspect-binding-refs" in proc.stdout
     assert "--admit" in proc.stdout
     assert "--run-loop" in proc.stdout
     assert "--refresh-projection" in proc.stdout
@@ -922,6 +923,107 @@ def test_scheduler_operator_workflow_cli_runs_shared_surface(tmp_path) -> None:
     assert payload["authority_split"]["scheduler_projection_refreshed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (project / ".codex" / "scheduler" / "evidence" / "operator-workflow-cli.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_cli_inspects_binding_refs_before_admission(
+    tmp_path,
+) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="binding:operator-cli",
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:operator-cli",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:operator-cli",
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-operator-cli-binding",
+                title="Operator CLI binding task",
+                instruction="Admit after workflow binding inspection.",
+                agent=AgentSpec(agent_id="agent:operator-cli", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:operator-cli"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:operator-cli",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:operator-cli-binding",
+            version="v1",
+        )
+    )
+
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "submission:operator-cli-binding",
+            "--version",
+            "v1",
+            "--inspect-binding-refs",
+            "--admit",
+        ],
+        cwd=project,
+    )
+
+    assert workflow.returncode == 0, workflow.stderr
+    payload = json.loads(workflow.stdout)
+    assert [step["name"] for step in payload["steps"]] == [
+        "inspectCandidates",
+        "inspectBindingRefs",
+        "admit",
+        "runLoop",
+        "refreshProjection",
+        "readHostEvidencePresentation",
+    ]
+    assert payload["binding_reference_inspection"]["ok"] is True
+    assert payload["binding_reference_inspection"]["binding_ref_count"] == 1
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "task-operator-cli-binding",
+    ]
+    assert payload["request"]["inspect_binding_refs"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is False
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 

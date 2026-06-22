@@ -21,6 +21,7 @@ from src.runtime.orchestration import (
     default_exchange_artifact_store_path,
     default_scheduler_loop_evidence_path,
     inspect_exchange_artifact_store,
+    inspect_supervisor_storage_binding_artifact_refs_for_submission,
     read_scheduler_state_snapshot,
     run_scheduler_daemon_loop,
     write_scheduler_loop_evidence,
@@ -55,6 +56,7 @@ class SchedulerOperatorWorkflowRequest:
     admit: bool = False
     run_loop: bool = False
     refresh_projection: bool = False
+    inspect_binding_refs: bool = False
     artifact_store_path: str | Path | None = None
     admission_ledger_path: str | Path | None = None
     snapshot_path: str | Path | None = None
@@ -112,6 +114,7 @@ class SchedulerOperatorWorkflowResult:
     evidence_id: str
     steps: tuple[SchedulerOperatorWorkflowStep, ...]
     candidate_bundle: Mapping[str, object]
+    binding_reference_inspection: Mapping[str, object] = field(default_factory=dict)
     admission_result: Mapping[str, object] = field(default_factory=dict)
     loop_result: Mapping[str, object] = field(default_factory=dict)
     projection_result: Mapping[str, object] = field(default_factory=dict)
@@ -168,6 +171,7 @@ class SchedulerOperatorWorkflowResult:
                 "admit": self.request.admit,
                 "run_loop": self.request.run_loop,
                 "refresh_projection": self.request.refresh_projection,
+                "inspect_binding_refs": self.request.inspect_binding_refs,
                 "runtime_provider": self.request.runtime_provider,
                 "max_ticks": self.request.max_ticks,
                 "max_runs_per_tick": self.request.max_runs_per_tick,
@@ -179,6 +183,7 @@ class SchedulerOperatorWorkflowResult:
             },
             "steps": [step.to_json_dict() for step in self.steps],
             "candidate_bundle": dict(self.candidate_bundle),
+            "binding_reference_inspection": dict(self.binding_reference_inspection),
             "admission_result": dict(self.admission_result),
             "loop_result": dict(self.loop_result),
             "projection_result": dict(self.projection_result),
@@ -195,6 +200,7 @@ def run_scheduler_operator_workflow(
     paths = _ResolvedSchedulerOperatorWorkflowPaths.from_request(request)
     steps: list[SchedulerOperatorWorkflowStep] = []
     candidate_bundle: Mapping[str, object] = {}
+    binding_reference_inspection: Mapping[str, object] = {}
     admission_result: Mapping[str, object] = {}
     loop_result: Mapping[str, object] = {}
     projection_result: Mapping[str, object] = {}
@@ -223,11 +229,69 @@ def run_scheduler_operator_workflow(
             )
         )
 
+    inspection_failed = False
+    if request.inspect_binding_refs:
+        if _has_failed(steps):
+            inspection_failed = True
+            steps.append(_skipped("inspectBindingRefs", "candidate inspection failed"))
+        elif not request.artifact_id or not request.version:
+            inspection_failed = True
+            steps.append(
+                SchedulerOperatorWorkflowStep(
+                    name="inspectBindingRefs",
+                    status="failed",
+                    error=(
+                        "scheduler operator workflow inspectBindingRefs requires "
+                        "artifactId and version."
+                    ),
+                )
+            )
+        else:
+            try:
+                inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+                    artifact_store_path=paths.artifact_store_path,
+                    artifact_id=request.artifact_id,
+                    version=request.version,
+                )
+                binding_reference_inspection = inspection.to_json_dict()
+                inspection_failed = not bool(binding_reference_inspection.get("ok"))
+                steps.append(
+                    SchedulerOperatorWorkflowStep(
+                        name="inspectBindingRefs",
+                        status="completed" if not inspection_failed else "failed",
+                        mutated=False,
+                        error=(
+                            ""
+                            if not inspection_failed
+                            else str(
+                                binding_reference_inspection.get(
+                                    "errors",
+                                    ["binding reference inspection failed"],
+                                )[0]
+                            )
+                        ),
+                        result=binding_reference_inspection,
+                    )
+                )
+            except Exception as exc:
+                inspection_failed = True
+                steps.append(
+                    SchedulerOperatorWorkflowStep(
+                        name="inspectBindingRefs",
+                        status="failed",
+                        error=str(exc),
+                    )
+                )
     admission_failed = False
     if request.admit:
         if _has_failed(steps):
             admission_failed = True
-            steps.append(_skipped("admit", "candidate inspection failed"))
+            reason = (
+                "binding reference inspection failed"
+                if inspection_failed
+                else "candidate inspection failed"
+            )
+            steps.append(_skipped("admit", reason))
         elif not request.artifact_id or not request.version:
             admission_failed = True
             steps.append(
@@ -247,6 +311,7 @@ def run_scheduler_operator_workflow(
                 admission_ledger_path=paths.admission_ledger_path,
                 allow_duplicate_admission=request.allow_duplicate_admission,
                 replace_existing=request.replace_existing,
+                validate_binding_artifact_refs=request.inspect_binding_refs,
                 actor=request.actor or "operator-workflow",
                 surface="operator-workflow:scheduler",
                 timestamp=request.timestamp,
@@ -376,6 +441,7 @@ def run_scheduler_operator_workflow(
         evidence_id=paths.evidence_id,
         steps=tuple(steps),
         candidate_bundle=candidate_bundle,
+        binding_reference_inspection=binding_reference_inspection,
         admission_result=admission_result,
         loop_result=loop_result,
         projection_result=projection_result,

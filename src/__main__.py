@@ -364,7 +364,8 @@ _SCHEDULER_SEED_DOGFOOD_FIXTURE_USAGE = (
 
 _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "Usage: doc-based-coding scheduler operator-workflow "
-    "[--artifact-id ID --version VERSION] [--admit] [--run-loop] [--refresh-projection] "
+    "[--artifact-id ID --version VERSION] [--inspect-binding-refs] "
+    "[--admit] [--run-loop] [--refresh-projection] "
     "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
     "[--snapshot-path PATH] [--event-log-path PATH] [--merge-gate-event-log-path PATH] "
     "[--projection-output-path PATH] [--evidence-id ID] [--evidence-path PATH] "
@@ -734,9 +735,11 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
         print(
             _SCHEDULER_OPERATOR_WORKFLOW_USAGE + "\n\n"
             "This is a shared host/operator workflow surface. It always inspects "
-            "candidates and Host Evidence presentation, but scheduler mutations are "
-            "opt-in through --admit, --run-loop, and --refresh-projection. It does "
-            "not mutate agent-owned Local Work Trajectory.",
+            "candidates and Host Evidence presentation. --inspect-binding-refs "
+            "adds a read-only supervisor storage binding reference check before "
+            "admission. Scheduler mutations are opt-in through --admit, "
+            "--run-loop, and --refresh-projection. It does not mutate agent-owned "
+            "Local Work Trajectory.",
         )
         return 0
 
@@ -759,6 +762,7 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
     admit = False
     run_loop = False
     refresh_projection = False
+    inspect_binding_refs = False
     allow_duplicate_admission = False
     replace_existing = False
     max_ticks = 3
@@ -770,6 +774,10 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
         arg = args[i]
         if arg == "--admit":
             admit = True
+            i += 1
+            continue
+        if arg == "--inspect-binding-refs":
+            inspect_binding_refs = True
             i += 1
             continue
         if arg == "--run-loop":
@@ -888,6 +896,7 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
                 admit=admit,
                 run_loop=run_loop,
                 refresh_projection=refresh_projection,
+                inspect_binding_refs=inspect_binding_refs,
                 artifact_store_path=artifact_store_path or None,
                 admission_ledger_path=admission_ledger_path or None,
                 snapshot_path=snapshot_path or None,

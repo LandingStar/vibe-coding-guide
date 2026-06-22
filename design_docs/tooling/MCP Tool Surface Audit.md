@@ -175,11 +175,12 @@
 
 | Tool Name | 参数 | 核心职责 | 领域 |
 |-----------|------|---------|------|
-| `schedulerOperatorWorkflow` | `artifactId`, `version`, `admit`, `runLoop`, `refreshProjection`, `artifactStorePath`, `admissionLedgerPath`, `snapshotPath`, `eventLogPath`, `mergeGateEventLogPath`, `projectionOutputPath`, `evidenceId`, `evidencePath`, `runtimeProvider`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `allowDuplicateAdmission`, `replaceExisting`, `actor`, `timestamp`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 共享显式 operator workflow：读取 ExchangeArtifact admission candidates，按 opt-in flag admit exact artifact/version、运行 bounded fake scheduler loop 并写 evidence、刷新 scheduler projection，然后读取 Host Evidence presentation；返回 per-step status | 调度 operator workflow / Host UX 收敛 |
+| `schedulerOperatorWorkflow` | `artifactId`, `version`, `inspectBindingRefs`, `admit`, `runLoop`, `refreshProjection`, `artifactStorePath`, `admissionLedgerPath`, `snapshotPath`, `eventLogPath`, `mergeGateEventLogPath`, `projectionOutputPath`, `evidenceId`, `evidencePath`, `runtimeProvider`, `maxTicks`, `maxRunsPerTick`, `maxRuntimeFailures`, `allowDuplicateAdmission`, `replaceExisting`, `actor`, `timestamp`, `guideContext`, `sourceGraphId`, `sourceNodeId` | 共享显式 operator workflow：读取 ExchangeArtifact admission candidates，可按 opt-in flag 对 exact artifact/version 执行只读 supervisor storage binding refs inspection，再按 opt-in flag admit、运行 bounded fake scheduler loop 并写 evidence、刷新 scheduler projection，然后读取 Host Evidence presentation；返回 per-step status | 调度 operator workflow / Host UX 收敛 |
 
 合并判断：
 
 - 不替代 `admitExchangeArtifact`：`schedulerOperatorWorkflow` 是组合型 operator surface；`admitExchangeArtifact` 仍是精确 admission 的最小写工具。
+- 不替代 `schedulerBindingReferenceInspect`：统一 workflow 的 `inspectBindingRefs` 是 admission 前组合步骤；单独 read-only binding-ref inspection 仍保留为低层检查面。
 - 不替代 `schedulerProjection`：统一 workflow 的 projection 步骤是 opt-in 串联动作；单独刷新 projection 仍需要保持独立只读投影写面。
 - 不替代 `schedulerRunOnceAndProject`：统一 workflow 走 bounded daemon-loop + evidence readback 产品路径；`schedulerRunOnceAndProject` 仍是早期 one-pass fake-runtime smoke surface。
 - 不并入 `localTrajectory`：统一 workflow 只写 scheduler-owned snapshot/event-log、admission ledger、scheduler-loop evidence 与 scheduler-derived projection artifact；不会写 agent-owned `.codex/progress-graph/local-work-trajectory.json`。

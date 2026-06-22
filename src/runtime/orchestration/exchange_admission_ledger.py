@@ -294,6 +294,7 @@ def admit_exchange_artifact_version_with_ledger(
     admission_ledger_path: str | Path,
     allow_duplicate_admission: bool = False,
     replace_existing: bool = False,
+    validate_binding_artifact_refs: bool = False,
     actor: str = "operator",
     surface: str = "runtime:admit_exchange_artifact_version_with_ledger",
     timestamp: str = "",
@@ -378,6 +379,7 @@ def admit_exchange_artifact_version_with_ledger(
             event_log_path=event_log,
             replace_existing=replace_existing,
             timestamp=timestamp,
+            validate_binding_artifact_refs=validate_binding_artifact_refs,
         )
     except Exception as exc:
         try:

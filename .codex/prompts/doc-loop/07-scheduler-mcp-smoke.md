@@ -84,7 +84,9 @@ Keep the lifecycle split:
    `run_scheduler_operator_workflow()` when a Codex/MCP/Host UX caller needs
    one explicit contract over candidate inspection, exact admission, bounded
    fake loop evidence, scheduler projection refresh, and Host Evidence
-   presentation readback. Mutating steps remain opt-in through
+   presentation readback. Use `inspectBindingRefs=true` /
+   `--inspect-binding-refs` to include read-only supervisor storage binding
+   reference inspection before admission. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
 18. Scheduler daemon lifecycle control uses
    `doc-based-coding scheduler lifecycle <action>` or
@@ -497,29 +499,35 @@ doc-based-coding scheduler project ...
 
 Prefer `schedulerOperatorWorkflow` or `doc-based-coding scheduler
 operator-workflow` when the current gate wants the complete operator sequence
-through one shared contract. Prefer the lower-level commands/tools when the
-gate is specifically validating an individual lifecycle step.
+through one shared contract. Include `inspectBindingRefs=true` or
+`--inspect-binding-refs` when the same workflow payload should show
+supervisor storage binding readiness before explicit admission. Prefer the
+lower-level commands/tools when the gate is specifically validating an
+individual lifecycle step.
 Prefer `schedulerSupervisorDogfoodWorkflow` or `doc-based-coding scheduler
 supervisor-dogfood-workflow` when the current gate wants the complete
 supervisor sequence through seed, exact admission, lifecycle start, supervisor
 step, and final readback.
 Prefer `schedulerBindingReferenceInspect` or `doc-based-coding scheduler
 inspect-binding-refs` before admission when the candidate task consumes
-`supervisor_storage_binding_artifact` refs.
+`supervisor_storage_binding_artifact` refs and the inspection is intentionally
+separate from the shared operator workflow.
 
 Expected shared workflow behavior:
 
 1. Default mode is read-only: inspect candidates and read Host Evidence
    presentation.
-2. `admit=true` / `--admit` admits one exact artifact/version and writes the
+2. `inspectBindingRefs=true` / `--inspect-binding-refs` reads the same exact
+   artifact/version and returns binding-ref readiness without mutation.
+3. `admit=true` / `--admit` admits one exact artifact/version and writes the
    admission ledger.
-3. `runLoop=true` / `--run-loop` runs only the bounded fake scheduler loop and
+4. `runLoop=true` / `--run-loop` runs only the bounded fake scheduler loop and
    writes scheduler-loop evidence.
-4. `refreshProjection=true` / `--refresh-projection` refreshes only the
+5. `refreshProjection=true` / `--refresh-projection` refreshes only the
    scheduler-derived projection artifact.
-5. Per-step status is returned in `steps[]`; failed admission skips dependent
-   loop/projection steps.
-6. The shared workflow does not run live providers, start a background daemon,
+6. Per-step status is returned in `steps[]`; failed inspection or admission
+   skips dependent admission/loop/projection steps.
+7. The shared workflow does not run live providers, start a background daemon,
    mark ExchangeArtifacts consumed, or mutate
    `.codex/progress-graph/local-work-trajectory.json`.
 

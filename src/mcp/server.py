@@ -1132,11 +1132,13 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 name="schedulerOperatorWorkflow",
                 description=(
                     "Run the explicit shared scheduler operator workflow: inspect "
-                    "ExchangeArtifact scheduler-admission candidates, optionally admit "
-                    "one exact artifact version, optionally run a bounded fake-runtime "
-                    "scheduler loop with durable evidence, optionally refresh the "
-                    "scheduler-derived projection, then read Host Evidence presentation. "
-                    "Mutating steps are opt-in via admit/runLoop/refreshProjection; "
+                    "ExchangeArtifact scheduler-admission candidates, optionally inspect "
+                    "supervisor storage binding refs for one exact artifact version, "
+                    "optionally admit that exact artifact version, optionally run a "
+                    "bounded fake-runtime scheduler loop with durable evidence, "
+                    "optionally refresh the scheduler-derived projection, then read "
+                    "Host Evidence presentation. Mutating steps are opt-in via "
+                    "admit/runLoop/refreshProjection; "
                     "this does not mutate agent-owned Local Work Trajectory."
                 ),
                 inputSchema={
@@ -1153,6 +1155,13 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         "admit": {
                             "type": "boolean",
                             "description": "Whether to admit the exact artifact/version. Default false.",
+                        },
+                        "inspectBindingRefs": {
+                            "type": "boolean",
+                            "description": (
+                                "Whether to run read-only supervisor storage binding "
+                                "reference inspection before admission. Default false."
+                            ),
                         },
                         "runLoop": {
                             "type": "boolean",
@@ -1962,6 +1971,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 admit=arguments.get("admit", False),
                 run_loop=arguments.get("runLoop", False),
                 refresh_projection=arguments.get("refreshProjection", False),
+                inspect_binding_refs=arguments.get("inspectBindingRefs", False),
                 artifact_store_path=arguments.get("artifactStorePath", ""),
                 admission_ledger_path=arguments.get("admissionLedgerPath", ""),
                 snapshot_path=arguments.get("snapshotPath", ""),

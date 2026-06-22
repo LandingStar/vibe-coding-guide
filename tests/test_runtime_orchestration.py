@@ -4652,6 +4652,91 @@ def test_scheduler_operator_workflow_read_only_inspects_without_mutation(tmp_pat
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
+def test_scheduler_operator_workflow_inspects_binding_refs_without_mutation(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="binding:workflow",
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:workflow",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:workflow",
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-workflow-binding",
+                title="Workflow binding task",
+                instruction="Use the inspected binding artifact.",
+                agent=AgentSpec(agent_id="agent:workflow-binding", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:workflow-binding"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:workflow",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:workflow-binding",
+            version="v1",
+        )
+    )
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="submission:workflow-binding",
+            version="v1",
+            inspect_binding_refs=True,
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["name"] for step in payload["steps"]] == [
+        "inspectCandidates",
+        "inspectBindingRefs",
+        "admit",
+        "runLoop",
+        "refreshProjection",
+        "readHostEvidencePresentation",
+    ]
+    assert payload["steps"][1]["status"] == "completed"
+    assert payload["steps"][1]["mutated"] is False
+    assert payload["binding_reference_inspection"]["ok"] is True
+    assert payload["binding_reference_inspection"]["binding_ref_count"] == 1
+    assert payload["binding_reference_inspection"]["tasks"][0]["task_id"] == (
+        "task-workflow-binding"
+    )
+    assert payload["request"]["inspect_binding_refs"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert not snapshot_path.exists()
+    assert not ledger_path.exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
     seed_scheduler_operator_dogfood_fixture(tmp_path)
 
@@ -4702,6 +4787,79 @@ def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
     assert (tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-loop.json").exists()
     assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_inspect_binding_refs_then_admit(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="binding:workflow-admit",
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:workflow-admit",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:workflow-admit",
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-workflow-binding-admit",
+                title="Workflow binding admit task",
+                instruction="Admit only after binding refs are inspected.",
+                agent=AgentSpec(agent_id="agent:workflow-binding", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:workflow-binding"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:workflow-admit",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:workflow-binding-admit",
+            version="v1",
+        )
+    )
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="submission:workflow-binding-admit",
+            version="v1",
+            inspect_binding_refs=True,
+            admit=True,
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["steps"][1]["name"] == "inspectBindingRefs"
+    assert payload["steps"][1]["status"] == "completed"
+    assert payload["steps"][2]["name"] == "admit"
+    assert payload["steps"][2]["status"] == "completed"
+    assert payload["binding_reference_inspection"]["ok"] is True
+    assert payload["admission_result"]["submitted_task_ids"] == [
+        "task-workflow-binding-admit",
+    ]
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
 
 
 def test_scheduler_operator_workflow_full_multilane_dogfood_flow(tmp_path) -> None:
@@ -4805,6 +4963,64 @@ def test_scheduler_operator_workflow_duplicate_admission_stops_dependent_steps(t
     assert payload["authority_split"]["provider_executed"] is False
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert not (tmp_path / ".codex" / "scheduler" / "evidence" / "duplicate-should-not-run.json").exists()
+
+
+def test_scheduler_operator_workflow_binding_ref_failure_stops_dependents(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-workflow-missing-binding",
+                title="Workflow missing binding task",
+                instruction="This ref is missing and must stop admission.",
+                agent=AgentSpec(agent_id="agent:workflow-binding", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:workflow-binding"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:missing",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:workflow-missing-binding",
+            version="v1",
+        )
+    )
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="submission:workflow-missing-binding",
+            version="v1",
+            inspect_binding_refs=True,
+            admit=True,
+            run_loop=True,
+            refresh_projection=True,
+            evidence_id="binding-failure-should-not-run",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is False
+    assert payload["steps"][1]["name"] == "inspectBindingRefs"
+    assert payload["steps"][1]["status"] == "failed"
+    assert payload["steps"][2]["name"] == "admit"
+    assert payload["steps"][2]["status"] == "skipped"
+    assert payload["steps"][2]["error"] == "binding reference inspection failed"
+    assert payload["steps"][3]["name"] == "runLoop"
+    assert payload["steps"][3]["status"] == "skipped"
+    assert payload["steps"][4]["name"] == "refreshProjection"
+    assert payload["steps"][4]["status"] == "skipped"
+    assert payload["binding_reference_inspection"]["ok"] is False
+    assert "binding:missing" in payload["binding_reference_inspection"]["errors"][0]
+    assert payload["authority_split"]["admission_ledger_mutated"] is False
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert not (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert not (
+        tmp_path / ".codex" / "scheduler" / "evidence" / "binding-failure-should-not-run.json"
+    ).exists()
 
 
 def test_scheduler_supervisor_dogfood_workflow_full_simple_flow(tmp_path) -> None:
