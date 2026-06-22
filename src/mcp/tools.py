@@ -964,6 +964,60 @@ class GovernanceTools:
         )
         return inspection.to_json_dict()
 
+    def scheduler_storage_binding_artifact_publish(
+        self,
+        *,
+        evidence_path: str,
+        artifact_store_path: str = "",
+        artifact_id: str = "",
+        version: str = "v1",
+        producer: str = "",
+        audience: tuple[str, ...] = ("scheduler", "workspace-registration"),
+        created_at: str = "",
+        replace_existing: bool = False,
+    ) -> dict[str, Any]:
+        """Publish compact supervisor storage binding evidence to exchange."""
+
+        if not evidence_path:
+            return {
+                "ok": False,
+                "error": "schedulerStorageBindingArtifactPublish requires evidencePath.",
+            }
+        if not version:
+            return {
+                "ok": False,
+                "error": "schedulerStorageBindingArtifactPublish requires version.",
+            }
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            publish_supervisor_storage_binding_artifact_from_evidence,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+
+        result = publish_supervisor_storage_binding_artifact_from_evidence(
+            evidence_path=resolve_path(evidence_path),
+            artifact_store_path=store,
+            artifact_id=artifact_id,
+            version=version,
+            producer=producer,
+            audience=audience,
+            created_at=created_at,
+            replace_existing=replace_existing,
+        )
+        return result.to_json_dict()
+
     def scheduler_projection(
         self,
         *,

@@ -135,6 +135,7 @@ from src.runtime.orchestration import (
     mark_ready_tasks,
     mark_exchange_artifact_version_consumed,
     part_types,
+    publish_supervisor_storage_binding_artifact_from_evidence,
     qoder_runtime_capabilities,
     qoder_query_result_from_response,
     project_group_item_delivery_signal,
@@ -5696,6 +5697,83 @@ def test_supervisor_storage_binding_evidence_artifact_accepts_explicit_identity(
         "agent:supervisor-evidence",
     )
     assert validate_exchange_artifact(artifact) == ()
+
+
+def test_publish_supervisor_storage_binding_artifact_from_evidence(
+    tmp_path,
+) -> None:
+    summary, evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    store_path = tmp_path / "exchange-artifacts.json"
+
+    result = publish_supervisor_storage_binding_artifact_from_evidence(
+        evidence_path=evidence_path,
+        artifact_store_path=store_path,
+        artifact_id="artifact:binding-published",
+        version="v3",
+        producer="operator:publish",
+        audience=("scheduler", "workspace-registration", "agent:consumer"),
+        created_at="2026-06-22T08:00:00+00:00",
+    )
+
+    assert result.artifact_store_path == store_path
+    assert result.evidence_path == evidence_path
+    assert result.evidence_id == summary.evidence_id
+    assert result.artifact_id == "artifact:binding-published"
+    assert result.version == "v3"
+    assert result.producer == "operator:publish"
+    assert result.audience == (
+        "scheduler",
+        "workspace-registration",
+        "agent:consumer",
+    )
+    assert result.created_at == "2026-06-22T08:00:00+00:00"
+    assert result.replaced_existing is False
+    payload = result.to_json_dict()
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["scratch_manifest_written"] is False
+    assert payload["authority_split"]["raw_binding_payload_embedded_in_exchange"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    stored = JsonArtifactVersionStore(store_path).get(
+        "artifact:binding-published",
+        "v3",
+    )
+    structured = stored.artifact.parts[0].data
+    assert structured["product_type"] == SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
+    assert structured["evidence_id"] == summary.evidence_id
+    serialized = json.dumps(
+        exchange_artifact_to_json_dict(stored.artifact),
+        sort_keys=True,
+    )
+    assert '"binding"' not in serialized
+
+    with pytest.raises(ValueError, match="already exists"):
+        publish_supervisor_storage_binding_artifact_from_evidence(
+            evidence_path=evidence_path,
+            artifact_store_path=store_path,
+            artifact_id="artifact:binding-published",
+            version="v3",
+        )
+
+    replaced = publish_supervisor_storage_binding_artifact_from_evidence(
+        evidence_path=evidence_path,
+        artifact_store_path=store_path,
+        artifact_id="artifact:binding-published",
+        version="v3",
+        producer="operator:replace",
+        replace_existing=True,
+    )
+
+    assert replaced.replaced_existing is True
+    assert JsonArtifactVersionStore(store_path).get(
+        "artifact:binding-published",
+        "v3",
+    ).artifact.producer == "operator:replace"
 
 
 def test_supervisor_storage_binding_artifact_refs_validate_exact_version(tmp_path) -> None:

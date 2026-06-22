@@ -543,6 +543,13 @@ _SCHEDULER_INSPECT_BINDING_REFS_USAGE = (
     "--artifact-id ID --version VERSION [--artifact-store-path PATH]"
 )
 
+_SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE = (
+    "Usage: doc-based-coding scheduler publish-storage-binding-artifact "
+    "--evidence-path PATH [--artifact-store-path PATH] [--artifact-id ID] "
+    "[--version VERSION] [--producer ID] [--audience A[,B]] "
+    "[--created-at TIMESTAMP] [--replace-existing]"
+)
+
 _SCHEDULER_INSPECT_STATE_USAGE = (
     "Usage: doc-based-coding scheduler inspect-state --snapshot-path PATH "
     "[--event-log-path PATH] [--merge-gate-event-log-path PATH]"
@@ -667,6 +674,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n"
             "  inspect-admissions       Read ExchangeArtifact admission ledger summary without mutation\n"
             "  inspect-binding-refs     Read supervisor storage binding refs in one stored scheduler submission\n"
+            "  publish-storage-binding-artifact Publish compact supervisor storage binding evidence into ExchangeArtifact store\n"
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
             "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
@@ -688,6 +696,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_admissions(args[1:])
     if sub == "inspect-binding-refs":
         return cmd_scheduler_inspect_binding_refs(args[1:])
+    if sub == "publish-storage-binding-artifact":
+        return cmd_scheduler_publish_storage_binding_artifact(args[1:])
     if sub == "inspect-state":
         return cmd_scheduler_inspect_state(args[1:])
     if sub == "tick":
@@ -713,7 +723,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -2093,6 +2103,114 @@ def cmd_scheduler_inspect_binding_refs(args: list[str]) -> int:
     payload = inspection.to_json_dict()
     _print_json(payload)
     return 0 if inspection.ok else 1
+
+
+def cmd_scheduler_publish_storage_binding_artifact(args: list[str]) -> int:
+    """Publish compact supervisor storage binding evidence as an ExchangeArtifact."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE + "\n\n"
+            "This reads one durable supervisor storage binding evidence summary, "
+            "projects it into a compact ExchangeArtifact, and writes that exact "
+            "artifact version to the local ExchangeArtifact store. It does not "
+            "create agent home or scratch directories, write scratch manifests, "
+            "admit scheduler tasks, run providers, refresh projection, read raw "
+            "binding payloads into exchange artifacts, or mutate Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    evidence_path = ""
+    artifact_store_path = ""
+    artifact_id = ""
+    version = "v1"
+    producer = ""
+    audience = ("scheduler", "workspace-registration")
+    created_at = ""
+    replace_existing = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--evidence-path",
+            "--artifact-store-path",
+            "--artifact-id",
+            "--version",
+            "--producer",
+            "--audience",
+            "--created-at",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--producer":
+                producer = value
+            elif arg == "--audience":
+                audience = tuple(item.strip() for item in value.split(",") if item.strip())
+            elif arg == "--created-at":
+                created_at = value
+            i += 2
+            continue
+        print(
+            f"Unknown scheduler publish-storage-binding-artifact option: {arg}",
+            file=sys.stderr,
+        )
+        print(_SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE, file=sys.stderr)
+        return 1
+
+    if not evidence_path:
+        print(_SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE, file=sys.stderr)
+        print("Missing required option(s): --evidence-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            publish_supervisor_storage_binding_artifact_from_evidence,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = publish_supervisor_storage_binding_artifact_from_evidence(
+            evidence_path=_resolve_project_path(root, evidence_path),
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            producer=producer,
+            audience=audience,
+            created_at=created_at,
+            replace_existing=replace_existing,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error publishing supervisor storage binding artifact",
+            e,
+            category="scheduler_storage_binding_artifact_publish_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
 
 
 def cmd_scheduler_inspect_state(args: list[str]) -> int:

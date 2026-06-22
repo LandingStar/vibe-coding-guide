@@ -28,7 +28,10 @@ from src.runtime.orchestration import (
     ScheduledTask,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+    SupervisorAgentStorageBindingRequest,
     build_sandbox_allocation_receipt_evidence,
+    build_supervisor_agent_storage_binding,
+    build_supervisor_storage_binding_evidence,
     inspect_exchange_artifact_admission_ledger,
     inspect_exchange_artifact_store,
     read_scheduler_state_snapshot,
@@ -38,6 +41,7 @@ from src.runtime.orchestration import (
     seed_scheduler_operator_dogfood_fixture,
     seed_scheduler_operator_multilane_dogfood_fixture,
     submit_scheduler_task_with_persistence,
+    write_supervisor_storage_binding_evidence,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_state_snapshot,
 )
@@ -607,6 +611,100 @@ def test_mcp_scheduler_operator_dogfood_closure_rejects_live_provider(
         ).exists()
 
     asyncio.run(exercise_server())
+
+
+def test_mcp_server_exposes_and_routes_storage_binding_artifact_publish(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex" / "scheduler" / "evidence" / "binding.json"
+    binding = build_supervisor_agent_storage_binding(
+        SupervisorAgentStorageBindingRequest(
+            supervisor_id="supervisor:mcp",
+            session_id="session:mcp",
+            run_id="run:mcp",
+            host_id="host:mcp",
+            requested_by="operator:mcp",
+            agent_id="agent:mcp-binding",
+            context_session_id="context-session:mcp-binding",
+            created_at="2026-06-22T08:40:00+00:00",
+        ),
+        SchedulerState(),
+        source_snapshot_path=tmp_path / ".codex" / "scheduler" / "scheduler-state.json",
+    )
+    write_supervisor_storage_binding_evidence(
+        build_supervisor_storage_binding_evidence(
+            binding,
+            evidence_id="mcp-binding-evidence",
+            timestamp="2026-06-22T08:40:00+00:00",
+            metadata={"surface": "mcp-test"},
+        ),
+        evidence_path,
+    )
+    assert evidence_path.exists()
+
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerStorageBindingArtifactPublish" in names
+        publish_tool = next(
+            tool for tool in tools
+            if tool.name == "schedulerStorageBindingArtifactPublish"
+        )
+        assert "evidencePath" in publish_tool.inputSchema["properties"]
+        assert "replaceExisting" in publish_tool.inputSchema["properties"]
+        assert "ExchangeArtifact store" in publish_tool.description
+        assert "Local Work Trajectory" in publish_tool.description
+
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerStorageBindingArtifactPublish",
+                    arguments={
+                        "evidencePath": str(evidence_path),
+                        "artifactId": "artifact:mcp-binding",
+                        "version": "v4",
+                        "producer": "operator:mcp",
+                        "audience": [
+                            "scheduler",
+                            "workspace-registration",
+                            "agent:consumer",
+                        ],
+                        "createdAt": "2026-06-22T08:41:00+00:00",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["artifact_id"] == "artifact:mcp-binding"
+        assert payload["version"] == "v4"
+        assert payload["evidence_id"] == "mcp-binding-evidence"
+        assert payload["producer"] == "operator:mcp"
+        assert payload["audience"] == [
+            "scheduler",
+            "workspace-registration",
+            "agent:consumer",
+        ]
+        assert payload["authority_split"]["exchange_store_mutated"] is True
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert payload["authority_split"]["agent_home_directory_created"] is False
+        assert payload["authority_split"]["scratch_directories_created"] is False
+        assert payload["authority_split"]["raw_binding_payload_embedded_in_exchange"] is False
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+    asyncio.run(exercise_server())
+
+    stored = JsonArtifactVersionStore(
+        tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ).get("artifact:mcp-binding", "v4")
+    assert stored.artifact.parts[0].data["product_type"] == (
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
+    )
+    assert '"binding"' not in json.dumps(stored.artifact.parts[0].data, sort_keys=True)
 
 
 def test_mcp_exchange_artifacts_bundle_projects_binding_summary(

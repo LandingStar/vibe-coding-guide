@@ -9,6 +9,14 @@ from pathlib import Path
 
 import pytest
 
+from src.runtime.orchestration import (
+    SchedulerState,
+    SupervisorAgentStorageBindingRequest,
+    build_supervisor_agent_storage_binding,
+    build_supervisor_storage_binding_evidence,
+    write_supervisor_storage_binding_evidence,
+)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -96,6 +104,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "admit-exchange-artifact" in proc.stdout
     assert "inspect-admissions" in proc.stdout
     assert "inspect-binding-refs" in proc.stdout
+    assert "publish-storage-binding-artifact" in proc.stdout
     assert "inspect-state" in proc.stdout
     assert "tick" in proc.stdout
     assert "daemon-loop" in proc.stdout
@@ -130,6 +139,17 @@ def test_scheduler_cleanup_receipts_help_describes_explicit_cleanup() -> None:
     assert "--git-executable PATH" in proc.stdout
     assert "durable sandbox allocation receipt evidence" in proc.stdout
     assert "does not mutate scheduler state" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_publish_storage_binding_artifact_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "publish-storage-binding-artifact", "--help"])
+
+    assert proc.returncode == 0
+    assert "--evidence-path PATH" in proc.stdout
+    assert "--artifact-store-path PATH" in proc.stdout
+    assert "--replace-existing" in proc.stdout
+    assert "does not create agent home or scratch directories" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -1460,6 +1480,102 @@ def test_exchange_artifacts_bundle_cli_projects_binding_summary(
     assert "records" not in candidate
     assert "binding" not in latest
     assert bundle["authority_split"]["exchange_store_mutated"] is False
+
+
+def test_scheduler_publish_storage_binding_artifact_cli_publishes_evidence(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    evidence_path = project / ".codex" / "scheduler" / "evidence" / "binding.json"
+    binding = build_supervisor_agent_storage_binding(
+        SupervisorAgentStorageBindingRequest(
+            supervisor_id="supervisor:cli",
+            session_id="session:cli",
+            run_id="run:cli",
+            host_id="host:cli",
+            requested_by="operator:cli",
+            agent_id="agent:cli-binding",
+            context_session_id="context-session:cli-binding",
+            created_at="2026-06-22T08:30:00+00:00",
+        ),
+        SchedulerState(),
+        source_snapshot_path=project / ".codex" / "scheduler" / "scheduler-state.json",
+    )
+    write_supervisor_storage_binding_evidence(
+        build_supervisor_storage_binding_evidence(
+            binding,
+            evidence_id="cli-binding-evidence",
+            timestamp="2026-06-22T08:30:00+00:00",
+            metadata={"surface": "cli-test"},
+        ),
+        evidence_path,
+    )
+    publish = _run_cli(
+        [
+            "scheduler",
+            "publish-storage-binding-artifact",
+            "--evidence-path",
+            str(evidence_path),
+            "--artifact-id",
+            "artifact:cli-binding",
+            "--version",
+            "v5",
+            "--producer",
+            "operator:cli",
+            "--audience",
+            "scheduler,workspace-registration,agent:consumer",
+            "--created-at",
+            "2026-06-22T08:31:00+00:00",
+        ],
+        cwd=project,
+    )
+
+    assert publish.returncode == 0, publish.stderr
+    payload = json.loads(publish.stdout)
+    assert payload["artifact_id"] == "artifact:cli-binding"
+    assert payload["version"] == "v5"
+    assert payload["evidence_id"] == "cli-binding-evidence"
+    assert payload["producer"] == "operator:cli"
+    assert payload["audience"] == [
+        "scheduler",
+        "workspace-registration",
+        "agent:consumer",
+    ]
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["raw_binding_payload_embedded_in_exchange"] is False
+    store = json.loads(
+        (project / ".codex" / "orchestration" / "exchange-artifacts.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    record = store["records"][0]
+    assert record["artifact_id"] == "artifact:cli-binding"
+    assert record["version"] == "v5"
+    artifact = record["artifact"]
+    assert artifact["parts"][0]["data"]["product_type"] == (
+        "supervisor_storage_binding_artifact"
+    )
+    assert '"binding"' not in json.dumps(artifact, sort_keys=True)
+
+    duplicate = _run_cli(
+        [
+            "scheduler",
+            "publish-storage-binding-artifact",
+            "--evidence-path",
+            str(evidence_path),
+            "--artifact-id",
+            "artifact:cli-binding",
+            "--version",
+            "v5",
+        ],
+        cwd=project,
+    )
+    assert duplicate.returncode == 1
+    assert "already exists" in duplicate.stderr
 
 
 def test_scheduler_operator_multilane_dogfood_fixture_cli_runs_shared_surface(tmp_path) -> None:

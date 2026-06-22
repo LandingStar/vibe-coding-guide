@@ -46,35 +46,42 @@ Keep the lifecycle split:
    store, validate exact binding refs, and do not admit tasks, mutate scheduler
    state, write admission ledgers, read raw evidence JSON, refresh projection,
    or mutate Local Work Trajectory.
-9. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
+9. `schedulerStorageBindingArtifactPublish` and
+   `doc-based-coding scheduler publish-storage-binding-artifact` publish one
+   durable `supervisor_storage_binding_evidence` summary as a compact exact
+   version ExchangeArtifact. They mutate only the local ExchangeArtifact store;
+   they do not admit tasks, run providers, create agent home or scratch
+   directories, write scratch manifests, read raw binding payloads into
+   exchange artifacts, refresh projection, or mutate Local Work Trajectory.
+10. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
    for the local ExchangeArtifact admission ledger. It does not write scheduler
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
    When explicit binding-ref preflight was enabled during admission, ledger
    records include compact `binding_reference_summary` counts/errors without
    raw supervisor storage binding evidence JSON.
-10. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+11. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-11. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
+12. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
    surface. It runs one fake-runtime tick over scheduler snapshot/event-log
    state and does not refresh scheduler projection automatically.
-12. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
+13. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
    loop policy surface. It repeatedly calls the fake-runtime tick contract
    until max ticks, no-ready, blocked-task, or runtime-failure stop policy
    fires. It does not refresh scheduler projection automatically.
-13. `doc-based-coding scheduler project` is the CLI projection refresh surface
+14. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-14. Host-authorized runners use Python/host wiring through
+15. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-15. Host-injected daemon loops use Python/host wiring through
+16. Host-injected daemon loops use Python/host wiring through
    `HostSchedulerDaemonLoopRequest` plus
    `run_host_authorized_scheduler_daemon_loop()`. This is the path for
    repeated bounded mock-Qoder or future real-provider daemon-loop dogfood. It
    is not exposed as a real-provider CLI or MCP tool.
-16. Host loop projection workflow uses
+17. Host loop projection workflow uses
    `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` when a
    host-owned Python caller needs one compact workflow that runs the bounded
    daemon loop, preserves optional `scheduler_loop_evidence`, refreshes
@@ -82,7 +89,7 @@ Keep the lifecycle split:
    scheduler-derived trajectory summary. This is explicit host workflow
    composition, not scheduler-owned Local Work Trajectory mutation and not
    CLI/MCP real-provider exposure.
-17. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
+18. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
    `doc-based-coding scheduler operator-workflow`, or
    `run_scheduler_operator_workflow()` when a Codex/MCP/Host UX caller needs
    one explicit contract over candidate inspection, exact admission, bounded
@@ -91,7 +98,7 @@ Keep the lifecycle split:
    `--inspect-binding-refs` to include read-only supervisor storage binding
    reference inspection before admission. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
-18. Operator dogfood closure uses `schedulerOperatorDogfoodClosure`,
+19. Operator dogfood closure uses `schedulerOperatorDogfoodClosure`,
    `doc-based-coding scheduler operator-dogfood-closure`, or
    `run_scheduler_operator_dogfood_closure()` when the current gate needs the
    complete deterministic operator evidence closure in one call: seed fixture,
@@ -100,7 +107,7 @@ Keep the lifecycle split:
    refresh scheduler projection, and read Host Evidence presentation. It is
    fake-runtime-only and does not start services, execute cleanup, create agent
    home/scratch directories, or mutate agent-owned Local Work Trajectory.
-19. Scheduler daemon lifecycle control uses
+20. Scheduler daemon lifecycle control uses
    `doc-based-coding scheduler lifecycle <action>` or
    `schedulerLifecycleControl` for deterministic control-file operations:
    inspect, start, heartbeat, pause, resume, cancel, and shutdown. The MCP
@@ -499,6 +506,8 @@ schedulerOperatorWorkflow
 doc-based-coding scheduler operator-workflow ...
 schedulerSupervisorDogfoodWorkflow
 doc-based-coding scheduler supervisor-dogfood-workflow ...
+schedulerStorageBindingArtifactPublish
+doc-based-coding scheduler publish-storage-binding-artifact ...
 doc-based-coding resources read dbc://exchange-artifacts/bundle
 schedulerBindingReferenceInspect
 doc-based-coding scheduler inspect-binding-refs ...
@@ -526,6 +535,10 @@ Prefer `schedulerSupervisorDogfoodWorkflow` or `doc-based-coding scheduler
 supervisor-dogfood-workflow` when the current gate wants the complete
 supervisor sequence through seed, exact admission, lifecycle start, supervisor
 step, and final readback.
+Prefer `schedulerStorageBindingArtifactPublish` or `doc-based-coding scheduler
+publish-storage-binding-artifact` when a gate has a durable supervisor storage
+binding evidence file and needs to make its compact summary available as an
+exact-version ExchangeArtifact for downstream scheduler submissions.
 Prefer `schedulerBindingReferenceInspect` or `doc-based-coding scheduler
 inspect-binding-refs` before admission when the candidate task consumes
 `supervisor_storage_binding_artifact` refs and the inspection is intentionally

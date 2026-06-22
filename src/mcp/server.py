@@ -998,6 +998,57 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerStorageBindingArtifactPublish",
+                description=(
+                    "Publish one durable supervisor storage binding evidence summary "
+                    "as a compact exact-version ExchangeArtifact. Mutates only the "
+                    "local ExchangeArtifact store; does not admit scheduler tasks, "
+                    "run providers, create agent home or scratch directories, write "
+                    "scratch manifests, refresh projections, read raw binding payloads "
+                    "into exchange artifacts, or mutate agent-owned Local Work "
+                    "Trajectory / local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "evidencePath": {
+                            "type": "string",
+                            "description": "Durable supervisor storage binding evidence JSON path.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Optional output ExchangeArtifact id. Defaults from the evidence id.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Output ExchangeArtifact exact version. Default v1.",
+                        },
+                        "producer": {
+                            "type": "string",
+                            "description": "Optional producer id. Defaults from the evidence summary.",
+                        },
+                        "audience": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional artifact audience list. Defaults to scheduler and workspace-registration.",
+                        },
+                        "createdAt": {
+                            "type": "string",
+                            "description": "Optional artifact created_at timestamp. Defaults from the evidence summary.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace an existing exact artifact/version. Default false.",
+                        },
+                    },
+                    "required": ["evidencePath"],
+                },
+            ),
+            Tool(
                 name="schedulerRunOnceAndProject",
                 description=(
                     "Run one bounded persisted scheduler pass with the built-in fake runtime "
@@ -2075,6 +2126,19 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 artifact_id=arguments.get("artifactId", ""),
                 version=arguments.get("version", ""),
                 artifact_store_path=arguments.get("artifactStorePath", ""),
+            )
+        elif name == "schedulerStorageBindingArtifactPublish":
+            result = tools.scheduler_storage_binding_artifact_publish(
+                evidence_path=arguments.get("evidencePath", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", "v1"),
+                producer=arguments.get("producer", ""),
+                audience=tuple(arguments.get("audience", ()))
+                if arguments.get("audience")
+                else ("scheduler", "workspace-registration"),
+                created_at=arguments.get("createdAt", ""),
+                replace_existing=arguments.get("replaceExisting", False),
             )
         elif name == "schedulerRunOnceAndProject":
             result = tools.scheduler_run_once_and_project(

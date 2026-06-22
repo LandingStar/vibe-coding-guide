@@ -15,6 +15,7 @@ from .exchange import (
     ExchangeScope,
     VisibilityPolicy,
 )
+from .exchange_store import JsonArtifactVersionStore
 from .supervisor_storage_binding import SupervisorAgentStorageBinding
 
 SUPERVISOR_STORAGE_BINDING_EVIDENCE_PRODUCT_TYPE = (
@@ -172,6 +173,54 @@ class SupervisorStorageBindingEvidenceSummary:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SupervisorStorageBindingArtifactPublishResult:
+    """Result of publishing compact supervisor storage binding evidence to exchange."""
+
+    artifact_store_path: Path
+    evidence_path: Path
+    evidence_id: str
+    artifact_id: str
+    version: str
+    producer: str
+    audience: tuple[str, ...]
+    created_at: str
+    replaced_existing: bool = False
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible publish result."""
+
+        return {
+            "ok": True,
+            "artifact_store_path": str(self.artifact_store_path),
+            "evidence_path": str(self.evidence_path),
+            "evidence_id": self.evidence_id,
+            "artifact_id": self.artifact_id,
+            "version": self.version,
+            "producer": self.producer,
+            "audience": list(self.audience),
+            "created_at": self.created_at,
+            "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+            "schema_version": SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
+            "published": True,
+            "replaced_existing": self.replaced_existing,
+            "authority_split": {
+                "exchange_store_mutated": True,
+                "scheduler_state_mutated": False,
+                "admission_ledger_mutated": False,
+                "provider_executed": False,
+                "scheduler_projection_refreshed": False,
+                "agent_home_registration_persisted": False,
+                "agent_home_directory_created": False,
+                "scratch_directories_created": False,
+                "scratch_manifest_written": False,
+                "cleanup_executed": False,
+                "raw_binding_payload_embedded_in_exchange": False,
+                "local_work_trajectory_mutated": False,
+            },
+        }
+
+
 def default_supervisor_storage_binding_evidence_path(
     project_root: str | Path,
     evidence_id: str,
@@ -326,6 +375,60 @@ def supervisor_storage_binding_evidence_summary_to_artifact(
                 ),
             ),
         ),
+    )
+
+
+def publish_supervisor_storage_binding_artifact_from_evidence(
+    *,
+    evidence_path: str | Path,
+    artifact_store_path: str | Path,
+    artifact_id: str = "",
+    version: str = "v1",
+    producer: str = "",
+    audience: tuple[str, ...] = ("scheduler", "workspace-registration"),
+    created_at: str = "",
+    replace_existing: bool = False,
+) -> SupervisorStorageBindingArtifactPublishResult:
+    """Publish one compact supervisor storage binding evidence artifact.
+
+    This helper reads only the compact durable evidence summary, projects that
+    summary into an ExchangeArtifact, and writes the exact artifact/version to
+    the local ExchangeArtifact store. It does not create agent home or scratch
+    directories, write scratch manifests, admit scheduler tasks, run providers,
+    refresh projections, or mutate Local Work Trajectory.
+    """
+
+    if not version:
+        raise ValueError("supervisor storage binding artifact publish requires non-empty version")
+    target_store = Path(artifact_store_path)
+    summary = read_supervisor_storage_binding_evidence_summary(evidence_path)
+    publish_audience = _unique_non_empty(audience)
+    artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id=artifact_id,
+        version=version,
+        producer=producer,
+        audience=publish_audience or ("scheduler", "workspace-registration"),
+        created_at=created_at,
+    )
+    existing = any(
+        (record.artifact_id, record.version) == (artifact.artifact_id, artifact.version)
+        for record in JsonArtifactVersionStore(target_store).list_records()
+    )
+    JsonArtifactVersionStore(target_store).put(
+        artifact,
+        replace_existing=replace_existing,
+    )
+    return SupervisorStorageBindingArtifactPublishResult(
+        artifact_store_path=target_store,
+        evidence_path=summary.evidence_path,
+        evidence_id=summary.evidence_id,
+        artifact_id=artifact.artifact_id,
+        version=artifact.version,
+        producer=artifact.producer,
+        audience=artifact.audience,
+        created_at=artifact.created_at,
+        replaced_existing=existing and replace_existing,
     )
 
 
