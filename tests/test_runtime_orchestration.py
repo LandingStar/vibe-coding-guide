@@ -985,6 +985,97 @@ def test_exchange_artifact_store_inspection_projects_admission_state_from_ledger
     assert payload["authority_split"]["exchange_store_mutated"] is False
 
 
+def test_exchange_artifact_store_projects_binding_readiness_before_admission(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    seed_scheduler_operator_binding_consumer_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+    )
+
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    )
+    payload = bundle.to_json_dict()
+    summary = next(
+        item for item in payload["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    )
+    candidate = summary["admission_candidates"][0]
+    readiness = candidate["binding_reference_readiness"]
+
+    assert summary["admission_state"]["status"] == "not_admitted"
+    assert "latest_binding_reference_summary" not in candidate
+    assert readiness["enabled"] is True
+    assert readiness["ok"] is True
+    assert readiness["source_artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    assert readiness["submission_product_type"] == "scheduler_task_batch_submission"
+    assert readiness["task_count"] == 1
+    assert readiness["binding_ref_count"] == 1
+    assert readiness["checked_ref_count"] == 1
+    assert readiness["tasks"][0]["task_id"] == "dogfood:binding-consumer"
+    assert readiness["tasks"][0]["binding_refs"][0]["ref_id"] == (
+        "fixture:supervisor-storage-binding-dogfood"
+    )
+    assert readiness["raw_evidence_json_read"] is False
+    assert "binding" not in readiness
+    assert "records" not in candidate
+
+
+def test_exchange_artifact_store_projects_latest_binding_summary_after_admission(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    seed_scheduler_operator_binding_consumer_dogfood_fixture(
+        tmp_path,
+        artifact_store_path=store_path,
+    )
+    admitted = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="fixture:scheduler-operator-binding-consumer-dogfood",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        validate_binding_artifact_refs=True,
+        actor="agent:test",
+        surface="test:binding-summary-projection",
+    )
+
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    )
+    payload = bundle.to_json_dict()
+    summary = next(
+        item for item in payload["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    )
+    candidate = summary["admission_candidates"][0]
+    latest = candidate["latest_binding_reference_summary"]
+
+    assert admitted["ok"] is True
+    assert summary["admission_state"]["status"] == "admitted"
+    assert latest["ledger_id"] == admitted["admission_ledger_record_id"]
+    assert latest["status"] == "admitted"
+    assert latest["actor"] == "agent:test"
+    assert latest["surface"] == "test:binding-summary-projection"
+    assert latest["enabled"] is True
+    assert latest["ok"] is True
+    assert latest["binding_ref_count"] == 1
+    assert latest["checked_ref_count"] == 1
+    assert latest["tasks"][0]["task_id"] == "dogfood:binding-consumer"
+    assert latest["raw_evidence_json_read"] is False
+    assert "binding" not in latest
+    assert "records" not in candidate
+
+
 def test_exchange_artifact_store_inspection_isolates_malformed_admission_ledger(tmp_path) -> None:
     store_path = tmp_path / "exchange-artifacts.json"
     ledger_path = tmp_path / "exchange-artifact-admissions.json"

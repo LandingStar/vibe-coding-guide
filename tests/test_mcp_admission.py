@@ -444,6 +444,13 @@ def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
         summary = readback["records"][0]["binding_reference_summary"]
 
         assert payload["ok"] is True
+        candidate_summary = next(
+            item for item in payload["candidate_bundle"]["summaries"]
+            if item["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+        )
+        candidate = candidate_summary["admission_candidates"][0]
+        assert candidate["binding_reference_readiness"]["ok"] is True
+        assert candidate["binding_reference_readiness"]["binding_ref_count"] == 1
         assert payload["binding_reference_inspection"]["ok"] is True
         assert payload["binding_reference_inspection"]["binding_ref_count"] == 1
         assert payload["binding_reference_inspection"]["tasks"][0]["binding_refs"][0][
@@ -461,6 +468,43 @@ def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
         assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
+
+
+def test_mcp_exchange_artifacts_bundle_projects_binding_summary(
+    tmp_path: Path,
+) -> None:
+    seed_scheduler_operator_binding_consumer_dogfood_fixture(tmp_path)
+    tools = GovernanceTools(tmp_path, dry_run=True)
+    workflow = tools.scheduler_operator_workflow(
+        artifact_id="fixture:scheduler-operator-binding-consumer-dogfood",
+        version="v1",
+        inspect_binding_refs=True,
+        admit=True,
+    )
+    bundle_text = tools.read_resource("dbc://exchange-artifacts/bundle")
+
+    assert workflow["ok"] is True
+    assert isinstance(bundle_text, str)
+    bundle = json.loads(bundle_text)
+    summary = next(
+        item for item in bundle["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    )
+    candidate = summary["admission_candidates"][0]
+    readiness = candidate["binding_reference_readiness"]
+    latest = candidate["latest_binding_reference_summary"]
+
+    assert readiness["ok"] is True
+    assert readiness["checked_ref_count"] == 1
+    assert latest["status"] == "admitted"
+    assert latest["ok"] is True
+    assert latest["tasks"][0]["binding_refs"][0]["ref_id"] == (
+        "fixture:supervisor-storage-binding-dogfood"
+    )
+    assert latest["raw_evidence_json_read"] is False
+    assert "records" not in candidate
+    assert "binding" not in latest
+    assert bundle["authority_split"]["local_work_trajectory_mutated"] is False
 
 
 def test_governance_tools_scheduler_lifecycle_control_and_run_once(tmp_path: Path) -> None:

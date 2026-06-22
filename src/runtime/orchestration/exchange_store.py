@@ -71,11 +71,13 @@ class ExchangeArtifactAdmissionCandidate:
     batch_id: str = ""
     task_count: int = 0
     error: str = ""
+    binding_reference_readiness: Mapping[str, object] | None = None
+    latest_binding_reference_summary: Mapping[str, object] | None = None
 
     def to_json_dict(self) -> dict[str, object]:
         """Return a compact JSON-compatible inspection payload."""
 
-        return {
+        payload: dict[str, object] = {
             "product_type": self.product_type,
             "artifact_id": self.artifact_id,
             "version": self.version,
@@ -86,6 +88,15 @@ class ExchangeArtifactAdmissionCandidate:
             "task_count": self.task_count,
             "error": self.error,
         }
+        if self.binding_reference_readiness:
+            payload["binding_reference_readiness"] = dict(
+                self.binding_reference_readiness
+            )
+        if self.latest_binding_reference_summary:
+            payload["latest_binding_reference_summary"] = dict(
+                self.latest_binding_reference_summary
+            )
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -567,8 +578,12 @@ def build_exchange_artifact_inspection_bundle(
         _summarize_artifact_record(
             record,
             latest=latest_keys.get(record.artifact_id) == record.version,
+            store_path=store_path,
             admission_state=_build_admission_state_projection(
                 tuple(records_by_key.get((record.artifact_id, record.version), ()))
+            ),
+            admission_records=tuple(
+                records_by_key.get((record.artifact_id, record.version), ())
             ),
         )
         for record in records
@@ -587,7 +602,9 @@ def _summarize_artifact_record(
     record: ArtifactVersionRecord,
     *,
     latest: bool,
+    store_path: Path | None = None,
     admission_state: ExchangeArtifactAdmissionStateProjection | None = None,
+    admission_records: tuple[ExchangeArtifactAdmissionRecord, ...] = (),
 ) -> ExchangeArtifactVersionSummary:
     artifact = record.artifact
     return ExchangeArtifactVersionSummary(
@@ -604,7 +621,11 @@ def _summarize_artifact_record(
         scope=artifact.scope,
         contains_sensitive_content=artifact.visibility_policy.contains_sensitive_content,
         redaction_required=artifact.visibility_policy.redaction_required,
-        admission_candidates=_detect_admission_candidates(artifact),
+        admission_candidates=_detect_admission_candidates(
+            artifact,
+            store_path=store_path,
+            admission_records=admission_records,
+        ),
         admission_state=admission_state or ExchangeArtifactAdmissionStateProjection(),
     )
 
@@ -658,6 +679,9 @@ def _build_admission_state_projection(
 
 def _detect_admission_candidates(
     artifact: ExchangeArtifact,
+    *,
+    store_path: Path | None = None,
+    admission_records: tuple[ExchangeArtifactAdmissionRecord, ...] = (),
 ) -> tuple[ExchangeArtifactAdmissionCandidate, ...]:
     candidates: list[ExchangeArtifactAdmissionCandidate] = []
     for index, part in enumerate(artifact.parts):
@@ -665,9 +689,17 @@ def _detect_admission_candidates(
             continue
         product_type = part.data.get("product_type")
         if product_type == "scheduler_task_submission":
-            candidates.append(_task_submission_candidate(artifact, index, part.data))
+            candidates.append(_with_binding_projection(
+                _task_submission_candidate(artifact, index, part.data),
+                store_path=store_path,
+                admission_records=admission_records,
+            ))
         elif product_type == "scheduler_task_batch_submission":
-            candidates.append(_batch_submission_candidate(artifact, index, part.data))
+            candidates.append(_with_binding_projection(
+                _batch_submission_candidate(artifact, index, part.data),
+                store_path=store_path,
+                admission_records=admission_records,
+            ))
     return tuple(candidates)
 
 
@@ -762,6 +794,151 @@ def _batch_submission_candidate(
         batch_id=batch_id,
         task_count=len(tasks),
     )
+
+
+def _with_binding_projection(
+    candidate: ExchangeArtifactAdmissionCandidate,
+    *,
+    store_path: Path | None,
+    admission_records: tuple[ExchangeArtifactAdmissionRecord, ...],
+) -> ExchangeArtifactAdmissionCandidate:
+    from dataclasses import replace
+
+    readiness = (
+        {}
+        if store_path is None
+        else _build_binding_readiness_projection(candidate, store_path)
+    )
+    latest_summary = _latest_binding_reference_summary(admission_records)
+    if not readiness and not latest_summary:
+        return candidate
+    return replace(
+        candidate,
+        binding_reference_readiness=readiness or None,
+        latest_binding_reference_summary=latest_summary or None,
+    )
+
+
+def _build_binding_readiness_projection(
+    candidate: ExchangeArtifactAdmissionCandidate,
+    store_path: Path,
+) -> dict[str, object]:
+    if not candidate.valid:
+        return {}
+    try:
+        from .scheduler_submission import (
+            inspect_supervisor_storage_binding_artifact_refs_for_submission,
+        )
+
+        inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+            artifact_store_path=store_path,
+            artifact_id=candidate.artifact_id,
+            version=candidate.version,
+        ).to_json_dict()
+    except Exception as exc:
+        return {
+            "enabled": True,
+            "ok": False,
+            "source_artifact_id": candidate.artifact_id,
+            "source_artifact_version": candidate.version,
+            "submission_product_type": candidate.product_type,
+            "task_count": candidate.task_count,
+            "binding_ref_count": 0,
+            "checked_ref_count": 0,
+            "error_count": 1,
+            "errors": [str(exc)],
+            "tasks": [],
+            "raw_evidence_json_read": False,
+        }
+    return _compact_binding_projection(inspection, enabled=True)
+
+
+def _latest_binding_reference_summary(
+    admission_records: tuple[ExchangeArtifactAdmissionRecord, ...],
+) -> dict[str, object]:
+    for record in reversed(admission_records):
+        summary = record.binding_reference_summary
+        if isinstance(summary, Mapping) and summary:
+            compact = _compact_binding_projection(summary, enabled=True)
+            compact["ledger_id"] = record.ledger_id
+            compact["status"] = record.status
+            compact["timestamp"] = record.timestamp
+            compact["actor"] = record.actor
+            compact["surface"] = record.surface
+            compact["error_summary"] = record.error_summary
+            return compact
+    return {}
+
+
+def _compact_binding_projection(
+    payload: Mapping[str, object],
+    *,
+    enabled: bool,
+) -> dict[str, object]:
+    tasks: list[dict[str, object]] = []
+    for task in _mapping_list(payload.get("tasks")):
+        tasks.append(
+            {
+                "task_id": str(task.get("task_id", "")),
+                "title": str(task.get("title", "")),
+                "ok": bool(task.get("ok")),
+                "binding_ref_count": _int_value(task.get("binding_ref_count")),
+                "checked_ref_count": _int_value(task.get("checked_ref_count")),
+                "error_count": _int_value(task.get("error_count")),
+                "binding_refs": _compact_ref_list(task.get("binding_refs")),
+                "checked_refs": _compact_ref_list(task.get("checked_refs")),
+                "errors": _string_list(task.get("errors")),
+            }
+        )
+    return {
+        "enabled": bool(payload.get("enabled", enabled)),
+        "ok": bool(payload.get("ok")),
+        "source_artifact_id": str(payload.get("source_artifact_id", "")),
+        "source_artifact_version": str(payload.get("source_artifact_version", "")),
+        "submission_product_type": str(payload.get("submission_product_type", "")),
+        "task_count": _int_value(payload.get("task_count")),
+        "binding_ref_count": _int_value(payload.get("binding_ref_count")),
+        "checked_ref_count": _int_value(payload.get("checked_ref_count")),
+        "error_count": _int_value(payload.get("error_count")),
+        "errors": _string_list(payload.get("errors")),
+        "tasks": tasks,
+        "raw_evidence_json_read": False,
+    }
+
+
+def _compact_ref_list(value: object) -> list[dict[str, object]]:
+    refs: list[dict[str, object]] = []
+    for item in _mapping_list(value):
+        refs.append(
+            {
+                "ref_kind": str(item.get("ref_kind", "")),
+                "ref_id": str(item.get("ref_id", "")),
+                "version": str(item.get("version", "")),
+                "path": str(item.get("path", "")),
+                "label": str(item.get("label", "")),
+            }
+        )
+    return refs
+
+
+def _mapping_list(value: object) -> list[Mapping[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, Mapping)]
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _int_value(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    return 0
 
 
 def exchange_artifact_to_json_dict(artifact: ExchangeArtifact) -> dict[str, object]:

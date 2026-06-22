@@ -1121,6 +1121,62 @@ def test_scheduler_binding_consumer_fixture_cli_inspects_admits_and_reads_summar
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
+def test_exchange_artifacts_bundle_cli_projects_binding_summary(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    seed = _run_cli(
+        [
+            "scheduler",
+            "seed-dogfood-fixture",
+            "--fixture",
+            "binding-consumer",
+        ],
+        cwd=project,
+    )
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "fixture:scheduler-operator-binding-consumer-dogfood",
+            "--version",
+            "v1",
+            "--inspect-binding-refs",
+            "--admit",
+        ],
+        cwd=project,
+    )
+    bundle_proc = _run_cli(
+        ["resources", "read", "dbc://exchange-artifacts/bundle"],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    assert workflow.returncode == 0, workflow.stderr
+    assert bundle_proc.returncode == 0, bundle_proc.stderr
+    bundle = json.loads(bundle_proc.stdout)
+    summary = next(
+        item for item in bundle["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-binding-consumer-dogfood"
+    )
+    candidate = summary["admission_candidates"][0]
+    readiness = candidate["binding_reference_readiness"]
+    latest = candidate["latest_binding_reference_summary"]
+
+    assert readiness["ok"] is True
+    assert readiness["binding_ref_count"] == 1
+    assert readiness["raw_evidence_json_read"] is False
+    assert latest["status"] == "admitted"
+    assert latest["ok"] is True
+    assert latest["binding_ref_count"] == 1
+    assert latest["tasks"][0]["task_id"] == "dogfood:binding-consumer"
+    assert "records" not in candidate
+    assert "binding" not in latest
+    assert bundle["authority_split"]["exchange_store_mutated"] is False
+
+
 def test_scheduler_operator_multilane_dogfood_fixture_cli_runs_shared_surface(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
