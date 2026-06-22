@@ -1,5 +1,20 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-22 补充候选：Supervisor storage binding artifact publish surface 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md` 已完成并关闭；当前 `publish_supervisor_storage_binding_artifact_from_evidence()`、CLI `doc-based-coding scheduler publish-storage-binding-artifact` 与 MCP tool `schedulerStorageBindingArtifactPublish` 已能从 durable `supervisor_storage_binding_evidence` summary 发布 compact exact-version `supervisor_storage_binding_artifact` 到本地 ExchangeArtifact store。
+- 当前剩余事实：已有 `binding-consumer` closure 可以验证 compact binding artifact 的下游消费，但该 fixture 仍直接 seed binding artifact；还没有证明“真实 durable supervisor storage binding evidence -> publish surface -> consuming scheduler task closure”的端到端 backend dogfood。
+- 候选 1：`Evidence Publish To Consumer Closure`
+  - 做什么：组合 supervisor dogfood workflow、storage binding evidence 写入、publish surface、binding-ref inspection、exact admission、consume、bounded fake loop、projection refresh 与 Host Evidence readback，形成一个真实 evidence publish 到 consumer task 的 backend closure。
+  - 依据：`design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md`、`tools/progress_graph/scheduler_operator_dogfood_closure.py`
+- 候选 2：`Real Agent Home / Scratch Lifecycle`
+  - 做什么：进入真实 agent home 注册、scratch 目录创建、manifest、retention review、promotion、archive、cleanup receipt 等 storage lifecycle 执行。
+  - 依据：`design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 候选 3：`Host UX / Resource Visibility For Published Binding Artifacts`
+  - 做什么：在 Host UX 或 MCP resource 中更直接呈现 published binding artifact、evidence ref、home/scratch clues 与 downstream consumer status。
+  - 依据：`design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md`、`design_docs/host-ux-binding-reference-visibility-followup-direction-analysis.md`
+- 当前倾向：默认进入候选 1。原因是它最小化验证刚落地的 publish surface，并且仍然 fake-runtime-backed；真实 storage lifecycle 和 Host UX 都应建立在这个 publish-to-consumer closure 之后。
+
 ## 2026-06-22 补充候选：Live Qoder runtime provider dogfood 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md` 已完成并关闭；当前新增 host-owned CLI `doc-based-coding qoder smoke` / `python -m src qoder smoke`，复用既有 `run_host_owned_qoder_smoke()`、`QoderSDKQueryClientConfig`、`HostOwnedQoderSmokeRunConfig`、`RuntimeHostInvocation(surface="host-authorized-adapter")` 与 `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`。该 surface 保持 credential-safe，不接受 raw token；missing SDK/auth 会在 Host Evidence 或 scheduler projection 写入前 fail closed；scheduler CLI/MCP 仍保持 fake-runtime-only。

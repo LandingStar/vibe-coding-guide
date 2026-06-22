@@ -1,4 +1,4 @@
-# Checkpoint - 2026-06-22T16:35:00+08:00
+# Checkpoint - 2026-06-22T17:20:00+08:00
 ## Current Phase
 Post-v1.0 - Agent orchestration / supervisor storage binding artifact publish surface completed
 ## Active Planning Gate
@@ -20,22 +20,25 @@ Post-v1.0 - Agent orchestration / supervisor storage binding artifact publish su
 - [x] Complete `design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md`.
 - [x] Add runtime/CLI/MCP publish surface for compact supervisor storage binding artifacts.
 - [x] Validate focused runtime, CLI, MCP, and prompt tests.
+- [x] Add follow-up direction analysis for the publish surface.
+- [ ] Open the next narrow planning gate if continuing implementation: `Evidence Publish To Consumer Closure`.
 ## Pending User Decision
 (none)
 ## Direction Candidates
 - Completed Gate: Live Qoder Runtime Provider Dogfood - source: design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
 - Review Evidence: Live Qoder Runtime Provider Dogfood Review - source: review/live-qoder-runtime-provider-dogfood-2026-06-22.md
-- Current Direction Analysis: Live Qoder Runtime Provider Dogfood Follow-Up Direction Analysis - source: design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md
 - Completed Gate: Supervisor Storage Binding Artifact Publish Surface - source: design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md
+- Current Direction Analysis: Supervisor Storage Binding Artifact Publish Surface Follow-Up Direction Analysis - source: design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md
 - Prior Source: Host UX Operator Dogfood Closure Control Follow-Up Direction Analysis - source: design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
 - Possible Next Direction: Credentialed live Qoder success after host provisions `qoder-agent-sdk` and supported auth.
-- Recommended Default Direction: Return to scheduler/operator orchestration surfaces without widening live provider execution.
+- Recommended Default Direction: Evidence Publish To Consumer Closure before real storage lifecycle or Host UX binding visibility.
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
 - design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
 - design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md
 - design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md
+- design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md
 - design_docs/direction-candidates-after-phase-35.md
 - review/live-qoder-runtime-provider-dogfood-2026-06-22.md
 - docs/qoder-host-provisioning-check-guide.md
