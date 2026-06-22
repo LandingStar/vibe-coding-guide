@@ -1,7 +1,7 @@
 # Planning Gate - Operator Dogfood Execution Evidence Closure
 
 > Date: 2026-06-22
-> Status: PROPOSED
+> Status: COMPLETED
 
 ## Trigger
 
@@ -123,3 +123,67 @@ The gate may close when:
 6. review evidence records command output and authority split;
 7. follow-up direction identifies whether to expose the closure in MCP, Host UX,
    or live Qoder dogfood next.
+
+## Completion Summary
+
+Completed on 2026-06-22.
+
+Implemented:
+
+1. Shared closure helper:
+   - `tools.progress_graph.scheduler_operator_dogfood_closure`
+   - `SchedulerOperatorDogfoodClosureRequest`
+   - `SchedulerOperatorDogfoodClosureResult`
+   - `run_scheduler_operator_dogfood_closure()`
+2. CLI surface:
+   - `doc-based-coding scheduler operator-dogfood-closure`
+3. `tools.progress_graph` export wiring for the closure request/result/helper.
+4. Focused runtime and CLI tests over the binding-consumer fixture closure.
+
+The closure composes existing primitives rather than replacing
+`scheduler operator-workflow`: it seeds the deterministic fixture, runs the
+shared operator workflow with explicit inspect/admit/run/project actions,
+optionally marks the exact admitted artifact version consumed, reads Host
+Evidence presentation, and returns compact review facts.
+
+One runtime gap was closed inside the shared operator workflow: bounded fake
+runtime now receives a mirrored in-memory copy of the durable ExchangeArtifact
+store before running. This allows tasks with `input_artifact_refs`, such as the
+`binding-consumer` fixture, to execute without changing the durable store schema
+or adding a new runtime input protocol.
+
+## Validation
+
+Focused validation passed:
+
+```text
+.\.venv\Scripts\python.exe -m py_compile tools/progress_graph/scheduler_operator_dogfood_closure.py tools/progress_graph/scheduler_operator_workflow.py tools/progress_graph/__init__.py src/__main__.py tests/test_runtime_orchestration.py tests/test_cli.py
+passed
+
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "operator_dogfood_closure"
+2 passed, 278 deselected
+
+.\.venv\Scripts\python.exe -m pytest tests/test_cli.py -k "operator_dogfood_closure"
+2 passed, 54 deselected
+```
+
+Adjacent validation passed:
+
+```text
+.\.venv\Scripts\python.exe -m pytest tests/test_runtime_orchestration.py -k "operator_dogfood_closure or scheduler_operator_workflow or binding_consumer or consumed or consumption"
+14 passed, 266 deselected
+
+.\.venv\Scripts\python.exe -m pytest tests/test_cli.py -k "operator_dogfood_closure or operator_workflow or binding_consumer or consumed or consumption"
+9 passed, 47 deselected
+
+git diff --check -- tools/progress_graph/scheduler_operator_dogfood_closure.py tools/progress_graph/scheduler_operator_workflow.py tools/progress_graph/__init__.py src/__main__.py tests/test_runtime_orchestration.py tests/test_cli.py design_docs/stages/planning-gate/2026-06-22-operator-dogfood-execution-evidence-closure.md
+passed with Windows line-ending warnings only
+```
+
+## Review Evidence
+
+- `review/operator-dogfood-execution-evidence-closure-2026-06-22.md`
+
+## Follow-Up
+
+- `design_docs/operator-dogfood-execution-evidence-closure-followup-direction-analysis.md`

@@ -188,12 +188,14 @@ from src.runtime.orchestration import (
 )
 from tools.progress_graph import (
     HostSandboxReceiptWorkflowRequest,
+    SchedulerOperatorDogfoodClosureRequest,
     SchedulerOperatorWorkflowRequest,
     SchedulerSupervisorDogfoodWorkflowRequest,
     build_supervisor_dogfood_storage_binding,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
     run_host_sandbox_receipt_workflow,
+    run_scheduler_operator_dogfood_closure,
     run_scheduler_operator_workflow,
     run_scheduler_supervisor_dogfood_workflow,
 )
@@ -5264,6 +5266,86 @@ def test_scheduler_operator_workflow_binding_ref_failure_stops_dependents(tmp_pa
     assert not (
         tmp_path / ".codex" / "scheduler" / "evidence" / "binding-failure-should-not-run.json"
     ).exists()
+
+
+def test_scheduler_operator_dogfood_closure_runs_binding_consumer_full_flow(
+    tmp_path,
+) -> None:
+    result = run_scheduler_operator_dogfood_closure(
+        SchedulerOperatorDogfoodClosureRequest(
+            project_root=tmp_path,
+            fixture="binding-consumer",
+            evidence_id="operator-closure-test",
+            timestamp="2026-06-22T15:00:00+08:00",
+            guide_context="operator-closure-test",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["name"] for step in payload["steps"]] == [
+        "seedFixture",
+        "operatorWorkflow",
+        "readClosureSummary",
+    ]
+    assert payload["fixture_result"]["artifact_id"] == (
+        "fixture:scheduler-operator-binding-consumer-dogfood"
+    )
+    assert payload["workflow_result"]["binding_reference_inspection"]["ok"] is True
+    assert payload["workflow_result"]["admission_result"]["submitted_task_ids"] == [
+        "dogfood:binding-consumer",
+    ]
+    assert payload["workflow_result"]["admission_result"]["binding_reference_summary"][
+        "ok"
+    ] is True
+    assert payload["workflow_result"]["admission_result"]["consumption_state"][
+        "consumed"
+    ] is True
+    assert payload["closure_summary"]["fixture"] == "binding-consumer"
+    assert payload["closure_summary"]["lifecycle_state"] == "consumed"
+    assert payload["closure_summary"]["admission_status"] == "admitted"
+    assert payload["closure_summary"]["binding_summary_ok"] is True
+    assert payload["closure_summary"]["consumed"] is True
+    assert payload["closure_summary"]["loop_evidence_id"] == "operator-closure-test"
+    assert payload["closure_summary"]["loop_stop_reason"] == "no_ready_tasks"
+    assert payload["closure_summary"]["scheduler_projection_event_count"] == 1
+    assert payload["closure_summary"]["host_evidence_status"] == "ok"
+    assert payload["closure_summary"]["host_evidence_card_count"] == 1
+    assert payload["authority_split"]["fixture_seeded"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["evidence_written"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["host_evidence_read"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (
+        tmp_path / ".codex" / "scheduler" / "evidence" / "operator-closure-test.json"
+    ).exists()
+    assert (
+        tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    ).exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_dogfood_closure_rejects_live_provider(
+    tmp_path,
+) -> None:
+    result = run_scheduler_operator_dogfood_closure(
+        SchedulerOperatorDogfoodClosureRequest(
+            project_root=tmp_path,
+            runtime_provider="qoder",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is False
+    assert payload["steps"][0]["name"] == "preflightRuntime"
+    assert payload["steps"][0]["status"] == "failed"
+    assert "fake" in payload["steps"][0]["error"]
+    assert payload["authority_split"]["provider_executed"] is False
+    assert not (tmp_path / ".codex").exists()
 
 
 def test_scheduler_supervisor_dogfood_workflow_full_simple_flow(tmp_path) -> None:

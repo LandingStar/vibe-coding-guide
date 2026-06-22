@@ -65,6 +65,13 @@ from .scheduler_operator_workflow import (
     SchedulerOperatorWorkflowStep,
     run_scheduler_operator_workflow,
 )
+from .scheduler_operator_dogfood_closure import (
+    DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID,
+    SchedulerOperatorDogfoodClosureRequest,
+    SchedulerOperatorDogfoodClosureResult,
+    SchedulerOperatorDogfoodClosureStep,
+    run_scheduler_operator_dogfood_closure,
+)
 from .scheduler_supervisor_dogfood_workflow import (
     DEFAULT_SUPERVISOR_DOGFOOD_CONTROL_RELATIVE_PATH,
     DEFAULT_SUPERVISOR_DOGFOOD_DAEMON_ID,
@@ -144,6 +151,7 @@ __all__ = [
     "run_host_sandbox_receipt_workflow",
     "run_persisted_scheduler_once_and_refresh_projection",
     "run_scheduler_operator_workflow",
+    "run_scheduler_operator_dogfood_closure",
     "run_scheduler_supervisor_dogfood_workflow",
     "build_supervisor_dogfood_storage_binding",
     "scheduler_work_trajectory_json_path",
@@ -172,10 +180,14 @@ __all__ = [
     "SchedulerOperatorWorkflowRequest",
     "SchedulerOperatorWorkflowResult",
     "SchedulerOperatorWorkflowStep",
+    "SchedulerOperatorDogfoodClosureRequest",
+    "SchedulerOperatorDogfoodClosureResult",
+    "SchedulerOperatorDogfoodClosureStep",
     "SchedulerSupervisorDogfoodWorkflowRequest",
     "SchedulerSupervisorDogfoodWorkflowResult",
     "SchedulerSupervisorDogfoodWorkflowStep",
     "DEFAULT_SCHEDULER_OPERATOR_EVIDENCE_ID",
+    "DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID",
     "DEFAULT_SCHEDULER_OPERATOR_EVENT_LOG_RELATIVE_PATH",
     "DEFAULT_SCHEDULER_OPERATOR_SNAPSHOT_RELATIVE_PATH",
     "DEFAULT_SUPERVISOR_DOGFOOD_CONTROL_RELATIVE_PATH",

@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-22 补充候选：Operator dogfood execution evidence closure 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-22-operator-dogfood-execution-evidence-closure.md` 已完成并关闭；当前 `tools.progress_graph.scheduler_operator_dogfood_closure` 与 CLI `doc-based-coding scheduler operator-dogfood-closure` 已能 deterministic fake-runtime 地完成 binding-consumer fixture 的 seed、binding-ref inspection、exact admission、consume-on-success、bounded loop、projection refresh 与 Host Evidence readback。
+- 候选 1：`MCP Surface For Operator Dogfood Closure`
+  - 做什么：将现有 closure 产品暴露为 Codex-oriented MCP tool，例如 `schedulerOperatorDogfoodClosure`，保持 fake-runtime-only 和同一 JSON result shape。
+  - 依据：`design_docs/operator-dogfood-execution-evidence-closure-followup-direction-analysis.md`、`review/operator-dogfood-execution-evidence-closure-2026-06-22.md`、`tools/progress_graph/scheduler_operator_dogfood_closure.py`
+- 候选 2：`Host UX Operator Dogfood Closure Control`
+  - 做什么：在 Host UX 中提供一键运行完整 operator closure 的控件，并展示 compact closure summary。
+  - 依据：`design_docs/operator-dogfood-execution-evidence-closure-followup-direction-analysis.md`、`docs/host-interaction-model.md`
+- 候选 3：`Live Qoder Runtime Provider Dogfood`
+  - 做什么：使用真实 Qoder-backed runtime provider 运行一个受控 scheduler task，进入 credential/runtime readiness 和 isolation policy gate。
+  - 依据：`design_docs/operator-dogfood-execution-evidence-closure-followup-direction-analysis.md`、`review/research-compass.md`
+- 当前倾向：默认先进入候选 1。Codex 是当前主链，MCP surface 比 Host UX 更薄，能让 agent 直接调用已稳定的 closure 产品；Host UX 和 live Qoder 更适合建立在这个 agent-facing surface 之后。
+
 ## 2026-06-22 补充候选：Host UX consumed ExchangeArtifact operator flow 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-22-host-ux-consumed-exchange-artifact-operator-flow.md` 已完成并关闭；Scheduler Operator Host UX 已能显示 candidate `lifecycle_state`，区分 regular `Admit` 与显式 `Admit + Consume`，并在 successful admission 后通过 shared operator workflow 标记 exact stored ExchangeArtifact version consumed。

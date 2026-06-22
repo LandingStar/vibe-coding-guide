@@ -377,6 +377,19 @@ _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
+_SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE = (
+    "Usage: doc-based-coding scheduler operator-dogfood-closure "
+    "[--fixture binding-consumer|simple|multilane] [--artifact-id ID --version VERSION] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] [--merge-gate-event-log-path PATH] "
+    "[--projection-output-path PATH] [--evidence-id ID] [--evidence-path PATH] "
+    "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
+    "[--max-runtime-failures N] [--replace-existing] [--no-inspect-binding-refs] "
+    "[--no-mark-consumed-on-success] [--actor ACTOR] [--timestamp TIMESTAMP] "
+    "[--created-at TIMESTAMP] [--guide-context PATH_OR_LABEL] "
+    "[--source-graph-id ID] [--source-node-id ID]"
+)
+
 _SCHEDULER_SUPERVISOR_DOGFOOD_WORKFLOW_USAGE = (
     "Usage: doc-based-coding scheduler supervisor-dogfood-workflow "
     "[--fixture simple|multilane] [--artifact-id ID --version VERSION] "
@@ -450,6 +463,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  project                  Refresh scheduler-derived trajectory projection without running providers\n"
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
             "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n"
+            "  operator-dogfood-closure Seed and run deterministic operator evidence closure\n"
             "  supervisor-dogfood-workflow Run deterministic fake supervisor dogfood sequence\n"
             "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n"
             "  sandbox-receipt-workflow Run host allocation/readback/cleanup/readback receipt workflow\n",
@@ -477,6 +491,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_seed_dogfood_fixture(args[1:])
     if sub == "operator-workflow":
         return cmd_scheduler_operator_workflow(args[1:])
+    if sub == "operator-dogfood-closure":
+        return cmd_scheduler_operator_dogfood_closure(args[1:])
     if sub == "supervisor-dogfood-workflow":
         return cmd_scheduler_supervisor_dogfood_workflow(args[1:])
     if sub == "cleanup-receipts":
@@ -486,7 +502,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -961,6 +977,205 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
             "Error running scheduler operator workflow",
             e,
             category="scheduler_operator_workflow_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_operator_dogfood_closure(args: list[str]) -> int:
+    """Run deterministic fake-runtime operator dogfood execution closure."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE + "\n\n"
+            "This closure seeds a deterministic fixture, runs the shared Scheduler "
+            "Operator workflow with explicit admit/run/project steps, reads Host "
+            "Evidence presentation, and returns compact review facts. It is "
+            "fake-runtime-only. It does not run live providers, start services, "
+            "create agent home or scratch directories, run cleanup, add Host UX "
+            "controls, or mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    fixture = "binding-consumer"
+    artifact_id = ""
+    version = ""
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    merge_gate_event_log_path = ""
+    projection_output_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    runtime_provider = "fake"
+    max_ticks = 3
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+    replace_existing = False
+    inspect_binding_refs = True
+    mark_consumed_on_success = True
+    actor = "operator-cli"
+    timestamp = ""
+    created_at = ""
+    guide_context = ""
+    source_graph_id = ""
+    source_node_id = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg == "--no-inspect-binding-refs":
+            inspect_binding_refs = False
+            i += 1
+            continue
+        if arg == "--no-mark-consumed-on-success":
+            mark_consumed_on_success = False
+            i += 1
+            continue
+        if arg in {
+            "--fixture",
+            "--artifact-id",
+            "--version",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--merge-gate-event-log-path",
+            "--projection-output-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--runtime-provider",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+            "--actor",
+            "--timestamp",
+            "--created-at",
+            "--guide-context",
+            "--source-graph-id",
+            "--source-node-id",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--fixture":
+                fixture = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            elif arg == "--projection-output-path":
+                projection_output_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--created-at":
+                created_at = value
+            elif arg == "--guide-context":
+                guide_context = value
+            elif arg == "--source-graph-id":
+                source_graph_id = value
+            elif arg == "--source-node-id":
+                source_node_id = value
+            else:
+                try:
+                    parsed = int(value)
+                except ValueError:
+                    print(_SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE, file=sys.stderr)
+                    print(f"{arg} must be an integer", file=sys.stderr)
+                    return 1
+                if arg == "--max-ticks":
+                    max_ticks = parsed
+                elif arg == "--max-runs-per-tick":
+                    max_runs_per_tick = parsed
+                elif arg == "--max-runtime-failures":
+                    max_runtime_failures = parsed
+            i += 2
+            continue
+        print(f"Unknown scheduler operator-dogfood-closure option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE, file=sys.stderr)
+        return 1
+
+    if fixture not in {"binding-consumer", "simple", "multilane"}:
+        print(_SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE, file=sys.stderr)
+        print("--fixture must be binding-consumer, simple, or multilane", file=sys.stderr)
+        return 1
+    if runtime_provider != "fake":
+        print(
+            "scheduler operator-dogfood-closure currently supports only "
+            "--runtime-provider fake; real providers require a separate planning gate",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from tools.progress_graph import (
+            DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID,
+            SchedulerOperatorDogfoodClosureRequest,
+            run_scheduler_operator_dogfood_closure,
+        )
+
+        result = run_scheduler_operator_dogfood_closure(
+            SchedulerOperatorDogfoodClosureRequest(
+                project_root=root,
+                fixture=fixture,  # type: ignore[arg-type]
+                artifact_id=artifact_id,
+                version=version,
+                artifact_store_path=artifact_store_path or None,
+                admission_ledger_path=admission_ledger_path or None,
+                snapshot_path=snapshot_path or None,
+                event_log_path=event_log_path or None,
+                merge_gate_event_log_path=merge_gate_event_log_path or None,
+                projection_output_path=projection_output_path or None,
+                evidence_id=evidence_id or DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID,
+                evidence_path=evidence_path or None,
+                runtime_provider=runtime_provider,
+                max_ticks=max_ticks,
+                max_runs_per_tick=max_runs_per_tick,
+                max_runtime_failures=max_runtime_failures,
+                replace_existing=replace_existing,
+                inspect_binding_refs=inspect_binding_refs,
+                mark_consumed_on_success=mark_consumed_on_success,
+                actor=actor,
+                timestamp=timestamp,
+                created_at=created_at,
+                guide_context=guide_context,
+                source_graph_id=source_graph_id,
+                source_node_id=source_node_id,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler operator dogfood closure",
+            e,
+            category="scheduler_operator_dogfood_closure_failed",
         )
 
     payload = result.to_json_dict()

@@ -83,6 +83,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "project" in proc.stdout
     assert "seed-dogfood-fixture" in proc.stdout
     assert "operator-workflow" in proc.stdout
+    assert "operator-dogfood-closure" in proc.stdout
     assert "supervisor-dogfood-workflow" in proc.stdout
     assert "cleanup-receipts" in proc.stdout
     assert "sandbox-receipt-workflow" in proc.stdout
@@ -161,6 +162,17 @@ def test_scheduler_supervisor_dogfood_workflow_help_describes_fake_runtime_seque
     assert "seeds a deterministic fixture" in proc.stdout
     assert "fake-runtime-only" in proc.stdout
     assert "does not refresh scheduler projection" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_operator_dogfood_closure_help_describes_fake_runtime_boundary() -> None:
+    proc = _run_cli(["scheduler", "operator-dogfood-closure", "--help"])
+
+    assert proc.returncode == 0
+    assert "--fixture binding-consumer|simple|multilane" in proc.stdout
+    assert "--no-mark-consumed-on-success" in proc.stdout
+    assert "fake-runtime-only" in proc.stdout
+    assert "Host Evidence presentation" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -1222,6 +1234,53 @@ def test_scheduler_operator_workflow_cli_can_mark_consumed_on_success(
         if item["artifact_id"] == "fixture:scheduler-operator-dogfood"
     )
     assert summary["lifecycle_state"] == "consumed"
+
+
+def test_scheduler_operator_dogfood_closure_cli_runs_binding_consumer_flow(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    proc = _run_cli(
+        [
+            "scheduler",
+            "operator-dogfood-closure",
+            "--fixture",
+            "binding-consumer",
+            "--evidence-id",
+            "cli-operator-closure",
+            "--timestamp",
+            "2026-06-22T15:30:00+08:00",
+            "--guide-context",
+            "cli-operator-closure-test",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "scheduler-operator-dogfood-closure"
+    assert payload["request"]["fixture"] == "binding-consumer"
+    assert payload["closure_summary"]["lifecycle_state"] == "consumed"
+    assert payload["closure_summary"]["binding_summary_ok"] is True
+    assert payload["closure_summary"]["loop_evidence_id"] == "cli-operator-closure"
+    assert payload["closure_summary"]["host_evidence_card_count"] == 1
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (
+        project
+        / ".codex"
+        / "scheduler"
+        / "evidence"
+        / "cli-operator-closure.json"
+    ).exists()
+    assert (
+        project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    ).exists()
+    assert not (
+        project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+    ).exists()
 
 
 def test_exchange_artifacts_bundle_cli_projects_binding_summary(

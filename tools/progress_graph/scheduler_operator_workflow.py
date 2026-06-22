@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Literal, Mapping
 
 from src.runtime.orchestration import (
+    InMemoryArtifactVersionStore,
+    JsonArtifactVersionStore,
     SchedulerDaemonLoopRequest,
     SchedulerDaemonLoopStopPolicy,
     admit_exchange_artifact_version_with_ledger,
@@ -521,6 +523,7 @@ def _run_loop_and_write_evidence(
     request: SchedulerOperatorWorkflowRequest,
     paths: _ResolvedSchedulerOperatorWorkflowPaths,
 ) -> Mapping[str, object]:
+    artifact_store = _runtime_artifact_store_from_exchange_store(paths.artifact_store_path)
     loop = run_scheduler_daemon_loop(
         SchedulerDaemonLoopRequest(
             snapshot_path=paths.snapshot_path,
@@ -533,7 +536,8 @@ def _run_loop_and_write_evidence(
             runtime_provider="fake",
             timestamp=request.timestamp,
             workspace_root=str(paths.project_root),
-        )
+        ),
+        artifact_store=artifact_store,
     )
     payload = loop.to_json_dict()
     written = write_scheduler_loop_evidence(
@@ -563,6 +567,17 @@ def _run_loop_and_write_evidence(
     payload["evidence_id"] = paths.evidence_id
     payload["evidence_path"] = str(written.evidence_path)
     return payload
+
+
+def _runtime_artifact_store_from_exchange_store(
+    artifact_store_path: Path,
+) -> InMemoryArtifactVersionStore:
+    """Mirror durable ExchangeArtifacts into the fake runtime input store."""
+
+    runtime_store = InMemoryArtifactVersionStore()
+    for record in JsonArtifactVersionStore(artifact_store_path).list_records():
+        runtime_store.put(record.artifact)
+    return runtime_store
 
 
 def _refresh_projection(
