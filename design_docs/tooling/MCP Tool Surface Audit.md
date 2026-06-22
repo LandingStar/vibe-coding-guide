@@ -168,6 +168,7 @@
 - `schedulerDaemonSupervisorStep` 不替代 `schedulerLifecycleHarness`：前者是在 harness/policy 外增加 host-owned supervisor identity 与 status readback 的调用层；需要纯 policy harness 验证时保留 harness，关注 host supervisor/session/run readback 时使用 supervisor step。
 - `schedulerSupervisorDogfoodWorkflow` 不替代 `schedulerDaemonSupervisorStep`：前者是完整 dogfood 序列，会 seed fixture、admit、start lifecycle 并执行 supervisor step；后者是单次 supervisor invocation primitive。验证完整 operator sequence 时用 workflow，验证 supervisor step contract 时保留单步工具。
 - `schedulerBindingReferenceInspect` 不替代 `admitExchangeArtifact`：前者是 admission 前的只读 binding-ref inspection，不写 scheduler/admission state；后者是 explicit admission 写工具。存在 supervisor storage binding artifact refs 时，应先 inspect，再由 operator 明确选择是否 admit。
+- 当 explicit binding-ref preflight 由 operator workflow 或 admission wrapper 启用时，admission ledger/readback 可携带 compact `binding_reference_summary`，只记录 counts、task/ref ids 与 errors，不保存 raw supervisor storage binding evidence JSON 或 raw binding payload。
 
 ## 2026-06-19 增量：Scheduler Operator Workflow Tool
 
@@ -181,6 +182,7 @@
 
 - 不替代 `admitExchangeArtifact`：`schedulerOperatorWorkflow` 是组合型 operator surface；`admitExchangeArtifact` 仍是精确 admission 的最小写工具。
 - 不替代 `schedulerBindingReferenceInspect`：统一 workflow 的 `inspectBindingRefs` 是 admission 前组合步骤；单独 read-only binding-ref inspection 仍保留为低层检查面。
+- 当 `inspectBindingRefs` 与 admission 同时启用时，workflow admission result 与 admission ledger record 会保留 compact `binding_reference_summary`，用于 admission 后 readback。
 - 不替代 `schedulerProjection`：统一 workflow 的 projection 步骤是 opt-in 串联动作；单独刷新 projection 仍需要保持独立只读投影写面。
 - 不替代 `schedulerRunOnceAndProject`：统一 workflow 走 bounded daemon-loop + evidence readback 产品路径；`schedulerRunOnceAndProject` 仍是早期 one-pass fake-runtime smoke surface。
 - 不并入 `localTrajectory`：统一 workflow 只写 scheduler-owned snapshot/event-log、admission ledger、scheduler-loop evidence 与 scheduler-derived projection artifact；不会写 agent-owned `.codex/progress-graph/local-work-trajectory.json`。

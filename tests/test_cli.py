@@ -1805,6 +1805,109 @@ def test_scheduler_inspect_admissions_filters_records(tmp_path) -> None:
     assert inspected_snapshot_path.parent.name == "scheduler"
 
 
+def test_scheduler_inspect_admissions_reports_binding_reference_summary(
+    tmp_path,
+) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="binding:cli-ledger",
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:cli-ledger",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": "binding:cli-ledger",
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-cli-ledger-binding",
+                title="CLI ledger binding",
+                instruction="Admit through operator workflow.",
+                agent=AgentSpec(agent_id="agent:cli-ledger", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:cli-ledger"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:cli-ledger",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:cli-ledger-binding",
+            version="v1",
+        )
+    )
+
+    admit = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "submission:cli-ledger-binding",
+            "--version",
+            "v1",
+            "--inspect-binding-refs",
+            "--admit",
+        ],
+        cwd=project,
+    )
+    inspect = _run_cli(
+        [
+            "scheduler",
+            "inspect-admissions",
+            "--artifact-id",
+            "submission:cli-ledger-binding",
+            "--version",
+            "v1",
+        ],
+        cwd=project,
+    )
+
+    assert admit.returncode == 0, admit.stderr
+    assert inspect.returncode == 0, inspect.stderr
+    payload = json.loads(inspect.stdout)
+    summary = payload["records"][0]["binding_reference_summary"]
+    assert summary["enabled"] is True
+    assert summary["ok"] is True
+    assert summary["binding_ref_count"] == 1
+    assert summary["tasks"][0]["task_id"] == "task-cli-ledger-binding"
+    assert summary["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:cli-ledger"
+    assert summary["raw_evidence_json_read"] is False
+
+
 def test_scheduler_inspect_state_requires_snapshot_path(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)

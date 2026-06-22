@@ -38,12 +38,13 @@ class ExchangeArtifactAdmissionRecord:
     error_summary: str = ""
     duplicate_of: str = ""
     allow_duplicate: bool = False
+    binding_reference_summary: Mapping[str, object] | None = None
     schema_version: str = EXCHANGE_ARTIFACT_ADMISSION_LEDGER_SCHEMA_VERSION
 
     def to_json_dict(self) -> dict[str, object]:
         """Return a stable JSON-compatible ledger record."""
 
-        return {
+        payload: dict[str, object] = {
             "schema_version": self.schema_version,
             "ledger_id": self.ledger_id,
             "artifact_store_path": str(self.artifact_store_path),
@@ -63,6 +64,9 @@ class ExchangeArtifactAdmissionRecord:
             "duplicate_of": self.duplicate_of,
             "allow_duplicate": self.allow_duplicate,
         }
+        if self.binding_reference_summary:
+            payload["binding_reference_summary"] = dict(self.binding_reference_summary)
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,6 +317,15 @@ def admit_exchange_artifact_version_with_ledger(
     event_log = Path(event_log_path)
     ledger_path = Path(admission_ledger_path)
     ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+    binding_reference_summary = (
+        _build_binding_reference_summary(
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+        )
+        if validate_binding_artifact_refs
+        else {}
+    )
 
     try:
         previous_admissions = ledger.find_successful_admissions(artifact_id, version)
@@ -347,6 +360,9 @@ def admit_exchange_artifact_version_with_ledger(
                     "set allow_duplicate_admission=true to admit intentionally"
                 ),
                 duplicate_of=duplicate.ledger_id,
+                binding_reference_summary=(
+                    binding_reference_summary if binding_reference_summary else None
+                ),
             )
         )
         return {
@@ -367,10 +383,18 @@ def admit_exchange_artifact_version_with_ledger(
             "event_log_mutated": False,
             "ran_tasks": False,
             "refreshed_projection": False,
+            "binding_reference_summary": binding_reference_summary,
             "authority_split": _admission_authority_split(scheduler_state_mutated=False),
         }
 
     try:
+        if validate_binding_artifact_refs and not bool(
+            binding_reference_summary.get("ok")
+        ):
+            errors = binding_reference_summary.get("errors")
+            if isinstance(errors, list) and errors:
+                raise ValueError("; ".join(str(error) for error in errors))
+            raise ValueError("supervisor storage binding artifact reference validation failed")
         result = admit_exchange_artifact_version_to_scheduler(
             artifact_store_path=store_path,
             artifact_id=artifact_id,
@@ -398,6 +422,9 @@ def admit_exchange_artifact_version_with_ledger(
                     status="failed",
                     error_summary=str(exc),
                     allow_duplicate=allow_duplicate_admission,
+                    binding_reference_summary=(
+                        binding_reference_summary if binding_reference_summary else None
+                    ),
                 )
             )
         except Exception:
@@ -411,6 +438,7 @@ def admit_exchange_artifact_version_with_ledger(
             event_log_path=event_log,
             admission_ledger_path=ledger_path,
             allow_duplicate_admission=allow_duplicate_admission,
+            binding_reference_summary=binding_reference_summary,
         )
 
     record = ledger.append(
@@ -433,6 +461,9 @@ def admit_exchange_artifact_version_with_ledger(
             ),
             submission_event_ids=result.submission_event_ids,
             allow_duplicate=allow_duplicate_admission,
+            binding_reference_summary=(
+                binding_reference_summary if binding_reference_summary else None
+            ),
         )
     )
 
@@ -447,6 +478,7 @@ def admit_exchange_artifact_version_with_ledger(
     payload["allow_duplicate_admission"] = allow_duplicate_admission
     payload["dependency_ids"] = dependency_ids
     payload["dependencies_added"] = dependency_ids
+    payload["binding_reference_summary"] = binding_reference_summary
     payload["authority_split"] = _admission_authority_split(scheduler_state_mutated=True)
     return payload
 
@@ -478,6 +510,7 @@ def exchange_artifact_admission_record_from_json_dict(
         error_summary=_mapping_str(payload, "error_summary"),
         duplicate_of=_mapping_str(payload, "duplicate_of"),
         allow_duplicate=_mapping_bool(payload, "allow_duplicate"),
+        binding_reference_summary=_mapping_dict(payload, "binding_reference_summary"),
     )
 
 
@@ -497,8 +530,9 @@ def _admission_error_payload(
     event_log_path: Path,
     admission_ledger_path: Path,
     allow_duplicate_admission: bool = False,
+    binding_reference_summary: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "ok": False,
         "error": error,
         "artifact_store_path": str(artifact_store_path),
@@ -511,6 +545,62 @@ def _admission_error_payload(
         "ran_tasks": False,
         "refreshed_projection": False,
         "authority_split": _admission_authority_split(scheduler_state_mutated=False),
+    }
+    if binding_reference_summary:
+        payload["binding_reference_summary"] = dict(binding_reference_summary)
+    return payload
+
+
+def _build_binding_reference_summary(
+    *,
+    artifact_store_path: Path,
+    artifact_id: str,
+    version: str,
+) -> dict[str, object]:
+    """Return compact binding-ref validation data for durable ledger records."""
+
+    from .scheduler_submission import (
+        inspect_supervisor_storage_binding_artifact_refs_for_submission,
+    )
+
+    inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+        artifact_store_path=artifact_store_path,
+        artifact_id=artifact_id,
+        version=version,
+    ).to_json_dict()
+    tasks: list[dict[str, object]] = []
+    for task in inspection.get("tasks", []):
+        if not isinstance(task, Mapping):
+            continue
+        tasks.append(
+            {
+                "task_id": str(task.get("task_id", "")),
+                "title": str(task.get("title", "")),
+                "ok": bool(task.get("ok")),
+                "binding_ref_count": _int_value(task.get("binding_ref_count")),
+                "checked_ref_count": _int_value(task.get("checked_ref_count")),
+                "error_count": _int_value(task.get("error_count")),
+                "binding_refs": _compact_ref_list(task.get("binding_refs")),
+                "checked_refs": _compact_ref_list(task.get("checked_refs")),
+                "errors": _string_list(task.get("errors")),
+            }
+        )
+
+    return {
+        "enabled": True,
+        "ok": bool(inspection.get("ok")),
+        "source_artifact_id": str(inspection.get("source_artifact_id", artifact_id)),
+        "source_artifact_version": str(
+            inspection.get("source_artifact_version", version)
+        ),
+        "submission_product_type": str(inspection.get("submission_product_type", "")),
+        "task_count": _int_value(inspection.get("task_count")),
+        "binding_ref_count": _int_value(inspection.get("binding_ref_count")),
+        "checked_ref_count": _int_value(inspection.get("checked_ref_count")),
+        "error_count": _int_value(inspection.get("error_count")),
+        "errors": _string_list(inspection.get("errors")),
+        "tasks": tasks,
+        "raw_evidence_json_read": False,
     }
 
 
@@ -541,7 +631,40 @@ def _mapping_bool(mapping: Mapping[str, object], key: str) -> bool:
     return value if isinstance(value, bool) else False
 
 
+def _mapping_dict(mapping: Mapping[str, object], key: str) -> dict[str, object]:
+    value = mapping.get(key)
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
 def _string_tuple(value: object) -> tuple[str, ...]:
     if not isinstance(value, (list, tuple)):
         return ()
     return tuple(item for item in value if isinstance(item, str))
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [str(item) for item in value if isinstance(item, str)]
+
+
+def _int_value(value: object) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _compact_ref_list(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    refs: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        refs.append(
+            {
+                "ref_kind": str(item.get("ref_kind", "")),
+                "ref_id": str(item.get("ref_id", "")),
+                "version": str(item.get("version", "")),
+                "label": str(item.get("label", "")),
+            }
+        )
+    return refs

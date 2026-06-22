@@ -49,6 +49,9 @@ Keep the lifecycle split:
 9. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
    for the local ExchangeArtifact admission ledger. It does not write scheduler
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
+   When explicit binding-ref preflight was enabled during admission, ledger
+   records include compact `binding_reference_summary` counts/errors without
+   raw supervisor storage binding evidence JSON.
 10. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
 11. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
@@ -520,7 +523,9 @@ Expected shared workflow behavior:
 2. `inspectBindingRefs=true` / `--inspect-binding-refs` reads the same exact
    artifact/version and returns binding-ref readiness without mutation.
 3. `admit=true` / `--admit` admits one exact artifact/version and writes the
-   admission ledger.
+   admission ledger. When `inspectBindingRefs=true` /
+   `--inspect-binding-refs` is also enabled, the admission record includes a
+   compact `binding_reference_summary`.
 4. `runLoop=true` / `--run-loop` runs only the bounded fake scheduler loop and
    writes scheduler-loop evidence.
 5. `refreshProjection=true` / `--refresh-projection` refreshes only the

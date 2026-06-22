@@ -1076,6 +1076,35 @@ def test_exchange_artifact_admission_ledger_round_trips_and_finds_duplicates(tmp
     assert payload["records"][1]["duplicate_of"] == admitted.ledger_id
 
 
+def test_exchange_artifact_admission_ledger_round_trips_empty_binding_summary(
+    tmp_path,
+) -> None:
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    ledger = JsonExchangeArtifactAdmissionLedger(ledger_path)
+    ledger.append(
+        ExchangeArtifactAdmissionRecord(
+            ledger_id="",
+            artifact_store_path=tmp_path / "exchange-artifacts.json",
+            artifact_id="submission:server",
+            artifact_version="v1",
+            product_type="scheduler_task_submission",
+            surface="legacy",
+            actor="agent:guide",
+            timestamp="2026-06-19T04:00:00+00:00",
+            snapshot_path=tmp_path / "scheduler-state.json",
+            event_log_path=tmp_path / "scheduler-events.jsonl",
+            status="admitted",
+            submitted_task_ids=("task-server",),
+        )
+    )
+
+    record = JsonExchangeArtifactAdmissionLedger(ledger_path).read_all()[0]
+    payload = inspect_exchange_artifact_admission_ledger(ledger_path).to_json_dict()
+
+    assert record.binding_reference_summary == {}
+    assert "binding_reference_summary" not in payload["records"][0]
+
+
 def test_exchange_artifact_admission_ledger_inspection_isolates_malformed_store(tmp_path) -> None:
     ledger_path = tmp_path / "exchange-artifact-admissions.json"
     ledger_path.write_text("{bad json", encoding="utf-8")
@@ -5856,6 +5885,125 @@ def test_admit_exchange_artifact_version_rejects_missing_binding_ref_before_muta
             validate_binding_artifact_refs=True,
         )
 
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_with_ledger_records_binding_summary_on_success(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    store = JsonArtifactVersionStore(store_path)
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    store.put(
+        supervisor_storage_binding_evidence_summary_to_artifact(
+            summary,
+            artifact_id="binding:ledger-success",
+            version="v1",
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-ledger-binding-success",
+                title="Ledger binding success",
+                instruction="Admit with binding summary.",
+                agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:consumer"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:ledger-success",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:ledger-binding-success",
+            version="v1",
+        )
+    )
+
+    result = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="submission:ledger-binding-success",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        validate_binding_artifact_refs=True,
+    )
+    records = JsonExchangeArtifactAdmissionLedger(ledger_path).read_all()
+    readback = inspect_exchange_artifact_admission_ledger(ledger_path).to_json_dict()
+
+    assert result["ok"] is True
+    assert result["binding_reference_summary"]["enabled"] is True
+    assert result["binding_reference_summary"]["ok"] is True
+    assert result["binding_reference_summary"]["binding_ref_count"] == 1
+    assert records[0].binding_reference_summary["checked_ref_count"] == 1
+    assert readback["records"][0]["binding_reference_summary"]["tasks"][0][
+        "task_id"
+    ] == "task-ledger-binding-success"
+    assert readback["records"][0]["binding_reference_summary"]["tasks"][0][
+        "binding_refs"
+    ][0]["ref_id"] == "binding:ledger-success"
+    assert readback["records"][0]["binding_reference_summary"][
+        "raw_evidence_json_read"
+    ] is False
+
+
+def test_admit_exchange_artifact_with_ledger_records_binding_summary_on_failure(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-ledger-binding-failure",
+                title="Ledger binding failure",
+                instruction="Should fail before scheduler mutation.",
+                agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:consumer"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id="binding:missing-ledger",
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id="submission:ledger-binding-failure",
+            version="v1",
+        )
+    )
+
+    result = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="submission:ledger-binding-failure",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        validate_binding_artifact_refs=True,
+    )
+    readback = inspect_exchange_artifact_admission_ledger(ledger_path).to_json_dict()
+
+    assert result["ok"] is False
+    assert "binding:missing-ledger" in result["error"]
+    assert result["binding_reference_summary"]["ok"] is False
+    assert result["binding_reference_summary"]["error_count"] == 1
+    assert readback["records"][0]["status"] == "failed"
+    assert readback["records"][0]["binding_reference_summary"]["ok"] is False
+    assert "binding:missing-ledger" in readback["records"][0][
+        "binding_reference_summary"
+    ]["errors"][0]
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
 

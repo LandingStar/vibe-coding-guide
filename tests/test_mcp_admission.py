@@ -29,6 +29,7 @@ from src.runtime.orchestration import (
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     build_sandbox_allocation_receipt_evidence,
+    inspect_exchange_artifact_admission_ledger,
     read_scheduler_state_snapshot,
     read_sandbox_allocation_receipt_evidence_summary,
     scheduler_task_submission_to_artifact,
@@ -359,6 +360,51 @@ def test_mcp_scheduler_operator_workflow_inspects_binding_refs(tmp_path: Path) -
         assert payload["authority_split"]["scheduler_state_mutated"] is True
         assert payload["authority_split"]["provider_executed"] is False
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_operator_workflow_writes_binding_summary_to_ledger(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    _write_binding_ref_submission_artifacts(
+        store_path,
+        artifact_id="submission:mcp-ledger-binding",
+        binding_ref_id="binding:mcp-ledger",
+    )
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorWorkflow",
+                    arguments={
+                        "artifactId": "submission:mcp-ledger-binding",
+                        "version": "v1",
+                        "inspectBindingRefs": True,
+                        "admit": True,
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+        readback = inspect_exchange_artifact_admission_ledger(
+            ledger_path,
+            artifact_id="submission:mcp-ledger-binding",
+            artifact_version="v1",
+        ).to_json_dict()
+        summary = readback["records"][0]["binding_reference_summary"]
+
+        assert payload["ok"] is True
+        assert payload["admission_result"]["binding_reference_summary"]["ok"] is True
+        assert summary["enabled"] is True
+        assert summary["ok"] is True
+        assert summary["binding_ref_count"] == 1
+        assert summary["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:mcp-ledger"
+        assert summary["raw_evidence_json_read"] is False
 
     asyncio.run(exercise_server())
 
