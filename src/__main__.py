@@ -372,7 +372,8 @@ _SCHEDULER_OPERATOR_WORKFLOW_USAGE = (
     "[--projection-output-path PATH] [--evidence-id ID] [--evidence-path PATH] "
     "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
     "[--max-runtime-failures N] [--allow-duplicate-admission] [--replace-existing] "
-    "[--actor ACTOR] [--timestamp TIMESTAMP] [--guide-context PATH_OR_LABEL] "
+    "[--mark-consumed-on-success] [--actor ACTOR] [--timestamp TIMESTAMP] "
+    "[--guide-context PATH_OR_LABEL] "
     "[--source-graph-id ID] [--source-node-id ID]"
 )
 
@@ -767,8 +768,10 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
             "candidates and Host Evidence presentation. --inspect-binding-refs "
             "adds a read-only supervisor storage binding reference check before "
             "admission. Scheduler mutations are opt-in through --admit, "
-            "--run-loop, and --refresh-projection. It does not mutate agent-owned "
-            "Local Work Trajectory.",
+            "--run-loop, and --refresh-projection. --mark-consumed-on-success "
+            "marks the exact admitted ExchangeArtifact version consumed only "
+            "after successful admission. It does not mutate agent-owned Local "
+            "Work Trajectory.",
         )
         return 0
 
@@ -794,6 +797,7 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
     inspect_binding_refs = False
     allow_duplicate_admission = False
     replace_existing = False
+    mark_consumed_on_success = False
     max_ticks = 3
     max_runs_per_tick: int | None = 1
     max_runtime_failures: int | None = 1
@@ -823,6 +827,10 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
             continue
         if arg == "--replace-existing":
             replace_existing = True
+            i += 1
+            continue
+        if arg == "--mark-consumed-on-success":
+            mark_consumed_on_success = True
             i += 1
             continue
         if arg in {
@@ -940,6 +948,7 @@ def cmd_scheduler_operator_workflow(args: list[str]) -> int:
                 max_runtime_failures=max_runtime_failures,
                 allow_duplicate_admission=allow_duplicate_admission,
                 replace_existing=replace_existing,
+                mark_consumed_on_success=mark_consumed_on_success,
                 actor=actor,
                 timestamp=timestamp,
                 guide_context=guide_context,

@@ -146,7 +146,9 @@ def test_scheduler_operator_workflow_help_describes_opt_in_mutation() -> None:
     assert "--admit" in proc.stdout
     assert "--run-loop" in proc.stdout
     assert "--refresh-projection" in proc.stdout
+    assert "--mark-consumed-on-success" in proc.stdout
     assert "opt-in" in proc.stdout
+    assert "consumed only after successful admission" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
 
@@ -1178,6 +1180,48 @@ def test_scheduler_binding_consumer_fixture_cli_inspects_admits_and_reads_summar
     assert ledger_summary["binding_ref_count"] == 1
     assert ledger_summary["tasks"][0]["task_id"] == "dogfood:binding-consumer"
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_operator_workflow_cli_can_mark_consumed_on_success(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    seed = _run_cli(["scheduler", "seed-dogfood-fixture"], cwd=project)
+    workflow = _run_cli(
+        [
+            "scheduler",
+            "operator-workflow",
+            "--artifact-id",
+            "fixture:scheduler-operator-dogfood",
+            "--version",
+            "v1",
+            "--admit",
+            "--mark-consumed-on-success",
+            "--actor",
+            "agent:operator",
+        ],
+        cwd=project,
+    )
+    bundle_proc = _run_cli(
+        ["resources", "read", "dbc://exchange-artifacts/bundle"],
+        cwd=project,
+    )
+
+    assert seed.returncode == 0, seed.stderr
+    assert workflow.returncode == 0, workflow.stderr
+    payload = json.loads(workflow.stdout)
+    assert payload["request"]["mark_consumed_on_success"] is True
+    assert payload["admission_result"]["consumption_state"]["consumed"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert bundle_proc.returncode == 0, bundle_proc.stderr
+    bundle = json.loads(bundle_proc.stdout)
+    summary = next(
+        item
+        for item in bundle["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-dogfood"
+    )
+    assert summary["lifecycle_state"] == "consumed"
 
 
 def test_exchange_artifacts_bundle_cli_projects_binding_summary(

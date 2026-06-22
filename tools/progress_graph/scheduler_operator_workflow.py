@@ -71,6 +71,7 @@ class SchedulerOperatorWorkflowRequest:
     max_runtime_failures: int | None = 1
     allow_duplicate_admission: bool = False
     replace_existing: bool = False
+    mark_consumed_on_success: bool = False
     actor: str = "operator-workflow"
     timestamp: str = ""
     guide_context: str = ""
@@ -131,7 +132,7 @@ class SchedulerOperatorWorkflowResult:
         projection_authority = _mapping(self.projection_result.get("authority_split"))
         return {
             "workflow_surface": "scheduler-operator-workflow",
-            "exchange_store_mutated": False,
+            "exchange_store_mutated": bool(admission_authority.get("exchange_store_mutated")),
             "admission_ledger_mutated": _step_mutated(self.steps, "admit"),
             "scheduler_state_mutated": (
                 bool(admission_authority.get("scheduler_state_mutated"))
@@ -178,6 +179,7 @@ class SchedulerOperatorWorkflowResult:
                 "max_runtime_failures": self.request.max_runtime_failures,
                 "allow_duplicate_admission": self.request.allow_duplicate_admission,
                 "replace_existing": self.request.replace_existing,
+                "mark_consumed_on_success": self.request.mark_consumed_on_success,
                 "actor": self.request.actor,
                 "evidence_id": self.evidence_id,
             },
@@ -312,6 +314,7 @@ def run_scheduler_operator_workflow(
                 allow_duplicate_admission=request.allow_duplicate_admission,
                 replace_existing=request.replace_existing,
                 validate_binding_artifact_refs=request.inspect_binding_refs,
+                mark_consumed_on_success=request.mark_consumed_on_success,
                 actor=request.actor or "operator-workflow",
                 surface="operator-workflow:scheduler",
                 timestamp=request.timestamp,

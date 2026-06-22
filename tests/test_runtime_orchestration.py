@@ -5072,6 +5072,39 @@ def test_scheduler_operator_workflow_inspect_binding_refs_then_admit(tmp_path) -
     assert payload["authority_split"]["scheduler_state_mutated"] is True
 
 
+def test_scheduler_operator_workflow_can_mark_consumed_on_success(tmp_path) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
+
+    result = run_scheduler_operator_workflow(
+        SchedulerOperatorWorkflowRequest(
+            project_root=tmp_path,
+            artifact_id="fixture:scheduler-operator-dogfood",
+            version="v1",
+            admit=True,
+            mark_consumed_on_success=True,
+            actor="agent:operator",
+            timestamp="2026-06-22T11:00:00+08:00",
+        )
+    )
+    payload = result.to_json_dict()
+    bundle = inspect_exchange_artifact_store(store_path).to_json_dict()
+    summary = next(
+        item
+        for item in bundle["summaries"]
+        if item["artifact_id"] == "fixture:scheduler-operator-dogfood"
+    )
+
+    assert payload["ok"] is True
+    assert payload["request"]["mark_consumed_on_success"] is True
+    assert payload["admission_result"]["consumption_state"]["consumed"] is True
+    assert payload["admission_result"]["consumption_state"]["actor"] == "agent:operator"
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert summary["lifecycle_state"] == "consumed"
+
+
 def test_scheduler_operator_workflow_full_multilane_dogfood_flow(tmp_path) -> None:
     seed_scheduler_operator_multilane_dogfood_fixture(tmp_path)
 

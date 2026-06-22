@@ -256,6 +256,7 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
           {
             artifactId: 'submission:maze',
             version: 'v1',
+            lifecycleState: 'draft',
             productType: 'scheduler_task_batch_submission',
             taskIds: ['task-server', 'task-client'],
             taskCount: 2,
@@ -300,6 +301,9 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /data-pg-artifact-id="submission:maze"/);
   assert.match(html, /data-pg-version="v1"/);
   assert.match(html, /data-pg-inspect-binding-refs="false"/);
+  assert.match(html, /data-pg-mark-consumed-on-success="false"/);
+  assert.match(html, /data-pg-mark-consumed-on-success="true"/);
+  assert.match(html, /Admit \+ Consume/);
   assert.match(html, /data-pg-scheduler-action="runLoop"/);
   assert.match(html, /data-pg-scheduler-action="project"/);
   assert.match(html, /data-pg-scheduler-action="cleanupReceipts"/);
@@ -343,6 +347,7 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, />9<\/div>/);
   assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
   assert.match(html, /inspectBindingRefs: target\.dataset\.pgInspectBindingRefs === 'true'/);
+  assert.match(html, /markConsumedOnSuccess,/);
 });
 
 test('buildProgressGraphPreviewHtml renders binding readiness and latest admission summaries', () => {
@@ -368,6 +373,7 @@ test('buildProgressGraphPreviewHtml renders binding readiness and latest admissi
           {
             artifactId: 'fixture:scheduler-operator-binding-consumer-dogfood',
             version: 'v1',
+            lifecycleState: 'consumed',
             productType: 'scheduler_task_submission',
             taskIds: ['dogfood:binding-consumer'],
             taskCount: 1,
@@ -446,7 +452,9 @@ test('buildProgressGraphPreviewHtml renders binding readiness and latest admissi
   }));
 
   assert.match(html, /fixture:scheduler-operator-binding-consumer-dogfood@v1/);
-  assert.match(html, /data-pg-inspect-binding-refs="true"/);
+  assert.match(html, /lifecycle=consumed · admission=admitted/);
+  assert.match(html, />Consumed<\/button>/);
+  assert.doesNotMatch(html, /data-pg-mark-consumed-on-success="true"/);
   assert.match(html, /Binding readiness/);
   assert.match(html, /current exact-version preflight · 1 binding ref\(s\) · 1 checked · raw evidence read=false/);
   assert.match(html, /Latest binding admission/);

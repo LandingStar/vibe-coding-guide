@@ -41,6 +41,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
       artifactId: 'scheduler-operator-dogfood-multilane',
       version: 'v1',
       inspectBindingRefs: true,
+      markConsumedOnSuccess: true,
     },
     {
       command: 'schedulerOperatorAction',
@@ -59,6 +60,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
       artifactId: 'scheduler-operator-dogfood-multilane',
       version: 'v1',
       inspectBindingRefs: true,
+      markConsumedOnSuccess: true,
     },
     { kind: 'runLoop' },
     { kind: 'project' },
@@ -72,6 +74,7 @@ test('scheduler operator click sequence maps webview messages to shared workflow
     ['--artifact-id', 'scheduler-operator-dogfood-multilane', '--version', 'v1'],
   );
   assert.ok(admitArgs.includes('--inspect-binding-refs'));
+  assert.ok(admitArgs.includes('--mark-consumed-on-success'));
 
   const loopArgs = buildSchedulerOperatorWorkflowArgs(actions[1]!, {
     evidenceId: 'vscode-operator-smoke',
@@ -109,11 +112,13 @@ test('scheduler operator admission omits binding inspection unless requested', (
     artifactId: 'submission:plain',
     version: 'v1',
     inspectBindingRefs: false,
+    markConsumedOnSuccess: false,
   } satisfies SchedulerOperatorAction);
 
   const args = buildSchedulerOperatorWorkflowArgs(action!);
   assertOnlyExplicitActionFlag(args, '--admit');
   assert.equal(flagCount(args, '--inspect-binding-refs'), 0);
+  assert.equal(flagCount(args, '--mark-consumed-on-success'), 0);
 });
 
 test('scheduler operator click contract rejects incomplete admission messages', () => {

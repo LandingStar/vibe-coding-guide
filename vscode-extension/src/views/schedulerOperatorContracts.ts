@@ -1,5 +1,11 @@
 export type SchedulerOperatorAction =
-  | { kind: 'admit'; artifactId: string; version: string; inspectBindingRefs: boolean }
+  | {
+      kind: 'admit';
+      artifactId: string;
+      version: string;
+      inspectBindingRefs: boolean;
+      markConsumedOnSuccess: boolean;
+    }
   | { kind: 'runLoop' }
   | { kind: 'project' }
   | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
@@ -24,6 +30,7 @@ export type SchedulerOperatorWebviewMessage = {
   artifactId?: unknown;
   version?: unknown;
   inspectBindingRefs?: unknown;
+  markConsumedOnSuccess?: unknown;
   evidencePath?: unknown;
   confirmed?: unknown;
   workflowMode?: unknown;
@@ -65,6 +72,7 @@ export function coerceSchedulerOperatorActionMessage(
       artifactId: message.artifactId,
       version: message.version,
       inspectBindingRefs: message.inspectBindingRefs === true,
+      markConsumedOnSuccess: message.markConsumedOnSuccess === true,
     };
   }
   if (message.action === 'runLoop') {
@@ -193,6 +201,9 @@ export function buildSchedulerOperatorWorkflowArgs(
     ];
     if (action.inspectBindingRefs) {
       args.push('--inspect-binding-refs');
+    }
+    if (action.markConsumedOnSuccess) {
+      args.push('--mark-consumed-on-success');
     }
     return args;
   }

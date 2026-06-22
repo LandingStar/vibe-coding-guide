@@ -1144,7 +1144,9 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "bounded fake-runtime scheduler loop with durable evidence, "
                     "optionally refresh the scheduler-derived projection, then read "
                     "Host Evidence presentation. Mutating steps are opt-in via "
-                    "admit/runLoop/refreshProjection; "
+                    "admit/runLoop/refreshProjection; markConsumedOnSuccess can "
+                    "mark the exact admitted ExchangeArtifact version consumed "
+                    "after successful admission; "
                     "this does not mutate agent-owned Local Work Trajectory."
                 ),
                 inputSchema={
@@ -1232,6 +1234,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         "replaceExisting": {
                             "type": "boolean",
                             "description": "Allow admitted scheduler tasks to replace existing task ids. Default false.",
+                        },
+                        "markConsumedOnSuccess": {
+                            "type": "boolean",
+                            "description": "If true, mark the exact admitted ExchangeArtifact version consumed after successful admission. Default false.",
                         },
                         "actor": {
                             "type": "string",
@@ -1993,6 +1999,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
                 allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
                 replace_existing=arguments.get("replaceExisting", False),
+                mark_consumed_on_success=arguments.get("markConsumedOnSuccess", False),
                 actor=arguments.get("actor", "mcp"),
                 timestamp=arguments.get("timestamp", ""),
                 guide_context=arguments.get("guideContext", ""),

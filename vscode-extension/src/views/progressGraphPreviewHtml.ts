@@ -2045,6 +2045,15 @@ function buildParallelPreviewHtml(
     background: rgba(95, 164, 220, 0.28);
     border-color: rgba(163, 218, 255, 0.34);
   }
+  .pg-host-scheduler-operator-button.secondary {
+    background: rgba(255, 217, 138, 0.14);
+    border-color: rgba(255, 217, 138, 0.26);
+    color: #ffe3a3;
+  }
+  .pg-host-scheduler-operator-button.secondary:hover:not(:disabled) {
+    background: rgba(255, 217, 138, 0.22);
+    border-color: rgba(255, 217, 138, 0.42);
+  }
   .pg-host-scheduler-operator-button:disabled {
     cursor: default;
     opacity: 0.5;
@@ -2229,6 +2238,9 @@ function buildParallelPreviewHtml(
     gap: 8px;
     padding: 10px 0 11px;
     border-top: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .pg-host-scheduler-candidate[data-pg-lifecycle-state="consumed"] {
+    border-top-color: rgba(255, 217, 138, 0.22);
   }
   .pg-host-scheduler-auth-task {
     display: grid;
@@ -2710,8 +2722,9 @@ function buildParallelPreviewHtml(
         }
       }
       target.disabled = true;
+      const markConsumedOnSuccess = target.dataset.pgMarkConsumedOnSuccess === 'true';
       target.textContent = action === 'admit'
-        ? 'Admitting...'
+        ? (markConsumedOnSuccess ? 'Admitting + consuming...' : 'Admitting...')
         : action === 'runLoop'
           ? 'Running...'
           : action === 'cleanupReceipts'
@@ -2725,6 +2738,7 @@ function buildParallelPreviewHtml(
         artifactId: target.dataset.pgArtifactId || '',
         version: target.dataset.pgVersion || '',
         inspectBindingRefs: target.dataset.pgInspectBindingRefs === 'true',
+        markConsumedOnSuccess,
         evidencePath,
         confirmed: cleanupConfirmed,
         ...workflowPayload,
@@ -4072,14 +4086,40 @@ function buildSchedulerOperatorCandidate(
     ? candidate.taskIds.join(', ')
     : `${candidate.taskCount} task(s)`;
   const alreadyAdmitted = candidate.admissionStatus === 'admitted';
+  const consumed = candidate.lifecycleState === 'consumed';
   const statusLabel = [
+    `lifecycle=${candidate.lifecycleState || 'unknown'}`,
     `admission=${candidate.admissionStatus || 'unknown'}`,
     candidate.latestAdmissionStatus ? `latest=${candidate.latestAdmissionStatus}` : '',
     candidate.batchId ? `batch=${candidate.batchId}` : '',
   ].filter(Boolean).join(' · ');
   const bindingVisibility = buildSchedulerOperatorCandidateBindingVisibility(candidate);
   const inspectBindingRefs = candidate.bindingReferenceReadiness ? 'true' : 'false';
-  return `<article class="pg-host-scheduler-candidate">
+  const actionButtons = consumed
+    ? `<button class="pg-host-scheduler-operator-button" type="button" disabled>Consumed</button>`
+    : alreadyAdmitted
+      ? `<button class="pg-host-scheduler-operator-button" type="button" disabled>Admitted</button>`
+      : `<button
+          class="pg-host-scheduler-operator-button"
+          type="button"
+          data-pg-scheduler-action="admit"
+          data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
+          data-pg-version="${escapeHtml(candidate.version)}"
+          data-pg-inspect-binding-refs="${inspectBindingRefs}"
+          data-pg-mark-consumed-on-success="false"
+          ${actionRunning ? 'disabled' : ''}
+        >Admit</button>
+        <button
+          class="pg-host-scheduler-operator-button secondary"
+          type="button"
+          data-pg-scheduler-action="admit"
+          data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
+          data-pg-version="${escapeHtml(candidate.version)}"
+          data-pg-inspect-binding-refs="${inspectBindingRefs}"
+          data-pg-mark-consumed-on-success="true"
+          ${actionRunning ? 'disabled' : ''}
+        >Admit + Consume</button>`;
+  return `<article class="pg-host-scheduler-candidate" data-pg-lifecycle-state="${escapeHtml(candidate.lifecycleState || 'unknown')}">
     <div class="pg-host-scheduler-candidate-head">
       <div>
         <h3 class="pg-host-scheduler-candidate-title">${escapeHtml(candidate.artifactId)}@${escapeHtml(candidate.version)}</h3>
@@ -4087,15 +4127,7 @@ function buildSchedulerOperatorCandidate(
         <p class="pg-host-scheduler-candidate-meta">${escapeHtml(statusLabel)}</p>
       </div>
       <div class="pg-host-scheduler-candidate-actions">
-        <button
-          class="pg-host-scheduler-operator-button"
-          type="button"
-          data-pg-scheduler-action="admit"
-          data-pg-artifact-id="${escapeHtml(candidate.artifactId)}"
-          data-pg-version="${escapeHtml(candidate.version)}"
-          data-pg-inspect-binding-refs="${inspectBindingRefs}"
-          ${actionRunning || alreadyAdmitted ? 'disabled' : ''}
-        >${alreadyAdmitted ? 'Admitted' : 'Admit'}</button>
+        ${actionButtons}
       </div>
     </div>
     ${bindingVisibility}

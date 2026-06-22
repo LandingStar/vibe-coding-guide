@@ -322,6 +322,7 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         assert "inspectBindingRefs" in workflow_tool.inputSchema["properties"]
         assert "runLoop" in workflow_tool.inputSchema["properties"]
         assert "refreshProjection" in workflow_tool.inputSchema["properties"]
+        assert "markConsumedOnSuccess" in workflow_tool.inputSchema["properties"]
 
         call_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(
@@ -331,6 +332,7 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
                         "artifactId": "fixture:scheduler-operator-multilane-dogfood",
                         "version": "v1",
                         "admit": True,
+                        "markConsumedOnSuccess": True,
                         "runLoop": True,
                         "refreshProjection": True,
                         "maxTicks": 4,
@@ -355,6 +357,9 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
         assert payload["projection_result"]["lane_count"] == 4
         assert payload["projection_result"]["event_count"] == 6
         assert payload["host_evidence_presentation"]["card_count"] == 1
+        assert payload["request"]["mark_consumed_on_success"] is True
+        assert payload["admission_result"]["consumption_state"]["consumed"] is True
+        assert payload["authority_split"]["exchange_store_mutated"] is True
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
     asyncio.run(exercise_server())

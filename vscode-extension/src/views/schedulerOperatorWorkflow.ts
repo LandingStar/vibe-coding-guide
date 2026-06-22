@@ -20,6 +20,7 @@ export type SchedulerOperatorRuntimeOptions = {
 export type SchedulerOperatorExchangeCandidate = {
   artifactId: string;
   version: string;
+  lifecycleState: string;
   productType: string;
   taskIds: string[];
   taskCount: number;
@@ -475,6 +476,7 @@ function coerceExchangeSummary(value: Record<string, unknown>): SchedulerOperato
     return readObjectArray(summary.admission_candidates).map((candidate) => ({
       artifactId,
       version,
+      lifecycleState: readString(summary.lifecycle_state, 'unknown'),
       productType: readString(candidate.product_type, 'unknown'),
       taskIds: readStringArray(candidate.task_ids),
       taskCount: readNumber(candidate.task_count),
