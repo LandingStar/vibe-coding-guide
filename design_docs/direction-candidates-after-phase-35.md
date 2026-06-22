@@ -1,5 +1,20 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-22 补充候选：Live Qoder runtime provider dogfood 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md` 已完成并关闭；当前新增 host-owned CLI `doc-based-coding qoder smoke` / `python -m src qoder smoke`，复用既有 `run_host_owned_qoder_smoke()`、`QoderSDKQueryClientConfig`、`HostOwnedQoderSmokeRunConfig`、`RuntimeHostInvocation(surface="host-authorized-adapter")` 与 `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`。该 surface 保持 credential-safe，不接受 raw token；missing SDK/auth 会在 Host Evidence 或 scheduler projection 写入前 fail closed；scheduler CLI/MCP 仍保持 fake-runtime-only。
+- 剩余事实：本机 close 时仍为 readiness-negative（`sdk_importable=false` / `token_present=false` / `authentication_failed`），所以该切片证明的是可重复、可审计的 host-owned smoke seam，不是 credentialed live success。
+- 候选 1：`Credentialed Live Qoder Success`
+  - 做什么：在 host 已安装 `qoder-agent-sdk` 且提供支持的 auth 后，复用 `doc-based-coding qoder smoke` 记录一次 credentialed live success 或更精确的 live failure taxonomy。
+  - 依据：`design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md`、`docs/qoder-host-provisioning-check-guide.md`、`review/live-qoder-runtime-provider-dogfood-2026-06-22.md`
+- 候选 2：`Return To Scheduler Orchestration Without Live Provider`
+  - 做什么：在 fake-runtime 或 host-managed surfaces 上继续 scheduler/supervisor/orchestration 后端切片，把 Qoder credential provisioning 作为外部 host readiness 任务保留。
+  - 依据：`design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md`、`review/research-compass.md`、`design_docs/Global Phase Map and Current Position.md`
+- 候选 3：`Packaging / Release Refresh`
+  - 做什么：若当前目标是分发，则重新生成 preview package，把 Qoder smoke CLI 和近期 scheduler operator closure surfaces 带入包内。
+  - 依据：`design_docs/live-qoder-runtime-provider-dogfood-followup-direction-analysis.md`、`design_docs/tooling/Dual-Package Distribution Standard.md`
+- 当前倾向：默认进入候选 2，除非 host 已准备好立即安装 SDK 与提供 Qoder auth。原因是当前缺口主要是本机 readiness，而非项目 surface；继续推进 fake-runtime-backed orchestration 可以降低调度设计风险，同时保留候选 1 作为后续窄 live evidence gate。
+
 ## 2026-06-22 补充候选：Operator dogfood execution evidence closure 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-22-operator-dogfood-execution-evidence-closure.md` 已完成并关闭；当前 `tools.progress_graph.scheduler_operator_dogfood_closure` 与 CLI `doc-based-coding scheduler operator-dogfood-closure` 已能 deterministic fake-runtime 地完成 binding-consumer fixture 的 seed、binding-ref inspection、exact admission、consume-on-success、bounded loop、projection refresh 与 Host Evidence readback。
