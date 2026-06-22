@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-22 补充候选：Host UX consumed ExchangeArtifact operator flow 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-22-host-ux-consumed-exchange-artifact-operator-flow.md` 已完成并关闭；Scheduler Operator Host UX 已能显示 candidate `lifecycle_state`，区分 regular `Admit` 与显式 `Admit + Consume`，并在 successful admission 后通过 shared operator workflow 标记 exact stored ExchangeArtifact version consumed。
+- 候选 1：`Operator Dogfood Execution Evidence Closure`
+  - 做什么：建立一个 deterministic fake-runtime operator closure，串联 seed fixture、binding-aware exact admission、bounded loop、projection refresh、optional consume、Host Evidence readback 与 compact closure summary。
+  - 依据：`design_docs/host-ux-consumed-exchange-artifact-operator-flow-followup-direction-analysis.md`、`review/host-ux-consumed-exchange-artifact-operator-flow-2026-06-22.md`、`tools/progress_graph/scheduler_operator_workflow.py`
+- 候选 2：`Host UX Operator Dogfood Closure Control`
+  - 做什么：在 Host UX 中提供一键运行完整 operator dogfood closure 的控件。
+  - 依据：`design_docs/host-ux-consumed-exchange-artifact-operator-flow-followup-direction-analysis.md`
+- 候选 3：`Live Qoder Runtime Provider Dogfood`
+  - 做什么：使用真实 Qoder-backed runtime provider 运行一个受控 scheduler task。
+  - 依据：`design_docs/host-ux-consumed-exchange-artifact-operator-flow-followup-direction-analysis.md`、`review/research-compass.md`
+- 当前倾向：默认先进入候选 1。当前 UI 和 backend primitives 已足够，但还缺一个可复核的 operator-owned execution closure；先用 fake-runtime contract 固定证据产品，再进入 Host UX 一键控件或 live Qoder。
+
 ## 2026-06-21 补充候选：Supervisor dogfood workflow 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-21-supervisor-dogfood-workflow.md` 已完成并关闭；当前 `tools.progress_graph.scheduler_supervisor_dogfood_workflow`、CLI `doc-based-coding scheduler supervisor-dogfood-workflow` 与 MCP tool `schedulerSupervisorDogfoodWorkflow` 已能 deterministic fake-runtime 地完成 seed fixture、exact admission、lifecycle start、supervisor step 与 final readback。
