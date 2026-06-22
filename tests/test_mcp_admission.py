@@ -511,6 +511,104 @@ def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
     asyncio.run(exercise_server())
 
 
+def test_mcp_server_exposes_and_routes_scheduler_operator_dogfood_closure(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerOperatorDogfoodClosure" in names
+        closure_tool = next(
+            tool for tool in tools if tool.name == "schedulerOperatorDogfoodClosure"
+        )
+        assert "fixture" in closure_tool.inputSchema["properties"]
+        assert "inspectBindingRefs" in closure_tool.inputSchema["properties"]
+        assert "markConsumedOnSuccess" in closure_tool.inputSchema["properties"]
+        assert "runtimeProvider" in closure_tool.inputSchema["properties"]
+        assert "Local Work Trajectory" in closure_tool.description
+
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorDogfoodClosure",
+                    arguments={
+                        "timestamp": "2026-06-22T14:10:00+08:00",
+                        "createdAt": "2026-06-22T14:09:00+08:00",
+                        "maxTicks": 3,
+                        "evidenceId": "mcp-operator-dogfood-closure",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["workflow_surface"] == "scheduler-operator-dogfood-closure"
+        assert payload["request"]["fixture"] == "binding-consumer"
+        assert payload["request"]["inspect_binding_refs"] is True
+        assert payload["request"]["mark_consumed_on_success"] is True
+        assert [step["name"] for step in payload["steps"]] == [
+            "seedFixture",
+            "operatorWorkflow",
+            "readClosureSummary",
+        ]
+        assert payload["closure_summary"]["artifact_id"] == (
+            "fixture:scheduler-operator-binding-consumer-dogfood"
+        )
+        assert payload["closure_summary"]["binding_summary_ok"] is True
+        assert payload["closure_summary"]["consumed"] is True
+        assert payload["closure_summary"]["scheduler_projection_event_count"] == 1
+        assert payload["workflow_result"]["loop_result"]["total_run_count"] == 1
+        assert payload["authority_split"]["exchange_store_mutated"] is True
+        assert payload["authority_split"]["admission_ledger_mutated"] is True
+        assert payload["authority_split"]["provider_executed"] is True
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_operator_dogfood_closure_rejects_live_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerOperatorDogfoodClosure",
+                    arguments={"runtimeProvider": "qoder"},
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert payload["workflow_surface"] == "scheduler-operator-dogfood-closure"
+        assert payload["runtime_provider"] == "qoder"
+        assert "runtimeProvider='fake' only" in payload["error"]
+        assert payload["authority_split"]["fixture_seeded"] is False
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert payload["authority_split"]["provider_executed"] is False
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+        assert not (
+            tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        ).exists()
+        assert not (
+            tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+        ).exists()
+        assert not (
+            tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+        ).exists()
+
+    asyncio.run(exercise_server())
+
+
 def test_mcp_exchange_artifacts_bundle_projects_binding_summary(
     tmp_path: Path,
 ) -> None:

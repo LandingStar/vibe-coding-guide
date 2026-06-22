@@ -1263,6 +1263,134 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerOperatorDogfoodClosure",
+                description=(
+                    "Run the deterministic fake-runtime scheduler operator dogfood "
+                    "closure: seed a fixture, inspect binding refs when applicable, "
+                    "admit the exact artifact/version, mark it consumed after "
+                    "successful admission by default, run a bounded fake scheduler "
+                    "loop with durable evidence, refresh scheduler projection, and "
+                    "read Host Evidence presentation. Defaults to the "
+                    "binding-consumer fixture. This does not run real providers, "
+                    "start a daemon service, run cleanup, create agent home or "
+                    "scratch directories, or mutate agent-owned Local Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "fixture": {
+                            "type": "string",
+                            "description": (
+                                "Fixture selector: binding-consumer, simple, or "
+                                "multilane. Default binding-consumer."
+                            ),
+                        },
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Optional artifact id override for the seeded fixture.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Optional fixture artifact version override.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional admission ledger path.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Optional scheduler snapshot path. Defaults under .codex/scheduler.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event log path. Defaults under .codex/scheduler.",
+                        },
+                        "mergeGateEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler merge-gate event log path.",
+                        },
+                        "projectionOutputPath": {
+                            "type": "string",
+                            "description": "Optional scheduler projection output path.",
+                        },
+                        "evidenceId": {
+                            "type": "string",
+                            "description": "Optional scheduler-loop evidence id.",
+                        },
+                        "evidencePath": {
+                            "type": "string",
+                            "description": "Optional scheduler-loop evidence output path.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": (
+                                "Runtime provider selector. Current closure only "
+                                "supports 'fake'; real providers require a separate "
+                                "live-runtime planning gate."
+                            ),
+                        },
+                        "maxTicks": {
+                            "type": "integer",
+                            "description": "Bounded loop max ticks. Default 3.",
+                        },
+                        "maxRunsPerTick": {
+                            "type": "integer",
+                            "description": "Bounded loop max task runs per tick. Default 1.",
+                        },
+                        "maxRuntimeFailures": {
+                            "type": "integer",
+                            "description": "Runtime failure stop threshold. Default 1.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace existing seeded fixture artifacts. Default false.",
+                        },
+                        "inspectBindingRefs": {
+                            "type": "boolean",
+                            "description": (
+                                "Whether to inspect supervisor storage binding refs. "
+                                "Default true; binding-consumer forces inspection."
+                            ),
+                        },
+                        "markConsumedOnSuccess": {
+                            "type": "boolean",
+                            "description": (
+                                "Whether to mark the exact admitted ExchangeArtifact "
+                                "version consumed after successful admission. Default true."
+                            ),
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Actor recorded in admission/consumption logs. Defaults to mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for scheduler and evidence events.",
+                        },
+                        "createdAt": {
+                            "type": "string",
+                            "description": "Optional timestamp for seeded fixture artifacts.",
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Optional guide context stored on the projection.",
+                        },
+                        "sourceGraphId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph id for projection.",
+                        },
+                        "sourceNodeId": {
+                            "type": "string",
+                            "description": "Optional owning progress graph node id for projection.",
+                        },
+                    },
+                },
+            ),
+            Tool(
                 name="schedulerSandboxReceiptWorkflow",
                 description=(
                     "Run the host sandbox receipt workflow: host allocation, durable "
@@ -2002,6 +2130,33 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 mark_consumed_on_success=arguments.get("markConsumedOnSuccess", False),
                 actor=arguments.get("actor", "mcp"),
                 timestamp=arguments.get("timestamp", ""),
+                guide_context=arguments.get("guideContext", ""),
+                source_graph_id=arguments.get("sourceGraphId", ""),
+                source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerOperatorDogfoodClosure":
+            result = tools.scheduler_operator_dogfood_closure(
+                fixture=arguments.get("fixture", "binding-consumer"),
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                merge_gate_event_log_path=arguments.get("mergeGateEventLogPath", ""),
+                projection_output_path=arguments.get("projectionOutputPath", ""),
+                evidence_id=arguments.get("evidenceId", ""),
+                evidence_path=arguments.get("evidencePath", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                max_ticks=arguments.get("maxTicks", 3),
+                max_runs_per_tick=arguments.get("maxRunsPerTick", 1),
+                max_runtime_failures=arguments.get("maxRuntimeFailures", 1),
+                replace_existing=arguments.get("replaceExisting", False),
+                inspect_binding_refs=arguments.get("inspectBindingRefs", True),
+                mark_consumed_on_success=arguments.get("markConsumedOnSuccess", True),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
+                created_at=arguments.get("createdAt", ""),
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),

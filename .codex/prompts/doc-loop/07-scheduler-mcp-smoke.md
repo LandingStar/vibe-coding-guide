@@ -91,33 +91,42 @@ Keep the lifecycle split:
    `--inspect-binding-refs` to include read-only supervisor storage binding
    reference inspection before admission. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
-18. Scheduler daemon lifecycle control uses
+18. Operator dogfood closure uses `schedulerOperatorDogfoodClosure`,
+   `doc-based-coding scheduler operator-dogfood-closure`, or
+   `run_scheduler_operator_dogfood_closure()` when the current gate needs the
+   complete deterministic operator evidence closure in one call: seed fixture,
+   inspect binding refs when applicable, admit the exact artifact/version, mark
+   it consumed after successful admission by default, run a bounded fake loop,
+   refresh scheduler projection, and read Host Evidence presentation. It is
+   fake-runtime-only and does not start services, execute cleanup, create agent
+   home/scratch directories, or mutate agent-owned Local Work Trajectory.
+19. Scheduler daemon lifecycle control uses
    `doc-based-coding scheduler lifecycle <action>` or
    `schedulerLifecycleControl` for deterministic control-file operations:
    inspect, start, heartbeat, pause, resume, cancel, and shutdown. The MCP
    control tool also accepts deterministic `mark_stale`. These actions write
    only the lifecycle control file and do not run providers or refresh
    projection.
-19. Scheduler lifecycle run-once uses
+20. Scheduler lifecycle run-once uses
    `doc-based-coding scheduler lifecycle run-once` or
    `schedulerLifecycleRunOnce` to run one lifecycle-gated bounded fake-runtime
    loop. It may mutate scheduler snapshot/event-log state only through the
    bounded scheduler loop; paused/cancelled/stopped/stale controls skip
    scheduler mutation, and cancellation is consumed before provider execution.
-20. Scheduler lifecycle harness uses
+21. Scheduler lifecycle harness uses
    `doc-based-coding scheduler lifecycle harness` or
    `schedulerLifecycleHarness` to run the bounded host-managed harness with
    explicit cancelled/deadline preflight and retry over listed harness stop
    reasons. It remains fake-runtime-only in MCP, does not refresh projection,
    and does not mutate agent-owned Local Work Trajectory.
-21. Scheduler daemon supervisor step uses
+22. Scheduler daemon supervisor step uses
    `doc-based-coding scheduler lifecycle supervisor-step` or
    `schedulerDaemonSupervisorStep` to run one host-managed supervisor step over
    the policy-controlled bounded harness. It adds supervisor/session/run
    identity, cancellation-source metadata, and lifecycle status readback while
    remaining fake-runtime-only in CLI/MCP. It does not start a service, refresh
    projection, execute cleanup, or mutate agent-owned Local Work Trajectory.
-22. Supervisor dogfood workflow uses
+23. Supervisor dogfood workflow uses
    `doc-based-coding scheduler supervisor-dogfood-workflow` or
    `schedulerSupervisorDogfoodWorkflow` when the current gate needs the complete
    deterministic sequence: seed a scheduler dogfood fixture, admit the exact
@@ -125,7 +134,7 @@ Keep the lifecycle split:
    scheduler/supervisor facts. It is fake-runtime-only, does not refresh
    scheduler projection, execute cleanup, start a service, or mutate
    agent-owned Local Work Trajectory.
-23. Controlled host-runtime dogfood uses
+24. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -484,6 +493,8 @@ Expected projection CLI behavior:
 Recommended operator workflow:
 
 ```text
+schedulerOperatorDogfoodClosure
+doc-based-coding scheduler operator-dogfood-closure ...
 schedulerOperatorWorkflow
 doc-based-coding scheduler operator-workflow ...
 schedulerSupervisorDogfoodWorkflow
@@ -500,13 +511,17 @@ doc-based-coding scheduler daemon-loop ...
 doc-based-coding scheduler project ...
 ```
 
+Prefer `schedulerOperatorDogfoodClosure` or `doc-based-coding scheduler
+operator-dogfood-closure` when the current gate wants the complete deterministic
+operator evidence closure through one shared product. The default
+`binding-consumer` fixture covers fixture seed, binding-ref inspection, exact
+admission, consumed lifecycle marking, bounded fake loop evidence, projection
+refresh, and Host Evidence readback.
 Prefer `schedulerOperatorWorkflow` or `doc-based-coding scheduler
-operator-workflow` when the current gate wants the complete operator sequence
-through one shared contract. Include `inspectBindingRefs=true` or
-`--inspect-binding-refs` when the same workflow payload should show
-supervisor storage binding readiness before explicit admission. Prefer the
-lower-level commands/tools when the gate is specifically validating an
-individual lifecycle step.
+operator-workflow` when the current gate wants opt-in control over individual
+operator steps rather than the whole closure. Include `inspectBindingRefs=true`
+or `--inspect-binding-refs` when the same workflow payload should show
+supervisor storage binding readiness before explicit admission.
 Prefer `schedulerSupervisorDogfoodWorkflow` or `doc-based-coding scheduler
 supervisor-dogfood-workflow` when the current gate wants the complete
 supervisor sequence through seed, exact admission, lifecycle start, supervisor
@@ -519,6 +534,8 @@ Use `doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer`
 when a gate needs a deterministic compact supervisor storage binding artifact
 plus a scheduler submission that consumes it. Then run
 `schedulerOperatorWorkflow` with `inspectBindingRefs=true` and `admit=true`.
+Prefer the lower-level commands/tools when the gate is specifically validating
+an individual lifecycle step.
 
 Expected shared workflow behavior:
 

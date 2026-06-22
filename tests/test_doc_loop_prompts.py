@@ -134,9 +134,11 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerProjection" in text
         assert "schedulerRunOnceAndProject" in text
         assert "schedulerOperatorWorkflow" in text
+        assert "schedulerOperatorDogfoodClosure" in text
         assert "schedulerLifecycleControl" in text
         assert "schedulerLifecycleRunOnce" in text
         assert "doc-based-coding scheduler operator-workflow" in text
+        assert "doc-based-coding scheduler operator-dogfood-closure" in text
         assert "doc-based-coding scheduler lifecycle <action>" in text
         assert "doc-based-coding scheduler lifecycle run-once" in text
         assert "doc-based-coding scheduler lifecycle supervisor-step" in text

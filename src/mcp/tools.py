@@ -2086,6 +2086,113 @@ class GovernanceTools:
         )
         return run_scheduler_operator_workflow(request).to_json_dict()
 
+    def scheduler_operator_dogfood_closure(
+        self,
+        *,
+        fixture: str = "binding-consumer",
+        artifact_id: str = "",
+        version: str = "",
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        snapshot_path: str = "",
+        event_log_path: str = "",
+        merge_gate_event_log_path: str = "",
+        projection_output_path: str = "",
+        evidence_id: str = "",
+        evidence_path: str = "",
+        runtime_provider: str = "fake",
+        max_ticks: int = 3,
+        max_runs_per_tick: int | None = 1,
+        max_runtime_failures: int | None = 1,
+        replace_existing: bool = False,
+        inspect_binding_refs: bool = True,
+        mark_consumed_on_success: bool = True,
+        actor: str = "mcp",
+        timestamp: str = "",
+        created_at: str = "",
+        guide_context: str = "",
+        source_graph_id: str = "",
+        source_node_id: str = "",
+    ) -> dict[str, Any]:
+        """Run the deterministic fake-runtime operator dogfood closure."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-operator-dogfood-closure",
+                "error": (
+                    "schedulerOperatorDogfoodClosure currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "a separate live-runtime planning gate."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-operator-dogfood-closure",
+                    "fixture_seeded": False,
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "evidence_written": False,
+                    "scheduler_projection_refreshed": False,
+                    "host_evidence_read": False,
+                    "starts_os_service": False,
+                    "starts_background_process": False,
+                    "uses_timers_or_watchers": False,
+                    "cleanup_executed": False,
+                    "agent_home_directory_created": False,
+                    "scratch_directories_created": False,
+                    "local_work_trajectory_mutated": False,
+                },
+            }
+        if fixture not in {"binding-consumer", "simple", "multilane"}:
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-operator-dogfood-closure",
+                "error": (
+                    "schedulerOperatorDogfoodClosure fixture must be "
+                    "binding-consumer, simple, or multilane."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+            }
+
+        from tools.progress_graph import (
+            DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID,
+            SchedulerOperatorDogfoodClosureRequest,
+            run_scheduler_operator_dogfood_closure,
+        )
+
+        request = SchedulerOperatorDogfoodClosureRequest(
+            project_root=self._project_root,
+            fixture=fixture,  # type: ignore[arg-type]
+            artifact_id=artifact_id,
+            version=version,
+            artifact_store_path=artifact_store_path or None,
+            admission_ledger_path=admission_ledger_path or None,
+            snapshot_path=snapshot_path or None,
+            event_log_path=event_log_path or None,
+            merge_gate_event_log_path=merge_gate_event_log_path or None,
+            projection_output_path=projection_output_path or None,
+            evidence_id=evidence_id or DEFAULT_OPERATOR_DOGFOOD_CLOSURE_EVIDENCE_ID,
+            evidence_path=evidence_path or None,
+            runtime_provider=normalized_runtime_provider,
+            max_ticks=max_ticks,
+            max_runs_per_tick=max_runs_per_tick,
+            max_runtime_failures=max_runtime_failures,
+            replace_existing=replace_existing,
+            inspect_binding_refs=inspect_binding_refs,
+            mark_consumed_on_success=mark_consumed_on_success,
+            actor=actor or "mcp",
+            timestamp=timestamp,
+            created_at=created_at,
+            guide_context=guide_context,
+            source_graph_id=source_graph_id,
+            source_node_id=source_node_id,
+        )
+        return run_scheduler_operator_dogfood_closure(request).to_json_dict()
+
     def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 
