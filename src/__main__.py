@@ -319,7 +319,7 @@ _SCHEDULER_ADMIT_USAGE = (
     "--artifact-id ID --version VERSION --snapshot-path PATH --event-log-path PATH "
     "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
     "[--allow-duplicate-admission] [--actor ACTOR] [--replace-existing] "
-    "[--timestamp TIMESTAMP]"
+    "[--mark-consumed-on-success] [--timestamp TIMESTAMP]"
 )
 
 _SCHEDULER_INSPECT_ADMISSIONS_USAGE = (
@@ -497,8 +497,11 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
     if not args or args[0] in ("-h", "--help"):
         print(
             _SCHEDULER_ADMIT_USAGE + "\n\n"
-            "This writes scheduler snapshot/event-log state only. It does not run providers, "
-            "refresh scheduler projection, mark exchange artifacts consumed, or mutate Local Work Trajectory.",
+            "This writes scheduler snapshot/event-log state and admission ledger state. "
+            "By default it does not run providers, refresh scheduler projection, mark "
+            "exchange artifacts consumed, or mutate Local Work Trajectory. Pass "
+            "--mark-consumed-on-success to mark the exact admitted artifact version "
+            "consumed only after successful admission.",
         )
         return 0
 
@@ -510,6 +513,7 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
     event_log_path = ""
     replace_existing = False
     allow_duplicate_admission = False
+    mark_consumed_on_success = False
     actor = "operator-cli"
     timestamp = ""
 
@@ -522,6 +526,10 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
             continue
         if arg == "--allow-duplicate-admission":
             allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg == "--mark-consumed-on-success":
+            mark_consumed_on_success = True
             i += 1
             continue
         if arg in {
@@ -606,6 +614,7 @@ def cmd_scheduler_admit_exchange_artifact(args: list[str]) -> int:
             admission_ledger_path=ledger_path,
             allow_duplicate_admission=allow_duplicate_admission,
             replace_existing=replace_existing,
+            mark_consumed_on_success=mark_consumed_on_success,
             actor=actor,
             surface="cli:scheduler admit-exchange-artifact",
             timestamp=timestamp,

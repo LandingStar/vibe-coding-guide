@@ -55,6 +55,7 @@ from .exchange_store import (
     ExchangeArtifactAdmissionCandidate,
     ExchangeArtifactAdmissionStateProjection,
     ExchangeArtifactAdmissionProductType,
+    ExchangeArtifactConsumptionResult,
     ExchangeArtifactInspectionBundle,
     ExchangeArtifactVersionSummary,
     ArtifactVersionRecord,
@@ -68,6 +69,7 @@ from .exchange_store import (
     exchange_artifact_from_json_dict,
     exchange_artifact_to_json_dict,
     inspect_exchange_artifact_store,
+    mark_exchange_artifact_version_consumed,
 )
 from .exchange_admission_ledger import (
     DEFAULT_EXCHANGE_ARTIFACT_ADMISSION_LEDGER_RELATIVE_PATH,

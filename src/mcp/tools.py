@@ -855,6 +855,7 @@ class GovernanceTools:
         admission_ledger_path: str = "",
         allow_duplicate_admission: bool = False,
         replace_existing: bool = False,
+        mark_consumed_on_success: bool = False,
         actor: str = "mcp",
         timestamp: str = "",
     ) -> dict[str, Any]:
@@ -913,6 +914,7 @@ class GovernanceTools:
             admission_ledger_path=ledger,
             allow_duplicate_admission=allow_duplicate_admission,
             replace_existing=replace_existing,
+            mark_consumed_on_success=mark_consumed_on_success,
             actor=actor or "mcp",
             surface="mcp:admitExchangeArtifact",
             timestamp=timestamp,

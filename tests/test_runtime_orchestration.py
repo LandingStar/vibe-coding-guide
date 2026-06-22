@@ -133,6 +133,7 @@ from src.runtime.orchestration import (
     inspect_scheduler_authorization_snapshot,
     has_scheduler_readable_relation,
     mark_ready_tasks,
+    mark_exchange_artifact_version_consumed,
     part_types,
     qoder_runtime_capabilities,
     qoder_query_result_from_response,
@@ -5976,6 +5977,77 @@ def test_admit_exchange_artifact_version_submits_exact_single_task(tmp_path) -> 
     assert not local_trajectory_path.exists()
 
 
+def test_mark_exchange_artifact_version_consumed_updates_exact_store_version(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    first = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-consume-marker",
+            title="Consume marker",
+            instruction="Mark this exact artifact consumed.",
+            agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:consume-marker"),
+        ),
+        artifact_id="submission:consume-marker",
+        created_at="2026-06-22T10:00:00+08:00",
+        version="v1",
+    )
+    second = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-consume-marker-v2",
+            title="Consume marker v2",
+            instruction="Keep latest ordering stable.",
+            agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:consume-marker"),
+        ),
+        artifact_id="submission:consume-marker",
+        created_at="2026-06-22T10:05:00+08:00",
+        version="v2",
+    )
+    store.put(first)
+    store.put(second)
+
+    result = mark_exchange_artifact_version_consumed(
+        store_path=store_path,
+        artifact_id="submission:consume-marker",
+        version="v1",
+        actor="agent:guide",
+        reason="accepted work package admitted into scheduler",
+        timestamp="2026-06-22T10:10:00+08:00",
+    )
+    bundle = inspect_exchange_artifact_store(store_path).to_json_dict()
+    summaries = {
+        (item["artifact_id"], item["version"]): item
+        for item in bundle["summaries"]
+    }
+    consumed_record = JsonArtifactVersionStore(store_path).get(
+        "submission:consume-marker",
+        "v1",
+    )
+    idempotent = mark_exchange_artifact_version_consumed(
+        store_path=store_path,
+        artifact_id="submission:consume-marker",
+        version="v1",
+        actor="agent:guide",
+    )
+
+    assert result.consumed is True
+    assert result.previous_lifecycle_state == "draft"
+    assert result.current_lifecycle_state == "consumed"
+    assert result.to_json_dict()["exchange_store_mutated"] is True
+    assert summaries[("submission:consume-marker", "v1")]["lifecycle_state"] == "consumed"
+    assert summaries[("submission:consume-marker", "v1")]["latest"] is False
+    assert summaries[("submission:consume-marker", "v2")]["latest"] is True
+    assert consumed_record.artifact.parts[-1].part_type == "log"
+    assert consumed_record.artifact.parts[-1].log is not None
+    assert consumed_record.artifact.parts[-1].log.action == "artifact_consumed"
+    assert consumed_record.artifact.parts[-1].log.actor == "agent:guide"
+    assert idempotent.already_consumed is True
+    assert idempotent.to_json_dict()["exchange_store_mutated"] is False
+
+
 def test_admit_exchange_artifact_version_validates_binding_refs_when_enabled(tmp_path) -> None:
     store_path = tmp_path / "exchange-artifacts.json"
     snapshot_path = tmp_path / "scheduler-state.json"
@@ -6136,6 +6208,55 @@ def test_admit_exchange_artifact_with_ledger_records_binding_summary_on_success(
     ] is False
 
 
+def test_admit_exchange_artifact_with_ledger_can_mark_consumed_on_success(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-consume-on-admit",
+                title="Consume on admit",
+                instruction="Mark consumed after successful admission.",
+                agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:consumer"),
+            ),
+            artifact_id="submission:consume-on-admit",
+            version="v1",
+        )
+    )
+
+    result = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="submission:consume-on-admit",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        mark_consumed_on_success=True,
+        actor="agent:guide",
+        timestamp="2026-06-22T10:20:00+08:00",
+    )
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    ).to_json_dict()
+    summary = bundle["summaries"][0]
+
+    assert result["ok"] is True
+    assert result["consumption_state"]["requested"] is True
+    assert result["consumption_state"]["consumed"] is True
+    assert result["consumption_state"]["previous_lifecycle_state"] == "draft"
+    assert result["consumption_state"]["current_lifecycle_state"] == "consumed"
+    assert result["consumption_state"]["actor"] == "agent:guide"
+    assert result["authority_split"]["exchange_store_mutated"] is True
+    assert summary["lifecycle_state"] == "consumed"
+    assert summary["admission_state"]["status"] == "admitted"
+
+
 def test_admit_exchange_artifact_with_ledger_records_binding_summary_on_failure(
     tmp_path,
 ) -> None:
@@ -6184,6 +6305,49 @@ def test_admit_exchange_artifact_with_ledger_records_binding_summary_on_failure(
     assert "binding:missing-ledger" in readback["records"][0][
         "binding_reference_summary"
     ]["errors"][0]
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+
+
+def test_admit_exchange_artifact_with_ledger_does_not_consume_on_failure(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / "scheduler-state.json"
+    event_log_path = tmp_path / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="message:not-submission",
+            kind="message",
+            intent="inform",
+            producer="agent:guide",
+            version="v1",
+            lifecycle_state="accepted",
+            parts=(ExchangePayloadPart(part_type="text", text="Not admissible."),),
+        )
+    )
+
+    result = admit_exchange_artifact_version_with_ledger(
+        artifact_store_path=store_path,
+        artifact_id="message:not-submission",
+        version="v1",
+        snapshot_path=snapshot_path,
+        event_log_path=event_log_path,
+        admission_ledger_path=ledger_path,
+        mark_consumed_on_success=True,
+    )
+    bundle = inspect_exchange_artifact_store(
+        store_path,
+        admission_ledger_path=ledger_path,
+    ).to_json_dict()
+
+    assert result["ok"] is False
+    assert result["consumption_state"]["requested"] is True
+    assert result["consumption_state"]["consumed"] is False
+    assert result["authority_split"]["exchange_store_mutated"] is False
+    assert bundle["summaries"][0]["lifecycle_state"] == "accepted"
+    assert bundle["summaries"][0]["admission_state"]["status"] == "failed"
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
 

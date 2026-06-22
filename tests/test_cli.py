@@ -492,6 +492,65 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
+def test_scheduler_admit_exchange_artifact_cli_can_mark_consumed_on_success(
+    tmp_path,
+) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        inspect_exchange_artifact_store,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-cli-consume",
+                title="CLI consume on success",
+                instruction="Admit and mark consumed through the CLI.",
+                agent=AgentSpec(agent_id="agent:cli", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:cli"),
+            ),
+            artifact_id="submission:cli-consume",
+            version="v1",
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "admit-exchange-artifact",
+            "--artifact-id",
+            "submission:cli-consume",
+            "--version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--mark-consumed-on-success",
+            "--actor",
+            "agent:operator",
+        ],
+        cwd=project,
+    )
+    bundle = inspect_exchange_artifact_store(store_path).to_json_dict()
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["consumption_state"]["requested"] is True
+    assert payload["consumption_state"]["consumed"] is True
+    assert payload["consumption_state"]["actor"] == "agent:operator"
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert bundle["summaries"][0]["lifecycle_state"] == "consumed"
+
+
 def test_scheduler_admit_exchange_artifact_cli_requires_explicit_paths(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)

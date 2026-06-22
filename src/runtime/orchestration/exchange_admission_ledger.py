@@ -299,6 +299,7 @@ def admit_exchange_artifact_version_with_ledger(
     allow_duplicate_admission: bool = False,
     replace_existing: bool = False,
     validate_binding_artifact_refs: bool = False,
+    mark_consumed_on_success: bool = False,
     actor: str = "operator",
     surface: str = "runtime:admit_exchange_artifact_version_with_ledger",
     timestamp: str = "",
@@ -338,6 +339,7 @@ def admit_exchange_artifact_version_with_ledger(
             snapshot_path=snapshot,
             event_log_path=event_log,
             admission_ledger_path=ledger_path,
+            mark_consumed_on_success=mark_consumed_on_success,
         )
 
     if previous_admissions and not allow_duplicate_admission:
@@ -384,7 +386,15 @@ def admit_exchange_artifact_version_with_ledger(
             "ran_tasks": False,
             "refreshed_projection": False,
             "binding_reference_summary": binding_reference_summary,
-            "authority_split": _admission_authority_split(scheduler_state_mutated=False),
+            "consumption_state": {
+                "requested": mark_consumed_on_success,
+                "consumed": False,
+                "reason": "duplicate admission rejected before scheduler mutation",
+            },
+            "authority_split": _admission_authority_split(
+                scheduler_state_mutated=False,
+                exchange_store_mutated=False,
+            ),
         }
 
     try:
@@ -439,6 +449,7 @@ def admit_exchange_artifact_version_with_ledger(
             admission_ledger_path=ledger_path,
             allow_duplicate_admission=allow_duplicate_admission,
             binding_reference_summary=binding_reference_summary,
+            mark_consumed_on_success=mark_consumed_on_success,
         )
 
     record = ledger.append(
@@ -479,7 +490,33 @@ def admit_exchange_artifact_version_with_ledger(
     payload["dependency_ids"] = dependency_ids
     payload["dependencies_added"] = dependency_ids
     payload["binding_reference_summary"] = binding_reference_summary
-    payload["authority_split"] = _admission_authority_split(scheduler_state_mutated=True)
+    consumption_state: dict[str, object] = {
+        "requested": mark_consumed_on_success,
+        "consumed": False,
+    }
+    exchange_store_mutated = False
+    if mark_consumed_on_success:
+        from .exchange_store import mark_exchange_artifact_version_consumed
+
+        consumption = mark_exchange_artifact_version_consumed(
+            store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            actor=actor,
+            reason=(
+                "exact exchange artifact version consumed after successful "
+                f"admission ledger record {record.ledger_id}"
+            ),
+            timestamp=timestamp,
+        )
+        consumption_state = consumption.to_json_dict()
+        consumption_state["requested"] = True
+        exchange_store_mutated = bool(consumption_state.get("exchange_store_mutated"))
+    payload["consumption_state"] = consumption_state
+    payload["authority_split"] = _admission_authority_split(
+        scheduler_state_mutated=True,
+        exchange_store_mutated=exchange_store_mutated,
+    )
     return payload
 
 
@@ -531,6 +568,7 @@ def _admission_error_payload(
     admission_ledger_path: Path,
     allow_duplicate_admission: bool = False,
     binding_reference_summary: Mapping[str, object] | None = None,
+    mark_consumed_on_success: bool = False,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "ok": False,
@@ -544,7 +582,15 @@ def _admission_error_payload(
         "allow_duplicate_admission": allow_duplicate_admission,
         "ran_tasks": False,
         "refreshed_projection": False,
-        "authority_split": _admission_authority_split(scheduler_state_mutated=False),
+        "consumption_state": {
+            "requested": mark_consumed_on_success,
+            "consumed": False,
+            "reason": "admission failed before consumption",
+        },
+        "authority_split": _admission_authority_split(
+            scheduler_state_mutated=False,
+            exchange_store_mutated=False,
+        ),
     }
     if binding_reference_summary:
         payload["binding_reference_summary"] = dict(binding_reference_summary)
@@ -604,13 +650,17 @@ def _build_binding_reference_summary(
     }
 
 
-def _admission_authority_split(*, scheduler_state_mutated: bool) -> dict[str, object]:
+def _admission_authority_split(
+    *,
+    scheduler_state_mutated: bool,
+    exchange_store_mutated: bool = False,
+) -> dict[str, object]:
     return {
         "admission_ledger_authority": "exchange_artifact_admission_ledger",
         "scheduler_state_authority": "scheduler_snapshot",
         "exchange_store_role": "exact-version-coordination-product-source",
         "scheduler_state_mutated": scheduler_state_mutated,
-        "exchange_store_mutated": False,
+        "exchange_store_mutated": exchange_store_mutated,
         "provider_executed": False,
         "scheduler_projection_refreshed": False,
         "local_work_trajectory_mutated": False,

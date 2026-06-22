@@ -30,6 +30,7 @@ from src.runtime.orchestration import (
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     build_sandbox_allocation_receipt_evidence,
     inspect_exchange_artifact_admission_ledger,
+    inspect_exchange_artifact_store,
     read_scheduler_state_snapshot,
     read_sandbox_allocation_receipt_evidence_summary,
     scheduler_task_submission_to_artifact,
@@ -160,6 +161,37 @@ def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: P
     assert [record.status for record in records] == ["admitted", "rejected_duplicate"]
 
 
+def test_governance_tools_admit_exchange_artifact_can_mark_consumed(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    _write_submission_artifact(
+        store_path,
+        artifact_id="submission:mcp-consume",
+        task_id="task-mcp-consume",
+    )
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    result = tools.admit_exchange_artifact(
+        artifact_id="submission:mcp-consume",
+        version="v1",
+        snapshot_path=str(snapshot_path),
+        event_log_path=str(event_log_path),
+        mark_consumed_on_success=True,
+        actor="agent:mcp",
+    )
+    bundle = inspect_exchange_artifact_store(store_path).to_json_dict()
+
+    assert result["ok"] is True
+    assert result["consumption_state"]["requested"] is True
+    assert result["consumption_state"]["consumed"] is True
+    assert result["consumption_state"]["actor"] == "agent:mcp"
+    assert result["authority_split"]["exchange_store_mutated"] is True
+    assert bundle["summaries"][0]["lifecycle_state"] == "consumed"
+
+
 def test_governance_tools_scheduler_binding_reference_inspect_is_read_only(
     tmp_path: Path,
 ) -> None:
@@ -225,6 +257,7 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         ]
         assert "allowDuplicateAdmission" in admit_tool.inputSchema["properties"]
         assert "replaceExisting" in admit_tool.inputSchema["properties"]
+        assert "markConsumedOnSuccess" in admit_tool.inputSchema["properties"]
         inspect_tool = next(
             tool for tool in tools if tool.name == "schedulerBindingReferenceInspect"
         )
@@ -242,6 +275,7 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
                         "version": "v1",
                         "snapshotPath": str(snapshot_path),
                         "eventLogPath": str(event_log_path),
+                        "markConsumedOnSuccess": True,
                         "actor": "agent:server",
                     },
                 )
@@ -251,6 +285,8 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         assert payload["ok"] is True
         assert payload["submitted_task_ids"] == ["task-server-admit"]
         assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-1"
+        assert payload["consumption_state"]["consumed"] is True
+        assert payload["authority_split"]["exchange_store_mutated"] is True
 
         inspect_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(

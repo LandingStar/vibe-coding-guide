@@ -185,6 +185,7 @@
 
 ### Post-v1.0 工作（无 Phase 编号，按方向候选推进）
 
+- ExchangeArtifact Consumption Lifecycle 完成：新增显式 exact-version consumption mutation，`mark_exchange_artifact_version_consumed()` 会将 stored `ExchangeArtifact.lifecycle_state` 标记为 `consumed` 并追加 compact log part；ledger-backed admission 默认仍不 auto-consume，但可通过 `mark_consumed_on_success` / CLI `--mark-consumed-on-success` / MCP `markConsumedOnSuccess` opt-in 在成功 admission 后标记 consumed；runtime/CLI/MCP 全量相关测试通过。
 - Host UX Binding Reference Visibility 完成：Scheduler Operator Host UX 现在从 `dbc://exchange-artifacts/bundle` 读取 compact `binding_reference_readiness` / `latest_binding_reference_summary`，候选卡片显示 `Binding readiness` 与 `Latest binding admission`，并在存在 binding readiness 时让 Admit 动作携带 `inspectBindingRefs=true`，复用 shared operator workflow 的 `--inspect-binding-refs` 路径；聚焦 extension/backend 验证和截图验证通过。
 - Exchange Store Binding Admission Summary Projection 完成：`inspect_exchange_artifact_store()` 现会在 admission candidate 上投影 compact `binding_reference_readiness` 与 `latest_binding_reference_summary`，CLI/MCP `dbc://exchange-artifacts/bundle` 和 operator workflow candidate bundle 可直接读到 binding readiness / latest admission summary；聚焦 runtime/CLI/MCP 验证通过。
 - Supervisor Storage Binding Consumer Fixture 完成：新增 deterministic `binding-consumer` scheduler operator fixture，可 seed compact supervisor storage binding artifact 与 consuming scheduler submission，并通过 `schedulerOperatorWorkflow(inspectBindingRefs=true, admit=true)` 验证 admission ledger `binding_reference_summary` readback；聚焦 runtime/CLI/MCP/prompt 验证通过。

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -56,6 +57,39 @@ class ArtifactVersionRecord:
     artifact_id: str
     version: str
     artifact: ExchangeArtifact
+
+
+@dataclass(frozen=True, slots=True)
+class ExchangeArtifactConsumptionResult:
+    """Result of explicitly marking one exact artifact version consumed."""
+
+    store_path: Path
+    artifact_id: str
+    version: str
+    consumed: bool
+    previous_lifecycle_state: str
+    current_lifecycle_state: str
+    actor: str
+    timestamp: str
+    reason: str = ""
+    already_consumed: bool = False
+
+    def to_json_dict(self) -> dict[str, object]:
+        """Return a compact JSON-compatible consumption result."""
+
+        return {
+            "store_path": str(self.store_path),
+            "artifact_id": self.artifact_id,
+            "version": self.version,
+            "consumed": self.consumed,
+            "previous_lifecycle_state": self.previous_lifecycle_state,
+            "current_lifecycle_state": self.current_lifecycle_state,
+            "actor": self.actor,
+            "timestamp": self.timestamp,
+            "reason": self.reason,
+            "already_consumed": self.already_consumed,
+            "exchange_store_mutated": self.consumed and not self.already_consumed,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -401,6 +435,24 @@ class JsonArtifactVersionStore:
 
         return self._read_records()
 
+    def replace_exact(self, artifact: ExchangeArtifact) -> ArtifactVersionRecord:
+        """Replace one existing exact version while preserving store order."""
+
+        _validate_storable_exchange_artifact(artifact)
+        records = list(self._read_records())
+        key = (artifact.artifact_id, artifact.version)
+        for index, record in enumerate(records):
+            if (record.artifact_id, record.version) == key:
+                replacement = ArtifactVersionRecord(
+                    artifact_id=artifact.artifact_id,
+                    version=artifact.version,
+                    artifact=artifact,
+                )
+                records[index] = replacement
+                self._write_records(tuple(records))
+                return replacement
+        raise KeyError(key)
+
     def _read_records(self) -> tuple[ArtifactVersionRecord, ...]:
         if not self.path.exists():
             return ()
@@ -517,6 +569,85 @@ def inspect_exchange_artifact_store(
         store_path,
         exists=store_path.exists(),
         admission_ledger_path=admission_ledger_path,
+    )
+
+
+def mark_exchange_artifact_version_consumed(
+    *,
+    store_path: str | Path,
+    artifact_id: str,
+    version: str,
+    actor: str = "operator",
+    reason: str = "",
+    timestamp: str = "",
+) -> ExchangeArtifactConsumptionResult:
+    """Explicitly mark one exact stored artifact version consumed.
+
+    The exchange artifact store is the lifecycle authority. This helper updates
+    only the stored exact version and appends a compact log part for audit
+    readback; it does not mutate scheduler state or admission ledgers.
+    """
+
+    if not artifact_id:
+        raise ValueError("exchange artifact consumption requires a non-empty artifact_id")
+    if not version:
+        raise ValueError(
+            f"exchange artifact consumption for {artifact_id!r} requires a non-empty version"
+        )
+
+    path = Path(store_path)
+    store = JsonArtifactVersionStore(path)
+    try:
+        record = store.get(artifact_id, version)
+    except KeyError as exc:
+        raise ValueError(
+            f"exchange artifact version not found in {path}: "
+            f"{artifact_id!r}@{version!r}"
+        ) from exc
+
+    event_timestamp = timestamp or datetime.now(UTC).isoformat()
+    previous_state = record.artifact.lifecycle_state
+    if previous_state == "consumed":
+        return ExchangeArtifactConsumptionResult(
+            store_path=path,
+            artifact_id=artifact_id,
+            version=version,
+            consumed=True,
+            previous_lifecycle_state=previous_state,
+            current_lifecycle_state=previous_state,
+            actor=actor,
+            timestamp=event_timestamp,
+            reason=reason,
+            already_consumed=True,
+        )
+
+    log_part = ExchangePayloadPart(
+        part_type="log",
+        log=ExchangeLog(
+            timestamp=event_timestamp,
+            actor=actor,
+            action="artifact_consumed",
+            channel="exchange-artifact-store",
+            summary=reason or "ExchangeArtifact exact version marked consumed.",
+            related_artifact_ids=(artifact_id,),
+        ),
+    )
+    consumed_artifact = replace(
+        record.artifact,
+        lifecycle_state="consumed",
+        parts=(*record.artifact.parts, log_part),
+    )
+    store.replace_exact(consumed_artifact)
+    return ExchangeArtifactConsumptionResult(
+        store_path=path,
+        artifact_id=artifact_id,
+        version=version,
+        consumed=True,
+        previous_lifecycle_state=previous_state,
+        current_lifecycle_state="consumed",
+        actor=actor,
+        timestamp=event_timestamp,
+        reason=reason,
     )
 
 

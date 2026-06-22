@@ -911,8 +911,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "admission ledger. Reuses the exact-version admission path and rejects "
                     "duplicate artifact/version admission by default before scheduler "
                     "mutation. This does not run providers, refresh scheduler projection, "
-                    "mark exchange artifacts consumed, or mutate agent-owned "
-                    "local-work-trajectory.json."
+                    "mark exchange artifacts consumed by default, or mutate agent-owned "
+                    "local-work-trajectory.json. Set markConsumedOnSuccess=true to mark "
+                    "the exact admitted artifact version consumed only after successful "
+                    "admission."
                 ),
                 inputSchema={
                     "type": "object",
@@ -948,6 +950,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         "replaceExisting": {
                             "type": "boolean",
                             "description": "Whether admitted scheduler tasks may replace existing task ids. Separate from duplicate admission policy. Default false.",
+                        },
+                        "markConsumedOnSuccess": {
+                            "type": "boolean",
+                            "description": "If true, mark the exact admitted ExchangeArtifact version consumed after successful admission. Default false.",
                         },
                         "actor": {
                             "type": "string",
@@ -1926,6 +1932,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 admission_ledger_path=arguments.get("admissionLedgerPath", ""),
                 allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
                 replace_existing=arguments.get("replaceExisting", False),
+                mark_consumed_on_success=arguments.get("markConsumedOnSuccess", False),
                 actor=arguments.get("actor", "mcp"),
                 timestamp=arguments.get("timestamp", ""),
             )
