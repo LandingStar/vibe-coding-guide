@@ -246,10 +246,12 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert ".codex/orchestration/exchange-artifacts.json" in text
         assert ".codex/orchestration/exchange-artifact-admissions.json" in text
         assert "doc-based-coding qoder readiness" in text
+        assert "doc-based-coding qoder smoke" in text
         assert "QoderSDKHostReadinessReport" in text
         assert "docs/qoder-host-provisioning-check-guide.md" in text
         assert "token_present" in text
         assert "qoder readiness --auth-mode qodercli" in text
+        assert "--no-initialize-snapshot" in text
 
 
 def test_host_evidence_bundle_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
@@ -652,6 +654,8 @@ def test_qoder_host_provisioning_guide_is_linked_from_docs() -> None:
 
     assert "qoder-host-provisioning-check-guide.md" in docs_readme
     assert "doc-based-coding qoder readiness" in guide
+    assert "doc-based-coding qoder smoke" in guide
     assert "QODER_PERSONAL_ACCESS_TOKEN" in guide
     assert "token_present" in guide
+    assert "--no-initialize-snapshot" in guide
     assert "must not be written" in guide

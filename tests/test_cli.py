@@ -27,6 +27,26 @@ def _run_cli(args: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProces
     )
 
 
+def _run_cli_without_env_var(
+    args: list[str],
+    *,
+    cwd: Path,
+    env_var: str,
+) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env.pop(env_var, None)
+    current = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = str(ROOT) if not current else f"{ROOT}{os.pathsep}{current}"
+    return subprocess.run(
+        [sys.executable, "-m", "src", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def test_check_outputs_constraints_only_without_text() -> None:
     proc = subprocess.run(
         [sys.executable, "-m", "src", "check"],
@@ -264,6 +284,109 @@ def test_qoder_readiness_accepts_qodercli_auth_mode() -> None:
     payload = json.loads(proc.stdout)
     assert payload["auth_mode"] == "qodercli"
     assert payload["token_present"] is False
+
+
+def test_qoder_help_includes_host_owned_smoke() -> None:
+    proc = _run_cli(["qoder", "--help"])
+
+    assert proc.returncode == 0
+    assert "readiness" in proc.stdout
+    assert "smoke" in proc.stdout
+    assert "host-owned Qoder smoke helper" in proc.stdout
+
+
+def test_qoder_smoke_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["qoder", "smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--permission-request-policy deny|surface" in proc.stdout
+    assert "--no-initialize-snapshot" in proc.stdout
+    assert "host-owned live-provider smoke surface" in proc.stdout
+    assert "never accepts a raw token value" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_qoder_smoke_missing_auth_initializes_only_proposed_snapshot(tmp_path: Path) -> None:
+    from src.runtime.orchestration import read_scheduler_state_snapshot
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    absent_env_var = "DBC_TEST_QODER_TOKEN_ABSENT_DO_NOT_SET"
+
+    proc = _run_cli_without_env_var(
+        [
+            "qoder",
+            "smoke",
+            "--auth-env-var",
+            absent_env_var,
+            "--snapshot-path",
+            ".codex/scheduler/qoder-smoke-state.json",
+            "--event-log-path",
+            ".codex/scheduler/qoder-smoke-events.jsonl",
+            "--evidence-path",
+            ".codex/scheduler/evidence/qoder-smoke.json",
+            "--projection-output-path",
+            ".codex/progress-graph/scheduler-work-trajectory.json",
+            "--timestamp",
+            "2026-06-22T16:00:00+08:00",
+        ],
+        cwd=project,
+        env_var=absent_env_var,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stdout == ""
+    assert "authentication_failed" in proc.stderr
+    assert absent_env_var in proc.stderr
+    snapshot_path = project / ".codex/scheduler/qoder-smoke-state.json"
+    restored = read_scheduler_state_snapshot(snapshot_path)
+    assert restored.tasks["qoder-smoke"].state == "proposed"
+    assert restored.tasks["qoder-smoke"].run_id == ""
+    assert restored.tasks["qoder-smoke"].agent.max_turns == 1
+    assert (project / ".codex/scheduler/evidence/qoder-smoke.json").exists() is False
+    assert (project / ".codex/progress-graph/scheduler-work-trajectory.json").exists() is False
+
+
+def test_qoder_smoke_no_initialize_missing_auth_writes_no_scheduler_files(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    absent_env_var = "DBC_TEST_QODER_TOKEN_ABSENT_DO_NOT_SET"
+
+    proc = _run_cli_without_env_var(
+        [
+            "qoder",
+            "smoke",
+            "--auth-env-var",
+            absent_env_var,
+            "--no-initialize-snapshot",
+            "--snapshot-path",
+            ".codex/scheduler/qoder-smoke-state.json",
+            "--evidence-path",
+            ".codex/scheduler/evidence/qoder-smoke.json",
+        ],
+        cwd=project,
+        env_var=absent_env_var,
+    )
+
+    assert proc.returncode == 1
+    assert "authentication_failed" in proc.stderr
+    assert (project / ".codex/scheduler/qoder-smoke-state.json").exists() is False
+    assert (project / ".codex/scheduler/evidence/qoder-smoke.json").exists() is False
+    assert (project / ".codex/progress-graph/scheduler-work-trajectory.json").exists() is False
+
+
+def test_qoder_smoke_invalid_option_fails_before_workspace_mutation(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        ["qoder", "smoke", "--permission-request-policy", "approve"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "must be deny or surface" in proc.stderr
+    assert (project / ".codex").exists() is False
 
 
 def test_validate_exit_zero_on_valid_project() -> None:

@@ -9,6 +9,11 @@ It does not install the SDK, create credentials, persist tokens, or execute a
 Qoder task. It only checks whether the current host runtime is ready enough for
 a later `run_host_owned_qoder_smoke()` attempt.
 
+When the host intentionally wants to run that bounded smoke from the command
+line, use `doc-based-coding qoder smoke`. The smoke command is still
+host-owned: it reuses the existing Qoder SDK wrapper and host permission grant
+contracts, and it remains outside MCP real-provider execution.
+
 ## Authority Boundary
 
 The real Qoder path is host-owned:
@@ -17,6 +22,7 @@ The real Qoder path is host-owned:
 QoderSDKQueryClient
 QoderSDKQueryClientConfig
 run_host_owned_qoder_smoke()
+doc-based-coding qoder smoke
 run_host_runtime_dogfood_harness()
 ```
 
@@ -81,6 +87,57 @@ Optional flags:
 --sdk-module NAME
 ```
 
+## Smoke Command
+
+Run only after reading the readiness result:
+
+```text
+doc-based-coding qoder smoke
+```
+
+Equivalent module form:
+
+```text
+python -m src qoder smoke
+```
+
+Useful bounded options:
+
+```text
+--auth-mode env|qodercli
+--auth-env-var NAME
+--sdk-module NAME
+--cwd PATH
+--model NAME
+--max-turns N
+--permission-request-policy deny|surface
+--snapshot-path .codex/scheduler/qoder-smoke-state.json
+--event-log-path .codex/scheduler/qoder-smoke-events.jsonl
+--evidence-id qoder-smoke
+--evidence-path .codex/scheduler/evidence/qoder-smoke.json
+--projection-output-path .codex/progress-graph/scheduler-work-trajectory.json
+--host-invocation-id host-owned-qoder-smoke-cli
+--reason "bounded host-owned Qoder smoke"
+--reset-snapshot
+--no-initialize-snapshot
+--timestamp 2026-06-22T00:00:00+08:00
+```
+
+The command does not accept a raw token value. Use host environment variables
+or the supported SDK `qodercli` auth mode.
+
+Readiness-negative behavior is expected on unprovisioned hosts:
+
+- by default, the helper may initialize the smoke scheduler snapshot and leave
+  the task in `proposed` state;
+- it must fail before writing host evidence or scheduler projection;
+- with `--no-initialize-snapshot`, it should fail without creating the smoke
+  scheduler snapshot.
+
+Successful smoke output is the existing `HostOwnedQoderSmokeRunResult` JSON
+shape. It includes compact host scheduler run evidence and projection paths, not
+raw transcripts or credentials.
+
 ## Output Contract
 
 The command returns JSON:
@@ -119,7 +176,7 @@ ready=true
 ```
 
 The host can proceed to a bounded live smoke gate using
-`run_host_owned_qoder_smoke()`.
+`run_host_owned_qoder_smoke()` or `doc-based-coding qoder smoke`.
 
 SDK missing:
 
@@ -160,6 +217,8 @@ installed and exposes `qodercli_auth`.
 4. Do not run scheduler/Qoder execution merely to check readiness.
 5. Do not mutate Local Work Trajectory from this check.
 6. Do not treat an empty host evidence presentation as a live smoke success.
+7. Do not route live Qoder through MCP scheduler execution tools; use the
+   host-owned smoke command or Python helper.
 
 ## Write-Back Guidance
 
@@ -177,4 +236,6 @@ Record readiness checks in review evidence using only:
 
 If `ready=false`, keep the follow-up as host environment work. If `ready=true`,
 open a separate bounded live Qoder smoke planning gate before running the
-provider.
+provider. When using `doc-based-coding qoder smoke`, record whether the result
+was readiness-negative or successful, the explicit paths used, and whether any
+evidence/projection file was written.

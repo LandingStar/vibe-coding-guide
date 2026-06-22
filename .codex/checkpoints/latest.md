@@ -1,6 +1,6 @@
-# Checkpoint - 2026-06-22T15:40:00+08:00
+# Checkpoint - 2026-06-22T16:35:00+08:00
 ## Current Phase
-Post-v1.0 - Agent orchestration / Host UX operator dogfood closure control completed
+Post-v1.0 - Agent orchestration / Live Qoder runtime provider dogfood completed
 ## Active Planning Gate
 (none)
 ## Current Handoff
@@ -9,39 +9,34 @@ Post-v1.0 - Agent orchestration / Host UX operator dogfood closure control compl
 - scope_key: knowledge-graph-engine-progress-preview-integration
 - created_at: 2026-06-02T10:16:21+08:00
 ## Current Todo
-- [x] Close planning gate `design_docs/stages/planning-gate/2026-06-22-host-ux-operator-dogfood-closure-control.md`.
-- [x] Add Scheduler Operator Host UX action `operatorDogfoodClosure`.
-- [x] Route Host UX through shared CLI `doc-based-coding scheduler operator-dogfood-closure`.
-- [x] Render compact `closure_summary` and `authority_split` in the last-action area.
-- [x] Validate VS Code extension build, focused node tests `43 passed`, screenshot capture, scoped `git diff --check`, and `analyze_changes`.
-- [x] Record review evidence and follow-up direction.
+- [x] Close planning gate `design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md`.
+- [x] Add host-owned CLI `doc-based-coding qoder smoke`.
+- [x] Route the CLI through existing `run_host_owned_qoder_smoke()` and Qoder SDK host config.
+- [x] Preserve fake-only scheduler/MCP execution boundaries.
+- [x] Update provisioning guide and scheduler smoke prompts.
+- [x] Validate py_compile, focused Qoder CLI/runtime/helper/prompt tests, readiness-negative smoke, diff check, and `analyze_changes`.
+- [x] Record review evidence.
 ## Pending User Decision
 (none)
 ## Direction Candidates
-- Completed Gate: Host UX Operator Dogfood Closure Control - source: design_docs/stages/planning-gate/2026-06-22-host-ux-operator-dogfood-closure-control.md
-- Review Evidence: Host UX Operator Dogfood Closure Control Review - source: review/host-ux-operator-dogfood-closure-control-2026-06-22.md
-- Recommended Source: Host UX Operator Dogfood Closure Control Follow-Up Direction Analysis - source: design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
-- Recommended Next Gate: Live Qoder Runtime Provider Dogfood - source: design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
-- Prior Direction Analysis: Operator Dogfood Closure MCP Surface Follow-Up Direction Analysis - source: design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md
+- Completed Gate: Live Qoder Runtime Provider Dogfood - source: design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
+- Review Evidence: Live Qoder Runtime Provider Dogfood Review - source: review/live-qoder-runtime-provider-dogfood-2026-06-22.md
+- Prior Source: Host UX Operator Dogfood Closure Control Follow-Up Direction Analysis - source: design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
+- Possible Next Direction: Credentialed live Qoder success after host provisions `qoder-agent-sdk` and supported auth.
+- Possible Next Direction: Return to scheduler/operator orchestration surfaces without widening live provider execution.
 ## Key Context Files
 - design_docs/Project Master Checklist.md
 - design_docs/Global Phase Map and Current Position.md
-- design_docs/direction-candidates-after-phase-35.md
-- design_docs/agent-home-and-scratch-space-design-record.md
-- design_docs/stages/planning-gate/2026-06-22-operator-dogfood-execution-evidence-closure.md
-- design_docs/stages/planning-gate/2026-06-22-operator-dogfood-closure-mcp-surface.md
-- design_docs/stages/planning-gate/2026-06-22-host-ux-operator-dogfood-closure-control.md
-- design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md
-- design_docs/host-ux-operator-dogfood-closure-control-followup-direction-analysis.md
-- review/operator-dogfood-execution-evidence-closure-2026-06-22.md
-- review/operator-dogfood-closure-mcp-surface-2026-06-22.md
-- review/host-ux-operator-dogfood-closure-control-2026-06-22.md
-- tools/progress_graph/scheduler_operator_dogfood_closure.py
-- src/mcp/tools.py
-- src/mcp/server.py
-- vscode-extension/src/views/schedulerOperatorContracts.ts
-- vscode-extension/src/views/schedulerOperatorWorkflow.ts
-- vscode-extension/src/views/progressGraphPreviewHtml.ts
-- vscode-extension/src/test/schedulerOperatorContracts.test.ts
-- vscode-extension/src/test/progressGraphPreviewHtml.test.ts
-- vscode-extension/src/test/progressGraphPreviewPanel.test.ts
+- design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md
+- review/live-qoder-runtime-provider-dogfood-2026-06-22.md
+- docs/qoder-host-provisioning-check-guide.md
+- .codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
+- doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md
+- src/__main__.py
+- tools/progress_graph/qoder_smoke.py
+- src/runtime/orchestration/qoder_sdk_client.py
+- src/runtime/orchestration/runtime_wiring.py
+- tests/test_cli.py
+- tests/test_doc_loop_prompts.py
+- tests/test_progress_graph_trajectory.py
+- tests/test_runtime_orchestration.py

@@ -7,6 +7,7 @@ Installed entry point:
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
+    doc-based-coding qoder smoke               — Run host-owned Qoder smoke helper
     doc-based-coding scheduler <subcommand>    — Scheduler operator helpers
     doc-based-coding generate-instructions     — Generate agent instructions segment
 
@@ -242,6 +243,24 @@ def cmd_resources(args: list[str]) -> int:
     return 1
 
 
+_QODER_READINESS_USAGE = (
+    "Usage: doc-based-coding qoder readiness "
+    "[--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]"
+)
+
+_QODER_SMOKE_USAGE = (
+    "Usage: doc-based-coding qoder smoke "
+    "[--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME] "
+    "[--cwd PATH] [--model NAME] [--max-turns N] "
+    "[--permission-request-policy deny|surface] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--evidence-id ID] [--evidence-path PATH] "
+    "[--projection-output-path PATH] [--host-invocation-id ID] "
+    "[--reason TEXT] [--reset-snapshot] [--no-initialize-snapshot] "
+    "[--timestamp TIMESTAMP]"
+)
+
+
 def cmd_qoder(args: list[str]) -> int:
     """Qoder host-runtime helper subcommands."""
     if not args or args[0] in ("-h", "--help"):
@@ -250,44 +269,64 @@ def cmd_qoder(args: list[str]) -> int:
             "Subcommands:\n"
             "  readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]\n"
             "      Check optional qoder-agent-sdk host readiness without printing secrets\n",
+            "  smoke [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]\n"
+            "      Run the host-owned Qoder smoke helper with explicit host authorization\n",
         )
         return 0
 
     sub = args[0]
-    if sub != "readiness":
-        print(f"Unknown qoder subcommand: {sub}", file=sys.stderr)
-        print("Usage: doc-based-coding qoder <readiness> [args]", file=sys.stderr)
-        return 1
+    if sub == "readiness":
+        return cmd_qoder_readiness(args[1:])
+    if sub == "smoke":
+        return cmd_qoder_smoke(args[1:])
+
+    print(f"Unknown qoder subcommand: {sub}", file=sys.stderr)
+    print("Usage: doc-based-coding qoder <readiness|smoke> [args]", file=sys.stderr)
+    return 1
+
+
+def cmd_qoder_readiness(args: list[str]) -> int:
+    """Check optional Qoder SDK host readiness without executing a query."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _QODER_READINESS_USAGE + "\n\n"
+            "This command checks whether the optional qoder-agent-sdk wrapper can "
+            "be constructed by the host runtime. It prints only credential-safe "
+            "booleans and redacted error clues; it does not run providers, write "
+            "scheduler state, write evidence, or mutate Local Work Trajectory.",
+        )
+        return 0
 
     auth_mode = "env"
     auth_env_var = ""
     sdk_module_name = ""
-    i = 1
+    i = 0
     while i < len(args):
         arg = args[i]
         if arg == "--auth-mode":
             if i + 1 >= len(args):
-                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                print(_QODER_READINESS_USAGE, file=sys.stderr)
                 return 1
             auth_mode = args[i + 1]
             i += 2
             continue
         if arg == "--auth-env-var":
             if i + 1 >= len(args):
-                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                print(_QODER_READINESS_USAGE, file=sys.stderr)
                 return 1
             auth_env_var = args[i + 1]
             i += 2
             continue
         if arg == "--sdk-module":
             if i + 1 >= len(args):
-                print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+                print(_QODER_READINESS_USAGE, file=sys.stderr)
                 return 1
             sdk_module_name = args[i + 1]
             i += 2
             continue
         print(f"Unknown qoder readiness option: {arg}", file=sys.stderr)
-        print("Usage: doc-based-coding qoder readiness [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]", file=sys.stderr)
+        print(_QODER_READINESS_USAGE, file=sys.stderr)
         return 1
 
     if auth_mode not in {"env", "qodercli"}:
@@ -311,6 +350,178 @@ def cmd_qoder(args: list[str]) -> int:
         return _handle_error("Error checking Qoder readiness", e, category="qoder_readiness_failed")
 
     _print_json(report.to_json_dict())
+    return 0
+
+
+def cmd_qoder_smoke(args: list[str]) -> int:
+    """Run the host-owned Qoder smoke helper through a CLI surface."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _QODER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned live-provider smoke surface. It delegates "
+            "to run_host_owned_qoder_smoke(), uses the existing host-authorized "
+            "adapter and Qoder permission grant contracts, and never accepts a raw "
+            "token value. If SDK/auth readiness is missing, it fails before host "
+            "evidence or scheduler projection writes. It is not an MCP real-provider "
+            "execution surface and does not mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    auth_mode = "env"
+    auth_env_var = ""
+    sdk_module_name = ""
+    cwd = ""
+    model = ""
+    max_turns: int | None = None
+    permission_request_policy = "deny"
+    snapshot_path = ""
+    event_log_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    projection_output_path = ""
+    host_invocation_id = ""
+    reason = ""
+    reset_snapshot = False
+    initialize_snapshot = True
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--reset-snapshot":
+            reset_snapshot = True
+            i += 1
+            continue
+        if arg == "--no-initialize-snapshot":
+            initialize_snapshot = False
+            i += 1
+            continue
+        if arg in {
+            "--auth-mode",
+            "--auth-env-var",
+            "--sdk-module",
+            "--cwd",
+            "--model",
+            "--max-turns",
+            "--permission-request-policy",
+            "--snapshot-path",
+            "--event-log-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--projection-output-path",
+            "--host-invocation-id",
+            "--reason",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_QODER_SMOKE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--auth-mode":
+                auth_mode = value
+            elif arg == "--auth-env-var":
+                auth_env_var = value
+            elif arg == "--sdk-module":
+                sdk_module_name = value
+            elif arg == "--cwd":
+                cwd = value
+            elif arg == "--model":
+                model = value
+            elif arg == "--max-turns":
+                try:
+                    max_turns = int(value)
+                except ValueError:
+                    print(_QODER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-turns must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--permission-request-policy":
+                permission_request_policy = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--projection-output-path":
+                projection_output_path = value
+            elif arg == "--host-invocation-id":
+                host_invocation_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown qoder smoke option: {arg}", file=sys.stderr)
+        print(_QODER_SMOKE_USAGE, file=sys.stderr)
+        return 1
+
+    if auth_mode not in {"env", "qodercli"}:
+        print("qoder smoke --auth-mode must be env or qodercli", file=sys.stderr)
+        return 1
+    if permission_request_policy not in {"deny", "surface"}:
+        print(
+            "qoder smoke --permission-request-policy must be deny or surface",
+            file=sys.stderr,
+        )
+        return 1
+    if max_turns is not None and max_turns < 1:
+        print("qoder smoke --max-turns must be positive", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_QODER_TOKEN_ENV,
+            QoderSDKQueryClientConfig,
+        )
+        from tools.progress_graph import (
+            HostOwnedQoderSmokeRunConfig,
+            QoderSmokeTaskConfig,
+            run_host_owned_qoder_smoke,
+        )
+
+        qoder_config = QoderSDKQueryClientConfig(
+            cwd=cwd,
+            model=model,
+            max_turns=max_turns,
+            auth_mode=auth_mode,  # type: ignore[arg-type]
+            auth_env_var=auth_env_var or DEFAULT_QODER_TOKEN_ENV,
+            permission_request_policy=permission_request_policy,  # type: ignore[arg-type]
+            sdk_module_name=sdk_module_name or "qoder_agent_sdk",
+        )
+        if max_turns is None:
+            task = QoderSmokeTaskConfig(model=model)
+        else:
+            task = QoderSmokeTaskConfig(model=model, max_turns=max_turns)
+        config = HostOwnedQoderSmokeRunConfig(
+            evidence_id=evidence_id or "qoder-smoke",
+            timestamp=timestamp,
+            snapshot_path=snapshot_path or ".codex/scheduler/qoder-smoke-state.json",
+            event_log_path=event_log_path or ".codex/scheduler/qoder-smoke-events.jsonl",
+            evidence_output_path=evidence_path or None,
+            projection_output_path=projection_output_path or None,
+            initialize_snapshot=initialize_snapshot,
+            reset_snapshot=reset_snapshot,
+            task=task,
+            qoder_client_config=qoder_config,
+            host_invocation_id=host_invocation_id or "host-owned-qoder-smoke-cli",
+            requested_by="cli:qoder-smoke",
+            reason=reason or "host-owned Qoder SDK smoke run from CLI",
+            grant_id=f"grant-{host_invocation_id or 'host-owned-qoder-smoke-cli'}",
+            approved_by="cli:qoder-smoke",
+            approved_at=timestamp,
+            guide_context="doc-based-coding qoder smoke",
+        )
+        result = run_host_owned_qoder_smoke(root, config=config)
+    except Exception as e:
+        return _handle_error("Error running Qoder smoke", e, category="qoder_smoke_failed")
+
+    _print_json(result.to_json_dict())
     return 0
 
 

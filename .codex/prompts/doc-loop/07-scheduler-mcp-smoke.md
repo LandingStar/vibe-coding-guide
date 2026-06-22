@@ -822,6 +822,7 @@ The current wrapper seam is:
 
 ```text
 doc-based-coding qoder readiness
+doc-based-coding qoder smoke
 QoderSDKQueryClientConfig
 QoderSDKQueryClient
 QoderSDKHostReadinessReport
@@ -847,6 +848,8 @@ Expected host construction:
    `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`.
 7. Pass the wrapper as `qoder_query_client` to
    `run_host_runtime_dogfood_harness()`.
+8. When a CLI smoke is needed, run `doc-based-coding qoder smoke` instead of
+   hand-assembling the Python helper, but keep it host-owned and outside MCP.
 
 Expected readiness command behavior:
 
@@ -885,6 +888,7 @@ tokens, or full SDK logs into `QoderQueryResult.metadata`,
 Prefer the host-owned smoke helper for repeatable Qoder wrapper checks:
 
 ```text
+doc-based-coding qoder smoke
 run_host_owned_qoder_smoke()
 HostOwnedQoderSmokeRunConfig
 QoderSmokeTaskConfig
@@ -893,6 +897,28 @@ QoderSmokeTaskConfig
 The helper lives under `tools/progress_graph/qoder_smoke.py` because it composes
 the host dogfood harness, scheduler projection, and evidence artifacts. It is
 not a scheduler daemon and is not an MCP execution surface.
+
+Expected CLI smoke options:
+
+```text
+--auth-mode env|qodercli
+--auth-env-var NAME
+--sdk-module NAME
+--cwd PATH
+--model NAME
+--max-turns N
+--permission-request-policy deny|surface
+--snapshot-path .codex/scheduler/qoder-smoke-state.json
+--event-log-path .codex/scheduler/qoder-smoke-events.jsonl
+--evidence-id qoder-smoke
+--evidence-path .codex/scheduler/evidence/qoder-smoke.json
+--projection-output-path .codex/progress-graph/scheduler-work-trajectory.json
+--host-invocation-id host-owned-qoder-smoke-cli
+--reason "bounded host-owned Qoder smoke"
+--reset-snapshot
+--no-initialize-snapshot
+--timestamp 2026-06-22T00:00:00+08:00
+```
 
 Expected helper behavior:
 
@@ -905,6 +931,8 @@ Expected helper behavior:
 6. Delegate execution to `run_host_runtime_dogfood_harness()`.
 7. Write compact `HostSchedulerRunEvidence` and scheduler-derived trajectory
    projection.
+8. The CLI command must never accept a raw token value; credentials stay in the
+   host environment or supported SDK auth mode.
 
 Use injected clients for deterministic tests. Use the real SDK wrapper only
 when the host environment intentionally provides `qoder-agent-sdk` and
@@ -913,6 +941,9 @@ when the host environment intentionally provides `qoder-agent-sdk` and
 If SDK/auth are missing, the helper should fail before evidence/projection
 writes and leave the smoke task in `proposed` state. Treat that as expected
 negative-path evidence, not as scheduler corruption.
+
+With `doc-based-coding qoder smoke --no-initialize-snapshot`, readiness-negative
+hosts should fail without creating the smoke scheduler snapshot.
 
 ## Write-Back
 
