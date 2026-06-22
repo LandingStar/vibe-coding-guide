@@ -16,6 +16,8 @@ from src.runtime.orchestration import (
     ContextScope,
     EditLeaseLifecycleRecord,
     EditScopeLease,
+    ExchangeArtifact,
+    ExchangePayloadPart,
     ExchangeReference,
     JsonArtifactVersionStore,
     JsonExchangeArtifactAdmissionLedger,
@@ -24,6 +26,8 @@ from src.runtime.orchestration import (
     SchedulerTaskSubmission,
     SchedulerState,
     ScheduledTask,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+    SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     build_sandbox_allocation_receipt_evidence,
     read_scheduler_state_snapshot,
     read_sandbox_allocation_receipt_evidence_summary,
@@ -56,6 +60,60 @@ def _write_submission_artifact(
         version="v1",
     )
     JsonArtifactVersionStore(store_path).put(artifact)
+
+
+def _write_binding_ref_submission_artifacts(
+    store_path: Path,
+    *,
+    artifact_id: str = "submission:mcp-binding-inspect",
+    binding_ref_id: str = "binding:mcp",
+) -> None:
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id=binding_ref_id,
+            kind="retention",
+            intent="inform",
+            producer="agent:projection",
+            version="v1",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": binding_ref_id,
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="storage_manifest",
+                    data={
+                        "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                        "binding_id": binding_ref_id,
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task-mcp-binding-inspect",
+                title="MCP binding inspect task",
+                instruction="Inspect binding refs through MCP.",
+                agent=AgentSpec(agent_id="agent:mcp-binding", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:mcp-binding"),
+                input_artifact_refs=(
+                    ExchangeReference(
+                        ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                        ref_id=binding_ref_id,
+                        version="v1",
+                    ),
+                ),
+            ),
+            artifact_id=artifact_id,
+            version="v1",
+        )
+    )
 
 
 def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: Path) -> None:
@@ -100,6 +158,40 @@ def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: P
     assert [record.status for record in records] == ["admitted", "rejected_duplicate"]
 
 
+def test_governance_tools_scheduler_binding_reference_inspect_is_read_only(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    _write_binding_ref_submission_artifacts(store_path)
+    tools = GovernanceTools(tmp_path, dry_run=True)
+
+    result = tools.scheduler_binding_reference_inspect(
+        artifact_id="submission:mcp-binding-inspect",
+        version="v1",
+    )
+    missing = tools.scheduler_binding_reference_inspect(
+        artifact_id="submission:missing",
+        version="v1",
+    )
+
+    assert result["ok"] is True
+    assert result["submission_product_type"] == "scheduler_task_submission"
+    assert result["task_count"] == 1
+    assert result["binding_ref_count"] == 1
+    assert result["checked_ref_count"] == 1
+    assert result["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:mcp"
+    assert result["authority_split"]["scheduler_state_mutated"] is False
+    assert result["authority_split"]["exchange_store_mutated"] is False
+    assert result["authority_split"]["raw_evidence_json_read"] is False
+    assert missing["ok"] is False
+    assert "submission:missing" in missing["errors"][0]
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -> None:
     store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
     snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
@@ -109,6 +201,11 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         artifact_id="submission:server-admit",
         task_id="task-server-admit",
     )
+    _write_binding_ref_submission_artifacts(
+        store_path,
+        artifact_id="submission:server-binding-inspect",
+        binding_ref_id="binding:server",
+    )
     server = create_server(tmp_path, dry_run=True)
 
     async def exercise_server() -> None:
@@ -116,6 +213,7 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         tools = list_result.root.tools
         names = {tool.name for tool in tools}
         assert "admitExchangeArtifact" in names
+        assert "schedulerBindingReferenceInspect" in names
         admit_tool = next(tool for tool in tools if tool.name == "admitExchangeArtifact")
         assert admit_tool.inputSchema["required"] == [
             "artifactId",
@@ -125,6 +223,13 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         ]
         assert "allowDuplicateAdmission" in admit_tool.inputSchema["properties"]
         assert "replaceExisting" in admit_tool.inputSchema["properties"]
+        inspect_tool = next(
+            tool for tool in tools if tool.name == "schedulerBindingReferenceInspect"
+        )
+        assert inspect_tool.inputSchema["required"] == ["artifactId", "version"]
+        assert "artifactStorePath" in inspect_tool.inputSchema["properties"]
+        assert "Read-only inspection" in inspect_tool.description
+        assert "raw evidence JSON" in inspect_tool.description
 
         call_result = await server.request_handlers[CallToolRequest](
             CallToolRequest(
@@ -144,6 +249,23 @@ def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -
         assert payload["ok"] is True
         assert payload["submitted_task_ids"] == ["task-server-admit"]
         assert payload["admission_ledger_record_id"] == "exchange-artifact-admission-1"
+
+        inspect_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerBindingReferenceInspect",
+                    arguments={
+                        "artifactId": "submission:server-binding-inspect",
+                        "version": "v1",
+                    },
+                )
+            )
+        )
+        inspect_payload = json.loads(inspect_result.root.content[0].text)
+        assert inspect_payload["ok"] is True
+        assert inspect_payload["tasks"][0]["task_id"] == "task-mcp-binding-inspect"
+        assert inspect_payload["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:server"
+        assert inspect_payload["authority_split"]["scheduler_state_mutated"] is False
 
     asyncio.run(exercise_server())
 

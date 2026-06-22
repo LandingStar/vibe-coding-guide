@@ -126,6 +126,7 @@ from src.runtime.orchestration import (
     exchange_artifact_to_json_dict,
     inspect_exchange_artifact_admission_ledger,
     inspect_exchange_artifact_store,
+    inspect_supervisor_storage_binding_artifact_refs_for_submission,
     inspect_scheduler_daemon_lifecycle_control,
     inspect_scheduler_authorization,
     inspect_scheduler_authorization_snapshot,
@@ -5191,6 +5192,164 @@ def test_supervisor_storage_binding_artifact_refs_validate_exact_version(tmp_pat
     assert validation.checked_count == 1
     assert validation.checked_refs[0].ref_id == "binding:context-session-evidence"
     validation.raise_for_errors()
+
+
+def test_supervisor_storage_binding_reference_inspection_reports_single_submission(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    binding_artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id="binding:context-session-evidence",
+        version="v7",
+    )
+    submission_artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-consume-binding",
+            title="Consume binding",
+            instruction="Use the exact supervisor binding artifact.",
+            agent=AgentSpec(agent_id="agent:consumer", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:consumer"),
+            input_artifact_refs=(
+                ExchangeReference(
+                    ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                    ref_id="binding:context-session-evidence",
+                    version="v7",
+                    label="context session binding",
+                ),
+            ),
+        ),
+        artifact_id="submission:consume-binding",
+        version="v1",
+    )
+    store = JsonArtifactVersionStore(store_path)
+    store.put(binding_artifact)
+    store.put(submission_artifact)
+
+    inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+        artifact_store_path=store_path,
+        artifact_id="submission:consume-binding",
+        version="v1",
+    )
+    payload = inspection.to_json_dict()
+
+    assert inspection.ok is True
+    assert payload["product_type"] == "supervisor_storage_binding_reference_inspection"
+    assert payload["submission_product_type"] == "scheduler_task_submission"
+    assert payload["task_count"] == 1
+    assert payload["binding_ref_count"] == 1
+    assert payload["checked_ref_count"] == 1
+    assert payload["error_count"] == 0
+    assert payload["tasks"][0]["task_id"] == "task-consume-binding"
+    assert payload["tasks"][0]["binding_refs"][0]["ref_id"] == (
+        "binding:context-session-evidence"
+    )
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["exchange_store_mutated"] is False
+    assert payload["authority_split"]["admission_ledger_mutated"] is False
+    assert payload["authority_split"]["raw_evidence_json_read"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_supervisor_storage_binding_reference_inspection_reports_batch_errors(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    summary, _evidence_path, _workflow = _supervisor_storage_binding_evidence_summary(
+        tmp_path,
+    )
+    binding_artifact = supervisor_storage_binding_evidence_summary_to_artifact(
+        summary,
+        artifact_id="binding:valid",
+        version="v1",
+    )
+    batch_artifact = scheduler_task_batch_submission_to_artifact(
+        SchedulerTaskBatchSubmission(
+            batch_id="batch-binding-inspect",
+            tasks=(
+                SchedulerTaskSubmission(
+                    task_id="task-valid-binding",
+                    title="Valid binding",
+                    instruction="Use a valid binding ref.",
+                    agent=AgentSpec(agent_id="agent:valid", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="context:valid"),
+                    input_artifact_refs=(
+                        ExchangeReference(
+                            ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                            ref_id="binding:valid",
+                            version="v1",
+                        ),
+                    ),
+                ),
+                SchedulerTaskSubmission(
+                    task_id="task-missing-binding",
+                    title="Missing binding",
+                    instruction="Use a missing binding ref.",
+                    agent=AgentSpec(agent_id="agent:missing", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="context:missing"),
+                    input_artifact_refs=(
+                        ExchangeReference(
+                            ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                            ref_id="binding:missing",
+                            version="v1",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        artifact_id="submission:batch-binding-inspect",
+        version="v2",
+    )
+    store = JsonArtifactVersionStore(store_path)
+    store.put(binding_artifact)
+    store.put(batch_artifact)
+
+    inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+        artifact_store_path=store_path,
+        artifact_id="submission:batch-binding-inspect",
+        version="v2",
+    )
+    payload = inspection.to_json_dict()
+
+    assert inspection.ok is False
+    assert payload["submission_product_type"] == "scheduler_task_batch_submission"
+    assert payload["task_count"] == 2
+    assert payload["binding_ref_count"] == 2
+    assert payload["checked_ref_count"] == 1
+    assert payload["error_count"] == 1
+    assert payload["tasks"][0]["ok"] is True
+    assert payload["tasks"][1]["ok"] is False
+    assert "binding:missing" in payload["tasks"][1]["errors"][0]
+
+
+def test_supervisor_storage_binding_reference_inspection_reports_source_errors(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(_accepted_contract_artifact(version="v1"))
+
+    missing = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+        artifact_store_path=store_path,
+        artifact_id="submission:missing",
+        version="v1",
+    )
+    wrong_product = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+        artifact_store_path=store_path,
+        artifact_id="server-api",
+        version="v1",
+    )
+
+    assert missing.ok is False
+    assert "not found" in missing.errors[0]
+    assert missing.task_count == 0
+    assert wrong_product.ok is False
+    assert "is not a scheduler submission artifact" in wrong_product.errors[0]
+    payload = wrong_product.to_json_dict()
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
 
 
 def test_supervisor_storage_binding_artifact_refs_report_invalid_refs(tmp_path) -> None:

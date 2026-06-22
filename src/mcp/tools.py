@@ -918,6 +918,50 @@ class GovernanceTools:
             timestamp=timestamp,
         )
 
+    def scheduler_binding_reference_inspect(
+        self,
+        *,
+        artifact_id: str,
+        version: str,
+        artifact_store_path: str = "",
+    ) -> dict[str, Any]:
+        """Read supervisor storage binding refs in one stored scheduler submission."""
+
+        if not artifact_id:
+            return {
+                "ok": False,
+                "error": "schedulerBindingReferenceInspect requires artifactId.",
+            }
+        if not version:
+            return {
+                "ok": False,
+                "error": "schedulerBindingReferenceInspect requires version.",
+            }
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_supervisor_storage_binding_artifact_refs_for_submission,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+
+        inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+            artifact_store_path=store,
+            artifact_id=artifact_id,
+            version=version,
+        )
+        return inspection.to_json_dict()
+
     def scheduler_projection(
         self,
         *,

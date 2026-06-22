@@ -50,6 +50,105 @@ class BindingArtifactReferenceValidation:
 
 
 @dataclass(frozen=True, slots=True)
+class BindingArtifactReferenceTaskInspection:
+    """Read-only binding reference inspection result for one scheduler task."""
+
+    task_id: str
+    title: str
+    binding_refs: tuple[ExchangeReference, ...] = ()
+    validation: BindingArtifactReferenceValidation = field(
+        default_factory=lambda: BindingArtifactReferenceValidation(ok=True)
+    )
+
+    @property
+    def ok(self) -> bool:
+        return self.validation.ok
+
+    @property
+    def error_count(self) -> int:
+        return len(self.validation.errors)
+
+    def to_json_dict(self) -> dict[str, object]:
+        return {
+            "task_id": self.task_id,
+            "title": self.title,
+            "ok": self.ok,
+            "binding_ref_count": len(self.binding_refs),
+            "checked_ref_count": self.validation.checked_count,
+            "binding_refs": [_ref_to_payload(ref) for ref in self.binding_refs],
+            "checked_refs": [_ref_to_payload(ref) for ref in self.validation.checked_refs],
+            "errors": list(self.validation.errors),
+            "error_count": self.error_count,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BindingArtifactReferenceInspection:
+    """Read-only inspection result for binding refs in a stored submission."""
+
+    artifact_store_path: Path
+    source_artifact_id: str
+    source_artifact_version: str
+    submission_product_type: str
+    task_inspections: tuple[BindingArtifactReferenceTaskInspection, ...] = ()
+    errors: tuple[str, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return self.error_count == 0
+
+    @property
+    def task_count(self) -> int:
+        return len(self.task_inspections)
+
+    @property
+    def checked_ref_count(self) -> int:
+        return sum(task.validation.checked_count for task in self.task_inspections)
+
+    @property
+    def binding_ref_count(self) -> int:
+        return sum(len(task.binding_refs) for task in self.task_inspections)
+
+    @property
+    def error_count(self) -> int:
+        return len(self.errors) + sum(task.error_count for task in self.task_inspections)
+
+    def to_json_dict(self) -> dict[str, object]:
+        task_errors = [
+            error
+            for task in self.task_inspections
+            for error in task.validation.errors
+        ]
+        return {
+            "ok": self.ok,
+            "product_type": "supervisor_storage_binding_reference_inspection",
+            "artifact_store_path": str(self.artifact_store_path),
+            "source_artifact_id": self.source_artifact_id,
+            "source_artifact_version": self.source_artifact_version,
+            "submission_product_type": self.submission_product_type,
+            "task_count": self.task_count,
+            "binding_ref_count": self.binding_ref_count,
+            "checked_ref_count": self.checked_ref_count,
+            "error_count": self.error_count,
+            "errors": [*self.errors, *task_errors],
+            "tasks": [task.to_json_dict() for task in self.task_inspections],
+            "ran_tasks": False,
+            "refreshed_projection": False,
+            "authority_split": {
+                "exchange_store_role": "exact-version-coordination-product-source",
+                "exchange_store_mutated": False,
+                "scheduler_state_mutated": False,
+                "scheduler_event_log_mutated": False,
+                "admission_ledger_mutated": False,
+                "raw_evidence_json_read": False,
+                "provider_executed": False,
+                "scheduler_projection_refreshed": False,
+                "local_work_trajectory_mutated": False,
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SchedulerTaskSubmission:
     """Structured product used to submit one task into scheduler state."""
 
@@ -664,6 +763,122 @@ def validate_supervisor_storage_binding_artifact_refs(
         ok=not errors,
         checked_refs=tuple(checked),
         errors=tuple(errors),
+    )
+
+
+def inspect_supervisor_storage_binding_artifact_refs_for_submission(
+    *,
+    artifact_store_path: str | Path,
+    artifact_id: str,
+    version: str,
+) -> BindingArtifactReferenceInspection:
+    """Inspect binding artifact refs in one exact stored scheduler submission.
+
+    This helper reads only the ExchangeArtifact store and delegates per-task
+    validation to ``validate_supervisor_storage_binding_artifact_refs``. It does
+    not admit scheduler submissions or read raw binding evidence JSON.
+    """
+
+    store_path = Path(artifact_store_path)
+    if not artifact_id:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact_id,
+            source_artifact_version=version,
+            submission_product_type="",
+            errors=("binding reference inspection requires a non-empty artifact_id",),
+        )
+    if not version:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact_id,
+            source_artifact_version=version,
+            submission_product_type="",
+            errors=(
+                f"binding reference inspection for {artifact_id!r} requires a non-empty version",
+            ),
+        )
+
+    try:
+        record = JsonArtifactVersionStore(store_path).get(artifact_id, version)
+    except KeyError:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact_id,
+            source_artifact_version=version,
+            submission_product_type="",
+            errors=(
+                f"exchange artifact version not found in {store_path}: "
+                f"{artifact_id!r}@{version!r}",
+            ),
+        )
+    except Exception as exc:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact_id,
+            source_artifact_version=version,
+            submission_product_type="",
+            errors=(str(exc),),
+        )
+
+    artifact = record.artifact
+    try:
+        product_type = _exact_scheduler_submission_product_type(artifact)
+    except Exception as exc:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact.artifact_id,
+            source_artifact_version=artifact.version,
+            submission_product_type="",
+            errors=(str(exc),),
+        )
+
+    try:
+        if product_type == TASK_SUBMISSION_PRODUCT_TYPE:
+            submissions = (scheduler_task_submission_from_artifact(artifact),)
+        else:
+            submissions = scheduler_task_batch_submission_from_artifact(artifact).tasks
+    except Exception as exc:
+        return BindingArtifactReferenceInspection(
+            artifact_store_path=store_path,
+            source_artifact_id=artifact.artifact_id,
+            source_artifact_version=artifact.version,
+            submission_product_type=product_type,
+            errors=(str(exc),),
+        )
+
+    task_inspections: list[BindingArtifactReferenceTaskInspection] = []
+    for submission in submissions:
+        binding_refs = _supervisor_storage_binding_artifact_refs(submission)
+        validation = validate_supervisor_storage_binding_artifact_refs(
+            submission,
+            store_path,
+        )
+        task_inspections.append(
+            BindingArtifactReferenceTaskInspection(
+                task_id=submission.task_id,
+                title=submission.title,
+                binding_refs=binding_refs,
+                validation=validation,
+            )
+        )
+
+    return BindingArtifactReferenceInspection(
+        artifact_store_path=store_path,
+        source_artifact_id=artifact.artifact_id,
+        source_artifact_version=artifact.version,
+        submission_product_type=product_type,
+        task_inspections=tuple(task_inspections),
+    )
+
+
+def _supervisor_storage_binding_artifact_refs(
+    submission: SchedulerTaskSubmission,
+) -> tuple[ExchangeReference, ...]:
+    return tuple(
+        ref
+        for ref in submission.input_artifact_refs
+        if ref.ref_kind == SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND
     )
 
 

@@ -38,32 +38,40 @@ Keep the lifecycle split:
    the same admission ledger policy as the CLI, writes scheduler snapshot and
    event-log state only, and does not run providers, refresh projection, mark
    exchange artifacts consumed, or mutate Local Work Trajectory.
-8. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
+8. `schedulerBindingReferenceInspect` and
+   `doc-based-coding scheduler inspect-binding-refs` are read-only binding-ref
+   inspection surfaces for one exact stored scheduler submission artifact. Use
+   them before admission when a task references
+   `supervisor_storage_binding_artifact` inputs. They read the ExchangeArtifact
+   store, validate exact binding refs, and do not admit tasks, mutate scheduler
+   state, write admission ledgers, read raw evidence JSON, refresh projection,
+   or mutate Local Work Trajectory.
+9. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
    for the local ExchangeArtifact admission ledger. It does not write scheduler
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
-9. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+10. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-10. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
+11. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
    surface. It runs one fake-runtime tick over scheduler snapshot/event-log
    state and does not refresh scheduler projection automatically.
-11. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
+12. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
    loop policy surface. It repeatedly calls the fake-runtime tick contract
    until max ticks, no-ready, blocked-task, or runtime-failure stop policy
    fires. It does not refresh scheduler projection automatically.
-12. `doc-based-coding scheduler project` is the CLI projection refresh surface
+13. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-13. Host-authorized runners use Python/host wiring through
+14. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-14. Host-injected daemon loops use Python/host wiring through
+15. Host-injected daemon loops use Python/host wiring through
    `HostSchedulerDaemonLoopRequest` plus
    `run_host_authorized_scheduler_daemon_loop()`. This is the path for
    repeated bounded mock-Qoder or future real-provider daemon-loop dogfood. It
    is not exposed as a real-provider CLI or MCP tool.
-15. Host loop projection workflow uses
+16. Host loop projection workflow uses
    `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` when a
    host-owned Python caller needs one compact workflow that runs the bounded
    daemon loop, preserves optional `scheduler_loop_evidence`, refreshes
@@ -71,40 +79,40 @@ Keep the lifecycle split:
    scheduler-derived trajectory summary. This is explicit host workflow
    composition, not scheduler-owned Local Work Trajectory mutation and not
    CLI/MCP real-provider exposure.
-16. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
+17. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
    `doc-based-coding scheduler operator-workflow`, or
    `run_scheduler_operator_workflow()` when a Codex/MCP/Host UX caller needs
    one explicit contract over candidate inspection, exact admission, bounded
    fake loop evidence, scheduler projection refresh, and Host Evidence
    presentation readback. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
-17. Scheduler daemon lifecycle control uses
+18. Scheduler daemon lifecycle control uses
    `doc-based-coding scheduler lifecycle <action>` or
    `schedulerLifecycleControl` for deterministic control-file operations:
    inspect, start, heartbeat, pause, resume, cancel, and shutdown. The MCP
    control tool also accepts deterministic `mark_stale`. These actions write
    only the lifecycle control file and do not run providers or refresh
    projection.
-18. Scheduler lifecycle run-once uses
+19. Scheduler lifecycle run-once uses
    `doc-based-coding scheduler lifecycle run-once` or
    `schedulerLifecycleRunOnce` to run one lifecycle-gated bounded fake-runtime
    loop. It may mutate scheduler snapshot/event-log state only through the
    bounded scheduler loop; paused/cancelled/stopped/stale controls skip
    scheduler mutation, and cancellation is consumed before provider execution.
-19. Scheduler lifecycle harness uses
+20. Scheduler lifecycle harness uses
    `doc-based-coding scheduler lifecycle harness` or
    `schedulerLifecycleHarness` to run the bounded host-managed harness with
    explicit cancelled/deadline preflight and retry over listed harness stop
    reasons. It remains fake-runtime-only in MCP, does not refresh projection,
    and does not mutate agent-owned Local Work Trajectory.
-20. Scheduler daemon supervisor step uses
+21. Scheduler daemon supervisor step uses
    `doc-based-coding scheduler lifecycle supervisor-step` or
    `schedulerDaemonSupervisorStep` to run one host-managed supervisor step over
    the policy-controlled bounded harness. It adds supervisor/session/run
    identity, cancellation-source metadata, and lifecycle status readback while
    remaining fake-runtime-only in CLI/MCP. It does not start a service, refresh
    projection, execute cleanup, or mutate agent-owned Local Work Trajectory.
-21. Supervisor dogfood workflow uses
+22. Supervisor dogfood workflow uses
    `doc-based-coding scheduler supervisor-dogfood-workflow` or
    `schedulerSupervisorDogfoodWorkflow` when the current gate needs the complete
    deterministic sequence: seed a scheduler dogfood fixture, admit the exact
@@ -112,7 +120,7 @@ Keep the lifecycle split:
    scheduler/supervisor facts. It is fake-runtime-only, does not refresh
    scheduler projection, execute cleanup, start a service, or mutate
    agent-owned Local Work Trajectory.
-22. Controlled host-runtime dogfood uses
+23. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -268,6 +276,47 @@ Expected MCP behavior:
    and `event_log_mutated=false`.
 8. Do not run providers, mark exchange artifacts consumed, refresh scheduler
    projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+
+### Binding Reference Inspection
+
+Use the read-only inspection surface before admission when a stored scheduler
+submission declares exact supervisor storage binding artifact inputs:
+
+```text
+schedulerBindingReferenceInspect
+
+doc-based-coding scheduler inspect-binding-refs \
+  --artifact-id <artifact-id> \
+  --version <version>
+```
+
+Optional inputs:
+
+```text
+artifactStorePath
+--artifact-store-path .codex/orchestration/exchange-artifacts.json
+```
+
+Expected inspection behavior:
+
+1. Read the exact scheduler submission artifact from `JsonArtifactVersionStore`.
+2. Accept `scheduler_task_submission` and `scheduler_task_batch_submission`.
+3. Reuse `validate_supervisor_storage_binding_artifact_refs()` for each task.
+4. Report `product_type="supervisor_storage_binding_reference_inspection"`,
+   source artifact id/version, submission product type, task count, binding ref
+   count, checked ref count, `errors[]`, `error_count`, and per-task entries.
+5. Use `ref_kind="supervisor_storage_binding_artifact"` with exact `ref_id`
+   and `version`.
+6. Return `ok=false` for missing artifact versions, wrong source product,
+   missing binding artifacts, wrong binding product, or ambiguous binding
+   payloads without mutating scheduler state.
+7. CLI exits non-zero for inspection errors while still printing the JSON
+   product. MCP returns the same JSON product.
+8. Do not admit tasks, submit tasks, write scheduler snapshots or event logs,
+   mutate ExchangeArtifact stores, write admission ledgers, mark artifacts
+   consumed, read raw supervisor binding evidence JSON, run providers, refresh
+   scheduler projection, or mutate
+   `.codex/progress-graph/local-work-trajectory.json`.
 
 ### CLI Operator Admission
 
@@ -435,6 +484,8 @@ doc-based-coding scheduler operator-workflow ...
 schedulerSupervisorDogfoodWorkflow
 doc-based-coding scheduler supervisor-dogfood-workflow ...
 doc-based-coding resources read dbc://exchange-artifacts/bundle
+schedulerBindingReferenceInspect
+doc-based-coding scheduler inspect-binding-refs ...
 admitExchangeArtifact
 doc-based-coding scheduler admit-exchange-artifact ...
 doc-based-coding scheduler inspect-admissions ...
@@ -452,6 +503,9 @@ Prefer `schedulerSupervisorDogfoodWorkflow` or `doc-based-coding scheduler
 supervisor-dogfood-workflow` when the current gate wants the complete
 supervisor sequence through seed, exact admission, lifecycle start, supervisor
 step, and final readback.
+Prefer `schedulerBindingReferenceInspect` or `doc-based-coding scheduler
+inspect-binding-refs` before admission when the candidate task consumes
+`supervisor_storage_binding_artifact` refs.
 
 Expected shared workflow behavior:
 

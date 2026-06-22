@@ -242,6 +242,8 @@ from .scheduler_store import (
     write_scheduler_state_snapshot,
 )
 from .scheduler_submission import (
+    BindingArtifactReferenceInspection,
+    BindingArtifactReferenceTaskInspection,
     BindingArtifactReferenceValidation,
     TASK_BATCH_SUBMISSION_PRODUCT_TYPE,
     TASK_SUBMISSION_PRODUCT_TYPE,
@@ -254,6 +256,7 @@ from .scheduler_submission import (
     SchedulerTaskSubmission,
     SchedulerTaskSubmissionResult,
     admit_exchange_artifact_version_to_scheduler,
+    inspect_supervisor_storage_binding_artifact_refs_for_submission,
     scheduler_task_batch_submission_from_artifact,
     scheduler_task_batch_submission_to_artifact,
     scheduler_task_submission_from_artifact,
@@ -632,6 +635,8 @@ __all__ = [
     "SchedulerTaskBatchSubmissionResult",
     "SchedulerTaskSubmission",
     "SchedulerTaskSubmissionResult",
+    "BindingArtifactReferenceInspection",
+    "BindingArtifactReferenceTaskInspection",
     "BindingArtifactReferenceValidation",
     "advance_work_item_from_execution_result",
     "agent_home_registration_to_artifact",
@@ -681,6 +686,7 @@ __all__ = [
     "read_scheduler_state_snapshot",
     "inspect_exchange_artifact_store",
     "inspect_exchange_artifact_admission_ledger",
+    "inspect_supervisor_storage_binding_artifact_refs_for_submission",
     "recover_scheduler_state",
     "request_edit_lease_for_task",
     "replay_scheduler_events",

@@ -327,6 +327,11 @@ _SCHEDULER_INSPECT_ADMISSIONS_USAGE = (
     "[--admission-ledger-path PATH] [--artifact-id ID] [--version VERSION]"
 )
 
+_SCHEDULER_INSPECT_BINDING_REFS_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-binding-refs "
+    "--artifact-id ID --version VERSION [--artifact-store-path PATH]"
+)
+
 _SCHEDULER_INSPECT_STATE_USAGE = (
     "Usage: doc-based-coding scheduler inspect-state --snapshot-path PATH "
     "[--event-log-path PATH] [--merge-gate-event-log-path PATH]"
@@ -434,6 +439,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "Subcommands:\n"
             "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n"
             "  inspect-admissions       Read ExchangeArtifact admission ledger summary without mutation\n"
+            "  inspect-binding-refs     Read supervisor storage binding refs in one stored scheduler submission\n"
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
             "  daemon-loop              Run a bounded fake-runtime scheduler loop without projection refresh\n"
@@ -452,6 +458,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_admit_exchange_artifact(args[1:])
     if sub == "inspect-admissions":
         return cmd_scheduler_inspect_admissions(args[1:])
+    if sub == "inspect-binding-refs":
+        return cmd_scheduler_inspect_binding_refs(args[1:])
     if sub == "inspect-state":
         return cmd_scheduler_inspect_state(args[1:])
     if sub == "tick":
@@ -475,7 +483,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -1534,6 +1542,84 @@ def cmd_scheduler_inspect_admissions(args: list[str]) -> int:
     payload.update(inspection.to_json_dict())
     _print_json(payload)
     return 1 if inspection.error_count else 0
+
+
+def cmd_scheduler_inspect_binding_refs(args: list[str]) -> int:
+    """Read supervisor storage binding refs in one stored scheduler submission."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_BINDING_REFS_USAGE + "\n\n"
+            "This is a readback command. It reads one exact stored scheduler "
+            "submission artifact and validates supervisor storage binding artifact "
+            "refs without writing scheduler state, exchange artifacts, admission "
+            "ledgers, projections, raw evidence JSON, or Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    artifact_id = ""
+    version = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--artifact-store-path", "--artifact-id", "--version"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_BINDING_REFS_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-binding-refs option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_BINDING_REFS_USAGE, file=sys.stderr)
+        return 1
+
+    if not artifact_id or not version:
+        missing = []
+        if not artifact_id:
+            missing.append("--artifact-id")
+        if not version:
+            missing.append("--version")
+        print(_SCHEDULER_INSPECT_BINDING_REFS_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_supervisor_storage_binding_artifact_refs_for_submission,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        inspection = inspect_supervisor_storage_binding_artifact_refs_for_submission(
+            artifact_store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting supervisor storage binding references",
+            e,
+            category="scheduler_binding_ref_inspect_failed",
+        )
+
+    payload = inspection.to_json_dict()
+    _print_json(payload)
+    return 0 if inspection.ok else 1
 
 
 def cmd_scheduler_inspect_state(args: list[str]) -> int:

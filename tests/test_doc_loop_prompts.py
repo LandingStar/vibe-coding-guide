@@ -143,6 +143,12 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "admit` / `runLoop` / `refreshProjection`" in text
         assert "schedulerDaemonSupervisorStep" in text
         assert "schedulerSupervisorDogfoodWorkflow" in text
+        assert "schedulerBindingReferenceInspect" in text
+        assert "doc-based-coding scheduler inspect-binding-refs" in text
+        assert "supervisor_storage_binding_artifact" in text
+        assert "supervisor_storage_binding_reference_inspection" in text
+        assert "validate_supervisor_storage_binding_artifact_refs" in text
+        assert "raw supervisor binding evidence JSON" in text
         assert "doc-based-coding scheduler supervisor-dogfood-workflow" in text
         assert "cancellation-source metadata" in text
         assert "localTrajectory" in text

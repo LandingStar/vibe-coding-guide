@@ -75,6 +75,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert proc.returncode == 0
     assert "admit-exchange-artifact" in proc.stdout
     assert "inspect-admissions" in proc.stdout
+    assert "inspect-binding-refs" in proc.stdout
     assert "inspect-state" in proc.stdout
     assert "tick" in proc.stdout
     assert "daemon-loop" in proc.stdout
@@ -168,6 +169,17 @@ def test_scheduler_inspect_admissions_help_describes_readback_non_goals() -> Non
     assert "Local Work Trajectory" in proc.stdout
 
 
+def test_scheduler_inspect_binding_refs_help_describes_readback_non_goals() -> None:
+    proc = _run_cli(["scheduler", "inspect-binding-refs", "--help"])
+
+    assert proc.returncode == 0
+    assert "--artifact-id ID" in proc.stdout
+    assert "--artifact-store-path PATH" in proc.stdout
+    assert "readback command" in proc.stdout
+    assert "raw evidence JSON" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
 def test_scheduler_inspect_state_help_describes_readback_non_goals() -> None:
     proc = _run_cli(["scheduler", "inspect-state", "--help"])
 
@@ -256,6 +268,155 @@ def test_validate_includes_governance_status_fields() -> None:
     assert "command_status" in payload
     assert "governance_status" in payload
     assert "blocking_constraints" in payload
+
+
+def test_scheduler_inspect_binding_refs_cli_reports_submission_refs(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    binding_artifact = ExchangeArtifact(
+        artifact_id="binding:cli",
+        kind="retention",
+        intent="inform",
+        producer="agent:projection",
+        version="v1",
+        parts=(
+            ExchangePayloadPart(
+                part_type="structured",
+                data={
+                    "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                    "binding_id": "binding:cli",
+                },
+            ),
+            ExchangePayloadPart(
+                part_type="storage_manifest",
+                data={
+                    "product_type": SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
+                    "binding_id": "binding:cli",
+                },
+            ),
+        ),
+    )
+    submission_artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-cli-binding",
+            title="CLI binding inspect task",
+            instruction="Inspect this binding ref before admission.",
+            agent=AgentSpec(agent_id="agent:cli-binding", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:cli-binding"),
+            input_artifact_refs=(
+                ExchangeReference(
+                    ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                    ref_id="binding:cli",
+                    version="v1",
+                ),
+            ),
+        ),
+        artifact_id="submission:cli-binding",
+        version="v1",
+    )
+    store = JsonArtifactVersionStore(store_path)
+    store.put(binding_artifact)
+    store.put(submission_artifact)
+    snapshot_path = project / ".codex" / "scheduler" / "inspect-binding-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "inspect-binding-events.jsonl"
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-binding-refs",
+            "--artifact-id",
+            "submission:cli-binding",
+            "--version",
+            "v1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["submission_product_type"] == "scheduler_task_submission"
+    assert payload["task_count"] == 1
+    assert payload["binding_ref_count"] == 1
+    assert payload["checked_ref_count"] == 1
+    assert payload["tasks"][0]["task_id"] == "task-cli-binding"
+    assert payload["tasks"][0]["binding_refs"][0]["ref_id"] == "binding:cli"
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["raw_evidence_json_read"] is False
+    assert not snapshot_path.exists()
+    assert not event_log_path.exists()
+    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_inspect_binding_refs_cli_returns_nonzero_for_bad_ref(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        ExchangeReference,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    submission_artifact = scheduler_task_submission_to_artifact(
+        SchedulerTaskSubmission(
+            task_id="task-cli-bad-binding",
+            title="CLI bad binding inspect task",
+            instruction="Inspect this missing binding ref.",
+            agent=AgentSpec(agent_id="agent:cli-binding", runtime_provider="fake"),
+            context_scope=ContextScope(context_id="context:cli-binding"),
+            input_artifact_refs=(
+                ExchangeReference(
+                    ref_kind=SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
+                    ref_id="binding:missing",
+                    version="v1",
+                ),
+            ),
+        ),
+        artifact_id="submission:cli-bad-binding",
+        version="v1",
+    )
+    JsonArtifactVersionStore(store_path).put(submission_artifact)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-binding-refs",
+            "--artifact-id",
+            "submission:cli-bad-binding",
+            "--version",
+            "v1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["error_count"] == 1
+    assert "binding:missing" in payload["errors"][0]
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_path) -> None:

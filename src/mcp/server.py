@@ -962,6 +962,36 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="schedulerBindingReferenceInspect",
+                description=(
+                    "Read-only inspection for supervisor storage binding artifact "
+                    "references in one exact stored scheduler submission artifact. "
+                    "Reads the ExchangeArtifact store, validates binding refs, and "
+                    "returns per-task status without admitting tasks, mutating "
+                    "scheduler state, writing admission ledgers, reading raw evidence "
+                    "JSON, refreshing projection, or mutating agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Exact scheduler submission ExchangeArtifact id to inspect.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact version to inspect.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                    },
+                    "required": ["artifactId", "version"],
+                },
+            ),
+            Tool(
                 name="schedulerRunOnceAndProject",
                 description=(
                     "Run one bounded persisted scheduler pass with the built-in fake runtime "
@@ -1889,6 +1919,12 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 replace_existing=arguments.get("replaceExisting", False),
                 actor=arguments.get("actor", "mcp"),
                 timestamp=arguments.get("timestamp", ""),
+            )
+        elif name == "schedulerBindingReferenceInspect":
+            result = tools.scheduler_binding_reference_inspect(
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
             )
         elif name == "schedulerRunOnceAndProject":
             result = tools.scheduler_run_once_and_project(
