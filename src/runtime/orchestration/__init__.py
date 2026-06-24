@@ -260,6 +260,13 @@ from .worker_patch_review_consumer import (
     WorkerPatchReviewDecisionAction,
     consume_worker_patch_review_decision,
 )
+from .worker_patch_composition import (
+    WorkerPatchCompositionPreflightResult,
+    WorkerPatchCompositionRef,
+    WorkerPatchCompositionStep,
+    preflight_worker_patch_composition,
+    worker_patch_composition_refs_from_tokens,
+)
 from .sandbox import (
     GitWorktreeCleanupState,
     GitWorktreeCommandReceipt,
@@ -667,6 +674,9 @@ __all__ = [
     "WorkerPatchReviewArtifact",
     "WorkerPatchReviewConsumerResult",
     "WorkerPatchReviewDecisionAction",
+    "WorkerPatchCompositionPreflightResult",
+    "WorkerPatchCompositionRef",
+    "WorkerPatchCompositionStep",
     "GitWorktreeCleanupState",
     "GitWorktreeCommandReceipt",
     "GitWorktreeSandboxProvider",
@@ -849,6 +859,7 @@ __all__ = [
     "project_group_item_surface",
     "qoder_runtime_capabilities",
     "qoder_query_result_from_response",
+    "preflight_worker_patch_composition",
     "reply_to_exchange_artifact",
     "roll_up_work_item",
     "sandbox_capability_placeholder",
@@ -932,6 +943,7 @@ __all__ = [
     "utc_admission_timestamp",
     "validate_exchange_artifact",
     "wake_dependent_tasks",
+    "worker_patch_composition_refs_from_tokens",
     "write_compacted_scheduler_snapshot",
     "write_scheduler_state_snapshot",
     "apply_scheduler_daemon_lifecycle_action",

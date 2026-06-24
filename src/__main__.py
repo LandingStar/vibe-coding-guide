@@ -1250,6 +1250,13 @@ _SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE = (
     "[--timestamp TIMESTAMP] [--git-executable PATH]"
 )
 
+_SCHEDULER_PREFLIGHT_WORKER_PATCH_COMPOSITION_USAGE = (
+    "Usage: doc-based-coding scheduler preflight-worker-patch-composition "
+    "--patch-ref ARTIFACT_ID@VERSION --patch-ref ARTIFACT_ID@VERSION "
+    "--source-workspace-root PATH [--artifact-store-path PATH] "
+    "[--scratch-root PATH] [--git-executable PATH]"
+)
+
 _SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE = (
     "Usage: doc-based-coding scheduler consume-accepted-blocker-candidate "
     "--disposition-artifact-id ID --disposition-version VERSION "
@@ -1429,6 +1436,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  consume-accepted-handoff-candidate Consume accepted handoff candidate disposition via handoff delivery\n"
             "  consume-accepted-merge-candidate Consume accepted merge candidate disposition via explicit merge gate resolution\n"
             "  consume-worker-patch-review Consume accepted worker patch proposal with explicit check/apply/reject\n"
+            "  preflight-worker-patch-composition Check multiple worker patch proposals in order without mutating source\n"
             "  consume-accepted-blocker-candidate Consume accepted blocker candidate disposition via explicit task blocking\n"
             "  guide-worker-exchange-dogfood Run deterministic guide/worker exchange product dogfood\n"
             "  guide-worker-local-orchestration Run guide-assigned worker tasks with lane-limited waves\n"
@@ -1475,6 +1483,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_consume_accepted_merge_candidate(args[1:])
     if sub == "consume-worker-patch-review":
         return cmd_scheduler_consume_worker_patch_review(args[1:])
+    if sub == "preflight-worker-patch-composition":
+        return cmd_scheduler_preflight_worker_patch_composition(args[1:])
     if sub == "consume-accepted-blocker-candidate":
         return cmd_scheduler_consume_accepted_blocker_candidate(args[1:])
     if sub == "guide-worker-exchange-dogfood":
@@ -1514,7 +1524,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -4470,6 +4480,105 @@ def cmd_scheduler_consume_worker_patch_review(args: list[str]) -> int:
             "Error consuming worker patch review proposal",
             e,
             category="scheduler_worker_patch_review_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_preflight_worker_patch_composition(args: list[str]) -> int:
+    """Preflight multiple worker patch proposals without mutating source."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_PREFLIGHT_WORKER_PATCH_COMPOSITION_USAGE + "\n\n"
+            "This reads exact worker_patch_review_proposal artifacts and checks "
+            "whether they compose in caller order using a temporary workspace. "
+            "It runs git apply --check and git apply only in the temporary copy; "
+            "it does not mutate the source workspace, write dispositions, resolve "
+            "merge gates, clean sandboxes, run providers, or mutate Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    patch_ref_tokens: list[str] = []
+    source_workspace_root = ""
+    scratch_root = ""
+    git_executable = "git"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--patch-ref",
+            "--source-workspace-root",
+            "--scratch-root",
+            "--git-executable",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_PREFLIGHT_WORKER_PATCH_COMPOSITION_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--patch-ref":
+                patch_ref_tokens.append(value)
+            elif arg == "--source-workspace-root":
+                source_workspace_root = value
+            elif arg == "--scratch-root":
+                scratch_root = value
+            elif arg == "--git-executable":
+                git_executable = value
+            i += 2
+            continue
+        print(f"Unknown scheduler preflight-worker-patch-composition option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_PREFLIGHT_WORKER_PATCH_COMPOSITION_USAGE, file=sys.stderr)
+        return 1
+
+    missing = []
+    if len(patch_ref_tokens) < 2:
+        missing.append("--patch-ref (at least two)")
+    if not source_workspace_root:
+        missing.append("--source-workspace-root")
+    if missing:
+        print(_SCHEDULER_PREFLIGHT_WORKER_PATCH_COMPOSITION_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            preflight_worker_patch_composition,
+            worker_patch_composition_refs_from_tokens,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = preflight_worker_patch_composition(
+            artifact_store_path=store,
+            patch_refs=worker_patch_composition_refs_from_tokens(tuple(patch_ref_tokens)),
+            source_workspace_root=_resolve_project_path(root, source_workspace_root),
+            scratch_root=(
+                _resolve_project_path(root, scratch_root)
+                if scratch_root
+                else None
+            ),
+            git_executable=git_executable,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error preflighting worker patch composition",
+            e,
+            category="scheduler_worker_patch_composition_preflight_failed",
         )
 
     payload = result.to_json_dict()

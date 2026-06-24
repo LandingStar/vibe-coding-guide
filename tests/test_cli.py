@@ -119,6 +119,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "cleanup-receipts" in proc.stdout
     assert "sandbox-receipt-workflow" in proc.stdout
     assert "consume-worker-patch-review" in proc.stdout
+    assert "preflight-worker-patch-composition" in proc.stdout
 
 
 def test_scheduler_sandbox_receipt_workflow_help_describes_explicit_cleanup() -> None:
@@ -1737,6 +1738,95 @@ def test_scheduler_consume_worker_patch_review_cli_applies_patch(tmp_path) -> No
         "print('worker patch')\n"
     )
     assert stored.lifecycle_state == "consumed"
+
+
+def test_scheduler_preflight_worker_patch_composition_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "preflight-worker-patch-composition", "--help"])
+
+    assert proc.returncode == 0
+    assert "temporary workspace" in proc.stdout
+    assert "does not mutate the source workspace" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_preflight_worker_patch_composition_cli_reports_conflict(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    source_repo = _git_repo(project / "source")
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    _store_cli_worker_patch_artifact(
+        store_path,
+        artifact_id="task-a:patch-review",
+        task_id="task-a",
+        lane_id="lane:a",
+        worker_agent_id="agent:a",
+        changed_path="src/app.py",
+        patch_text=_cli_patch_for_file_change(
+            project / "patch-a",
+            relative_path="src/app.py",
+            original="print('ok')\n",
+            changed="print('a patch')\n",
+        ),
+        exchange_classes=(
+            ExchangeArtifact,
+            ExchangePayloadPart,
+            ExchangeReference,
+            ExchangeRelation,
+            JsonArtifactVersionStore,
+        ),
+    )
+    _store_cli_worker_patch_artifact(
+        store_path,
+        artifact_id="task-b:patch-review",
+        task_id="task-b",
+        lane_id="lane:b",
+        worker_agent_id="agent:b",
+        changed_path="src/app.py",
+        patch_text=_cli_patch_for_file_change(
+            project / "patch-b",
+            relative_path="src/app.py",
+            original="print('ok')\n",
+            changed="print('b patch')\n",
+        ),
+        exchange_classes=(
+            ExchangeArtifact,
+            ExchangePayloadPart,
+            ExchangeReference,
+            ExchangeRelation,
+            JsonArtifactVersionStore,
+        ),
+    )
+    proc = _run_cli(
+        [
+            "scheduler",
+            "preflight-worker-patch-composition",
+            "--patch-ref",
+            "task-a:patch-review@v1",
+            "--patch-ref",
+            "task-b:patch-review@v1",
+            "--source-workspace-root",
+            str(source_repo),
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["failed_ref"]["artifact_id"] == "task-b:patch-review"
+    assert payload["touched_path_collisions"] == {
+        "src/app.py": ["task-a:patch-review@v1", "task-b:patch-review@v1"]
+    }
+    assert payload["authority_split"]["source_workspace_mutated"] is False
+    assert (source_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
 
 
 def test_scheduler_consume_accepted_blocker_candidate_cli_blocks_task(tmp_path) -> None:
@@ -4124,6 +4214,93 @@ def _git_repo(project: Path) -> Path:
     _run_git(repo, "add", ".")
     _run_git(repo, "commit", "-m", "initial")
     return repo
+
+
+def _cli_patch_for_file_change(
+    workspace_root: Path,
+    *,
+    relative_path: str,
+    original: str,
+    changed: str,
+) -> str:
+    repo = _git_repo(workspace_root)
+    target = repo / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(original, encoding="utf-8")
+    _run_git(repo, "add", ".")
+    staged = subprocess.run(
+        ("git", "-C", str(repo), "diff", "--cached", "--quiet"),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if staged.returncode == 1:
+        _run_git(repo, "commit", "-m", "baseline for patch")
+    target.write_text(changed, encoding="utf-8")
+    return _run_git(repo, "diff", "--binary").stdout
+
+
+def _store_cli_worker_patch_artifact(
+    store_path: Path,
+    *,
+    artifact_id: str,
+    task_id: str,
+    lane_id: str,
+    worker_agent_id: str,
+    changed_path: str,
+    patch_text: str,
+    exchange_classes: tuple[object, object, object, object, object],
+) -> None:
+    (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+    ) = exchange_classes
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id=artifact_id,
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer=worker_agent_id,
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(part_type="text", text="Worker patch review proposal."),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "worker_patch_review_proposal",
+                        "task_id": task_id,
+                        "lane_id": lane_id,
+                        "worker_agent_id": worker_agent_id,
+                        "runtime_provider": "codex",
+                        "sandbox_provider": "git-worktree",
+                        "sandbox_allocation_id": f"allocation:{task_id}",
+                        "changed_paths": [changed_path],
+                        "patch_state": "has_patch",
+                    },
+                ),
+                ExchangePayloadPart(part_type="evidence", data={"git_diff": patch_text}),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id=f"relation:{task_id}:merge-target",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(
+                            ref_kind="exchange_artifact",
+                            ref_id=artifact_id,
+                            version="v1",
+                        ),
+                        target=ExchangeReference(ref_kind="scheduler_task", ref_id=task_id),
+                    ),
+                ),
+            ),
+        )
+    )
 
 
 def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

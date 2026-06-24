@@ -120,6 +120,23 @@ command does not resolve scheduler merge gates or clean worker sandboxes;
 sandbox cleanup remains the separate explicit `scheduler cleanup-receipts`
 flow.
 
+When multiple worker patch proposals must be evaluated together, run the
+non-mutating composition preflight before applying any one patch:
+
+```text
+doc-based-coding scheduler preflight-worker-patch-composition \
+  --patch-ref FIRST_PATCH_ARTIFACT_ID@VERSION \
+  --patch-ref SECOND_PATCH_ARTIFACT_ID@VERSION \
+  --source-workspace-root PATH
+```
+
+The preflight reads exact `worker_patch_review_proposal` artifacts, copies the
+source workspace into a temporary workspace, then runs `git apply --check` and
+`git apply` only inside that temporary copy in caller order. It reports the
+first failed patch and touched-path collisions. It does not mutate the source
+workspace, write dispositions, choose an order, resolve conflicts, clean
+sandboxes, or run Codex/Qoder providers.
+
 ## Output Contract
 
 Readiness returns JSON:

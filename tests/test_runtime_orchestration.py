@@ -203,6 +203,8 @@ from src.runtime.orchestration import (
     read_scheduler_loop_evidence_summary,
     read_supervisor_storage_binding_evidence_summary,
     run_sandbox_allocation_cleanup_over_receipts,
+    preflight_worker_patch_composition,
+    worker_patch_composition_refs_from_tokens,
     write_scheduler_state_snapshot,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
@@ -4336,6 +4338,113 @@ def test_worker_patch_review_consumer_rejects_without_git_apply(tmp_path) -> Non
     assert result.cleanup_recommended is True
     assert result.to_json_dict()["authority_split"]["patch_apply_executed"] is False
     assert stored.lifecycle_state == "rejected"
+
+
+def test_worker_patch_composition_preflight_passes_without_mutating_source(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    (source_repo / "src" / "extra.py").write_text("print('extra')\n", encoding="utf-8")
+    _run_git(source_repo, "add", ".")
+    _run_git(source_repo, "commit", "-m", "add extra")
+    store_path = tmp_path / "exchange-artifacts.json"
+    _store_worker_patch_artifact(
+        store_path,
+        artifact_id="task-client:patch-review",
+        task_id="task-client",
+        lane_id="lane:client",
+        worker_agent_id="agent:client-worker",
+        changed_path="src/app.py",
+        patch_text=_patch_for_file_change(
+            tmp_path / "patch-client",
+            relative_path="src/app.py",
+            original="print('ok')\n",
+            changed="print('client patch')\n",
+        ),
+    )
+    _store_worker_patch_artifact(
+        store_path,
+        artifact_id="task-server:patch-review",
+        task_id="task-server",
+        lane_id="lane:server",
+        worker_agent_id="agent:server-worker",
+        changed_path="src/extra.py",
+        patch_text=_patch_for_file_change(
+            tmp_path / "patch-server",
+            relative_path="src/extra.py",
+            original="print('extra')\n",
+            changed="print('server patch')\n",
+        ),
+    )
+
+    result = preflight_worker_patch_composition(
+        artifact_store_path=store_path,
+        patch_refs=worker_patch_composition_refs_from_tokens(
+            ("task-client:patch-review@v1", "task-server:patch-review@v1")
+        ),
+        source_workspace_root=source_repo,
+        scratch_root=tmp_path / "scratch",
+    )
+
+    assert result.ok is True
+    assert [step.ref.artifact_id for step in result.steps] == [
+        "task-client:patch-review",
+        "task-server:patch-review",
+    ]
+    assert result.touched_path_collisions == {}
+    assert result.to_json_dict()["authority_split"]["source_workspace_mutated"] is False
+    assert (source_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert (source_repo / "src" / "extra.py").read_text(encoding="utf-8") == "print('extra')\n"
+
+
+def test_worker_patch_composition_preflight_reports_first_conflict(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    store_path = tmp_path / "exchange-artifacts.json"
+    _store_worker_patch_artifact(
+        store_path,
+        artifact_id="task-a:patch-review",
+        task_id="task-a",
+        lane_id="lane:a",
+        worker_agent_id="agent:a",
+        changed_path="src/app.py",
+        patch_text=_patch_for_file_change(
+            tmp_path / "patch-a",
+            relative_path="src/app.py",
+            original="print('ok')\n",
+            changed="print('a patch')\n",
+        ),
+    )
+    _store_worker_patch_artifact(
+        store_path,
+        artifact_id="task-b:patch-review",
+        task_id="task-b",
+        lane_id="lane:b",
+        worker_agent_id="agent:b",
+        changed_path="src/app.py",
+        patch_text=_patch_for_file_change(
+            tmp_path / "patch-b",
+            relative_path="src/app.py",
+            original="print('ok')\n",
+            changed="print('b patch')\n",
+        ),
+    )
+
+    result = preflight_worker_patch_composition(
+        artifact_store_path=store_path,
+        patch_refs=worker_patch_composition_refs_from_tokens(
+            ("task-a:patch-review@v1", "task-b:patch-review@v1")
+        ),
+        source_workspace_root=source_repo,
+    )
+
+    assert result.ok is False
+    assert result.failed_ref is not None
+    assert result.failed_ref.artifact_id == "task-b:patch-review"
+    assert len(result.steps) == 2
+    assert result.steps[0].ok is True
+    assert result.steps[1].check_returncode != 0
+    assert result.touched_path_collisions == {
+        "src/app.py": ("task-a:patch-review@v1", "task-b:patch-review@v1")
+    }
+    assert (source_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
 
 
 def test_sandbox_provider_registry_resolves_provider_by_capability() -> None:
@@ -12217,6 +12326,88 @@ def _worker_patch_review_store(
     )
     provider.cleanup(bundle.sandbox_allocation)
     return store_path, disposition_id
+
+
+def _patch_for_file_change(
+    workspace_root: Path,
+    *,
+    relative_path: str,
+    original: str,
+    changed: str,
+) -> str:
+    repo = _git_repo(workspace_root)
+    target = repo / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(original, encoding="utf-8")
+    _run_git(repo, "add", ".")
+    staged = subprocess.run(
+        ("git", "-C", str(repo), "diff", "--cached", "--quiet"),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if staged.returncode == 1:
+        _run_git(repo, "commit", "-m", "baseline for patch")
+    target.write_text(changed, encoding="utf-8")
+    return _run_git(repo, "diff", "--binary").stdout
+
+
+def _store_worker_patch_artifact(
+    store_path: Path,
+    *,
+    artifact_id: str,
+    task_id: str,
+    lane_id: str,
+    worker_agent_id: str,
+    changed_path: str,
+    patch_text: str,
+) -> None:
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id=artifact_id,
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer=worker_agent_id,
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(part_type="text", text="Worker patch review proposal."),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "worker_patch_review_proposal",
+                        "task_id": task_id,
+                        "lane_id": lane_id,
+                        "worker_agent_id": worker_agent_id,
+                        "runtime_provider": "codex",
+                        "sandbox_provider": "git-worktree",
+                        "sandbox_allocation_id": f"allocation:{task_id}",
+                        "changed_paths": [changed_path],
+                        "patch_state": "has_patch",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="evidence",
+                    data={"git_diff": patch_text},
+                ),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id=f"relation:{task_id}:merge-target",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(
+                            ref_kind="exchange_artifact",
+                            ref_id=artifact_id,
+                            version="v1",
+                        ),
+                        target=ExchangeReference(ref_kind="scheduler_task", ref_id=task_id),
+                    ),
+                ),
+            ),
+        )
+    )
 
 
 def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
