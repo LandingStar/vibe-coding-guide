@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T21:32:52.431399+00:00",
+  "recorded_at": "2026-06-24T21:43:19.889073+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 4,
-    "event_count": 24,
-    "relation_count": 23,
+    "event_count": 25,
+    "relation_count": 24,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -407,6 +407,20 @@
         "completed_at": "2026-06-24T12:14:10.008141+00:00"
       }
     },
+    "event:025": {
+      "id": "event:025",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Audit guide-worker Codex CLI objective completion",
+      "kind": "validation",
+      "status": "completed",
+      "order": 9,
+      "summary": "Validate the persisted objective against current implementation evidence: single Local Work Trajectory guide-worker collaboration, lane-distinct limited parallelism, and Codex CLI backend agent runtime.",
+      "metadata": {
+        "created_at": "2026-06-24T21:38:00.164192+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T21:43:19.889073+00:00"
+      }
+    },
     "event:014": {
       "id": "event:014",
       "lane_id": "lane:main",
@@ -626,6 +640,15 @@
     {
       "source_event_id": "event:023",
       "target_event_id": "event:024",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:024",
+      "target_event_id": "event:025",
       "kind": "sequence",
       "summary": "",
       "metadata": {
