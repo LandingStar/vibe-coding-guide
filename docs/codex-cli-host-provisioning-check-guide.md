@@ -92,11 +92,18 @@ real-provider surface. On success it writes compact
 `host_guide_worker_provider_execution_evidence` with planner metadata,
 generated instructions, per-worker execution receipts, provider, lane, wave,
 task state, output artifact, worker writeback receipts, optional sandbox
-allocation receipt evidence path, and authority facts.
+allocation receipt evidence path, review-only worker patch artifact refs for
+git-worktree runs, and authority facts.
 
 It does not persist raw transcripts, create persistent agent home directories,
 refresh scheduler projection, auto-merge worker worktrees into the source
 workspace, or mutate agent-owned Local Work Trajectory.
+
+For git-worktree workers, the host wrapper reads the allocated worktree and
+publishes `worker_patch_review_proposal` ExchangeArtifacts. These artifacts are
+visible to the existing action-candidate readback as `merge_candidate` entries,
+but accepting such a candidate still only resolves an explicit merge gate; it
+does not apply the patch to the source workspace.
 
 ## Output Contract
 

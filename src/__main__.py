@@ -377,7 +377,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             "host-authorized adapter wiring and a Codex process-spawn grant. "
             "It is not an MCP real-provider execution surface, does not persist "
             "raw transcripts, and does not mutate agent-owned Local Work "
-            "Trajectory.",
+            "Trajectory. Git-worktree worker changes are exported as review-only "
+            "worker patch artifacts and merge candidates; they are not applied "
+            "automatically.",
         )
         return 0
 
@@ -896,7 +898,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             "never accepts a raw token value. If SDK/auth readiness is missing, "
             "it fails before evidence writes. It is not an MCP real-provider "
             "execution surface and does not mutate agent-owned Local Work "
-            "Trajectory.",
+            "Trajectory. Git-worktree worker changes are exported as review-only "
+            "worker patch artifacts and merge candidates; they are not applied "
+            "automatically.",
         )
         return 0
 

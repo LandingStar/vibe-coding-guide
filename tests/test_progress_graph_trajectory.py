@@ -11,6 +11,7 @@ import pytest
 
 from src.runtime.orchestration import (
     AgentSpec,
+    ArtifactDelta,
     CodexCliRequest,
     CodexCliResult,
     AgentRuntimeAdapterRegistry,
@@ -66,6 +67,10 @@ from src.runtime.orchestration import (
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_state_snapshot,
     write_supervisor_storage_binding_evidence,
+    JsonArtifactVersionStore,
+)
+from src.runtime.orchestration.agent_exchange_action_candidates import (
+    inspect_agent_exchange_action_candidates,
 )
 from src.workflow.checkpoint import write_checkpoint
 from tools.progress_graph import (
@@ -2566,6 +2571,90 @@ def test_host_owned_guide_worker_provider_execution_writes_codex_sandbox_receipt
     GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
 
 
+def test_host_owned_guide_worker_provider_execution_publishes_patch_review_candidate(
+    tmp_path: Path,
+) -> None:
+    repo = _git_repo(tmp_path)
+
+    def write_worker_change(request: CodexCliRequest) -> CodexCliResult:
+        app = Path(request.task.runtime_workspace_root) / "client" / "app.js"
+        app.parent.mkdir(parents=True, exist_ok=True)
+        app.write_text("console.log('worker patch');\n", encoding="utf-8")
+        return CodexCliResult(
+            summary="codex worker changed client app",
+            output_text="changed client/app.js",
+            artifact_delta=ArtifactDelta(
+                artifact_id="task/codex/worktree:result",
+                version="v1",
+                summary="client app changed in worker worktree",
+                changed_refs=(
+                    ExchangeReference(
+                        ref_kind="file",
+                        ref_id="client/app.js",
+                        path="client/app.js",
+                    ),
+                ),
+            ),
+        )
+
+    client = _RecordingCodexCliClient(write_worker_change)
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-codex-patch-review",
+            timestamp="2026-06-24T23:55:00+08:00",
+            providers=("codex",),
+            worker_agent_id="agent:codex-worker",
+            workspace_root=str(repo),
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/codex/worktree",
+                    title="Codex worktree worker",
+                    instruction="Change the client app in a git-worktree sandbox.",
+                    lane_id="lane:client",
+                    worker_runtime_provider="codex",
+                    allowed_artifacts=("client/app.js",),
+                    sandbox_profile=SandboxProfile(
+                        profile_id="codex-worktree",
+                        profile_kind="git-worktree",
+                    ),
+                    output_artifact_id="task/codex/worktree:result",
+                ),
+            ),
+        ),
+        codex_cli_client=client,
+    )
+    payload = result.to_json_dict()
+    artifact_store_path = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    assert len(payload["worker_patch_artifact_refs"]) == 1
+    patch_ref = payload["worker_patch_artifact_refs"][0]
+    patch_record = JsonArtifactVersionStore(artifact_store_path).get(
+        patch_ref["ref_id"],
+        patch_ref["version"],
+    )
+    candidates = inspect_agent_exchange_action_candidates(
+        artifact_store_path,
+        candidate_type="merge_candidate",
+    )
+
+    assert payload["ok"] is True
+    assert patch_ref["patch_state"] == "has_patch"
+    assert patch_ref["changed_paths"] == ["client/app.js"]
+    assert payload["worker_writeback_receipts"][0]["patch_artifact_ref"] == patch_ref
+    assert patch_record.artifact.intent == "request_merge"
+    assert "worker patch" in patch_record.artifact.parts[3].data["git_diff"]
+    assert candidates.candidate_type_counts == {"merge_candidate": 1}
+    assert candidates.candidates[0].artifact_id == patch_ref["ref_id"]
+    assert (repo / "client" / "app.js").read_text(encoding="utf-8") == (
+        "console.log('ok');\n"
+    )
+
+    allocation = result.orchestration.run_results[0].preflight.sandbox_allocation
+    GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
+
+
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:
     bundle = read_trajectory_artifacts_bundle(tmp_path)
 
@@ -4166,12 +4255,14 @@ class _RecordingQoderClient:
 
 
 class _RecordingCodexCliClient:
-    def __init__(self, result: CodexCliResult) -> None:
+    def __init__(self, result: CodexCliResult | object) -> None:
         self.result = result
         self.requests: tuple[CodexCliRequest, ...] = ()
 
     def exec(self, request: CodexCliRequest) -> CodexCliResult:
         self.requests = self.requests + (request,)
+        if callable(self.result):
+            return self.result(request)
         return self.result
 
 

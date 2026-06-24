@@ -247,6 +247,13 @@ from .runtime_wiring import (
     RuntimeRegistryWiringResult,
     build_runtime_registry_from_config,
 )
+from .worker_patch_review import (
+    WORKER_PATCH_REVIEW_PRODUCT_TYPE,
+    WORKER_PATCH_REVIEW_SCHEMA_VERSION,
+    WorkerPatchReviewArtifact,
+    build_worker_patch_review_artifact,
+    build_worker_patch_review_artifacts,
+)
 from .sandbox import (
     GitWorktreeCleanupState,
     GitWorktreeCommandReceipt,
@@ -648,6 +655,9 @@ __all__ = [
     "RuntimeRunResult",
     "RuntimeRegistryWiringConfig",
     "RuntimeRegistryWiringResult",
+    "WORKER_PATCH_REVIEW_PRODUCT_TYPE",
+    "WORKER_PATCH_REVIEW_SCHEMA_VERSION",
+    "WorkerPatchReviewArtifact",
     "GitWorktreeCleanupState",
     "GitWorktreeCommandReceipt",
     "GitWorktreeSandboxProvider",
@@ -802,6 +812,8 @@ __all__ = [
     "build_landing_consumer_payload",
     "build_orchestration_preflight_bundle",
     "build_runtime_registry_from_config",
+    "build_worker_patch_review_artifact",
+    "build_worker_patch_review_artifacts",
     "build_sandbox_allocation_receipt_evidence",
     "build_scheduler_loop_evidence",
     "build_scheduler_operator_binding_consumer_dogfood_batch",

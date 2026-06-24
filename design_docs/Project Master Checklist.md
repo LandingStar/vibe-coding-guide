@@ -29,13 +29,13 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / Codex worker sandbox writeback policy completed`
-- Current Focus: `Continue guide-worker orchestration toward explicit merge review / patch integration policy for real worker edits`
+- Current Phase: `Post-v1.0 - Agent orchestration / worker patch review integration implemented`
+- Current Focus: `Continue guide-worker orchestration toward explicit patch apply/reject and cleanup-after-review policy`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
-- Latest Completed Slice: `Codex Worker Sandbox Writeback Policy`
+  `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+- Latest Completed Slice: `Worker Patch Review Integration`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+  `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,18 +44,19 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
-3. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-4. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-5. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-6. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-9. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-10. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-11. `review/agent-communication-product-closure-2026-06-22.md`
-12. `design_docs/Global Phase Map and Current Position.md`
-13. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+3. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+4. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+6. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+7. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+9. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+10. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+11. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+12. `review/agent-communication-product-closure-2026-06-22.md`
+13. `design_docs/Global Phase Map and Current Position.md`
+14. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -325,6 +326,34 @@ Validation:
 - Focused runtime/wrapper/CLI/MCP tests passed: `29 passed, 461 deselected`.
 - Doc-loop validator passed.
 
+### Worker Patch Review Integration
+
+Status: `implemented`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+
+Goal:
+
+- Export git-worktree worker edits as review-only patch proposal
+  `ExchangeArtifact` products and connect them to the existing
+  `merge_candidate` readback path without applying patches automatically.
+
+Current implementation surface:
+
+- Runtime helper: `build_worker_patch_review_artifact(s)()`
+- Product: `worker_patch_review_proposal`
+- Host evidence fields: `worker_patch_artifact_refs` and per-receipt
+  `patch_artifact_ref`
+- CLI help: `codex guide-worker-smoke` and `qoder guide-worker-smoke`
+  describe review-only patch artifacts / merge candidates.
+
+Validation:
+
+- `py_compile` for runtime/wrapper/CLI/tests passed.
+- Focused runtime/wrapper/CLI/MCP tests passed: `22 passed, 470 deselected`.
+
 ### Codex CLI Worker Runtime Provider
 
 Status: `completed`
@@ -428,9 +457,11 @@ Validation:
 - [x] Complete host-owned planned guide-worker execution receipts.
 - [x] Complete `Evidence Publish To Consumer Closure` and remove its parked
   recovery branch from the current hot path.
-- [ ] Select the next narrow orchestration planning gate from guide policy,
-  sandbox/writeback isolation, agent storage isolation, or UI/readback
-  follow-up.
+- [x] Complete Codex worker sandbox writeback receipts.
+- [x] Complete worker patch review artifact integration.
+- [ ] Select the next narrow orchestration planning gate for patch
+  apply/reject, conflict handling, cleanup-after-review, or agent storage
+  isolation.
 
 ## Write Rules For This File
 

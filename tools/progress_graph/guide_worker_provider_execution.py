@@ -35,8 +35,10 @@ from src.runtime.orchestration import (
     SandboxProviderRegistry,
     SharedProcessSandboxProvider,
     GitWorktreeSandboxProvider,
+    WorkerPatchReviewArtifact,
     build_sandbox_allocation_receipt_evidence,
     default_sandbox_allocation_receipt_evidence_path,
+    build_worker_patch_review_artifacts,
     build_runtime_registry_from_config,
     default_exchange_artifact_admission_ledger_path,
     default_exchange_artifact_store_path,
@@ -95,6 +97,8 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     sandbox_allocation_evidence_path: str | Path | None = None
     git_executable: str = "git"
     evidence_metadata: Mapping[str, object] = field(default_factory=dict)
+    publish_worker_patch_artifacts: bool = True
+    worker_patch_target_task_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +112,7 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
     host_invocation: RuntimeHostInvocation
     evidence_path: str | Path | None = None
     metadata: Mapping[str, object] = field(default_factory=dict)
+    worker_patch_artifacts: tuple[WorkerPatchReviewArtifact, ...] = ()
     product_type: str = GUIDE_WORKER_PROVIDER_EXECUTION_EVIDENCE_PRODUCT_TYPE
     schema_version: str = GUIDE_WORKER_PROVIDER_EXECUTION_EVIDENCE_SCHEMA_VERSION
 
@@ -155,7 +160,14 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
             "task_states": result_payload["task_states"],
             "output_artifact_refs": _output_artifact_refs(self.result),
             "worker_execution_receipts": _worker_execution_receipts(self.result),
-            "worker_writeback_receipts": _worker_writeback_receipts(self.result),
+            "worker_writeback_receipts": _worker_writeback_receipts(
+                self.result,
+                self.worker_patch_artifacts,
+            ),
+            "worker_patch_artifact_refs": [
+                artifact.to_receipt_ref()
+                for artifact in self.worker_patch_artifacts
+            ],
             "authority_split": authority_split,
             "metadata": dict(self.metadata),
         }
@@ -275,6 +287,11 @@ def run_host_owned_guide_worker_provider_execution(
         active_config,
         orchestration,
     )
+    worker_patch_artifacts = _publish_worker_patch_artifacts(
+        project_root,
+        active_config,
+        orchestration,
+    )
     evidence = HostOwnedGuideWorkerProviderExecutionEvidence(
         evidence_id=active_config.evidence_id,
         timestamp=active_config.timestamp,
@@ -282,6 +299,7 @@ def run_host_owned_guide_worker_provider_execution(
         registered_providers=wiring.registered_providers,
         host_invocation=host_invocation,
         metadata=_evidence_metadata(active_config, sandbox_write_path=sandbox_write),
+        worker_patch_artifacts=worker_patch_artifacts,
     )
     evidence_path = (
         None
@@ -304,6 +322,7 @@ def run_host_owned_guide_worker_provider_execution(
             host_invocation=evidence.host_invocation,
             evidence_path=evidence_path,
             metadata=evidence.metadata,
+            worker_patch_artifacts=evidence.worker_patch_artifacts,
         )
     return HostOwnedGuideWorkerProviderExecutionResult(
         orchestration=orchestration,
@@ -607,12 +626,22 @@ def _worker_execution_receipts(
 
 def _worker_writeback_receipts(
     result: GuideWorkerLocalOrchestrationResult,
+    patch_artifacts: tuple[WorkerPatchReviewArtifact, ...] = (),
 ) -> list[dict[str, object]]:
     """Return review-only writeback receipts for worker runtime outputs."""
 
     instruction_by_task_id = {
         instruction.task_id: instruction
         for instruction in result.planned_worker_instructions
+    }
+    patch_ref_by_task_id = {
+        str(
+            _first_structured_value(
+                artifact.artifact,
+                "task_id",
+            )
+        ): artifact.to_receipt_ref()
+        for artifact in patch_artifacts
     }
     receipts: list[dict[str, object]] = []
     for run in result.run_results:
@@ -658,9 +687,49 @@ def _worker_writeback_receipts(
                 ),
                 "merge_review_state": "review_required",
                 "auto_merge_performed": False,
+                "patch_artifact_ref": patch_ref_by_task_id.get(task_id, {}),
             }
         )
     return receipts
+
+
+def _first_structured_value(
+    artifact: object,
+    key: str,
+) -> object:
+    for part in getattr(artifact, "parts", ()):
+        if getattr(part, "part_type", "") == "structured":
+            data = getattr(part, "data", {})
+            if key in data:
+                return data[key]
+    return ""
+
+
+def _publish_worker_patch_artifacts(
+    project_root: str | Path,
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+    result: GuideWorkerLocalOrchestrationResult,
+) -> tuple[WorkerPatchReviewArtifact, ...]:
+    if not config.publish_worker_patch_artifacts:
+        return ()
+    patch_artifacts = build_worker_patch_review_artifacts(
+        result.run_results,
+        timestamp=config.timestamp,
+        guide_agent_id=config.guide_agent_id,
+        target_task_id=config.worker_patch_target_task_id,
+        git_executable=config.git_executable,
+    )
+    if not patch_artifacts:
+        return ()
+    store = JsonArtifactVersionStore(
+        _project_path(project_root, config.artifact_store_path)
+    )
+    for patch_artifact in patch_artifacts:
+        store.put(
+            patch_artifact.artifact,
+            replace_existing=config.replace_existing,
+        )
+    return patch_artifacts
 
 
 def _sandbox_allocations(
@@ -742,6 +811,8 @@ def _evidence_metadata(
         ),
         "sandbox_allocation_evidence_id": config.sandbox_allocation_evidence_id,
         "sandbox_allocation_evidence_path": "" if sandbox_write_path is None else str(sandbox_write_path),
+        "publish_worker_patch_artifacts": config.publish_worker_patch_artifacts,
+        "worker_patch_target_task_id": config.worker_patch_target_task_id,
     }
     metadata.update(dict(config.evidence_metadata))
     return metadata

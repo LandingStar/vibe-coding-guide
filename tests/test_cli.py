@@ -354,6 +354,8 @@ def test_codex_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
     assert "--git-worktree-sandbox-root PATH" in proc.stdout
     assert "--sandbox-allocation-evidence-id ID" in proc.stdout
     assert "host-owned live-provider guide-worker smoke surface for Codex CLI" in proc.stdout
+    assert "worker patch artifacts and merge candidates" in proc.stdout
+    assert "not applied automatically" in proc.stdout
     assert "not an MCP real-provider execution surface" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 
@@ -423,6 +425,8 @@ def test_qoder_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
     assert "--sandbox-allocation-evidence-id ID" in proc.stdout
     assert "host-owned live-provider guide-worker smoke surface" in proc.stdout
     assert "never accepts a raw token value" in proc.stdout
+    assert "worker patch artifacts and merge candidates" in proc.stdout
+    assert "not applied automatically" in proc.stdout
     assert "not an MCP real-provider execution surface" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
 

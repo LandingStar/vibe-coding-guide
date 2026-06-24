@@ -79,6 +79,8 @@ from src.runtime.orchestration import (
     RuntimeRegistryWiringConfig,
     RuntimeRegistryWiringResult,
     RuntimeRunResult,
+    PreflightedTaskRunResult,
+    RunHandle,
     SessionHandle,
     SharedProcessSandboxProvider,
     VisibilityPolicy,
@@ -126,6 +128,7 @@ from src.runtime.orchestration import (
     build_sandbox_allocation_receipt_evidence,
     build_scheduler_loop_evidence,
     build_supervisor_storage_binding_evidence,
+    build_worker_patch_review_artifact,
     default_supervisor_storage_binding_evidence_path,
     default_sandbox_allocation_receipt_evidence_path,
     seed_scheduler_operator_binding_consumer_dogfood_fixture,
@@ -4148,6 +4151,100 @@ def test_orchestration_preflight_bundle_can_use_git_worktree_provider(tmp_path) 
     assert bundle.sandbox_allocation.state == "allocated"
     assert bundle.sandbox_allocation.visible_mounts == ("README.md", "src/app.py")
     assert bundle.sandbox_allocation.git_worktree_receipt is not None
+
+    provider.cleanup(bundle.sandbox_allocation)
+
+
+def test_worker_patch_review_artifact_collects_git_worktree_diff(tmp_path) -> None:
+    repo = _git_repo(tmp_path)
+    registry = SandboxProviderRegistry()
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+    registry.register(provider)
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        agent=AgentSpec(agent_id="agent:codex-worker", runtime_provider="codex"),
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        output_artifact_id="task-1:result",
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+            )
+        },
+    )
+    bundle = build_orchestration_preflight_bundle(
+        task,
+        sandbox_registry=registry,
+        scheduler_state=state,
+        workspace_root=str(repo),
+    )
+    receipt = bundle.sandbox_allocation.git_worktree_receipt
+    assert receipt is not None
+    app = Path(receipt.worktree_path) / "src" / "app.py"
+    app.parent.mkdir(parents=True, exist_ok=True)
+    app.write_text("print('worker patch')\n", encoding="utf-8")
+    output = ExchangeArtifact(
+        artifact_id="task-1:result",
+        kind="result",
+        intent="inform",
+        producer="agent:codex-worker",
+        version="v1",
+    )
+    run = PreflightedTaskRunResult(
+        preflight=bundle,
+        state=state,
+        runtime_result=RuntimeRunResult(
+            run_handle=RunHandle(
+                run_id="codex-run-1",
+                session_id="codex-session-1",
+                task_id="task-1",
+            ),
+            output_artifact=output,
+            artifact_delta=ArtifactDelta(
+                artifact_id="task-1:result",
+                version="v1",
+                summary="worker changed src/app.py",
+                changed_refs=(
+                    ExchangeReference(
+                        ref_kind="file",
+                        ref_id="src/app.py",
+                        path="src/app.py",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    review = build_worker_patch_review_artifact(
+        run,
+        timestamp="2026-06-24T23:58:00+08:00",
+        guide_agent_id="agent:guide",
+        target_task_id="task:merge-target",
+    )
+
+    assert review.patch_state == "has_patch"
+    assert review.changed_paths == ("src/app.py",)
+    assert "worker patch" in review.patch_text
+    assert review.artifact.intent == "request_merge"
+    assert has_scheduler_readable_relation(review.artifact, "merges_into")
+    assert review.artifact.parts[1].data["sandbox_workspace_root"] == receipt.worktree_path
 
     provider.cleanup(bundle.sandbox_allocation)
 
