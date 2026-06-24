@@ -260,6 +260,19 @@ _QODER_SMOKE_USAGE = (
     "[--timestamp TIMESTAMP]"
 )
 
+_QODER_GUIDE_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding qoder guide-worker-smoke "
+    "[--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME] "
+    "[--cwd PATH] [--model NAME] [--max-turns N] "
+    "[--permission-request-policy deny|surface] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--evidence-id ID] [--evidence-path PATH] "
+    "[--host-invocation-id ID] [--reason TEXT] "
+    "[--max-parallel-lanes N] [--max-waves N] "
+    "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
+)
+
 
 def cmd_qoder(args: list[str]) -> int:
     """Qoder host-runtime helper subcommands."""
@@ -271,6 +284,8 @@ def cmd_qoder(args: list[str]) -> int:
             "      Check optional qoder-agent-sdk host readiness without printing secrets\n",
             "  smoke [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]\n"
             "      Run the host-owned Qoder smoke helper with explicit host authorization\n",
+            "  guide-worker-smoke [--auth-mode env|qodercli] [--auth-env-var NAME] [--sdk-module NAME]\n"
+            "      Run host-owned Qoder guide-worker lane-wave execution\n",
         )
         return 0
 
@@ -279,9 +294,14 @@ def cmd_qoder(args: list[str]) -> int:
         return cmd_qoder_readiness(args[1:])
     if sub == "smoke":
         return cmd_qoder_smoke(args[1:])
+    if sub == "guide-worker-smoke":
+        return cmd_qoder_guide_worker_smoke(args[1:])
 
     print(f"Unknown qoder subcommand: {sub}", file=sys.stderr)
-    print("Usage: doc-based-coding qoder <readiness|smoke> [args]", file=sys.stderr)
+    print(
+        "Usage: doc-based-coding qoder <readiness|smoke|guide-worker-smoke> [args]",
+        file=sys.stderr,
+    )
     return 1
 
 
@@ -525,6 +545,223 @@ def cmd_qoder_smoke(args: list[str]) -> int:
     return 0
 
 
+def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
+    """Run host-owned Qoder guide-worker provider execution through CLI."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _QODER_GUIDE_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned live-provider guide-worker smoke "
+            "surface. It delegates to "
+            "run_host_owned_guide_worker_provider_execution(), uses explicit "
+            "host-authorized adapter wiring and a Qoder permission grant, and "
+            "never accepts a raw token value. If SDK/auth readiness is missing, "
+            "it fails before evidence writes. It is not an MCP real-provider "
+            "execution surface and does not mutate agent-owned Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    auth_mode = "env"
+    auth_env_var = ""
+    sdk_module_name = ""
+    cwd = ""
+    model = ""
+    max_turns: int | None = None
+    permission_request_policy = "deny"
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    host_invocation_id = ""
+    reason = ""
+    max_parallel_lanes = 2
+    max_waves = 1
+    wave_execution_mode = "threaded"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--auth-mode",
+            "--auth-env-var",
+            "--sdk-module",
+            "--cwd",
+            "--model",
+            "--max-turns",
+            "--permission-request-policy",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--host-invocation-id",
+            "--reason",
+            "--max-parallel-lanes",
+            "--max-waves",
+            "--wave-execution-mode",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--auth-mode":
+                auth_mode = value
+            elif arg == "--auth-env-var":
+                auth_env_var = value
+            elif arg == "--sdk-module":
+                sdk_module_name = value
+            elif arg == "--cwd":
+                cwd = value
+            elif arg == "--model":
+                model = value
+            elif arg == "--max-turns":
+                try:
+                    max_turns = int(value)
+                except ValueError:
+                    print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-turns must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--permission-request-policy":
+                permission_request_policy = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--host-invocation-id":
+                host_invocation_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--max-parallel-lanes":
+                try:
+                    max_parallel_lanes = int(value)
+                except ValueError:
+                    print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-parallel-lanes must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-waves":
+                try:
+                    max_waves = int(value)
+                except ValueError:
+                    print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-waves must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--wave-execution-mode":
+                wave_execution_mode = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown qoder guide-worker-smoke option: {arg}", file=sys.stderr)
+        print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+        return 1
+
+    if auth_mode not in {"env", "qodercli"}:
+        print("qoder guide-worker-smoke --auth-mode must be env or qodercli", file=sys.stderr)
+        return 1
+    if permission_request_policy not in {"deny", "surface"}:
+        print(
+            "qoder guide-worker-smoke --permission-request-policy must be deny or surface",
+            file=sys.stderr,
+        )
+        return 1
+    if max_turns is not None and max_turns < 1:
+        print("qoder guide-worker-smoke --max-turns must be positive", file=sys.stderr)
+        return 1
+    if max_parallel_lanes < 1:
+        print("qoder guide-worker-smoke --max-parallel-lanes must be positive", file=sys.stderr)
+        return 1
+    if max_waves < 1:
+        print("qoder guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if wave_execution_mode not in {"serial", "threaded"}:
+        print(
+            "qoder guide-worker-smoke --wave-execution-mode must be serial or threaded",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_QODER_TOKEN_ENV,
+            QoderSDKQueryClientConfig,
+        )
+        from tools.progress_graph import (
+            HostOwnedGuideWorkerProviderExecutionConfig,
+            run_host_owned_guide_worker_provider_execution,
+        )
+
+        qoder_config = QoderSDKQueryClientConfig(
+            cwd=cwd,
+            model=model,
+            max_turns=max_turns,
+            auth_mode=auth_mode,  # type: ignore[arg-type]
+            auth_env_var=auth_env_var or DEFAULT_QODER_TOKEN_ENV,
+            permission_request_policy=permission_request_policy,  # type: ignore[arg-type]
+            sdk_module_name=sdk_module_name or "qoder_agent_sdk",
+        )
+        config = HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id=evidence_id or "guide-worker-provider-execution",
+            timestamp=timestamp,
+            artifact_store_path=artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=(
+                admission_ledger_path
+                or ".codex/orchestration/exchange-artifact-admissions.json"
+            ),
+            snapshot_path=(
+                snapshot_path
+                or ".codex/scheduler/guide-worker-provider-execution-state.json"
+            ),
+            event_log_path=(
+                event_log_path
+                or ".codex/scheduler/guide-worker-provider-execution-events.jsonl"
+            ),
+            evidence_output_path=evidence_path or None,
+            qoder_client_config=qoder_config,
+            host_invocation_id=(
+                host_invocation_id
+                or "host-owned-guide-worker-provider-execution-cli"
+            ),
+            requested_by="cli:qoder-guide-worker-smoke",
+            reason=reason or "host-owned Qoder guide-worker smoke run from CLI",
+            grant_id=(
+                f"grant-{host_invocation_id}"
+                if host_invocation_id
+                else "grant-host-owned-guide-worker-provider-execution-cli"
+            ),
+            approved_by="cli:qoder-guide-worker-smoke",
+            approved_at=timestamp,
+            max_parallel_lanes=max_parallel_lanes,
+            max_waves=max_waves,
+            wave_execution_mode=wave_execution_mode,
+        )
+        result = run_host_owned_guide_worker_provider_execution(root, config=config)
+    except Exception as e:
+        return _handle_error(
+            "Error running Qoder guide-worker smoke",
+            e,
+            category="qoder_guide_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.orchestration.ok else 1
+
+
 _SCHEDULER_ADMIT_USAGE = (
     "Usage: doc-based-coding scheduler admit-exchange-artifact "
     "--artifact-id ID --version VERSION --snapshot-path PATH --event-log-path PATH "
@@ -541,6 +778,102 @@ _SCHEDULER_INSPECT_ADMISSIONS_USAGE = (
 _SCHEDULER_INSPECT_BINDING_REFS_USAGE = (
     "Usage: doc-based-coding scheduler inspect-binding-refs "
     "--artifact-id ID --version VERSION [--artifact-store-path PATH]"
+)
+
+_SCHEDULER_INSPECT_AGENT_MAILBOX_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-agent-mailbox "
+    "--agent-id ID [--artifact-store-path PATH] [--include-archived]"
+)
+
+_SCHEDULER_INSPECT_AGENT_HISTORY_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-agent-history "
+    "[--agent-id ID] [--correlation-id ID] [--artifact-store-path PATH] "
+    "[--include-archived]"
+)
+
+_SCHEDULER_INSPECT_AGENT_ACTION_CANDIDATES_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-agent-action-candidates "
+    "[--agent-id ID] [--candidate-type TYPE] [--artifact-store-path PATH] "
+    "[--admission-ledger-path PATH] [--include-archived]"
+)
+
+_SCHEDULER_DECIDE_AGENT_ACTION_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler decide-agent-action-candidate "
+    "--candidate-id ID --disposition-artifact-id ID --actor ID "
+    "--disposition accept|reject|defer|supersede [--artifact-store-path PATH] "
+    "[--disposition-version VERSION] [--reason TEXT] [--target-surface SURFACE] "
+    "[--replacement-artifact-id ID] [--replacement-version VERSION] "
+    "[--timestamp TIMESTAMP] [--replace-existing]"
+)
+
+_SCHEDULER_CONSUME_ACCEPTED_SCHEDULER_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler consume-accepted-scheduler-candidate "
+    "--disposition-artifact-id ID --disposition-version VERSION "
+    "--snapshot-path PATH --event-log-path PATH [--artifact-store-path PATH] "
+    "[--admission-ledger-path PATH] [--allow-duplicate-admission] "
+    "[--replace-existing] [--validate-binding-artifact-refs] "
+    "[--mark-consumed-on-success] [--actor ACTOR] [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_GUIDE_WORKER_EXCHANGE_DOGFOOD_USAGE = (
+    "Usage: doc-based-coding scheduler guide-worker-exchange-dogfood "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--guide-agent-id ID] [--worker-agent-id ID] [--artifact-id-prefix ID] "
+    "[--timestamp TIMESTAMP] [--replace-existing] [--allow-duplicate-admission]"
+)
+
+_SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE = (
+    "Usage: doc-based-coding scheduler guide-worker-local-orchestration "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] [--trajectory-id ID] "
+    "[--guide-agent-id ID] [--worker-agent-id ID] [--artifact-id-prefix ID] "
+    "[--max-parallel-lanes N] [--max-waves N] [--timestamp TIMESTAMP] "
+    "[--replace-existing] [--allow-duplicate-admission]"
+)
+
+_SCHEDULER_CONSUME_ACCEPTED_REVIEW_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler consume-accepted-review-candidate "
+    "--disposition-artifact-id ID --disposition-version VERSION "
+    "[--artifact-store-path PATH] [--actor ACTOR]"
+)
+
+_SCHEDULER_CONSUME_ACCEPTED_HANDOFF_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler consume-accepted-handoff-candidate "
+    "--disposition-artifact-id ID --disposition-version VERSION --handoff-dir PATH "
+    "[--artifact-store-path PATH] [--actor ACTOR]"
+)
+
+_SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler consume-accepted-merge-candidate "
+    "--disposition-artifact-id ID --disposition-version VERSION "
+    "--snapshot-path PATH --gate-id ID (--approved | --rejected) "
+    "[--merge-gate-event-log-path PATH] [--artifact-store-path PATH] "
+    "[--reason TEXT] [--actor ACTOR] [--resolved-at TIMESTAMP] [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE = (
+    "Usage: doc-based-coding scheduler consume-accepted-blocker-candidate "
+    "--disposition-artifact-id ID --disposition-version VERSION "
+    "--snapshot-path PATH --task-id ID --reason TEXT "
+    "[--event-log-path PATH] [--artifact-store-path PATH] [--actor ACTOR] "
+    "[--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_REPLY_EXCHANGE_ARTIFACT_USAGE = (
+    "Usage: doc-based-coding scheduler reply-exchange-artifact "
+    "--source-artifact-id ID --source-version VERSION --reply-artifact-id ID "
+    "--producer ID (--text TEXT | --structured-json JSON) "
+    "[--reply-version VERSION] [--artifact-store-path PATH] "
+    "[--kind message|request|query|proposal|blocker|result|review|contract|handoff|retention|cleanup] "
+    "[--intent ask|inform|propose|require_review|request_merge|declare_blocked|unblock|supersede|request_registration|request_retention] "
+    "[--audience A[,B]] [--created-at TIMESTAMP] [--replace-existing]"
+)
+
+_SCHEDULER_TRANSITION_EXCHANGE_ARTIFACT_USAGE = (
+    "Usage: doc-based-coding scheduler transition-exchange-artifact "
+    "--artifact-id ID --version VERSION --target-state accepted|rejected|consumed|superseded|archived "
+    "--actor ACTOR [--artifact-store-path PATH] [--reason TEXT] [--timestamp TIMESTAMP]"
 )
 
 _SCHEDULER_PUBLISH_STORAGE_BINDING_ARTIFACT_USAGE = (
@@ -603,6 +936,21 @@ _SCHEDULER_OPERATOR_DOGFOOD_CLOSURE_USAGE = (
     "[--projection-output-path PATH] [--evidence-id ID] [--evidence-path PATH] "
     "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
     "[--max-runtime-failures N] [--replace-existing] [--no-inspect-binding-refs] "
+    "[--no-mark-consumed-on-success] [--actor ACTOR] [--timestamp TIMESTAMP] "
+    "[--created-at TIMESTAMP] [--guide-context PATH_OR_LABEL] "
+    "[--source-graph-id ID] [--source-node-id ID]"
+)
+
+_SCHEDULER_EVIDENCE_PUBLISH_CONSUMER_CLOSURE_USAGE = (
+    "Usage: doc-based-coding scheduler evidence-publish-consumer-closure "
+    "[--binding-evidence-id ID] [--binding-evidence-path PATH] "
+    "[--binding-artifact-id ID] [--binding-artifact-version VERSION] "
+    "[--consumer-artifact-id ID] [--consumer-version VERSION] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] [--merge-gate-event-log-path PATH] "
+    "[--projection-output-path PATH] [--loop-evidence-id ID] [--loop-evidence-path PATH] "
+    "[--runtime-provider fake] [--max-ticks N] [--max-runs-per-tick N] "
+    "[--max-runtime-failures N] [--replace-existing] "
     "[--no-mark-consumed-on-success] [--actor ACTOR] [--timestamp TIMESTAMP] "
     "[--created-at TIMESTAMP] [--guide-context PATH_OR_LABEL] "
     "[--source-graph-id ID] [--source-node-id ID]"
@@ -674,6 +1022,19 @@ def cmd_scheduler(args: list[str]) -> int:
             "  admit-exchange-artifact  Admit one exact stored ExchangeArtifact version into scheduler state\n"
             "  inspect-admissions       Read ExchangeArtifact admission ledger summary without mutation\n"
             "  inspect-binding-refs     Read supervisor storage binding refs in one stored scheduler submission\n"
+            "  inspect-agent-mailbox    Read per-agent ExchangeArtifact inbox/outbox without mutation\n"
+            "  inspect-agent-history    Read compact ExchangeArtifact communication history without mutation\n"
+            "  inspect-agent-action-candidates Read communication artifacts as action candidates without mutation\n"
+            "  decide-agent-action-candidate Record an action-candidate disposition ExchangeArtifact\n"
+            "  consume-accepted-scheduler-candidate Consume accepted scheduler candidate disposition via exact admission\n"
+            "  consume-accepted-review-candidate Consume accepted review candidate disposition via review intake\n"
+            "  consume-accepted-handoff-candidate Consume accepted handoff candidate disposition via handoff delivery\n"
+            "  consume-accepted-merge-candidate Consume accepted merge candidate disposition via explicit merge gate resolution\n"
+            "  consume-accepted-blocker-candidate Consume accepted blocker candidate disposition via explicit task blocking\n"
+            "  guide-worker-exchange-dogfood Run deterministic guide/worker exchange product dogfood\n"
+            "  guide-worker-local-orchestration Run guide-assigned worker tasks with lane-limited waves\n"
+            "  reply-exchange-artifact  Create an exact-version reply ExchangeArtifact\n"
+            "  transition-exchange-artifact Change one exact ExchangeArtifact lifecycle state\n"
             "  publish-storage-binding-artifact Publish compact supervisor storage binding evidence into ExchangeArtifact store\n"
             "  inspect-state            Read scheduler snapshot/event-log summary without mutation\n"
             "  tick                     Run one bounded fake-runtime scheduler tick without projection refresh\n"
@@ -683,6 +1044,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  seed-dogfood-fixture     Seed one controlled ExchangeArtifact admission candidate\n"
             "  operator-workflow        Run shared explicit operator workflow with opt-in mutation steps\n"
             "  operator-dogfood-closure Seed and run deterministic operator evidence closure\n"
+            "  evidence-publish-consumer-closure Publish durable binding evidence and run consumer closure\n"
             "  supervisor-dogfood-workflow Run deterministic fake supervisor dogfood sequence\n"
             "  cleanup-receipts         Explicitly clean git-worktree sandboxes from durable receipt evidence\n"
             "  sandbox-receipt-workflow Run host allocation/readback/cleanup/readback receipt workflow\n",
@@ -696,6 +1058,32 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_admissions(args[1:])
     if sub == "inspect-binding-refs":
         return cmd_scheduler_inspect_binding_refs(args[1:])
+    if sub == "inspect-agent-mailbox":
+        return cmd_scheduler_inspect_agent_mailbox(args[1:])
+    if sub == "inspect-agent-history":
+        return cmd_scheduler_inspect_agent_history(args[1:])
+    if sub == "inspect-agent-action-candidates":
+        return cmd_scheduler_inspect_agent_action_candidates(args[1:])
+    if sub == "decide-agent-action-candidate":
+        return cmd_scheduler_decide_agent_action_candidate(args[1:])
+    if sub == "consume-accepted-scheduler-candidate":
+        return cmd_scheduler_consume_accepted_scheduler_candidate(args[1:])
+    if sub == "consume-accepted-review-candidate":
+        return cmd_scheduler_consume_accepted_review_candidate(args[1:])
+    if sub == "consume-accepted-handoff-candidate":
+        return cmd_scheduler_consume_accepted_handoff_candidate(args[1:])
+    if sub == "consume-accepted-merge-candidate":
+        return cmd_scheduler_consume_accepted_merge_candidate(args[1:])
+    if sub == "consume-accepted-blocker-candidate":
+        return cmd_scheduler_consume_accepted_blocker_candidate(args[1:])
+    if sub == "guide-worker-exchange-dogfood":
+        return cmd_scheduler_guide_worker_exchange_dogfood(args[1:])
+    if sub == "guide-worker-local-orchestration":
+        return cmd_scheduler_guide_worker_local_orchestration(args[1:])
+    if sub == "reply-exchange-artifact":
+        return cmd_scheduler_reply_exchange_artifact(args[1:])
+    if sub == "transition-exchange-artifact":
+        return cmd_scheduler_transition_exchange_artifact(args[1:])
     if sub == "publish-storage-binding-artifact":
         return cmd_scheduler_publish_storage_binding_artifact(args[1:])
     if sub == "inspect-state":
@@ -714,6 +1102,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_operator_workflow(args[1:])
     if sub == "operator-dogfood-closure":
         return cmd_scheduler_operator_dogfood_closure(args[1:])
+    if sub == "evidence-publish-consumer-closure":
+        return cmd_scheduler_evidence_publish_consumer_closure(args[1:])
     if sub == "supervisor-dogfood-workflow":
         return cmd_scheduler_supervisor_dogfood_workflow(args[1:])
     if sub == "cleanup-receipts":
@@ -723,7 +1113,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -1397,6 +1787,229 @@ def cmd_scheduler_operator_dogfood_closure(args: list[str]) -> int:
             "Error running scheduler operator dogfood closure",
             e,
             category="scheduler_operator_dogfood_closure_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_evidence_publish_consumer_closure(args: list[str]) -> int:
+    """Run durable evidence publish into a fake-runtime consumer closure."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_EVIDENCE_PUBLISH_CONSUMER_CLOSURE_USAGE + "\n\n"
+            "This closure writes durable supervisor storage binding evidence, "
+            "publishes it through the compact binding artifact publish surface, "
+            "seeds a consumer scheduler submission that references that exact "
+            "published artifact, then runs binding-ref inspection, exact admission, "
+            "consume, bounded fake loop, projection refresh, and Host Evidence "
+            "readback. It is fake-runtime-only. It does not create real agent home "
+            "or scratch directories, write scratch manifests, run cleanup, add Host "
+            "UX controls, or mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    merge_gate_event_log_path = ""
+    projection_output_path = ""
+    binding_evidence_id = ""
+    binding_evidence_path = ""
+    binding_artifact_id = ""
+    binding_artifact_version = ""
+    consumer_artifact_id = ""
+    consumer_version = ""
+    loop_evidence_id = ""
+    loop_evidence_path = ""
+    runtime_provider = "fake"
+    max_ticks = 3
+    max_runs_per_tick: int | None = 1
+    max_runtime_failures: int | None = 1
+    replace_existing = False
+    mark_consumed_on_success = True
+    actor = "evidence-publish-consumer-cli"
+    timestamp = ""
+    created_at = ""
+    guide_context = ""
+    source_graph_id = ""
+    source_node_id = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg == "--no-mark-consumed-on-success":
+            mark_consumed_on_success = False
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--merge-gate-event-log-path",
+            "--projection-output-path",
+            "--binding-evidence-id",
+            "--binding-evidence-path",
+            "--binding-artifact-id",
+            "--binding-artifact-version",
+            "--consumer-artifact-id",
+            "--consumer-version",
+            "--loop-evidence-id",
+            "--loop-evidence-path",
+            "--runtime-provider",
+            "--max-ticks",
+            "--max-runs-per-tick",
+            "--max-runtime-failures",
+            "--actor",
+            "--timestamp",
+            "--created-at",
+            "--guide-context",
+            "--source-graph-id",
+            "--source-node-id",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_EVIDENCE_PUBLISH_CONSUMER_CLOSURE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            elif arg == "--projection-output-path":
+                projection_output_path = value
+            elif arg == "--binding-evidence-id":
+                binding_evidence_id = value
+            elif arg == "--binding-evidence-path":
+                binding_evidence_path = value
+            elif arg == "--binding-artifact-id":
+                binding_artifact_id = value
+            elif arg == "--binding-artifact-version":
+                binding_artifact_version = value
+            elif arg == "--consumer-artifact-id":
+                consumer_artifact_id = value
+            elif arg == "--consumer-version":
+                consumer_version = value
+            elif arg == "--loop-evidence-id":
+                loop_evidence_id = value
+            elif arg == "--loop-evidence-path":
+                loop_evidence_path = value
+            elif arg == "--runtime-provider":
+                runtime_provider = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--created-at":
+                created_at = value
+            elif arg == "--guide-context":
+                guide_context = value
+            elif arg == "--source-graph-id":
+                source_graph_id = value
+            elif arg == "--source-node-id":
+                source_node_id = value
+            else:
+                try:
+                    parsed = int(value)
+                except ValueError:
+                    print(_SCHEDULER_EVIDENCE_PUBLISH_CONSUMER_CLOSURE_USAGE, file=sys.stderr)
+                    print(f"{arg} must be an integer", file=sys.stderr)
+                    return 1
+                if arg == "--max-ticks":
+                    max_ticks = parsed
+                elif arg == "--max-runs-per-tick":
+                    max_runs_per_tick = parsed
+                elif arg == "--max-runtime-failures":
+                    max_runtime_failures = parsed
+            i += 2
+            continue
+        print(
+            f"Unknown scheduler evidence-publish-consumer-closure option: {arg}",
+            file=sys.stderr,
+        )
+        print(_SCHEDULER_EVIDENCE_PUBLISH_CONSUMER_CLOSURE_USAGE, file=sys.stderr)
+        return 1
+
+    if runtime_provider != "fake":
+        print(
+            "scheduler evidence-publish-consumer-closure currently supports only "
+            "--runtime-provider fake; real providers require a separate planning gate",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from tools.progress_graph import (
+            DEFAULT_EVIDENCE_PUBLISH_BINDING_ARTIFACT_ID,
+            DEFAULT_EVIDENCE_PUBLISH_BINDING_ARTIFACT_VERSION,
+            DEFAULT_EVIDENCE_PUBLISH_BINDING_EVIDENCE_ID,
+            DEFAULT_EVIDENCE_PUBLISH_CONSUMER_ARTIFACT_ID,
+            DEFAULT_EVIDENCE_PUBLISH_CONSUMER_VERSION,
+            DEFAULT_EVIDENCE_PUBLISH_LOOP_EVIDENCE_ID,
+            EvidencePublishToConsumerClosureRequest,
+            run_evidence_publish_to_consumer_closure,
+        )
+
+        result = run_evidence_publish_to_consumer_closure(
+            EvidencePublishToConsumerClosureRequest(
+                project_root=root,
+                artifact_store_path=artifact_store_path or None,
+                admission_ledger_path=admission_ledger_path or None,
+                snapshot_path=snapshot_path or None,
+                event_log_path=event_log_path or None,
+                merge_gate_event_log_path=merge_gate_event_log_path or None,
+                projection_output_path=projection_output_path or None,
+                binding_evidence_id=(
+                    binding_evidence_id or DEFAULT_EVIDENCE_PUBLISH_BINDING_EVIDENCE_ID
+                ),
+                binding_evidence_path=binding_evidence_path or None,
+                binding_artifact_id=(
+                    binding_artifact_id or DEFAULT_EVIDENCE_PUBLISH_BINDING_ARTIFACT_ID
+                ),
+                binding_artifact_version=(
+                    binding_artifact_version
+                    or DEFAULT_EVIDENCE_PUBLISH_BINDING_ARTIFACT_VERSION
+                ),
+                consumer_artifact_id=(
+                    consumer_artifact_id or DEFAULT_EVIDENCE_PUBLISH_CONSUMER_ARTIFACT_ID
+                ),
+                consumer_version=consumer_version or DEFAULT_EVIDENCE_PUBLISH_CONSUMER_VERSION,
+                loop_evidence_id=loop_evidence_id or DEFAULT_EVIDENCE_PUBLISH_LOOP_EVIDENCE_ID,
+                loop_evidence_path=loop_evidence_path or None,
+                runtime_provider=runtime_provider,
+                max_ticks=max_ticks,
+                max_runs_per_tick=max_runs_per_tick,
+                max_runtime_failures=max_runtime_failures,
+                replace_existing=replace_existing,
+                mark_consumed_on_success=mark_consumed_on_success,
+                actor=actor,
+                timestamp=timestamp,
+                created_at=created_at,
+                guide_context=guide_context,
+                source_graph_id=source_graph_id,
+                source_node_id=source_node_id,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler evidence publish consumer closure",
+            e,
+            category="scheduler_evidence_publish_consumer_closure_failed",
         )
 
     payload = result.to_json_dict()
@@ -2103,6 +2716,1542 @@ def cmd_scheduler_inspect_binding_refs(args: list[str]) -> int:
     payload = inspection.to_json_dict()
     _print_json(payload)
     return 0 if inspection.ok else 1
+
+
+def cmd_scheduler_inspect_agent_mailbox(args: list[str]) -> int:
+    """Read one agent's ExchangeArtifact mailbox without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_AGENT_MAILBOX_USAGE + "\n\n"
+            "This is a readback command. It builds a per-agent inbox/outbox/"
+            "related read model over the local ExchangeArtifact store. It does "
+            "not write scheduler state, exchange artifacts, admission ledgers, "
+            "projection artifacts, consume artifacts, or mutate Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    agent_id = ""
+    include_archived = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-archived":
+            include_archived = True
+            i += 1
+            continue
+        if arg in {"--artifact-store-path", "--agent-id"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_AGENT_MAILBOX_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--agent-id":
+                agent_id = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-agent-mailbox option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_AGENT_MAILBOX_USAGE, file=sys.stderr)
+        return 1
+
+    if not agent_id:
+        print(_SCHEDULER_INSPECT_AGENT_MAILBOX_USAGE, file=sys.stderr)
+        print("Missing required option(s): --agent-id", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_mailbox,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        mailbox = inspect_agent_exchange_mailbox(
+            store_path,
+            agent_id=agent_id,
+            include_archived=include_archived,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting agent exchange mailbox",
+            e,
+            category="scheduler_agent_mailbox_inspect_failed",
+        )
+
+    payload = {"ok": not mailbox.errors}
+    payload.update(mailbox.to_json_dict())
+    _print_json(payload)
+    return 1 if mailbox.errors else 0
+
+
+def cmd_scheduler_inspect_agent_history(args: list[str]) -> int:
+    """Read compact ExchangeArtifact communication history without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_AGENT_HISTORY_USAGE + "\n\n"
+            "This is a readback command. It summarizes exact-version "
+            "ExchangeArtifact causality, compact log parts, participants, and "
+            "lifecycle counts. It does not expose raw sensitive payload content "
+            "and does not write scheduler state, exchange artifacts, admission "
+            "ledgers, projection artifacts, consume artifacts, or mutate Local "
+            "Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    agent_id = ""
+    correlation_id = ""
+    include_archived = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-archived":
+            include_archived = True
+            i += 1
+            continue
+        if arg in {"--artifact-store-path", "--agent-id", "--correlation-id"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_AGENT_HISTORY_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--agent-id":
+                agent_id = value
+            elif arg == "--correlation-id":
+                correlation_id = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-agent-history option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_AGENT_HISTORY_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_history_summary,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        summary = inspect_agent_exchange_history_summary(
+            store_path,
+            agent_id=agent_id,
+            correlation_id=correlation_id,
+            include_archived=include_archived,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting agent exchange history",
+            e,
+            category="scheduler_agent_history_inspect_failed",
+        )
+
+    payload = {"ok": not summary.errors}
+    payload.update(summary.to_json_dict())
+    _print_json(payload)
+    return 1 if summary.errors else 0
+
+
+def cmd_scheduler_inspect_agent_action_candidates(args: list[str]) -> int:
+    """Read ExchangeArtifact action candidates without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_AGENT_ACTION_CANDIDATES_USAGE + "\n\n"
+            "This is a readback command. It classifies exact-version "
+            "ExchangeArtifact records into scheduler, review, handoff, blocker, "
+            "and merge action candidates. It does not admit scheduler tasks, "
+            "open reviews, write handoffs, mutate exchange artifacts, write "
+            "admission ledgers, run providers, refresh projections, or mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    agent_id = ""
+    candidate_type = ""
+    include_archived = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-archived":
+            include_archived = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--agent-id",
+            "--candidate-type",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_AGENT_ACTION_CANDIDATES_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--agent-id":
+                agent_id = value
+            elif arg == "--candidate-type":
+                candidate_type = value
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-agent-action-candidates option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_AGENT_ACTION_CANDIDATES_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_action_candidates,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        summary = inspect_agent_exchange_action_candidates(
+            store_path,
+            agent_id=agent_id,
+            candidate_type=candidate_type,
+            include_archived=include_archived,
+            admission_ledger_path=ledger_path,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting agent exchange action candidates",
+            e,
+            category="scheduler_agent_action_candidates_inspect_failed",
+        )
+
+    payload = {"ok": not summary.errors}
+    payload.update(summary.to_json_dict())
+    _print_json(payload)
+    return 1 if summary.errors else 0
+
+
+def cmd_scheduler_decide_agent_action_candidate(args: list[str]) -> int:
+    """Record an action-candidate disposition ExchangeArtifact."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_DECIDE_AGENT_ACTION_CANDIDATE_USAGE + "\n\n"
+            "This writes one coordination-product ExchangeArtifact that records "
+            "the disposition for an existing action candidate. It does not admit "
+            "scheduler tasks, open reviews, write handoffs, resolve merge gates, "
+            "mutate the source ExchangeArtifact, run providers, refresh "
+            "projections, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    candidate_id = ""
+    disposition_artifact_id = ""
+    actor = ""
+    disposition = ""
+    disposition_version = "v1"
+    reason = ""
+    target_surface = ""
+    replacement_artifact_id = ""
+    replacement_version = ""
+    timestamp = ""
+    replace_existing = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--candidate-id",
+            "--disposition-artifact-id",
+            "--actor",
+            "--disposition",
+            "--disposition-version",
+            "--reason",
+            "--target-surface",
+            "--replacement-artifact-id",
+            "--replacement-version",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_DECIDE_AGENT_ACTION_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--candidate-id":
+                candidate_id = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--disposition":
+                disposition = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--target-surface":
+                target_surface = value
+            elif arg == "--replacement-artifact-id":
+                replacement_artifact_id = value
+            elif arg == "--replacement-version":
+                replacement_version = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler decide-agent-action-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_DECIDE_AGENT_ACTION_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--candidate-id", candidate_id),
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--actor", actor),
+            ("--disposition", disposition),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_DECIDE_AGENT_ACTION_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            decide_agent_exchange_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = decide_agent_exchange_action_candidate(
+            store_path=store_path,
+            candidate_id=candidate_id,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            actor=actor,
+            disposition=disposition,  # type: ignore[arg-type]
+            reason=reason,
+            target_surface=target_surface,
+            replacement_artifact_id=replacement_artifact_id,
+            replacement_version=replacement_version,
+            timestamp=timestamp,
+            replace_existing=replace_existing,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error deciding agent exchange action candidate",
+            e,
+            category="scheduler_agent_action_candidate_decide_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_consume_accepted_scheduler_candidate(args: list[str]) -> int:
+    """Consume an accepted scheduler action-candidate disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_ACCEPTED_SCHEDULER_CANDIDATE_USAGE + "\n\n"
+            "This consumes one accepted scheduler_submission_candidate disposition "
+            "by calling the existing exact-version admission helper. It may write "
+            "scheduler snapshot/event-log state and the admission ledger. It does "
+            "not open reviews, write handoffs, resolve merge gates, run providers, "
+            "refresh projections, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    snapshot_path = ""
+    event_log_path = ""
+    replace_existing = False
+    allow_duplicate_admission = False
+    validate_binding_artifact_refs = False
+    mark_consumed_on_success = False
+    actor = "operator-cli"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg == "--validate-binding-artifact-refs":
+            validate_binding_artifact_refs = True
+            i += 1
+            continue
+        if arg == "--mark-consumed-on-success":
+            mark_consumed_on_success = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--snapshot-path",
+            "--event-log-path",
+            "--actor",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_ACCEPTED_SCHEDULER_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-accepted-scheduler-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_ACCEPTED_SCHEDULER_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+            ("--snapshot-path", snapshot_path),
+            ("--event-log-path", event_log_path),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_CONSUME_ACCEPTED_SCHEDULER_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            consume_accepted_scheduler_action_candidate,
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        result = consume_accepted_scheduler_action_candidate(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            snapshot_path=_resolve_project_path(root, snapshot_path),
+            event_log_path=_resolve_project_path(root, event_log_path),
+            admission_ledger_path=ledger_path,
+            allow_duplicate_admission=allow_duplicate_admission,
+            replace_existing=replace_existing,
+            validate_binding_artifact_refs=validate_binding_artifact_refs,
+            mark_consumed_on_success=mark_consumed_on_success,
+            actor=actor,
+            timestamp=timestamp,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming accepted scheduler action candidate",
+            e,
+            category="scheduler_accepted_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_guide_worker_exchange_dogfood(args: list[str]) -> int:
+    """Run deterministic guide/worker exchange product dogfood."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_GUIDE_WORKER_EXCHANGE_DOGFOOD_USAGE + "\n\n"
+            "This seeds a guide-addressed coordination artifact, proves worker "
+            "mailbox and reply readback, records a scheduler_submission_candidate "
+            "disposition, and consumes the accepted disposition through exact "
+            "scheduler admission. It is fake-runtime-safe: it does not run live "
+            "providers, refresh projections, persist raw transcripts, or mutate "
+            "Local Work Trajectory from runtime/CLI code.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    guide_agent_id = "agent:guide"
+    worker_agent_id = "agent:worker"
+    artifact_id_prefix = ""
+    timestamp = "2026-06-23T00:00:00Z"
+    replace_existing = False
+    allow_duplicate_admission = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--guide-agent-id",
+            "--worker-agent-id",
+            "--artifact-id-prefix",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_GUIDE_WORKER_EXCHANGE_DOGFOOD_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--guide-agent-id":
+                guide_agent_id = value
+            elif arg == "--worker-agent-id":
+                worker_agent_id = value
+            elif arg == "--artifact-id-prefix":
+                artifact_id_prefix = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler guide-worker-exchange-dogfood option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_GUIDE_WORKER_EXCHANGE_DOGFOOD_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_PREFIX,
+            DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_SNAPSHOT_RELATIVE_PATH,
+            GuideWorkerExchangeDogfoodRequest,
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+            run_guide_worker_exchange_dogfood,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        snapshot = (
+            _resolve_project_path(root, snapshot_path)
+            if snapshot_path
+            else _resolve_project_path(
+                root,
+                DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_SNAPSHOT_RELATIVE_PATH,
+            )
+        )
+        event_log = (
+            _resolve_project_path(root, event_log_path)
+            if event_log_path
+            else _resolve_project_path(
+                root,
+                DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_EVENT_LOG_RELATIVE_PATH,
+            )
+        )
+        result = run_guide_worker_exchange_dogfood(
+            GuideWorkerExchangeDogfoodRequest(
+                artifact_store_path=store,
+                admission_ledger_path=ledger_path,
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                guide_agent_id=guide_agent_id,
+                worker_agent_id=worker_agent_id,
+                artifact_id_prefix=artifact_id_prefix
+                or DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_PREFIX,
+                timestamp=timestamp,
+                replace_existing=replace_existing,
+                allow_duplicate_admission=allow_duplicate_admission,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running guide/worker exchange dogfood",
+            e,
+            category="scheduler_guide_worker_exchange_dogfood_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
+    """Run guide-assigned worker tasks with lane-limited waves."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE + "\n\n"
+            "This creates a guide instruction artifact, admits a scheduler batch "
+            "of worker tasks, and runs a bounded fake-runtime wave with at most "
+            "one ready worker task per lane. It defines scheduling parallelism "
+            "for different lanes, but this first implementation still executes "
+            "the fake runtime sequentially. It does not refresh projections, "
+            "persist raw transcripts, or mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    trajectory_id = "local-work:current"
+    guide_agent_id = "agent:guide"
+    worker_agent_id = "agent:worker"
+    artifact_id_prefix = ""
+    timestamp = "2026-06-23T00:00:00Z"
+    max_parallel_lanes = 2
+    max_waves = 1
+    replace_existing = False
+    allow_duplicate_admission = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg == "--allow-duplicate-admission":
+            allow_duplicate_admission = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--trajectory-id",
+            "--guide-agent-id",
+            "--worker-agent-id",
+            "--artifact-id-prefix",
+            "--timestamp",
+            "--max-parallel-lanes",
+            "--max-waves",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--trajectory-id":
+                trajectory_id = value
+            elif arg == "--guide-agent-id":
+                guide_agent_id = value
+            elif arg == "--worker-agent-id":
+                worker_agent_id = value
+            elif arg == "--artifact-id-prefix":
+                artifact_id_prefix = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--max-parallel-lanes":
+                try:
+                    max_parallel_lanes = int(value)
+                except ValueError:
+                    print(_SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE, file=sys.stderr)
+                    print("--max-parallel-lanes must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-waves":
+                try:
+                    max_waves = int(value)
+                except ValueError:
+                    print(_SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE, file=sys.stderr)
+                    print("--max-waves must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler guide-worker-local-orchestration option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH,
+            GuideWorkerLocalOrchestrationRequest,
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+            run_guide_worker_local_trajectory_orchestration,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        ledger_path = (
+            _resolve_project_path(root, admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(root)
+        )
+        snapshot = (
+            _resolve_project_path(root, snapshot_path)
+            if snapshot_path
+            else _resolve_project_path(
+                root,
+                DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH,
+            )
+        )
+        event_log = (
+            _resolve_project_path(root, event_log_path)
+            if event_log_path
+            else _resolve_project_path(
+                root,
+                DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_EVENT_LOG_RELATIVE_PATH,
+            )
+        )
+        result = run_guide_worker_local_trajectory_orchestration(
+            GuideWorkerLocalOrchestrationRequest(
+                artifact_store_path=store,
+                admission_ledger_path=ledger_path,
+                snapshot_path=snapshot,
+                event_log_path=event_log,
+                trajectory_id=trajectory_id,
+                guide_agent_id=guide_agent_id,
+                worker_agent_id=worker_agent_id,
+                artifact_id_prefix=artifact_id_prefix
+                or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
+                timestamp=timestamp,
+                max_parallel_lanes=max_parallel_lanes,
+                max_waves=max_waves,
+                replace_existing=replace_existing,
+                allow_duplicate_admission=allow_duplicate_admission,
+                workspace_root=str(root),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running guide/worker local orchestration",
+            e,
+            category="scheduler_guide_worker_local_orchestration_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_consume_accepted_review_candidate(args: list[str]) -> int:
+    """Consume an accepted review action-candidate disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_ACCEPTED_REVIEW_CANDIDATE_USAGE + "\n\n"
+            "This consumes one accepted review_candidate disposition by dispatching "
+            "a review intake payload to the existing FeedbackAPI review intake "
+            "adapter. It does not admit scheduler tasks, write handoffs, resolve "
+            "merge gates, run providers, refresh projections, or mutate Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    actor = "operator-cli"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--actor",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_ACCEPTED_REVIEW_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--actor":
+                actor = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-accepted-review-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_ACCEPTED_REVIEW_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_CONSUME_ACCEPTED_REVIEW_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .pep.executor import Executor
+        from .review.feedback_api import FeedbackAPI
+        from .runtime.orchestration import (
+            FeedbackAPIReviewIntakeConsumer,
+            consume_accepted_review_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        feedback_api = FeedbackAPI(Executor(dry_run=True))
+        result = consume_accepted_review_action_candidate(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            review_intake_consumer=FeedbackAPIReviewIntakeConsumer(feedback_api),
+            actor=actor,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming accepted review action candidate",
+            e,
+            category="scheduler_accepted_review_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    payload["review_pending"] = feedback_api.list_pending()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_consume_accepted_handoff_candidate(args: list[str]) -> int:
+    """Consume an accepted handoff action-candidate disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_ACCEPTED_HANDOFF_CANDIDATE_USAGE + "\n\n"
+            "This consumes one accepted handoff_candidate disposition by dispatching "
+            "a schema-valid Handoff payload to the existing handoff delivery "
+            "adapter. It does not admit scheduler tasks, open reviews, resolve "
+            "merge gates, run providers, refresh projections, or mutate Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    handoff_dir = ""
+    actor = "operator-cli"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--handoff-dir",
+            "--actor",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_ACCEPTED_HANDOFF_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--handoff-dir":
+                handoff_dir = value
+            elif arg == "--actor":
+                actor = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-accepted-handoff-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_ACCEPTED_HANDOFF_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+            ("--handoff-dir", handoff_dir),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_CONSUME_ACCEPTED_HANDOFF_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            FileHandoffConsumer,
+            consume_accepted_handoff_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = consume_accepted_handoff_action_candidate(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            handoff_consumer=FileHandoffConsumer(_resolve_project_path(root, handoff_dir)),
+            actor=actor,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming accepted handoff action candidate",
+            e,
+            category="scheduler_accepted_handoff_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_consume_accepted_merge_candidate(args: list[str]) -> int:
+    """Consume an accepted merge action-candidate disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE + "\n\n"
+            "This consumes one accepted merge_candidate disposition by resolving "
+            "an explicit scheduler merge gate. The gate id and approval decision "
+            "must be supplied by the caller; the command does not infer a gate "
+            "from ExchangeArtifact relations. It does not admit scheduler tasks, "
+            "open reviews, write handoffs, run providers, refresh projections, or "
+            "mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    snapshot_path = ""
+    merge_gate_event_log_path = ""
+    gate_id = ""
+    approved: bool | None = None
+    reason = ""
+    actor = "operator-cli"
+    resolved_at = ""
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--approved":
+            approved = True
+            i += 1
+            continue
+        if arg == "--rejected":
+            approved = False
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--snapshot-path",
+            "--merge-gate-event-log-path",
+            "--gate-id",
+            "--reason",
+            "--actor",
+            "--resolved-at",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--merge-gate-event-log-path":
+                merge_gate_event_log_path = value
+            elif arg == "--gate-id":
+                gate_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--resolved-at":
+                resolved_at = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-accepted-merge-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+            ("--snapshot-path", snapshot_path),
+            ("--gate-id", gate_id),
+        )
+        if not value
+    ]
+    if approved is None:
+        missing.append("--approved|--rejected")
+    if missing:
+        print(_SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            consume_accepted_merge_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = consume_accepted_merge_action_candidate(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            snapshot_path=_resolve_project_path(root, snapshot_path),
+            gate_id=gate_id,
+            approved=bool(approved),
+            reason=reason,
+            merge_gate_event_log_path=(
+                _resolve_project_path(root, merge_gate_event_log_path)
+                if merge_gate_event_log_path
+                else None
+            ),
+            actor=actor,
+            resolved_at=resolved_at,
+            timestamp=timestamp,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming accepted merge action candidate",
+            e,
+            category="scheduler_accepted_merge_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_consume_accepted_blocker_candidate(args: list[str]) -> int:
+    """Consume an accepted blocker action-candidate disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE + "\n\n"
+            "This consumes one accepted blocker_candidate disposition by blocking "
+            "an explicit scheduler task. The task id and reason must be supplied "
+            "by the caller; the command does not infer a task from ExchangeArtifact "
+            "relations. It does not admit scheduler tasks, open reviews, write "
+            "handoffs, resolve merge gates, run providers, refresh projections, or "
+            "mutate Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    snapshot_path = ""
+    event_log_path = ""
+    task_id = ""
+    reason = ""
+    actor = "operator-cli"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--snapshot-path",
+            "--event-log-path",
+            "--task-id",
+            "--reason",
+            "--actor",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--task-id":
+                task_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-accepted-blocker-candidate option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+            ("--snapshot-path", snapshot_path),
+            ("--task-id", task_id),
+            ("--reason", reason),
+        )
+        if not value
+    ]
+    if missing:
+        print(_SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            consume_accepted_blocker_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = consume_accepted_blocker_action_candidate(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            snapshot_path=_resolve_project_path(root, snapshot_path),
+            task_id=task_id,
+            reason=reason,
+            event_log_path=(
+                _resolve_project_path(root, event_log_path)
+                if event_log_path
+                else None
+            ),
+            actor=actor,
+            timestamp=timestamp,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming accepted blocker action candidate",
+            e,
+            category="scheduler_accepted_blocker_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_reply_exchange_artifact(args: list[str]) -> int:
+    """Create a reply ExchangeArtifact in the local store."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_REPLY_EXCHANGE_ARTIFACT_USAGE + "\n\n"
+            "This writes one exact-version reply artifact to the local "
+            "ExchangeArtifact store. It does not admit scheduler tasks, run "
+            "providers, refresh projections, write admission ledgers, or mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    source_artifact_id = ""
+    source_version = ""
+    reply_artifact_id = ""
+    reply_version = "v1"
+    producer = ""
+    text = ""
+    structured_json = ""
+    kind = "message"
+    intent = "inform"
+    audience: tuple[str, ...] = ()
+    created_at = ""
+    replace_existing = False
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--replace-existing":
+            replace_existing = True
+            i += 1
+            continue
+        if arg in {
+            "--artifact-store-path",
+            "--source-artifact-id",
+            "--source-version",
+            "--reply-artifact-id",
+            "--reply-version",
+            "--producer",
+            "--text",
+            "--structured-json",
+            "--kind",
+            "--intent",
+            "--audience",
+            "--created-at",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_REPLY_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--source-artifact-id":
+                source_artifact_id = value
+            elif arg == "--source-version":
+                source_version = value
+            elif arg == "--reply-artifact-id":
+                reply_artifact_id = value
+            elif arg == "--reply-version":
+                reply_version = value
+            elif arg == "--producer":
+                producer = value
+            elif arg == "--text":
+                text = value
+            elif arg == "--structured-json":
+                structured_json = value
+            elif arg == "--kind":
+                kind = value
+            elif arg == "--intent":
+                intent = value
+            elif arg == "--audience":
+                audience = tuple(item.strip() for item in value.split(",") if item.strip())
+            elif arg == "--created-at":
+                created_at = value
+            i += 2
+            continue
+        print(f"Unknown scheduler reply-exchange-artifact option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_REPLY_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+        return 1
+
+    missing = []
+    for value, name in (
+        (source_artifact_id, "--source-artifact-id"),
+        (source_version, "--source-version"),
+        (reply_artifact_id, "--reply-artifact-id"),
+        (producer, "--producer"),
+    ):
+        if not value:
+            missing.append(name)
+    if not text and not structured_json:
+        missing.append("--text or --structured-json")
+    if missing:
+        print(_SCHEDULER_REPLY_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            reply_to_exchange_artifact,
+        )
+
+        structured = {}
+        if structured_json:
+            parsed = json.loads(structured_json)
+            if not isinstance(parsed, dict):
+                raise ValueError("--structured-json must be a JSON object")
+            structured = parsed
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = reply_to_exchange_artifact(
+            store_path=store_path,
+            source_artifact_id=source_artifact_id,
+            source_version=source_version,
+            reply_artifact_id=reply_artifact_id,
+            reply_version=reply_version,
+            producer=producer,
+            text=text,
+            structured=structured,
+            kind=kind,  # type: ignore[arg-type]
+            intent=intent,  # type: ignore[arg-type]
+            audience=audience,
+            created_at=created_at,
+            replace_existing=replace_existing,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error replying to exchange artifact",
+            e,
+            category="scheduler_exchange_reply_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_transition_exchange_artifact(args: list[str]) -> int:
+    """Transition one exact ExchangeArtifact lifecycle state."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_TRANSITION_EXCHANGE_ARTIFACT_USAGE + "\n\n"
+            "This rewrites only one exact ExchangeArtifact store version and "
+            "appends a compact log part. It does not admit scheduler tasks, run "
+            "providers, refresh projections, write admission ledgers, or mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    artifact_id = ""
+    version = ""
+    target_state = ""
+    actor = ""
+    reason = ""
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--artifact-id",
+            "--version",
+            "--target-state",
+            "--actor",
+            "--reason",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_TRANSITION_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--target-state":
+                target_state = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown scheduler transition-exchange-artifact option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_TRANSITION_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+        return 1
+
+    missing = []
+    for value, name in (
+        (artifact_id, "--artifact-id"),
+        (version, "--version"),
+        (target_state, "--target-state"),
+        (actor, "--actor"),
+    ):
+        if not value:
+            missing.append(name)
+    if missing:
+        print(_SCHEDULER_TRANSITION_EXCHANGE_ARTIFACT_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            transition_exchange_artifact_lifecycle,
+        )
+
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = transition_exchange_artifact_lifecycle(
+            store_path=store_path,
+            artifact_id=artifact_id,
+            version=version,
+            target_state=target_state,  # type: ignore[arg-type]
+            actor=actor,
+            reason=reason,
+            timestamp=timestamp,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error transitioning exchange artifact lifecycle",
+            e,
+            category="scheduler_exchange_transition_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
 
 
 def cmd_scheduler_publish_storage_binding_artifact(args: list[str]) -> int:

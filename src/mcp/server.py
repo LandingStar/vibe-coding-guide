@@ -998,6 +998,567 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="agentExchangeMailbox",
+                description=(
+                    "Read one agent's ExchangeArtifact mailbox as a compact inbox, "
+                    "outbox, related, and actionable read model. Reads only the local "
+                    "ExchangeArtifact store; does not mutate scheduler state, exchange "
+                    "artifact lifecycle, admission ledgers, projections, runtimes, or "
+                    "agent-owned local-work-trajectory.json. Sensitive/redaction-required "
+                    "artifacts remain discoverable but omit raw preview payload content."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "agentId": {
+                            "type": "string",
+                            "description": "Agent id whose mailbox should be inspected, for example agent:client.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "includeArchived": {
+                            "type": "boolean",
+                            "description": "Whether archived ExchangeArtifact versions should be included. Default false.",
+                        },
+                    },
+                    "required": ["agentId"],
+                },
+            ),
+            Tool(
+                name="agentExchangeHistory",
+                description=(
+                    "Read compact ExchangeArtifact communication history over causality "
+                    "and log parts. Supports optional agentId/correlationId filters. "
+                    "Reads only the local ExchangeArtifact store; does not expose raw "
+                    "sensitive payload content and does not mutate scheduler state, "
+                    "exchange artifacts, admission ledgers, projections, runtimes, or "
+                    "agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "agentId": {
+                            "type": "string",
+                            "description": "Optional agent id filter, for example agent:client.",
+                        },
+                        "correlationId": {
+                            "type": "string",
+                            "description": "Optional causality correlation id filter.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "includeArchived": {
+                            "type": "boolean",
+                            "description": "Whether archived ExchangeArtifact versions should be included. Default false.",
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="agentExchangeActionCandidates",
+                description=(
+                    "Read-only action-candidate bridge over ExchangeArtifacts. Classifies "
+                    "scheduler submission, review, handoff, blocker, and merge candidates "
+                    "with structured reasons and clues. It does not mutate scheduler state, "
+                    "review state, handoffs, exchange artifacts, admission ledgers, "
+                    "projections, runtimes, or agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "agentId": {
+                            "type": "string",
+                            "description": "Optional agent id filter, for example agent:client.",
+                        },
+                        "candidateType": {
+                            "type": "string",
+                            "description": (
+                                "Optional candidate type filter: scheduler_submission_candidate, "
+                                "review_candidate, handoff_candidate, blocker_candidate, or merge_candidate."
+                            ),
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact admission ledger path.",
+                        },
+                        "includeArchived": {
+                            "type": "boolean",
+                            "description": "Whether archived ExchangeArtifact versions should be included. Default false.",
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="agentExchangeActionCandidateDecide",
+                description=(
+                    "Write one coordination-product ExchangeArtifact that records the "
+                    "disposition for an existing action candidate. This may mutate only "
+                    "the local ExchangeArtifact store by adding the disposition artifact; "
+                    "it does not admit scheduler tasks, open review state, write handoffs, "
+                    "resolve merge gates, mutate the source artifact, run providers, "
+                    "refresh projections, or mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "candidateId": {
+                            "type": "string",
+                            "description": "Exact action candidate id from agentExchangeActionCandidates.",
+                        },
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "ExchangeArtifact id for the disposition product to create.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Disposition artifact version. Default v1.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Agent/operator recording the disposition.",
+                        },
+                        "disposition": {
+                            "type": "string",
+                            "enum": ["accept", "reject", "defer", "supersede"],
+                            "description": "Disposition to record for the candidate.",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Compact reason for the disposition.",
+                        },
+                        "targetSurface": {
+                            "type": "string",
+                            "description": "Required for accept; downstream surface expected to consume this decision.",
+                        },
+                        "replacementArtifactId": {
+                            "type": "string",
+                            "description": "Required for supersede; replacement coordination artifact id.",
+                        },
+                        "replacementVersion": {
+                            "type": "string",
+                            "description": "Replacement coordination artifact version.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for the disposition artifact/log.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace an existing exact disposition artifact/version. Default false.",
+                        },
+                    },
+                    "required": [
+                        "candidateId",
+                        "dispositionArtifactId",
+                        "actor",
+                        "disposition",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeAcceptedSchedulerCandidateConsume",
+                description=(
+                    "Consume one accepted scheduler_submission_candidate disposition by "
+                    "calling the existing exact-version admission helper. This may write "
+                    "scheduler snapshot/event-log state and the admission ledger. It does "
+                    "not open reviews, write handoffs, resolve merge gates, run providers, "
+                    "refresh projections, or mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact id.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact version.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler snapshot path to write.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Scheduler event JSONL path to append.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact admission ledger path.",
+                        },
+                        "allowDuplicateAdmission": {
+                            "type": "boolean",
+                            "description": "Allow duplicate exact artifact/version admission. Default false.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace existing scheduler task contracts. Default false.",
+                        },
+                        "validateBindingArtifactRefs": {
+                            "type": "boolean",
+                            "description": "Validate supervisor storage binding artifact refs before admission. Default false.",
+                        },
+                        "markConsumedOnSuccess": {
+                            "type": "boolean",
+                            "description": "Mark the admitted source artifact consumed only after successful admission. Default false.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Admission actor. Default mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional timestamp for admission/event records.",
+                        },
+                    },
+                    "required": [
+                        "dispositionArtifactId",
+                        "dispositionVersion",
+                        "snapshotPath",
+                        "eventLogPath",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeAcceptedReviewCandidateConsume",
+                description=(
+                    "Consume one accepted review_candidate disposition by dispatching "
+                    "a review intake payload to the existing review intake adapter. "
+                    "This may mutate review intake state in the configured adapter. "
+                    "It does not admit scheduler tasks, write handoffs, resolve merge "
+                    "gates, run providers, refresh projections, or mutate "
+                    "agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact id.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact version.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Agent/operator consuming the accepted review candidate. Default mcp.",
+                        },
+                    },
+                    "required": [
+                        "dispositionArtifactId",
+                        "dispositionVersion",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeAcceptedHandoffCandidateConsume",
+                description=(
+                    "Consume one accepted handoff_candidate disposition by dispatching "
+                    "a schema-valid Handoff payload to the existing handoff delivery "
+                    "adapter. This may write a handoff payload through the configured "
+                    "handoff consumer. It does not admit scheduler tasks, open reviews, "
+                    "resolve merge gates, run providers, refresh projections, or mutate "
+                    "agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact id.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact version.",
+                        },
+                        "handoffDir": {
+                            "type": "string",
+                            "description": "Directory where the configured file handoff consumer writes handoff JSON.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Agent/operator consuming the accepted handoff candidate. Default mcp.",
+                        },
+                    },
+                    "required": [
+                        "dispositionArtifactId",
+                        "dispositionVersion",
+                        "handoffDir",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeAcceptedMergeCandidateConsume",
+                description=(
+                    "Consume one accepted merge_candidate disposition by resolving "
+                    "an explicit scheduler merge gate. The caller must provide the "
+                    "exact gateId and approved boolean; the tool does not infer a "
+                    "gate from ExchangeArtifact relations. This may write scheduler "
+                    "snapshot state and merge-gate event log state. It does not "
+                    "admit scheduler tasks, open reviews, write handoffs, run "
+                    "providers, refresh projections, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact id.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact version.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler snapshot path to update.",
+                        },
+                        "gateId": {
+                            "type": "string",
+                            "description": "Exact scheduler merge gate id to resolve.",
+                        },
+                        "approved": {
+                            "type": "boolean",
+                            "description": "Whether the explicit merge gate decision approves the merge.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "mergeGateEventLogPath": {
+                            "type": "string",
+                            "description": "Optional merge-gate event JSONL path to append.",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Compact reason for the merge gate decision.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Agent/operator consuming the accepted merge candidate. Default mcp.",
+                        },
+                        "resolvedAt": {
+                            "type": "string",
+                            "description": "Optional merge gate resolved_at timestamp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional event timestamp.",
+                        },
+                    },
+                    "required": [
+                        "dispositionArtifactId",
+                        "dispositionVersion",
+                        "snapshotPath",
+                        "gateId",
+                        "approved",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeAcceptedBlockerCandidateConsume",
+                description=(
+                    "Consume one accepted blocker_candidate disposition by blocking "
+                    "an explicit scheduler task. The caller must provide the exact "
+                    "taskId and reason; the tool does not infer a task from "
+                    "ExchangeArtifact relations. This may write scheduler snapshot "
+                    "state and scheduler event log state. It does not admit scheduler "
+                    "tasks, open reviews, write handoffs, resolve merge gates, run "
+                    "providers, refresh projections, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dispositionArtifactId": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact id.",
+                        },
+                        "dispositionVersion": {
+                            "type": "string",
+                            "description": "Exact disposition ExchangeArtifact version.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Scheduler snapshot path to update.",
+                        },
+                        "taskId": {
+                            "type": "string",
+                            "description": "Exact scheduler task id to block.",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Required blocker reason to store on the task.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event JSONL path to append.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Agent/operator consuming the accepted blocker candidate. Default mcp.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional event timestamp.",
+                        },
+                    },
+                    "required": [
+                        "dispositionArtifactId",
+                        "dispositionVersion",
+                        "snapshotPath",
+                        "taskId",
+                        "reason",
+                    ],
+                },
+            ),
+            Tool(
+                name="agentExchangeReply",
+                description=(
+                    "Create one exact-version reply ExchangeArtifact in the local "
+                    "ExchangeArtifact store. The reply records causality to the source "
+                    "artifact version and adds a compact log part. This does not admit "
+                    "scheduler tasks, run providers, write admission ledgers, refresh "
+                    "projections, or mutate agent-owned local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "sourceArtifactId": {
+                            "type": "string",
+                            "description": "Exact source ExchangeArtifact id being replied to.",
+                        },
+                        "sourceVersion": {
+                            "type": "string",
+                            "description": "Exact source ExchangeArtifact version being replied to.",
+                        },
+                        "replyArtifactId": {
+                            "type": "string",
+                            "description": "Exact reply ExchangeArtifact id to create.",
+                        },
+                        "replyVersion": {
+                            "type": "string",
+                            "description": "Reply ExchangeArtifact version. Default v1.",
+                        },
+                        "producer": {
+                            "type": "string",
+                            "description": "Agent id producing the reply.",
+                        },
+                        "text": {
+                            "type": "string",
+                            "description": "Optional reply text payload.",
+                        },
+                        "structured": {
+                            "type": "object",
+                            "description": "Optional structured reply payload.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "kind": {
+                            "type": "string",
+                            "description": "Reply artifact kind. Default message.",
+                        },
+                        "intent": {
+                            "type": "string",
+                            "description": "Reply artifact intent. Default inform.",
+                        },
+                        "audience": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional explicit reply audience. Defaults to the source artifact producer.",
+                        },
+                        "createdAt": {
+                            "type": "string",
+                            "description": "Optional created_at timestamp.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace an existing exact reply artifact/version. Default false.",
+                        },
+                    },
+                    "required": ["sourceArtifactId", "sourceVersion", "replyArtifactId", "producer"],
+                },
+            ),
+            Tool(
+                name="agentExchangeTransition",
+                description=(
+                    "Transition one exact stored ExchangeArtifact version to accepted, "
+                    "rejected, consumed, superseded, or archived, appending a compact "
+                    "log part. This mutates only the local ExchangeArtifact store and "
+                    "does not admit scheduler tasks, run providers, write admission "
+                    "ledgers, refresh projections, or mutate agent-owned "
+                    "local-work-trajectory.json."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "artifactId": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact id to transition.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": "Exact ExchangeArtifact version to transition.",
+                        },
+                        "targetState": {
+                            "type": "string",
+                            "enum": ["accepted", "rejected", "consumed", "superseded", "archived"],
+                            "description": "Target lifecycle state for this first-slice transition.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Actor recorded on the lifecycle log part.",
+                        },
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Optional lifecycle transition reason.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional transition timestamp.",
+                        },
+                    },
+                    "required": ["artifactId", "version", "targetState", "actor"],
+                },
+            ),
+            Tool(
                 name="schedulerStorageBindingArtifactPublish",
                 description=(
                     "Publish one durable supervisor storage binding evidence summary "
@@ -1437,6 +1998,163 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         "sourceNodeId": {
                             "type": "string",
                             "description": "Optional owning progress graph node id for projection.",
+                        },
+                    },
+                },
+            ),
+            Tool(
+                name="schedulerGuideWorkerLocalOrchestration",
+                description=(
+                    "Run the fake-runtime guide-worker local trajectory "
+                    "orchestration helper through MCP. A guide creates structured "
+                    "worker instructions and a scheduler batch, exact admission "
+                    "persists scheduler state, and bounded scheduling waves select "
+                    "at most one ready worker task per lane. This reports scheduling "
+                    "parallelism only: no real providers, no process/thread pool, no "
+                    "agent home or scratch directory creation, no projection refresh, "
+                    "and no mutation of agent-owned Local Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "artifactStorePath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact store path. Defaults under .codex/orchestration.",
+                        },
+                        "admissionLedgerPath": {
+                            "type": "string",
+                            "description": "Optional ExchangeArtifact admission ledger path. Defaults under .codex/orchestration.",
+                        },
+                        "snapshotPath": {
+                            "type": "string",
+                            "description": "Optional scheduler snapshot path for this workflow.",
+                        },
+                        "eventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event log path for this workflow.",
+                        },
+                        "trajectoryId": {
+                            "type": "string",
+                            "description": "Local Work Trajectory id recorded in ExchangeArtifact scope.",
+                        },
+                        "guideAgentId": {
+                            "type": "string",
+                            "description": "Guide agent id. Must differ from workerAgentId.",
+                        },
+                        "workerAgentId": {
+                            "type": "string",
+                            "description": "Default worker agent id used when an instruction omits workerAgentId.",
+                        },
+                        "artifactIdPrefix": {
+                            "type": "string",
+                            "description": "Artifact id prefix for guide instruction and worker batch artifacts.",
+                        },
+                        "workerInstructions": {
+                            "type": "array",
+                            "description": (
+                                "Structured worker instructions. If omitted, the "
+                                "runtime helper uses its deterministic two-lane "
+                                "client/server demo split."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "taskId": {
+                                        "type": "string",
+                                        "description": "Unique scheduler task id.",
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Short worker task title.",
+                                    },
+                                    "instruction": {
+                                        "type": "string",
+                                        "description": "Concrete instruction for the worker agent.",
+                                    },
+                                    "laneId": {
+                                        "type": "string",
+                                        "description": "Local trajectory lane id used for scheduling-wave separation.",
+                                    },
+                                    "contextId": {
+                                        "type": "string",
+                                        "description": "Optional scheduler context id.",
+                                    },
+                                    "workerAgentId": {
+                                        "type": "string",
+                                        "description": "Optional per-task worker agent id.",
+                                    },
+                                    "workerRuntimeProvider": {
+                                        "type": "string",
+                                        "description": (
+                                            "Optional per-task runtime provider. "
+                                            "Runtime helper supports host-injected "
+                                            "fake or qoder adapters, but this MCP "
+                                            "surface still registers only fake unless "
+                                            "a separate host-authorized wrapper is used."
+                                        ),
+                                    },
+                                    "allowedArtifacts": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Optional lease-scoped writable artifact/path hints.",
+                                    },
+                                    "acceptance": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Observable acceptance criteria for the worker task.",
+                                    },
+                                    "dependsOnTaskIds": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Earlier task ids this instruction depends on.",
+                                    },
+                                    "outputArtifactId": {
+                                        "type": "string",
+                                        "description": "Optional expected worker result artifact id.",
+                                    },
+                                },
+                            },
+                        },
+                        "maxParallelLanes": {
+                            "type": "integer",
+                            "description": "Maximum lane-distinct worker tasks in one scheduling wave. Default 2.",
+                        },
+                        "maxWaves": {
+                            "type": "integer",
+                            "description": "Maximum bounded scheduling waves to execute. Default 1.",
+                        },
+                        "replaceExisting": {
+                            "type": "boolean",
+                            "description": "Replace existing artifacts/tasks when ids already exist. Default false.",
+                        },
+                        "allowDuplicateAdmission": {
+                            "type": "boolean",
+                            "description": "Allow duplicate exact artifact/version admission. Default false.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional deterministic timestamp for artifacts and scheduler events.",
+                        },
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider selector. Current MCP surface only supports 'fake'.",
+                        },
+                        "waveExecutionMode": {
+                            "type": "string",
+                            "description": (
+                                "Wave executor mode: serial or threaded. Threaded "
+                                "attempts concurrent runtime invocation for one "
+                                "lane-distinct fake-runtime wave, then merges "
+                                "scheduler state deterministically. Default serial."
+                            ),
+                        },
+                        "workspaceRoot": {
+                            "type": "string",
+                            "description": "Optional workspace root recorded in sandbox metadata readback.",
+                        },
+                        "scratchRoot": {
+                            "type": "string",
+                            "description": "Optional scratch root used only to compute readback scratch paths.",
                         },
                     },
                 },
@@ -2127,6 +2845,126 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 version=arguments.get("version", ""),
                 artifact_store_path=arguments.get("artifactStorePath", ""),
             )
+        elif name == "agentExchangeMailbox":
+            result = tools.agent_exchange_mailbox(
+                agent_id=arguments.get("agentId", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                include_archived=arguments.get("includeArchived", False),
+            )
+        elif name == "agentExchangeHistory":
+            result = tools.agent_exchange_history(
+                agent_id=arguments.get("agentId", ""),
+                correlation_id=arguments.get("correlationId", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                include_archived=arguments.get("includeArchived", False),
+            )
+        elif name == "agentExchangeActionCandidates":
+            result = tools.agent_exchange_action_candidates(
+                agent_id=arguments.get("agentId", ""),
+                candidate_type=arguments.get("candidateType", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                include_archived=arguments.get("includeArchived", False),
+            )
+        elif name == "agentExchangeActionCandidateDecide":
+            result = tools.agent_exchange_action_candidate_decide(
+                candidate_id=arguments.get("candidateId", ""),
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", "v1"),
+                actor=arguments.get("actor", ""),
+                disposition=arguments.get("disposition", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                reason=arguments.get("reason", ""),
+                target_surface=arguments.get("targetSurface", ""),
+                replacement_artifact_id=arguments.get("replacementArtifactId", ""),
+                replacement_version=arguments.get("replacementVersion", ""),
+                timestamp=arguments.get("timestamp", ""),
+                replace_existing=arguments.get("replaceExisting", False),
+            )
+        elif name == "agentExchangeAcceptedSchedulerCandidateConsume":
+            result = tools.agent_exchange_accepted_scheduler_candidate_consume(
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
+                replace_existing=arguments.get("replaceExisting", False),
+                validate_binding_artifact_refs=arguments.get("validateBindingArtifactRefs", False),
+                mark_consumed_on_success=arguments.get("markConsumedOnSuccess", False),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
+            )
+        elif name == "agentExchangeAcceptedReviewCandidateConsume":
+            result = tools.agent_exchange_accepted_review_candidate_consume(
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                actor=arguments.get("actor", "mcp"),
+            )
+        elif name == "agentExchangeAcceptedHandoffCandidateConsume":
+            result = tools.agent_exchange_accepted_handoff_candidate_consume(
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", ""),
+                handoff_dir=arguments.get("handoffDir", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                actor=arguments.get("actor", "mcp"),
+            )
+        elif name == "agentExchangeAcceptedMergeCandidateConsume":
+            result = tools.agent_exchange_accepted_merge_candidate_consume(
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                gate_id=arguments.get("gateId", ""),
+                approved=arguments.get("approved"),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                merge_gate_event_log_path=arguments.get("mergeGateEventLogPath", ""),
+                reason=arguments.get("reason", ""),
+                actor=arguments.get("actor", "mcp"),
+                resolved_at=arguments.get("resolvedAt", ""),
+                timestamp=arguments.get("timestamp", ""),
+            )
+        elif name == "agentExchangeAcceptedBlockerCandidateConsume":
+            result = tools.agent_exchange_accepted_blocker_candidate_consume(
+                disposition_artifact_id=arguments.get("dispositionArtifactId", ""),
+                disposition_version=arguments.get("dispositionVersion", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                task_id=arguments.get("taskId", ""),
+                reason=arguments.get("reason", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                actor=arguments.get("actor", "mcp"),
+                timestamp=arguments.get("timestamp", ""),
+            )
+        elif name == "agentExchangeReply":
+            result = tools.agent_exchange_reply(
+                source_artifact_id=arguments.get("sourceArtifactId", ""),
+                source_version=arguments.get("sourceVersion", ""),
+                reply_artifact_id=arguments.get("replyArtifactId", ""),
+                reply_version=arguments.get("replyVersion", "v1"),
+                producer=arguments.get("producer", ""),
+                text=arguments.get("text", ""),
+                structured=arguments.get("structured"),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                kind=arguments.get("kind", "message"),
+                intent=arguments.get("intent", "inform"),
+                audience=tuple(arguments.get("audience", ()))
+                if arguments.get("audience")
+                else (),
+                created_at=arguments.get("createdAt", ""),
+                replace_existing=arguments.get("replaceExisting", False),
+            )
+        elif name == "agentExchangeTransition":
+            result = tools.agent_exchange_transition(
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                target_state=arguments.get("targetState", ""),
+                actor=arguments.get("actor", ""),
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                reason=arguments.get("reason", ""),
+                timestamp=arguments.get("timestamp", ""),
+            )
         elif name == "schedulerStorageBindingArtifactPublish":
             result = tools.scheduler_storage_binding_artifact_publish(
                 evidence_path=arguments.get("evidencePath", ""),
@@ -2224,6 +3062,27 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 guide_context=arguments.get("guideContext", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
+            )
+        elif name == "schedulerGuideWorkerLocalOrchestration":
+            result = tools.scheduler_guide_worker_local_orchestration(
+                artifact_store_path=arguments.get("artifactStorePath", ""),
+                admission_ledger_path=arguments.get("admissionLedgerPath", ""),
+                snapshot_path=arguments.get("snapshotPath", ""),
+                event_log_path=arguments.get("eventLogPath", ""),
+                trajectory_id=arguments.get("trajectoryId", "local-work:current"),
+                guide_agent_id=arguments.get("guideAgentId", "agent:guide"),
+                worker_agent_id=arguments.get("workerAgentId", "agent:worker"),
+                artifact_id_prefix=arguments.get("artifactIdPrefix", ""),
+                worker_instructions=arguments.get("workerInstructions"),
+                max_parallel_lanes=arguments.get("maxParallelLanes", 2),
+                max_waves=arguments.get("maxWaves", 1),
+                replace_existing=arguments.get("replaceExisting", False),
+                allow_duplicate_admission=arguments.get("allowDuplicateAdmission", False),
+                timestamp=arguments.get("timestamp", ""),
+                runtime_provider=arguments.get("runtimeProvider", "fake"),
+                workspace_root=arguments.get("workspaceRoot", ""),
+                scratch_root=arguments.get("scratchRoot", ".codex/scratch"),
+                wave_execution_mode=arguments.get("waveExecutionMode", "serial"),
             )
         elif name == "schedulerSandboxReceiptWorkflow":
             result = tools.scheduler_sandbox_receipt_workflow(

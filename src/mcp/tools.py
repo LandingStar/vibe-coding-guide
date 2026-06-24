@@ -37,6 +37,8 @@ _log = logging.getLogger(__name__)
 HOST_EVIDENCE_BUNDLE_RESOURCE_URI = "dbc://host-evidence/bundle"
 HOST_EVIDENCE_PRESENTATION_RESOURCE_URI = "dbc://host-evidence/presentation"
 EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI = "dbc://exchange-artifacts/bundle"
+AGENT_EXCHANGE_HISTORY_RESOURCE_URI = "dbc://agent-exchange/history"
+AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI = "dbc://agent-exchange/action-candidates"
 
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
@@ -963,6 +965,653 @@ class GovernanceTools:
             version=version,
         )
         return inspection.to_json_dict()
+
+    def agent_exchange_mailbox(
+        self,
+        *,
+        agent_id: str,
+        artifact_store_path: str = "",
+        include_archived: bool = False,
+    ) -> dict[str, Any]:
+        """Read one agent's ExchangeArtifact mailbox without mutation."""
+
+        if not agent_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeMailbox requires agentId.",
+            }
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_mailbox,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+
+        mailbox = inspect_agent_exchange_mailbox(
+            store,
+            agent_id=agent_id,
+            include_archived=include_archived,
+        )
+        payload = {"ok": not mailbox.errors}
+        payload.update(mailbox.to_json_dict())
+        return payload
+
+    def agent_exchange_history(
+        self,
+        *,
+        agent_id: str = "",
+        correlation_id: str = "",
+        artifact_store_path: str = "",
+        include_archived: bool = False,
+    ) -> dict[str, Any]:
+        """Read compact ExchangeArtifact communication history without mutation."""
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_history_summary,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        summary = inspect_agent_exchange_history_summary(
+            store,
+            agent_id=agent_id,
+            correlation_id=correlation_id,
+            include_archived=include_archived,
+        )
+        payload = {"ok": not summary.errors}
+        payload.update(summary.to_json_dict())
+        return payload
+
+    def agent_exchange_action_candidates(
+        self,
+        *,
+        agent_id: str = "",
+        candidate_type: str = "",
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        include_archived: bool = False,
+    ) -> dict[str, Any]:
+        """Read ExchangeArtifact action candidates without mutation."""
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+            inspect_agent_exchange_action_candidates,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        ledger = (
+            resolve_path(admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(self._project_root)
+        )
+        summary = inspect_agent_exchange_action_candidates(
+            store,
+            agent_id=agent_id,
+            candidate_type=candidate_type,
+            include_archived=include_archived,
+            admission_ledger_path=ledger,
+        )
+        payload = {"ok": not summary.errors}
+        payload.update(summary.to_json_dict())
+        return payload
+
+    def agent_exchange_action_candidate_decide(
+        self,
+        *,
+        candidate_id: str,
+        disposition_artifact_id: str,
+        actor: str,
+        disposition: str,
+        artifact_store_path: str = "",
+        disposition_version: str = "v1",
+        reason: str = "",
+        target_surface: str = "",
+        replacement_artifact_id: str = "",
+        replacement_version: str = "",
+        timestamp: str = "",
+        replace_existing: bool = False,
+    ) -> dict[str, Any]:
+        """Write one action-candidate disposition ExchangeArtifact."""
+
+        if not candidate_id:
+            return {"ok": False, "error": "agentExchangeActionCandidateDecide requires candidateId."}
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeActionCandidateDecide requires dispositionArtifactId.",
+            }
+        if not actor:
+            return {"ok": False, "error": "agentExchangeActionCandidateDecide requires actor."}
+        if not disposition:
+            return {"ok": False, "error": "agentExchangeActionCandidateDecide requires disposition."}
+
+        from ..runtime.orchestration import (
+            decide_agent_exchange_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        try:
+            result = decide_agent_exchange_action_candidate(
+                store_path=store,
+                candidate_id=candidate_id,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                actor=actor,
+                disposition=disposition,  # type: ignore[arg-type]
+                reason=reason,
+                target_surface=target_surface,
+                replacement_artifact_id=replacement_artifact_id,
+                replacement_version=replacement_version,
+                timestamp=timestamp,
+                replace_existing=replace_existing,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
+
+    def agent_exchange_accepted_scheduler_candidate_consume(
+        self,
+        *,
+        disposition_artifact_id: str,
+        disposition_version: str,
+        snapshot_path: str,
+        event_log_path: str,
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        allow_duplicate_admission: bool = False,
+        replace_existing: bool = False,
+        validate_binding_artifact_refs: bool = False,
+        mark_consumed_on_success: bool = False,
+        actor: str = "mcp",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Consume accepted scheduler candidate disposition via exact admission."""
+
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedSchedulerCandidateConsume requires dispositionArtifactId.",
+            }
+        if not disposition_version:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedSchedulerCandidateConsume requires dispositionVersion.",
+            }
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedSchedulerCandidateConsume requires snapshotPath.",
+            }
+        if not event_log_path:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedSchedulerCandidateConsume requires eventLogPath.",
+            }
+
+        from ..runtime.orchestration import (
+            consume_accepted_scheduler_action_candidate,
+            default_exchange_artifact_admission_ledger_path,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        ledger = (
+            resolve_path(admission_ledger_path)
+            if admission_ledger_path
+            else default_exchange_artifact_admission_ledger_path(self._project_root)
+        )
+        try:
+            result = consume_accepted_scheduler_action_candidate(
+                artifact_store_path=store,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                snapshot_path=resolve_path(snapshot_path),
+                event_log_path=resolve_path(event_log_path),
+                admission_ledger_path=ledger,
+                allow_duplicate_admission=allow_duplicate_admission,
+                replace_existing=replace_existing,
+                validate_binding_artifact_refs=validate_binding_artifact_refs,
+                mark_consumed_on_success=mark_consumed_on_success,
+                actor=actor or "mcp",
+                timestamp=timestamp,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
+
+    def agent_exchange_accepted_review_candidate_consume(
+        self,
+        *,
+        disposition_artifact_id: str,
+        disposition_version: str,
+        artifact_store_path: str = "",
+        actor: str = "mcp",
+    ) -> dict[str, Any]:
+        """Consume accepted review candidate disposition via review intake."""
+
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedReviewCandidateConsume requires dispositionArtifactId.",
+            }
+        if not disposition_version:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedReviewCandidateConsume requires dispositionVersion.",
+            }
+
+        from ..pep.executor import Executor
+        from ..review.feedback_api import FeedbackAPI
+        from ..runtime.orchestration import (
+            FeedbackAPIReviewIntakeConsumer,
+            consume_accepted_review_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        feedback_api = FeedbackAPI(Executor(dry_run=True))
+        try:
+            result = consume_accepted_review_action_candidate(
+                artifact_store_path=store,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                review_intake_consumer=FeedbackAPIReviewIntakeConsumer(feedback_api),
+                actor=actor or "mcp",
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        payload = result.to_json_dict()
+        payload["review_pending"] = feedback_api.list_pending()
+        return payload
+
+    def agent_exchange_accepted_handoff_candidate_consume(
+        self,
+        *,
+        disposition_artifact_id: str,
+        disposition_version: str,
+        handoff_dir: str,
+        artifact_store_path: str = "",
+        actor: str = "mcp",
+    ) -> dict[str, Any]:
+        """Consume accepted handoff candidate disposition via handoff delivery."""
+
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedHandoffCandidateConsume requires dispositionArtifactId.",
+            }
+        if not disposition_version:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedHandoffCandidateConsume requires dispositionVersion.",
+            }
+        if not handoff_dir:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedHandoffCandidateConsume requires handoffDir.",
+            }
+
+        from ..runtime.orchestration import (
+            FileHandoffConsumer,
+            consume_accepted_handoff_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        try:
+            result = consume_accepted_handoff_action_candidate(
+                artifact_store_path=store,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                handoff_consumer=FileHandoffConsumer(resolve_path(handoff_dir)),
+                actor=actor or "mcp",
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
+
+    def agent_exchange_accepted_merge_candidate_consume(
+        self,
+        *,
+        disposition_artifact_id: str,
+        disposition_version: str,
+        snapshot_path: str,
+        gate_id: str,
+        approved: bool | None,
+        artifact_store_path: str = "",
+        merge_gate_event_log_path: str = "",
+        reason: str = "",
+        actor: str = "mcp",
+        resolved_at: str = "",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Consume accepted merge candidate disposition via explicit merge gate resolution."""
+
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedMergeCandidateConsume requires dispositionArtifactId.",
+            }
+        if not disposition_version:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedMergeCandidateConsume requires dispositionVersion.",
+            }
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedMergeCandidateConsume requires snapshotPath.",
+            }
+        if not gate_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedMergeCandidateConsume requires gateId.",
+            }
+        if approved is None:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedMergeCandidateConsume requires approved.",
+            }
+
+        from ..runtime.orchestration import (
+            consume_accepted_merge_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        try:
+            result = consume_accepted_merge_action_candidate(
+                artifact_store_path=store,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                snapshot_path=resolve_path(snapshot_path),
+                gate_id=gate_id,
+                approved=bool(approved),
+                reason=reason,
+                merge_gate_event_log_path=(
+                    resolve_path(merge_gate_event_log_path)
+                    if merge_gate_event_log_path
+                    else None
+                ),
+                actor=actor or "mcp",
+                resolved_at=resolved_at,
+                timestamp=timestamp,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
+
+    def agent_exchange_accepted_blocker_candidate_consume(
+        self,
+        *,
+        disposition_artifact_id: str,
+        disposition_version: str,
+        snapshot_path: str,
+        task_id: str,
+        reason: str,
+        artifact_store_path: str = "",
+        event_log_path: str = "",
+        actor: str = "mcp",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Consume accepted blocker candidate disposition via explicit task blocking."""
+
+        if not disposition_artifact_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedBlockerCandidateConsume requires dispositionArtifactId.",
+            }
+        if not disposition_version:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedBlockerCandidateConsume requires dispositionVersion.",
+            }
+        if not snapshot_path:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedBlockerCandidateConsume requires snapshotPath.",
+            }
+        if not task_id:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedBlockerCandidateConsume requires taskId.",
+            }
+        if not reason:
+            return {
+                "ok": False,
+                "error": "agentExchangeAcceptedBlockerCandidateConsume requires reason.",
+            }
+
+        from ..runtime.orchestration import (
+            consume_accepted_blocker_action_candidate,
+            default_exchange_artifact_store_path,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        try:
+            result = consume_accepted_blocker_action_candidate(
+                artifact_store_path=store,
+                disposition_artifact_id=disposition_artifact_id,
+                disposition_version=disposition_version,
+                snapshot_path=resolve_path(snapshot_path),
+                task_id=task_id,
+                reason=reason,
+                event_log_path=resolve_path(event_log_path) if event_log_path else None,
+                actor=actor or "mcp",
+                timestamp=timestamp,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
+
+    def agent_exchange_reply(
+        self,
+        *,
+        source_artifact_id: str,
+        source_version: str,
+        reply_artifact_id: str,
+        producer: str,
+        text: str = "",
+        structured: dict[str, Any] | None = None,
+        reply_version: str = "v1",
+        artifact_store_path: str = "",
+        kind: str = "message",
+        intent: str = "inform",
+        audience: tuple[str, ...] = (),
+        created_at: str = "",
+        replace_existing: bool = False,
+    ) -> dict[str, Any]:
+        """Create one reply ExchangeArtifact in the local store."""
+
+        if not source_artifact_id:
+            return {"ok": False, "error": "agentExchangeReply requires sourceArtifactId."}
+        if not source_version:
+            return {"ok": False, "error": "agentExchangeReply requires sourceVersion."}
+        if not reply_artifact_id:
+            return {"ok": False, "error": "agentExchangeReply requires replyArtifactId."}
+        if not producer:
+            return {"ok": False, "error": "agentExchangeReply requires producer."}
+        if not text and not structured:
+            return {"ok": False, "error": "agentExchangeReply requires text or structured."}
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            reply_to_exchange_artifact,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+
+        result = reply_to_exchange_artifact(
+            store_path=store,
+            source_artifact_id=source_artifact_id,
+            source_version=source_version,
+            reply_artifact_id=reply_artifact_id,
+            reply_version=reply_version,
+            producer=producer,
+            text=text,
+            structured=structured or {},
+            kind=kind,  # type: ignore[arg-type]
+            intent=intent,  # type: ignore[arg-type]
+            audience=audience,
+            created_at=created_at,
+            replace_existing=replace_existing,
+        )
+        return result.to_json_dict()
+
+    def agent_exchange_transition(
+        self,
+        *,
+        artifact_id: str,
+        version: str,
+        target_state: str,
+        actor: str,
+        artifact_store_path: str = "",
+        reason: str = "",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Transition one exact ExchangeArtifact lifecycle state."""
+
+        if not artifact_id:
+            return {"ok": False, "error": "agentExchangeTransition requires artifactId."}
+        if not version:
+            return {"ok": False, "error": "agentExchangeTransition requires version."}
+        if not target_state:
+            return {"ok": False, "error": "agentExchangeTransition requires targetState."}
+        if not actor:
+            return {"ok": False, "error": "agentExchangeTransition requires actor."}
+
+        from ..runtime.orchestration import (
+            default_exchange_artifact_store_path,
+            transition_exchange_artifact_lifecycle,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        store = (
+            resolve_path(artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(self._project_root)
+        )
+        try:
+            result = transition_exchange_artifact_lifecycle(
+                store_path=store,
+                artifact_id=artifact_id,
+                version=version,
+                target_state=target_state,  # type: ignore[arg-type]
+                actor=actor,
+                reason=reason,
+                timestamp=timestamp,
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return result.to_json_dict()
 
     def scheduler_storage_binding_artifact_publish(
         self,
@@ -2247,6 +2896,188 @@ class GovernanceTools:
         )
         return run_scheduler_operator_dogfood_closure(request).to_json_dict()
 
+    def scheduler_guide_worker_local_orchestration(
+        self,
+        *,
+        artifact_store_path: str = "",
+        admission_ledger_path: str = "",
+        snapshot_path: str = "",
+        event_log_path: str = "",
+        trajectory_id: str = "local-work:current",
+        guide_agent_id: str = "agent:guide",
+        worker_agent_id: str = "agent:worker",
+        artifact_id_prefix: str = "",
+        worker_instructions: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
+        max_parallel_lanes: int = 2,
+        max_waves: int = 1,
+        replace_existing: bool = False,
+        allow_duplicate_admission: bool = False,
+        timestamp: str = "",
+        runtime_provider: str = "fake",
+        workspace_root: str = "",
+        scratch_root: str = ".codex/scratch",
+        wave_execution_mode: str = "serial",
+    ) -> dict[str, Any]:
+        """Run guide-worker local trajectory orchestration through MCP."""
+
+        normalized_runtime_provider = (runtime_provider or "fake").strip().lower()
+        if normalized_runtime_provider != "fake":
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                "error": (
+                    "schedulerGuideWorkerLocalOrchestration currently supports "
+                    "runtimeProvider='fake' only; requested "
+                    f"{runtime_provider!r}. Real runtime providers require "
+                    "a separate provider-parallel execution planning gate."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "true_process_parallelism": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "raw_transcript_persisted": False,
+                },
+            }
+
+        from ..runtime.orchestration import (
+            DEFAULT_EXCHANGE_ARTIFACT_ADMISSION_LEDGER_RELATIVE_PATH,
+            DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
+            DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH,
+            GuideWorkerLocalOrchestrationRequest,
+            guide_worker_instructions_from_sequence,
+            run_guide_worker_local_trajectory_orchestration,
+        )
+
+        def resolve_path(value: str | Path) -> Path:
+            path = Path(value)
+            if path.is_absolute():
+                return path
+            return self._project_root / path
+
+        try:
+            instructions = guide_worker_instructions_from_sequence(worker_instructions)
+        except ValueError as exc:
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                "error": str(exc),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "true_process_parallelism": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "raw_transcript_persisted": False,
+                },
+            }
+        live_worker_providers = sorted(
+            {
+                instruction.worker_runtime_provider
+                for instruction in instructions
+                if instruction.worker_runtime_provider
+                and instruction.worker_runtime_provider != "fake"
+            }
+        )
+        if live_worker_providers:
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                "error": (
+                    "schedulerGuideWorkerLocalOrchestration MCP accepts only "
+                    "fake workerRuntimeProvider values; requested "
+                    f"{', '.join(live_worker_providers)}. Use a host-authorized "
+                    "runtime registry wrapper for provider-backed workers."
+                ),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "true_process_parallelism": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "raw_transcript_persisted": False,
+                },
+            }
+
+        try:
+            normalized_wave_execution_mode = (wave_execution_mode or "serial").strip().lower()
+            if normalized_wave_execution_mode not in {"serial", "threaded"}:
+                raise ValueError(
+                    "schedulerGuideWorkerLocalOrchestration waveExecutionMode "
+                    "must be 'serial' or 'threaded'"
+                )
+            request = GuideWorkerLocalOrchestrationRequest(
+                artifact_store_path=resolve_path(
+                    artifact_store_path or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
+                ),
+                admission_ledger_path=resolve_path(
+                    admission_ledger_path
+                    or DEFAULT_EXCHANGE_ARTIFACT_ADMISSION_LEDGER_RELATIVE_PATH
+                ),
+                snapshot_path=resolve_path(
+                    snapshot_path
+                    or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH
+                ),
+                event_log_path=resolve_path(
+                    event_log_path
+                    or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_EVENT_LOG_RELATIVE_PATH
+                ),
+                trajectory_id=trajectory_id or "local-work:current",
+                guide_agent_id=guide_agent_id or "agent:guide",
+                worker_agent_id=worker_agent_id or "agent:worker",
+                artifact_id_prefix=(
+                    artifact_id_prefix
+                    or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX
+                ),
+                timestamp=timestamp or "2026-06-24T00:00:00Z",
+                worker_instructions=instructions,
+                max_parallel_lanes=max_parallel_lanes,
+                max_waves=max_waves,
+                replace_existing=replace_existing,
+                allow_duplicate_admission=allow_duplicate_admission,
+                workspace_root=str(resolve_path(workspace_root)) if workspace_root else "",
+                scratch_root=scratch_root or ".codex/scratch",
+                wave_execution_mode=normalized_wave_execution_mode,  # type: ignore[arg-type]
+            )
+            payload = run_guide_worker_local_trajectory_orchestration(request).to_json_dict()
+        except ValueError as exc:
+            return {
+                "ok": False,
+                "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                "error": str(exc),
+                "runtime_provider": normalized_runtime_provider,
+                "authority_split": {
+                    "workflow_surface": "scheduler-guide-worker-local-orchestration",
+                    "exchange_store_mutated": False,
+                    "admission_ledger_mutated": False,
+                    "scheduler_state_mutated": False,
+                    "provider_executed": False,
+                    "true_process_parallelism": False,
+                    "scheduler_projection_refreshed": False,
+                    "local_work_trajectory_mutated": False,
+                    "raw_transcript_persisted": False,
+                },
+            }
+
+        payload["workflow_surface"] = "scheduler-guide-worker-local-orchestration"
+        payload["runtime_provider"] = normalized_runtime_provider
+        return payload
+
     def governance_decide(self, input_text: str, scope_path: str = "", action_type: str = "") -> dict:
         """Run PDP → PEP governance chain on input text.
 
@@ -3025,6 +3856,25 @@ class GovernanceTools:
             ),
             "mimeType": "application/json",
         })
+        results.append({
+            "uri": AGENT_EXCHANGE_HISTORY_RESOURCE_URI,
+            "name": "agent-exchange-history",
+            "description": (
+                "Read-only compact communication history over ExchangeArtifact causality "
+                "and log parts. Does not expose raw sensitive payload content or mutate state."
+            ),
+            "mimeType": "application/json",
+        })
+        results.append({
+            "uri": AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI,
+            "name": "agent-exchange-action-candidates",
+            "description": (
+                "Read-only action-candidate bridge over ExchangeArtifacts. "
+                "Classifies scheduler, review, handoff, blocker, and merge candidates "
+                "without mutating scheduler, review, handoff, exchange, or runtime state."
+            ),
+            "mimeType": "application/json",
+        })
 
         # always_on — already loaded into memory
         for filename in sorted(ctx.always_on_content.keys()):
@@ -3091,6 +3941,32 @@ class GovernanceTools:
                 ),
             )
             return json.dumps(bundle.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+        if uri == AGENT_EXCHANGE_HISTORY_RESOURCE_URI:
+            from ..runtime.orchestration import (
+                default_exchange_artifact_store_path,
+                inspect_agent_exchange_history_summary,
+            )
+
+            summary = inspect_agent_exchange_history_summary(
+                default_exchange_artifact_store_path(self._project_root)
+            )
+            return json.dumps(summary.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+        if uri == AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI:
+            from ..runtime.orchestration import (
+                default_exchange_artifact_admission_ledger_path,
+                default_exchange_artifact_store_path,
+                inspect_agent_exchange_action_candidates,
+            )
+
+            summary = inspect_agent_exchange_action_candidates(
+                default_exchange_artifact_store_path(self._project_root),
+                admission_ledger_path=default_exchange_artifact_admission_ledger_path(
+                    self._project_root
+                ),
+            )
+            return json.dumps(summary.to_json_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
         # always_on — pack://always-on/{filename}
         if uri.startswith("pack://always-on/"):

@@ -14,6 +14,10 @@ line, use `doc-based-coding qoder smoke`. The smoke command is still
 host-owned: it reuses the existing Qoder SDK wrapper and host permission grant
 contracts, and it remains outside MCP real-provider execution.
 
+When the host intentionally wants to test guide/worker lane-wave execution with
+Qoder-backed workers, use `doc-based-coding qoder guide-worker-smoke`. That
+command is also host-owned and remains outside MCP real-provider execution.
+
 ## Authority Boundary
 
 The real Qoder path is host-owned:
@@ -22,7 +26,9 @@ The real Qoder path is host-owned:
 QoderSDKQueryClient
 QoderSDKQueryClientConfig
 run_host_owned_qoder_smoke()
+run_host_owned_guide_worker_provider_execution()
 doc-based-coding qoder smoke
+doc-based-coding qoder guide-worker-smoke
 run_host_runtime_dogfood_harness()
 ```
 
@@ -138,6 +144,51 @@ Successful smoke output is the existing `HostOwnedQoderSmokeRunResult` JSON
 shape. It includes compact host scheduler run evidence and projection paths, not
 raw transcripts or credentials.
 
+## Guide-Worker Smoke Command
+
+Run only after reading the readiness result:
+
+```text
+doc-based-coding qoder guide-worker-smoke
+```
+
+Equivalent module form:
+
+```text
+python -m src qoder guide-worker-smoke
+```
+
+Useful bounded options:
+
+```text
+--auth-mode env|qodercli
+--auth-env-var NAME
+--sdk-module NAME
+--cwd PATH
+--model NAME
+--max-turns N
+--permission-request-policy deny|surface
+--artifact-store-path .codex/orchestration/exchange-artifacts.json
+--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
+--snapshot-path .codex/scheduler/guide-worker-provider-execution-state.json
+--event-log-path .codex/scheduler/guide-worker-provider-execution-events.jsonl
+--evidence-id guide-worker-provider-execution
+--evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
+--host-invocation-id host-owned-guide-worker-provider-execution-cli
+--reason "bounded host-owned guide-worker provider execution"
+--max-parallel-lanes 2
+--max-waves 1
+--wave-execution-mode serial|threaded
+--timestamp 2026-06-24T00:00:00+08:00
+```
+
+This command validates SDK/auth readiness before writing ExchangeArtifact
+store, scheduler snapshot, event log, or evidence files. On success it writes
+compact `host_guide_worker_provider_execution_evidence` with provider, lane,
+wave, task state, output artifact, path, and authority facts. It does not
+refresh scheduler projection, accept raw token values, persist raw transcripts,
+create agent home/scratch directories, or mutate Local Work Trajectory.
+
 ## Output Contract
 
 The command returns JSON:
@@ -176,7 +227,9 @@ ready=true
 ```
 
 The host can proceed to a bounded live smoke gate using
-`run_host_owned_qoder_smoke()` or `doc-based-coding qoder smoke`.
+`run_host_owned_qoder_smoke()`, `doc-based-coding qoder smoke`,
+`run_host_owned_guide_worker_provider_execution()`, or
+`doc-based-coding qoder guide-worker-smoke`.
 
 SDK missing:
 
@@ -236,6 +289,7 @@ Record readiness checks in review evidence using only:
 
 If `ready=false`, keep the follow-up as host environment work. If `ready=true`,
 open a separate bounded live Qoder smoke planning gate before running the
-provider. When using `doc-based-coding qoder smoke`, record whether the result
-was readiness-negative or successful, the explicit paths used, and whether any
-evidence/projection file was written.
+provider. When using `doc-based-coding qoder smoke` or
+`doc-based-coding qoder guide-worker-smoke`, record whether the result was
+readiness-negative or successful, the explicit paths used, and whether any
+evidence/projection or guide-worker provider evidence file was written.

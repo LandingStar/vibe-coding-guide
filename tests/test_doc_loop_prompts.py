@@ -135,6 +135,17 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerRunOnceAndProject" in text
         assert "schedulerOperatorWorkflow" in text
         assert "schedulerOperatorDogfoodClosure" in text
+        assert "schedulerGuideWorkerLocalOrchestration" in text
+        assert "workerInstructions" in text
+        assert "waveExecutionMode" in text
+        assert "workerRuntimeProvider" in text
+        assert "rejects non-fake" in text
+        assert "doc-based-coding qoder guide-worker-smoke" in text
+        assert "run_host_owned_guide_worker_provider_execution" in text
+        assert "host_guide_worker_provider_execution_evidence" in text
+        assert "doc-based-coding scheduler evidence-publish-consumer-closure" in text
+        assert "run_evidence_publish_to_consumer_closure" in text
+        assert "not a new MCP tool" in text
         assert "schedulerLifecycleControl" in text
         assert "schedulerLifecycleRunOnce" in text
         assert "doc-based-coding scheduler operator-workflow" in text
@@ -147,8 +158,31 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerSupervisorDogfoodWorkflow" in text
         assert "schedulerBindingReferenceInspect" in text
         assert "schedulerStorageBindingArtifactPublish" in text
+        assert "agentExchangeMailbox" in text
+        assert "agentExchangeHistory" in text
+        assert "agentExchangeReply" in text
+        assert "agentExchangeTransition" in text
         assert "doc-based-coding scheduler inspect-binding-refs" in text
         assert "doc-based-coding scheduler publish-storage-binding-artifact" in text
+        assert "doc-based-coding scheduler inspect-agent-mailbox --agent-id <agent-id>" in text
+        assert "doc-based-coding scheduler inspect-agent-history" in text
+        assert "doc-based-coding resources read dbc://agent-exchange/history" in text
+        assert "doc-based-coding scheduler reply-exchange-artifact" in text
+        assert "doc-based-coding scheduler transition-exchange-artifact" in text
+        assert "inbox/outbox/related/actionable readback" in text
+        assert "participant/lifecycle counts" in text
+        assert "causality edges" in text
+        assert "raw transcript replay" in text
+        assert "causality.replies_to" in text
+        for lifecycle_state in (
+            "`accepted`",
+            "`rejected`",
+            "`consumed`",
+            "`superseded`",
+            "`archived`",
+        ):
+            assert lifecycle_state in text
+        assert "references the artifact produced by the publish step" in text
         assert "doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer" in text
         assert "inspectBindingRefs=true" in text
         assert "supervisor_storage_binding_artifact" in text
@@ -429,6 +463,30 @@ def test_exchange_artifacts_bundle_resource_is_listed_and_read_only_when_empty(t
     assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
+def test_agent_exchange_history_resource_is_listed_and_read_only_when_empty(tmp_path: Path) -> None:
+    _write_minimal_project_state(tmp_path)
+    tools = GovernanceTools(tmp_path, dry_run=True, include_site_packages=False)
+
+    resource = next(
+        item for item in tools.list_resources()
+        if item["uri"] == "dbc://agent-exchange/history"
+    )
+    content = tools.read_resource("dbc://agent-exchange/history")
+    payload = json.loads(content)
+
+    assert resource["name"] == "agent-exchange-history"
+    assert resource["mimeType"] == "application/json"
+    assert payload["exists"] is False
+    assert payload["artifact_count"] == 0
+    assert payload["version_count"] == 0
+    assert payload["causality_edge_count"] == 0
+    assert payload["log_entry_count"] == 0
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is False
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+
+
 def test_exchange_artifacts_bundle_resource_projects_admission_state(tmp_path: Path) -> None:
     _write_minimal_project_state(tmp_path)
     store_path = default_exchange_artifact_store_path(tmp_path)
@@ -657,6 +715,8 @@ def test_qoder_host_provisioning_guide_is_linked_from_docs() -> None:
     assert "qoder-host-provisioning-check-guide.md" in docs_readme
     assert "doc-based-coding qoder readiness" in guide
     assert "doc-based-coding qoder smoke" in guide
+    assert "doc-based-coding qoder guide-worker-smoke" in guide
+    assert "run_host_owned_guide_worker_provider_execution" in guide
     assert "QODER_PERSONAL_ACCESS_TOKEN" in guide
     assert "token_present" in guide
     assert "--no-initialize-snapshot" in guide

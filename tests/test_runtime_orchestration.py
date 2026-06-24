@@ -95,6 +95,11 @@ from src.runtime.orchestration import (
     SchedulerLoopEvidence,
     SchedulerLoopEvidenceSummary,
     SchedulerOperatorDogfoodFixtureResult,
+    GuideWorkerInstruction,
+    GuideWorkerLocalOrchestrationRequest,
+    GuideWorkerParallelWave,
+    execute_guide_worker_parallel_wave,
+    guide_worker_instructions_from_sequence,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
@@ -157,6 +162,7 @@ from src.runtime.orchestration import (
     run_scheduler_daemon_supervisor_step,
     run_scheduler_daemon_lifecycle_once,
     run_scheduler_daemon_tick,
+    run_guide_worker_local_trajectory_orchestration,
     roll_up_work_item,
     sandbox_capability_placeholder,
     scheduler_task_batch_submission_from_artifact,
@@ -171,6 +177,7 @@ from src.runtime.orchestration import (
     validate_supervisor_storage_binding_artifact_refs,
     validate_exchange_artifact,
     summarize_scheduler_queue,
+    select_ready_worker_parallel_wave,
     wake_dependent_tasks,
     write_compacted_scheduler_snapshot,
     read_scheduler_daemon_lifecycle_control,
@@ -188,6 +195,7 @@ from src.runtime.orchestration import (
     write_supervisor_storage_binding_evidence,
 )
 from tools.progress_graph import (
+    EvidencePublishToConsumerClosureRequest,
     HostSandboxReceiptWorkflowRequest,
     SchedulerOperatorDogfoodClosureRequest,
     SchedulerOperatorWorkflowRequest,
@@ -195,6 +203,7 @@ from tools.progress_graph import (
     build_supervisor_dogfood_storage_binding,
     build_host_evidence_presentation,
     read_host_evidence_bundle,
+    run_evidence_publish_to_consumer_closure,
     run_host_sandbox_receipt_workflow,
     run_scheduler_operator_dogfood_closure,
     run_scheduler_operator_workflow,
@@ -321,6 +330,280 @@ def test_project_group_item_delivery_signal_can_record_failure_without_mutating_
     assert projected.delivery_state == "failed"
     assert projected.delivery_record_id == ""
     assert projected.delivery_failure_detail == "review intake consumer is not configured"
+
+
+def test_guide_worker_local_orchestration_runs_cross_lane_wave(tmp_path) -> None:
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:test",
+            artifact_id_prefix="gw-local-test",
+            timestamp="2026-06-23T00:00:00Z",
+            workspace_root=str(tmp_path),
+        )
+    )
+
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["scenario"]["parallelism_contract"] == "one_ready_worker_task_per_lane_per_wave"
+    assert payload["scenario"]["execution_model"] == "scheduled_parallel_wave_sequential_fake_runtime"
+    assert payload["submitted_task_ids"] == [
+        "task/gw-local-test/client",
+        "task/gw-local-test/server",
+    ]
+    assert payload["lane_ids"] == ["lane:client", "lane:server"]
+    assert payload["parallel_waves"] == [
+        {
+            "wave_id": "parallel-wave:001",
+            "task_ids": [
+                "task/gw-local-test/client",
+                "task/gw-local-test/server",
+            ],
+            "lane_ids": ["lane:client", "lane:server"],
+            "execution_model": "scheduled_parallel_wave_sequential_fake_runtime",
+            "sequential_runtime": True,
+        }
+    ]
+    assert payload["task_states"]["task/gw-local-test/client"] == "complete"
+    assert payload["task_states"]["task/gw-local-test/server"] == "complete"
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["true_process_parallelism"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    assert state.tasks["task/gw-local-test/client"].context_scope.lane_id == "lane:client"
+    assert state.tasks["task/gw-local-test/server"].context_scope.lane_id == "lane:server"
+    assert len(state.run_records) == 2
+    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_guide_worker_parallel_wave_selects_one_ready_task_per_lane(tmp_path) -> None:
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:test",
+            artifact_id_prefix="gw-local-same-lane",
+            timestamp="2026-06-23T00:00:00Z",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/same-lane/a",
+                    title="Same lane task A",
+                    instruction="Produce first same-lane fake result.",
+                    lane_id="lane:shared",
+                ),
+                GuideWorkerInstruction(
+                    task_id="task/same-lane/b",
+                    title="Same lane task B",
+                    instruction="Produce second same-lane fake result.",
+                    lane_id="lane:shared",
+                ),
+            ),
+            max_parallel_lanes=2,
+            max_waves=2,
+            workspace_root=str(tmp_path),
+        )
+    )
+
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["parallel_waves"][0]["task_ids"] == ["task/same-lane/a"]
+    assert payload["parallel_waves"][0]["lane_ids"] == ["lane:shared"]
+    assert payload["parallel_waves"][1]["task_ids"] == ["task/same-lane/b"]
+    assert payload["parallel_waves"][1]["lane_ids"] == ["lane:shared"]
+    assert payload["run_task_ids"] == ["task/same-lane/a", "task/same-lane/b"]
+
+    completed_state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    ready_state = mark_ready_tasks(completed_state)
+    empty_wave = select_ready_worker_parallel_wave(
+        ready_state,
+        submitted_task_ids=("task/same-lane/a", "task/same-lane/b"),
+        max_parallel_lanes=2,
+        wave_index=3,
+    )
+    assert empty_wave.task_ids == ()
+
+
+def test_guide_worker_local_orchestration_threaded_wave_reports_deterministic_merge(
+    tmp_path,
+) -> None:
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:test",
+            artifact_id_prefix="gw-local-threaded",
+            timestamp="2026-06-24T00:00:00Z",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/threaded/b",
+                    title="Threaded server",
+                    instruction="Produce server fake result.",
+                    lane_id="lane:server",
+                ),
+                GuideWorkerInstruction(
+                    task_id="task/threaded/a",
+                    title="Threaded client",
+                    instruction="Produce client fake result.",
+                    lane_id="lane:client",
+                ),
+            ),
+            max_parallel_lanes=2,
+            max_waves=1,
+            wave_execution_mode="threaded",
+            workspace_root=str(tmp_path),
+        )
+    )
+
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["parallel_waves"][0]["task_ids"] == [
+        "task/threaded/a",
+        "task/threaded/b",
+    ]
+    assert payload["wave_execution_results"] == [
+        {
+            "wave_id": "parallel-wave:001",
+            "mode": "threaded",
+            "attempted_task_ids": ["task/threaded/a", "task/threaded/b"],
+            "completed_task_ids": ["task/threaded/a", "task/threaded/b"],
+            "failed_task_ids": [],
+            "deterministic_merge_order": ["task/threaded/a", "task/threaded/b"],
+            "invoked_as_wave": True,
+            "true_process_parallelism": True,
+        }
+    ]
+    assert payload["authority_split"]["wave_executor_mode"] == "threaded"
+    assert payload["authority_split"]["true_process_parallelism"] is True
+    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    assert state.tasks["task/threaded/a"].state == "complete"
+    assert state.tasks["task/threaded/b"].state == "complete"
+    assert [record.task_id for record in state.run_records] == [
+        "task/threaded/a",
+        "task/threaded/b",
+    ]
+
+
+def test_guide_worker_local_orchestration_can_use_injected_qoder_worker_runtime(
+    tmp_path,
+) -> None:
+    client = _RecordingQoderClient(
+        QoderQueryResult(
+            summary="qoder worker completed guide-assigned task",
+            output_text="qoder worker result",
+        )
+    )
+    registry = AgentRuntimeAdapterRegistry()
+    registry.register(
+        FakeAgentRuntimeAdapter(
+            artifact_store=InMemoryArtifactVersionStore(),
+            timestamp="2026-06-24T00:00:00Z",
+        )
+    )
+    registry.register(
+        QoderAgentRuntimeAdapter(
+            query_client=client,
+            timestamp="2026-06-24T00:00:00Z",
+        )
+    )
+
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:test",
+            artifact_id_prefix="gw-local-qoder",
+            timestamp="2026-06-24T00:00:00Z",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/qoder/worker",
+                    title="Qoder worker",
+                    instruction="Run this guide-assigned task through injected Qoder.",
+                    lane_id="lane:qoder",
+                    worker_agent_id="agent:qoder-worker",
+                    worker_runtime_provider="qoder",
+                    output_artifact_id="task/qoder/worker:result",
+                ),
+            ),
+            max_parallel_lanes=1,
+            max_waves=1,
+            wave_execution_mode="threaded",
+            workspace_root=str(tmp_path),
+        ),
+        runtime_registry=registry,
+    )
+
+    payload = result.to_json_dict()
+    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+
+    assert payload["ok"] is True
+    assert payload["scenario"]["runtime_provider"] == "qoder"
+    assert payload["scenario"]["worker_runtime_providers"] == ["qoder"]
+    assert payload["authority_split"]["runtime_provider"] == "qoder"
+    assert payload["submitted_task_ids"] == ["task/qoder/worker"]
+    assert payload["wave_execution_results"][0]["completed_task_ids"] == [
+        "task/qoder/worker",
+    ]
+    assert state.tasks["task/qoder/worker"].agent.runtime_provider == "qoder"
+    assert state.tasks["task/qoder/worker"].state == "complete"
+    assert client.requests[0].agent.agent_id == "agent:qoder-worker"
+    assert client.requests[0].agent.runtime_provider == "qoder"
+    assert client.requests[0].task.task_id == "task/qoder/worker"
+
+
+def test_guide_worker_instruction_parser_accepts_mcp_camel_case_payload() -> None:
+    instructions = guide_worker_instructions_from_sequence(
+        [
+            {
+                "taskId": "task/parser/client",
+                "title": "Parser client",
+                "instruction": "Parse this MCP worker instruction.",
+                "laneId": "lane:client",
+                "contextId": "context/parser/client",
+                "workerAgentId": "agent:client-worker",
+                "workerRuntimeProvider": "qoder",
+                "allowedArtifacts": ["client"],
+                "acceptance": ["Client parser instruction is valid."],
+                "dependsOnTaskIds": ["task/parser/setup"],
+                "outputArtifactId": "task/parser/client:result",
+            }
+        ]
+    )
+
+    assert len(instructions) == 1
+    assert instructions[0].task_id == "task/parser/client"
+    assert instructions[0].lane_id == "lane:client"
+    assert instructions[0].context_id == "context/parser/client"
+    assert instructions[0].worker_agent_id == "agent:client-worker"
+    assert instructions[0].worker_runtime_provider == "qoder"
+    assert instructions[0].allowed_artifacts == ("client",)
+    assert instructions[0].acceptance == ("Client parser instruction is valid.",)
+    assert instructions[0].depends_on_task_ids == ("task/parser/setup",)
+    assert instructions[0].output_artifact_id == "task/parser/client:result"
+
+    with pytest.raises(ValueError, match=r"workerInstructions\[0\]\.instruction"):
+        guide_worker_instructions_from_sequence(
+            [
+                {
+                    "taskId": "task/parser/bad",
+                    "title": "Bad parser",
+                    "laneId": "lane:bad",
+                }
+            ]
+        )
 
 
 def test_roll_up_work_item_prefers_blocked_over_all_clear() -> None:
@@ -5335,6 +5618,127 @@ def test_scheduler_operator_dogfood_closure_rejects_live_provider(
 ) -> None:
     result = run_scheduler_operator_dogfood_closure(
         SchedulerOperatorDogfoodClosureRequest(
+            project_root=tmp_path,
+            runtime_provider="qoder",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is False
+    assert payload["steps"][0]["name"] == "preflightRuntime"
+    assert payload["steps"][0]["status"] == "failed"
+    assert "fake" in payload["steps"][0]["error"]
+    assert payload["authority_split"]["provider_executed"] is False
+    assert not (tmp_path / ".codex").exists()
+
+
+def test_evidence_publish_to_consumer_closure_runs_published_artifact_flow(
+    tmp_path,
+) -> None:
+    result = run_evidence_publish_to_consumer_closure(
+        EvidencePublishToConsumerClosureRequest(
+            project_root=tmp_path,
+            binding_evidence_id="publish-closure-binding",
+            binding_artifact_id="artifact:published-binding",
+            binding_artifact_version="v7",
+            consumer_artifact_id="artifact:published-binding-consumer",
+            consumer_version="v2",
+            loop_evidence_id="publish-closure-loop",
+            timestamp="2026-06-22T18:00:00+08:00",
+            guide_context="publish-closure-test",
+        )
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert [step["name"] for step in payload["steps"]] == [
+        "writeBindingEvidence",
+        "publishBindingArtifact",
+        "seedConsumerSubmission",
+        "operatorWorkflow",
+        "readClosureSummary",
+    ]
+    assert payload["evidence_write"]["evidence_id"] == "publish-closure-binding"
+    assert "binding" not in payload["evidence_write"]
+    assert payload["publish_result"]["artifact_id"] == "artifact:published-binding"
+    assert payload["publish_result"]["version"] == "v7"
+    assert payload["publish_result"]["authority_split"][
+        "raw_binding_payload_embedded_in_exchange"
+    ] is False
+    assert payload["consumer_seed_result"]["binding_artifact_ids"] == [
+        "artifact:published-binding",
+    ]
+    assert payload["consumer_seed_result"]["binding_artifact_versions"] == ["v7"]
+    assert payload["workflow_result"]["binding_reference_inspection"]["ok"] is True
+    assert payload["workflow_result"]["admission_result"]["submitted_task_ids"] == [
+        "dogfood:evidence-publish-binding-consumer",
+    ]
+    assert payload["workflow_result"]["admission_result"]["binding_reference_summary"][
+        "ok"
+    ] is True
+    assert payload["workflow_result"]["admission_result"]["consumption_state"][
+        "consumed"
+    ] is True
+    assert payload["closure_summary"]["consumer_references_published_artifact"] is True
+    assert payload["closure_summary"]["binding_artifact_id"] == "artifact:published-binding"
+    assert payload["closure_summary"]["binding_artifact_version"] == "v7"
+    assert payload["closure_summary"]["consumer_artifact_id"] == (
+        "artifact:published-binding-consumer"
+    )
+    assert payload["closure_summary"]["lifecycle_state"] == "consumed"
+    assert payload["closure_summary"]["binding_summary_ok"] is True
+    assert payload["closure_summary"]["consumed"] is True
+    assert payload["closure_summary"]["loop_evidence_id"] == "publish-closure-loop"
+    assert payload["closure_summary"]["loop_stop_reason"] == "no_ready_tasks"
+    assert payload["closure_summary"]["scheduler_projection_event_count"] == 1
+    assert payload["closure_summary"]["host_evidence_card_count"] == 2
+    assert payload["authority_split"]["binding_evidence_written"] is True
+    assert payload["authority_split"]["binding_artifact_published"] is True
+    assert payload["authority_split"]["consumer_submission_seeded"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["admission_ledger_mutated"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["loop_evidence_written"] is True
+    assert payload["authority_split"]["scheduler_projection_refreshed"] is True
+    assert payload["authority_split"]["host_evidence_read"] is True
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["scratch_manifest_written"] is False
+    assert payload["authority_split"]["cleanup_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (
+        tmp_path / ".codex" / "scheduler" / "evidence" / "publish-closure-binding.json"
+    ).exists()
+    assert (
+        tmp_path / ".codex" / "scheduler" / "evidence" / "publish-closure-loop.json"
+    ).exists()
+    assert (
+        tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    ).exists()
+    assert not (tmp_path / ".codex" / "scratch").exists()
+    assert not (tmp_path / ".codex" / "agents").exists()
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    store_payload = json.loads(
+        (tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    records = {
+        (record["artifact_id"], record["version"]): record["artifact"]
+        for record in store_payload["records"]
+    }
+    binding_artifact = records[("artifact:published-binding", "v7")]
+    consumer_artifact = records[("artifact:published-binding-consumer", "v2")]
+    assert '"binding"' not in json.dumps(binding_artifact, sort_keys=True)
+    consumer_json = json.dumps(consumer_artifact, sort_keys=True)
+    assert "artifact:published-binding" in consumer_json
+    assert "fixture:supervisor-storage-binding-dogfood" not in consumer_json
+
+
+def test_evidence_publish_to_consumer_closure_rejects_live_provider(tmp_path) -> None:
+    result = run_evidence_publish_to_consumer_closure(
+        EvidencePublishToConsumerClosureRequest(
             project_root=tmp_path,
             runtime_provider="qoder",
         )

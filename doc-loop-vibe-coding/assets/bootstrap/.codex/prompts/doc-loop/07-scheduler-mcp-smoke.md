@@ -53,35 +53,150 @@ Keep the lifecycle split:
    they do not admit tasks, run providers, create agent home or scratch
    directories, write scratch manifests, read raw binding payloads into
    exchange artifacts, refresh projection, or mutate Local Work Trajectory.
-10. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
+10. `agentExchangeMailbox` and
+   `doc-based-coding scheduler inspect-agent-mailbox` build a per-agent
+   ExchangeArtifact mailbox with `inbox`, `outbox`, `related`, and actionable
+   readback. They read only the local ExchangeArtifact store, redact sensitive
+   preview payloads, and do not mutate scheduler state, ExchangeArtifact
+   lifecycle, admission ledgers, projection artifacts, providers, or Local Work
+   Trajectory.
+11. `agentExchangeHistory`,
+   `doc-based-coding scheduler inspect-agent-history`, and
+   `dbc://agent-exchange/history` build a compact ExchangeArtifact
+   communication history summary with participant/lifecycle counts, causality
+   edges, and compact log entries. They read only the local ExchangeArtifact
+   store, do not expose raw sensitive text/structured payload content, and do
+   not mutate scheduler state, ExchangeArtifact lifecycle, admission ledgers,
+   projection artifacts, providers, or Local Work Trajectory.
+12. `agentExchangeActionCandidates`,
+   `doc-based-coding scheduler inspect-agent-action-candidates`, and
+   `dbc://agent-exchange/action-candidates` classify stored ExchangeArtifacts
+   into scheduler submission, review, handoff, blocker, and merge candidates
+   with structured reasons. They read only the local ExchangeArtifact store and
+   optional admission ledger, do not expose raw sensitive payload content, and
+   do not admit tasks, open reviews, write handoffs, mutate exchange artifacts,
+   write admission ledgers, run providers, refresh projections, or mutate
+   Local Work Trajectory.
+13. `agentExchangeActionCandidateDecide` and
+   `doc-based-coding scheduler decide-agent-action-candidate` write one
+   standard disposition ExchangeArtifact for an existing action candidate. They
+   may mutate only the local ExchangeArtifact store by adding/replacing the
+   disposition artifact; they do not admit tasks, open reviews, write handoffs,
+   resolve merge gates, mutate the source artifact, write admission ledgers,
+   run providers, refresh projections, or mutate Local Work Trajectory.
+14. `agentExchangeAcceptedSchedulerCandidateConsume` and
+   `doc-based-coding scheduler consume-accepted-scheduler-candidate` consume
+   one accepted `scheduler_submission_candidate` disposition by calling the
+   existing exact-version admission helper. They may write scheduler
+   snapshot/event-log state and admission ledger records; they do not create
+   dispositions, consume non-scheduler candidates, open reviews, write
+   handoffs, resolve merge gates, run providers, refresh projections, or
+   mutate Local Work Trajectory.
+15. `agentExchangeAcceptedReviewCandidateConsume` and
+   `doc-based-coding scheduler consume-accepted-review-candidate` consume one
+   accepted `review_candidate` disposition by dispatching a review intake
+   payload to the existing review intake adapter. They do not create
+   dispositions, admit scheduler tasks, write handoffs, resolve merge gates,
+   run providers, refresh projections, or mutate Local Work Trajectory.
+16. `agentExchangeAcceptedHandoffCandidateConsume` and
+   `doc-based-coding scheduler consume-accepted-handoff-candidate` consume one
+   accepted `handoff_candidate` disposition by dispatching a schema-valid
+   Handoff payload to the existing handoff delivery adapter. They require an
+   explicit handoff directory and do not create dispositions, admit scheduler
+   tasks, open reviews, resolve merge gates, run providers, refresh
+   projections, or mutate Local Work Trajectory.
+17. `agentExchangeAcceptedMergeCandidateConsume` and
+   `doc-based-coding scheduler consume-accepted-merge-candidate` consume one
+   accepted `merge_candidate` disposition by resolving an explicit scheduler
+   merge gate. They require an explicit `gateId` and `approved` decision, may
+   write scheduler snapshot and merge-gate event-log state, and do not infer
+   a gate from ExchangeArtifact relations, admit scheduler tasks, open reviews,
+   write handoffs, run providers, refresh projections, or mutate Local Work
+   Trajectory.
+18. `agentExchangeAcceptedBlockerCandidateConsume` and
+   `doc-based-coding scheduler consume-accepted-blocker-candidate` consume one
+   accepted `blocker_candidate` disposition by blocking an explicit scheduler
+   task. They require an explicit `taskId` and non-empty reason, may write
+   scheduler snapshot and event-log state, and do not infer a task from
+   ExchangeArtifact relations, admit scheduler tasks, open reviews, write
+   handoffs, resolve merge gates, run providers, refresh projections, or
+   mutate Local Work Trajectory.
+19. `doc-based-coding scheduler guide-worker-exchange-dogfood` runs the
+   deterministic fake-runtime guide/worker exchange dogfood scenario. It
+   composes the existing mailbox, reply, history, action-candidate,
+   disposition, and accepted scheduler-candidate consumer helpers. It writes
+   only the owned ExchangeArtifact products, scheduler snapshot/event-log
+   state, and admission ledger needed for the proof; it does not add a new MCP
+   tool, run live providers, refresh projection, persist raw transcripts, or
+   mutate Local Work Trajectory.
+20. `schedulerGuideWorkerLocalOrchestration` and
+   `doc-based-coding scheduler guide-worker-local-orchestration` run the first
+   scheduler-owned guide/worker local trajectory orchestration MVP. They create
+   a structured guide instruction ExchangeArtifact, admit a scheduler worker
+   task batch, and execute bounded fake-runtime worker waves with at most one
+   ready task per lane. The MCP tool accepts structured `workerInstructions`
+   for custom lane-bound worker tasks and `waveExecutionMode=serial|threaded`
+   for the fake/mock wave executor. This defines bounded lane-distinct wave
+   execution; `threaded` may invoke fake/mock runtime calls concurrently and
+   then merges scheduler state deterministically, but it does not make live
+   providers available. Runtime code can map host-injected worker adapters via
+   `workerRuntimeProvider`, but this MCP surface rejects non-fake
+   `workerRuntimeProvider` values. It does not run Qoder/opencode/Codex
+   providers, refresh projection, persist raw transcripts, create agent
+   home/scratch directories, or mutate agent-owned Local Work Trajectory.
+21. `doc-based-coding qoder guide-worker-smoke` and
+   `run_host_owned_guide_worker_provider_execution()` are the host-owned
+   provider execution wrapper for guide-worker lane waves. They may run Qoder
+   worker tasks only through explicit host runtime wiring, a Qoder permission
+   grant, and either an injected `QoderQueryClient` or host-constructed
+   `QoderSDKQueryClient`. They write compact guide-worker provider execution
+   evidence after readiness succeeds. They are not MCP real-provider surfaces,
+   do not accept raw token values, do not refresh scheduler projection, do not
+   create agent home/scratch directories, do not persist raw transcripts, and
+   do not mutate agent-owned Local Work Trajectory.
+12. `agentExchangeReply` and
+   `doc-based-coding scheduler reply-exchange-artifact` create one
+   exact-version reply ExchangeArtifact with `causality.replies_to`,
+   `caused_by`, and a compact `log` part. They mutate only the local
+   ExchangeArtifact store; they do not admit scheduler tasks, run providers,
+   write admission ledgers, refresh projections, or mutate Local Work
+   Trajectory.
+13. `agentExchangeTransition` and
+   `doc-based-coding scheduler transition-exchange-artifact` transition one
+   exact stored ExchangeArtifact version to `accepted`, `rejected`,
+   `consumed`, `superseded`, or `archived` and append a compact `log` part.
+   They are idempotent when the exact version is already in the target state
+   and do not admit scheduler tasks, run providers, write admission ledgers,
+   refresh projections, or mutate Local Work Trajectory.
+14. `doc-based-coding scheduler inspect-admissions` is the CLI readback surface
    for the local ExchangeArtifact admission ledger. It does not write scheduler
    state, exchange artifacts, projection artifacts, or Local Work Trajectory.
    When explicit binding-ref preflight was enabled during admission, ledger
    records include compact `binding_reference_summary` counts/errors without
    raw supervisor storage binding evidence JSON.
-11. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
+15. `doc-based-coding scheduler inspect-state` is the CLI readback surface for
    scheduler snapshot/event-log clues. It does not write state or projection.
-12. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
+16. `doc-based-coding scheduler tick` is the daemon-ready bounded advancement
    surface. It runs one fake-runtime tick over scheduler snapshot/event-log
    state and does not refresh scheduler projection automatically.
-13. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
+17. `doc-based-coding scheduler daemon-loop` is the bounded repeated daemon
    loop policy surface. It repeatedly calls the fake-runtime tick contract
    until max ticks, no-ready, blocked-task, or runtime-failure stop policy
    fires. It does not refresh scheduler projection automatically.
-14. `doc-based-coding scheduler project` is the CLI projection refresh surface
+18. `doc-based-coding scheduler project` is the CLI projection refresh surface
    for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
-15. Host-authorized runners use Python/host wiring through
+19. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
    `run_host_authorized_scheduler_once_and_refresh_projection()`. This is the
    path for mock-Qoder or future real-provider dogfood. It is not exposed as a
    real-provider MCP tool.
-16. Host-injected daemon loops use Python/host wiring through
+20. Host-injected daemon loops use Python/host wiring through
    `HostSchedulerDaemonLoopRequest` plus
    `run_host_authorized_scheduler_daemon_loop()`. This is the path for
    repeated bounded mock-Qoder or future real-provider daemon-loop dogfood. It
    is not exposed as a real-provider CLI or MCP tool.
-17. Host loop projection workflow uses
+21. Host loop projection workflow uses
    `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` when a
    host-owned Python caller needs one compact workflow that runs the bounded
    daemon loop, preserves optional `scheduler_loop_evidence`, refreshes
@@ -89,7 +204,7 @@ Keep the lifecycle split:
    scheduler-derived trajectory summary. This is explicit host workflow
    composition, not scheduler-owned Local Work Trajectory mutation and not
    CLI/MCP real-provider exposure.
-18. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
+22. Shared scheduler operator workflow uses `schedulerOperatorWorkflow`,
    `doc-based-coding scheduler operator-workflow`, or
    `run_scheduler_operator_workflow()` when a Codex/MCP/Host UX caller needs
    one explicit contract over candidate inspection, exact admission, bounded
@@ -98,7 +213,7 @@ Keep the lifecycle split:
    `--inspect-binding-refs` to include read-only supervisor storage binding
    reference inspection before admission. Mutating steps remain opt-in through
    `admit` / `runLoop` / `refreshProjection`.
-19. Operator dogfood closure uses `schedulerOperatorDogfoodClosure`,
+23. Operator dogfood closure uses `schedulerOperatorDogfoodClosure`,
    `doc-based-coding scheduler operator-dogfood-closure`, or
    `run_scheduler_operator_dogfood_closure()` when the current gate needs the
    complete deterministic operator evidence closure in one call: seed fixture,
@@ -107,33 +222,43 @@ Keep the lifecycle split:
    refresh scheduler projection, and read Host Evidence presentation. It is
    fake-runtime-only and does not start services, execute cleanup, create agent
    home/scratch directories, or mutate agent-owned Local Work Trajectory.
-20. Scheduler daemon lifecycle control uses
+   Use `doc-based-coding scheduler evidence-publish-consumer-closure` or
+   `run_evidence_publish_to_consumer_closure()` when the current gate must
+   prove the durable evidence publish path itself: write compact supervisor
+   storage binding evidence, publish it through the compact binding artifact
+   surface, create a consuming scheduler submission that references that
+   exact published artifact id/version, then run the same fake-runtime
+   operator closure steps through Host Evidence readback. This is a CLI/backend
+   composition surface, not a new MCP tool. It does not create real agent
+   home/scratch directories, write scratch manifests, execute cleanup, run live
+   providers, or mutate agent-owned Local Work Trajectory.
+21. Scheduler daemon lifecycle control uses
    `doc-based-coding scheduler lifecycle <action>` or
    `schedulerLifecycleControl` for deterministic control-file operations:
    inspect, start, heartbeat, pause, resume, cancel, and shutdown. The MCP
    control tool also accepts deterministic `mark_stale`. These actions write
    only the lifecycle control file and do not run providers or refresh
    projection.
-20. Scheduler lifecycle run-once uses
+22. Scheduler lifecycle run-once uses
    `doc-based-coding scheduler lifecycle run-once` or
    `schedulerLifecycleRunOnce` to run one lifecycle-gated bounded fake-runtime
    loop. It may mutate scheduler snapshot/event-log state only through the
    bounded scheduler loop; paused/cancelled/stopped/stale controls skip
    scheduler mutation, and cancellation is consumed before provider execution.
-21. Scheduler lifecycle harness uses
+23. Scheduler lifecycle harness uses
    `doc-based-coding scheduler lifecycle harness` or
    `schedulerLifecycleHarness` to run the bounded host-managed harness with
    explicit cancelled/deadline preflight and retry over listed harness stop
    reasons. It remains fake-runtime-only in MCP, does not refresh projection,
    and does not mutate agent-owned Local Work Trajectory.
-22. Scheduler daemon supervisor step uses
+24. Scheduler daemon supervisor step uses
    `doc-based-coding scheduler lifecycle supervisor-step` or
    `schedulerDaemonSupervisorStep` to run one host-managed supervisor step over
    the policy-controlled bounded harness. It adds supervisor/session/run
    identity, cancellation-source metadata, and lifecycle status readback while
    remaining fake-runtime-only in CLI/MCP. It does not start a service, refresh
    projection, execute cleanup, or mutate agent-owned Local Work Trajectory.
-23. Supervisor dogfood workflow uses
+25. Supervisor dogfood workflow uses
    `doc-based-coding scheduler supervisor-dogfood-workflow` or
    `schedulerSupervisorDogfoodWorkflow` when the current gate needs the complete
    deterministic sequence: seed a scheduler dogfood fixture, admit the exact
@@ -141,7 +266,7 @@ Keep the lifecycle split:
    scheduler/supervisor facts. It is fake-runtime-only, does not refresh
    scheduler projection, execute cleanup, start a service, or mutate
    agent-owned Local Work Trajectory.
-24. Controlled host-runtime dogfood uses
+26. Controlled host-runtime dogfood uses
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
@@ -508,7 +633,32 @@ schedulerSupervisorDogfoodWorkflow
 doc-based-coding scheduler supervisor-dogfood-workflow ...
 schedulerStorageBindingArtifactPublish
 doc-based-coding scheduler publish-storage-binding-artifact ...
+doc-based-coding scheduler evidence-publish-consumer-closure ...
 doc-based-coding resources read dbc://exchange-artifacts/bundle
+agentExchangeMailbox
+doc-based-coding scheduler inspect-agent-mailbox --agent-id <agent-id>
+agentExchangeHistory
+doc-based-coding scheduler inspect-agent-history ...
+doc-based-coding resources read dbc://agent-exchange/history
+agentExchangeActionCandidates
+doc-based-coding scheduler inspect-agent-action-candidates ...
+doc-based-coding resources read dbc://agent-exchange/action-candidates
+agentExchangeActionCandidateDecide
+doc-based-coding scheduler decide-agent-action-candidate ...
+agentExchangeAcceptedSchedulerCandidateConsume
+doc-based-coding scheduler consume-accepted-scheduler-candidate ...
+agentExchangeAcceptedReviewCandidateConsume
+doc-based-coding scheduler consume-accepted-review-candidate ...
+agentExchangeAcceptedHandoffCandidateConsume
+doc-based-coding scheduler consume-accepted-handoff-candidate ...
+agentExchangeAcceptedMergeCandidateConsume
+doc-based-coding scheduler consume-accepted-merge-candidate ...
+agentExchangeAcceptedBlockerCandidateConsume
+doc-based-coding scheduler consume-accepted-blocker-candidate ...
+agentExchangeReply
+doc-based-coding scheduler reply-exchange-artifact ...
+agentExchangeTransition
+doc-based-coding scheduler transition-exchange-artifact ...
 schedulerBindingReferenceInspect
 doc-based-coding scheduler inspect-binding-refs ...
 admitExchangeArtifact
@@ -539,10 +689,83 @@ Prefer `schedulerStorageBindingArtifactPublish` or `doc-based-coding scheduler
 publish-storage-binding-artifact` when a gate has a durable supervisor storage
 binding evidence file and needs to make its compact summary available as an
 exact-version ExchangeArtifact for downstream scheduler submissions.
+Prefer `doc-based-coding scheduler evidence-publish-consumer-closure` when a
+gate must prove the whole path from durable supervisor storage binding evidence
+through published exact-version binding artifact into a consuming scheduler
+submission and fake-runtime operator closure. This supersedes the
+`binding-consumer` fixture for that specific proof because the consumer must
+reference the artifact produced by the publish step, not a directly seeded
+fixture artifact.
+The consuming scheduler submission references the artifact produced by the publish step.
 Prefer `schedulerBindingReferenceInspect` or `doc-based-coding scheduler
 inspect-binding-refs` before admission when the candidate task consumes
 `supervisor_storage_binding_artifact` refs and the inspection is intentionally
 separate from the shared operator workflow.
+Prefer `agentExchangeMailbox` or `doc-based-coding scheduler
+inspect-agent-mailbox --agent-id <agent-id>` when a scheduled or runtime agent
+needs its own ExchangeArtifact communication view. Use it for per-agent
+inbox/outbox/related/actionable readback, not for store-wide admission
+candidate inspection.
+Prefer `agentExchangeHistory`, `doc-based-coding scheduler
+inspect-agent-history`, or `doc-based-coding resources read
+dbc://agent-exchange/history` when a guide agent needs a compact
+communication-history readback over ExchangeArtifact causality and `log` parts.
+Use it for participant/lifecycle counts, causality edges, and compact timeline
+entries, not for raw transcript replay.
+Prefer `agentExchangeActionCandidates`, `doc-based-coding scheduler
+inspect-agent-action-candidates`, or `doc-based-coding resources read
+dbc://agent-exchange/action-candidates` when a guide or scheduler-facing agent
+needs to see which communication products are candidates for scheduler
+admission, review, handoff, blocker, or merge follow-up. Treat it as read-only
+candidate discovery; use explicit downstream surfaces for any mutation.
+Prefer `agentExchangeActionCandidateDecide` or `doc-based-coding scheduler
+decide-agent-action-candidate` when a guide/operator needs to record an
+accept/reject/defer/supersede decision for one candidate as a durable
+ExchangeArtifact. Treat it as a decision product only; use explicit downstream
+surfaces for scheduler admission, review intake, handoff persistence, blocker
+state, or merge resolution.
+Prefer `agentExchangeAcceptedSchedulerCandidateConsume` or `doc-based-coding
+scheduler consume-accepted-scheduler-candidate` when an accepted
+`scheduler_submission_candidate` disposition should be turned into real
+scheduler admission through the existing exact-version ledger-backed admission
+path. Do not use it for review, handoff, blocker, or merge candidates.
+Prefer `agentExchangeAcceptedReviewCandidateConsume` or `doc-based-coding
+scheduler consume-accepted-review-candidate` when an accepted
+`review_candidate` disposition should be turned into review intake through the
+existing review adapter. Do not use it for scheduler, handoff, blocker, or
+merge candidates.
+Prefer `agentExchangeAcceptedHandoffCandidateConsume` or `doc-based-coding
+scheduler consume-accepted-handoff-candidate` when an accepted
+`handoff_candidate` disposition should be turned into a schema-valid Handoff
+payload through the existing handoff delivery adapter. Always provide an
+explicit handoff directory. Do not use it for scheduler, review, blocker, or
+merge candidates.
+Prefer `agentExchangeAcceptedMergeCandidateConsume` or `doc-based-coding
+scheduler consume-accepted-merge-candidate` when an accepted `merge_candidate`
+disposition should resolve an existing scheduler merge gate. Always provide an
+explicit `gateId` and `approved` decision; do not infer a gate from
+ExchangeArtifact relations. Do not use it for scheduler, review, handoff, or
+blocker candidates.
+Prefer `agentExchangeAcceptedBlockerCandidateConsume` or `doc-based-coding
+scheduler consume-accepted-blocker-candidate` when an accepted
+`blocker_candidate` disposition should block an existing scheduler task. Always
+provide an explicit `taskId` and non-empty reason; do not infer a task from
+ExchangeArtifact relations. Do not use it for scheduler, review, handoff, or
+merge candidates.
+Use `doc-based-coding scheduler guide-worker-exchange-dogfood` when the current
+gate needs to prove the whole guide/worker communication sequence locally:
+worker-addressed coordination product, worker mailbox readback, worker reply,
+scheduler submission candidate, guide disposition, and explicit accepted
+scheduler-candidate consumption. This is a CLI/runtime dogfood surface, not a
+new MCP tool.
+Prefer `agentExchangeReply` or `doc-based-coding scheduler
+reply-exchange-artifact` when an agent needs to answer one exact
+ExchangeArtifact version while preserving `causality.replies_to` and compact
+coordination logs.
+Prefer `agentExchangeTransition` or `doc-based-coding scheduler
+transition-exchange-artifact` when an agent or guide needs to mark one exact
+ExchangeArtifact version `accepted`, `rejected`, `consumed`, `superseded`, or
+`archived` without triggering scheduler admission or provider execution.
 Use `doc-based-coding scheduler seed-dogfood-fixture --fixture binding-consumer`
 when a gate needs a deterministic compact supervisor storage binding artifact
 plus a scheduler submission that consumes it. Then run
@@ -958,6 +1181,59 @@ negative-path evidence, not as scheduler corruption.
 With `doc-based-coding qoder smoke --no-initialize-snapshot`, readiness-negative
 hosts should fail without creating the smoke scheduler snapshot.
 
+### Host-Owned Guide Worker Provider Execution
+
+Use the host-owned guide-worker wrapper when the current gate asks to exercise
+provider-backed worker agents on different Local Work Trajectory lanes:
+
+```text
+doc-based-coding qoder guide-worker-smoke
+run_host_owned_guide_worker_provider_execution()
+HostOwnedGuideWorkerProviderExecutionConfig
+```
+
+Expected CLI options:
+
+```text
+--auth-mode env|qodercli
+--auth-env-var NAME
+--sdk-module NAME
+--cwd PATH
+--model NAME
+--max-turns N
+--permission-request-policy deny|surface
+--artifact-store-path .codex/orchestration/exchange-artifacts.json
+--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
+--snapshot-path .codex/scheduler/guide-worker-provider-execution-state.json
+--event-log-path .codex/scheduler/guide-worker-provider-execution-events.jsonl
+--evidence-id guide-worker-provider-execution
+--evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
+--host-invocation-id host-owned-guide-worker-provider-execution-cli
+--reason "bounded host-owned guide-worker provider execution"
+--max-parallel-lanes 2
+--max-waves 1
+--wave-execution-mode serial|threaded
+--timestamp 2026-06-24T00:00:00+08:00
+```
+
+Expected helper behavior:
+
+1. Validate Qoder SDK/auth readiness before writing ExchangeArtifact store,
+   scheduler state, event logs, or evidence.
+2. Create a guide instruction artifact and scheduler worker task batch.
+3. Emit worker tasks with `AgentSpec.runtime_provider` from
+   `workerRuntimeProvider`.
+4. Execute at most one ready worker task per lane per wave through the
+   host-authorized runtime registry.
+5. Merge wave results deterministically by task id.
+6. Write compact `host_guide_worker_provider_execution_evidence` with
+   provider, lane, wave, task state, output artifact, path, and authority
+   facts.
+7. Keep MCP `schedulerGuideWorkerLocalOrchestration` fake-only.
+
+If SDK/auth are missing, the wrapper should fail before evidence, scheduler
+state, or exchange-store writes. Treat that as expected negative-path evidence.
+
 ## Write-Back
 
 Record:
@@ -971,6 +1247,10 @@ Record:
 - run count and stop reason
 - scheduler projection artifact path
 - host dogfood evidence JSON path when `run_host_runtime_dogfood_harness()` was used
+- durable supervisor storage binding evidence path and published binding
+  artifact id/version when `evidence-publish-consumer-closure` was used
+- consuming scheduler submission artifact id/version and whether it references
+  the published binding artifact instead of a fixture artifact
 - host-runner result JSON when a host-authorized adapter was used
 - any real-provider rejection if intentionally tested
 - validation commands or MCP responses used as evidence

@@ -613,6 +613,266 @@ def test_mcp_scheduler_operator_dogfood_closure_rejects_live_provider(
     asyncio.run(exercise_server())
 
 
+def _guide_worker_mcp_paths(tmp_path: Path) -> dict[str, str]:
+    return {
+        "artifactStorePath": str(tmp_path / ".codex" / "orchestration" / "gw-artifacts.json"),
+        "admissionLedgerPath": str(tmp_path / ".codex" / "orchestration" / "gw-ledger.json"),
+        "snapshotPath": str(tmp_path / ".codex" / "scheduler" / "gw-state.json"),
+        "eventLogPath": str(tmp_path / ".codex" / "scheduler" / "gw-events.jsonl"),
+    }
+
+
+def test_mcp_server_exposes_and_routes_scheduler_guide_worker_local_orchestration(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "schedulerGuideWorkerLocalOrchestration" in names
+        workflow_tool = next(
+            tool for tool in tools if tool.name == "schedulerGuideWorkerLocalOrchestration"
+        )
+        assert "workerInstructions" in workflow_tool.inputSchema["properties"]
+        assert "runtimeProvider" in workflow_tool.inputSchema["properties"]
+        assert "waveExecutionMode" in workflow_tool.inputSchema["properties"]
+        assert "scheduling parallelism" in workflow_tool.description
+        assert "Local Work Trajectory" in workflow_tool.description
+
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "trajectoryId": "local-work:test",
+                        "artifactIdPrefix": "mcp-guide-worker",
+                        "timestamp": "2026-06-24T09:00:00+08:00",
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/client",
+                                "title": "Client worker",
+                                "instruction": "Implement the client-facing test slice.",
+                                "laneId": "lane:client",
+                                "allowedArtifacts": ["client"],
+                                "acceptance": ["Client result artifact exists."],
+                                "outputArtifactId": "task/mcp/client:result",
+                            },
+                            {
+                                "taskId": "task/mcp/server",
+                                "title": "Server worker",
+                                "instruction": "Implement the server-facing test slice.",
+                                "laneId": "lane:server",
+                                "allowedArtifacts": ["server"],
+                                "acceptance": ["Server result artifact exists."],
+                                "outputArtifactId": "task/mcp/server:result",
+                            },
+                        ],
+                        "maxParallelLanes": 2,
+                        "maxWaves": 1,
+                        "waveExecutionMode": "threaded",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["workflow_surface"] == "scheduler-guide-worker-local-orchestration"
+        assert payload["scenario"]["trajectory_id"] == "local-work:test"
+        assert payload["submitted_task_ids"] == ["task/mcp/client", "task/mcp/server"]
+        assert payload["lane_ids"] == ["lane:client", "lane:server"]
+        assert len(payload["parallel_waves"]) == 1
+        assert payload["parallel_waves"][0]["task_ids"] == [
+            "task/mcp/client",
+            "task/mcp/server",
+        ]
+        assert payload["parallel_waves"][0]["sequential_runtime"] is True
+        assert payload["wave_execution_results"][0]["mode"] == "threaded"
+        assert payload["wave_execution_results"][0]["attempted_task_ids"] == [
+            "task/mcp/client",
+            "task/mcp/server",
+        ]
+        assert payload["wave_execution_results"][0]["deterministic_merge_order"] == [
+            "task/mcp/client",
+            "task/mcp/server",
+        ]
+        assert payload["task_states"] == {
+            "task/mcp/client": "complete",
+            "task/mcp/server": "complete",
+        }
+        assert payload["authority_split"]["exchange_store_mutated"] is True
+        assert payload["authority_split"]["admission_ledger_mutated"] is True
+        assert payload["authority_split"]["scheduler_state_mutated"] is True
+        assert payload["authority_split"]["provider_executed"] is True
+        assert payload["authority_split"]["true_process_parallelism"] is True
+        assert payload["authority_split"]["wave_executor_mode"] == "threaded"
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_serializes_same_lane(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "artifactIdPrefix": "mcp-guide-worker-same-lane",
+                        "timestamp": "2026-06-24T09:10:00+08:00",
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/lane-a",
+                                "title": "Lane A first",
+                                "instruction": "Complete the first same-lane task.",
+                                "laneId": "lane:shared",
+                            },
+                            {
+                                "taskId": "task/mcp/lane-b",
+                                "title": "Lane A second",
+                                "instruction": "Complete the second same-lane task.",
+                                "laneId": "lane:shared",
+                            },
+                        ],
+                        "maxParallelLanes": 2,
+                        "maxWaves": 2,
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert [wave["task_ids"] for wave in payload["parallel_waves"]] == [
+            ["task/mcp/lane-a"],
+            ["task/mcp/lane-b"],
+        ]
+        assert [wave["lane_ids"] for wave in payload["parallel_waves"]] == [
+            ["lane:shared"],
+            ["lane:shared"],
+        ]
+        assert payload["task_states"]["task/mcp/lane-a"] == "complete"
+        assert payload["task_states"]["task/mcp/lane-b"] == "complete"
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_rejects_live_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "runtimeProvider": "qoder",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert payload["workflow_surface"] == "scheduler-guide-worker-local-orchestration"
+        assert payload["runtime_provider"] == "qoder"
+        assert "runtimeProvider='fake' only" in payload["error"]
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["admission_ledger_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert payload["authority_split"]["provider_executed"] is False
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_rejects_worker_qoder_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/qoder",
+                                "title": "Qoder worker",
+                                "instruction": "Do not run through MCP.",
+                                "laneId": "lane:qoder",
+                                "workerRuntimeProvider": "qoder",
+                            }
+                        ],
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert "fake workerRuntimeProvider" in payload["error"]
+        assert "qoder" in payload["error"]
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_reports_instruction_errors(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/bad",
+                                "title": "Bad worker",
+                                "laneId": "lane:bad",
+                            }
+                        ],
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert payload["workflow_surface"] == "scheduler-guide-worker-local-orchestration"
+        assert "workerInstructions[0].instruction" in payload["error"]
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+
+    asyncio.run(exercise_server())
+
+
 def test_mcp_server_exposes_and_routes_storage_binding_artifact_publish(
     tmp_path: Path,
 ) -> None:

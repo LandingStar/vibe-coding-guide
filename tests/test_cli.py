@@ -104,6 +104,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "admit-exchange-artifact" in proc.stdout
     assert "inspect-admissions" in proc.stdout
     assert "inspect-binding-refs" in proc.stdout
+    assert "inspect-agent-action-candidates" in proc.stdout
     assert "publish-storage-binding-artifact" in proc.stdout
     assert "inspect-state" in proc.stdout
     assert "tick" in proc.stdout
@@ -216,6 +217,19 @@ def test_scheduler_operator_dogfood_closure_help_describes_fake_runtime_boundary
     assert "Local Work Trajectory" in proc.stdout
 
 
+def test_scheduler_evidence_publish_consumer_closure_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "evidence-publish-consumer-closure", "--help"])
+
+    assert proc.returncode == 0
+    assert "--binding-evidence-id ID" in proc.stdout
+    assert "--binding-artifact-id ID" in proc.stdout
+    assert "--consumer-artifact-id ID" in proc.stdout
+    assert "publishes it through the compact binding artifact publish surface" in proc.stdout
+    assert "fake-runtime-only" in proc.stdout
+    assert "does not create real agent home or scratch directories" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
 def test_scheduler_inspect_admissions_help_describes_readback_non_goals() -> None:
     proc = _run_cli(["scheduler", "inspect-admissions", "--help"])
 
@@ -312,6 +326,7 @@ def test_qoder_help_includes_host_owned_smoke() -> None:
     assert proc.returncode == 0
     assert "readiness" in proc.stdout
     assert "smoke" in proc.stdout
+    assert "guide-worker-smoke" in proc.stdout
     assert "host-owned Qoder smoke helper" in proc.stdout
 
 
@@ -324,6 +339,55 @@ def test_qoder_smoke_help_describes_host_owned_boundary() -> None:
     assert "host-owned live-provider smoke surface" in proc.stdout
     assert "never accepts a raw token value" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
+
+
+def test_qoder_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["qoder", "guide-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--wave-execution-mode serial|threaded" in proc.stdout
+    assert "host-owned live-provider guide-worker smoke surface" in proc.stdout
+    assert "never accepts a raw token value" in proc.stdout
+    assert "not an MCP real-provider execution surface" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_qoder_guide_worker_smoke_missing_auth_writes_no_state(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    absent_env_var = "DBC_TEST_QODER_TOKEN_ABSENT_DO_NOT_SET"
+
+    proc = _run_cli_without_env_var(
+        [
+            "qoder",
+            "guide-worker-smoke",
+            "--auth-env-var",
+            absent_env_var,
+            "--snapshot-path",
+            ".codex/scheduler/guide-worker-provider-execution-state.json",
+            "--event-log-path",
+            ".codex/scheduler/guide-worker-provider-execution-events.jsonl",
+            "--evidence-path",
+            ".codex/scheduler/evidence/guide-worker-provider.json",
+            "--timestamp",
+            "2026-06-24T08:40:00+08:00",
+        ],
+        cwd=project,
+        env_var=absent_env_var,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stdout == ""
+    assert "authentication_failed" in proc.stderr
+    assert absent_env_var in proc.stderr
+    assert (
+        project / ".codex/scheduler/guide-worker-provider-execution-state.json"
+    ).exists() is False
+    assert (
+        project / ".codex/scheduler/evidence/guide-worker-provider.json"
+    ).exists() is False
+    assert (project / ".codex/orchestration/exchange-artifacts.json").exists() is False
+    assert (project / ".codex/progress-graph/local-work-trajectory.json").exists() is False
 
 
 def test_qoder_smoke_missing_auth_initializes_only_proposed_snapshot(tmp_path: Path) -> None:
@@ -577,6 +641,961 @@ def test_scheduler_inspect_binding_refs_cli_returns_nonzero_for_bad_ref(tmp_path
     assert payload["authority_split"]["scheduler_state_mutated"] is False
     assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
     assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_scheduler_guide_worker_exchange_dogfood_cli_runs_full_sequence(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        JsonExchangeArtifactAdmissionLedger,
+        read_scheduler_state_snapshot,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "guide-worker-exchange-dogfood",
+            "--artifact-store-path",
+            ".codex/orchestration/gw-exchange.json",
+            "--admission-ledger-path",
+            ".codex/orchestration/gw-admissions.json",
+            "--snapshot-path",
+            ".codex/scheduler/gw-state.json",
+            "--event-log-path",
+            ".codex/scheduler/gw-events.jsonl",
+            "--artifact-id-prefix",
+            "gw-cli",
+            "--timestamp",
+            "2026-06-23T00:00:00Z",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["scenario"]["candidate_type"] == "scheduler_submission_candidate"
+    assert payload["worker_mailbox"]["inbox"][0]["artifact_id"] == "gw-cli:coordination"
+    assert payload["disposition_result"]["authority_split"]["coordination_product_only"] is True
+    assert payload["consumption_result"]["authority_split"]["scheduler_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["authority_split"]["raw_transcript_persisted"] is False
+
+    state = read_scheduler_state_snapshot(project / ".codex/scheduler/gw-state.json")
+    assert "task/gw-cli/worker" in state.tasks
+    records = JsonExchangeArtifactAdmissionLedger(
+        project / ".codex/orchestration/gw-admissions.json"
+    ).read_all()
+    assert records[-1].artifact_id == "gw-cli:scheduler-submission"
+    assert records[-1].status == "admitted"
+    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_scheduler_guide_worker_local_orchestration_cli_runs_lane_wave(tmp_path) -> None:
+    from src.runtime.orchestration import read_scheduler_state_snapshot
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "guide-worker-local-orchestration",
+            "--artifact-store-path",
+            ".codex/orchestration/gw-local-exchange.json",
+            "--admission-ledger-path",
+            ".codex/orchestration/gw-local-admissions.json",
+            "--snapshot-path",
+            ".codex/scheduler/gw-local-state.json",
+            "--event-log-path",
+            ".codex/scheduler/gw-local-events.jsonl",
+            "--trajectory-id",
+            "local-work:cli-test",
+            "--artifact-id-prefix",
+            "gw-local-cli",
+            "--timestamp",
+            "2026-06-23T00:00:00Z",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["scenario"]["parallelism_contract"] == "one_ready_worker_task_per_lane_per_wave"
+    assert payload["parallel_waves"][0]["task_ids"] == [
+        "task/gw-local-cli/client",
+        "task/gw-local-cli/server",
+    ]
+    assert payload["authority_split"]["scheduler_state_mutated"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["true_process_parallelism"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    state = read_scheduler_state_snapshot(project / ".codex/scheduler/gw-local-state.json")
+    assert state.tasks["task/gw-local-cli/client"].state == "complete"
+    assert state.tasks["task/gw-local-cli/server"].state == "complete"
+    assert len(state.run_records) == 2
+    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_scheduler_inspect_agent_mailbox_cli_reads_exchange_store_without_mutation(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        JsonArtifactVersionStore,
+        VisibilityPolicy,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-mailbox-cli",
+            version="v1",
+            kind="query",
+            intent="ask",
+            producer="agent:guide",
+            audience=("agent:client",),
+            lifecycle_state="proposed",
+            parts=(ExchangePayloadPart(part_type="text", text="Can you review the client API?"),),
+        )
+    )
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-mailbox-sensitive-cli",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:guide",
+            audience=("agent:client",),
+            visibility_policy=VisibilityPolicy(
+                audience=("agent:client",),
+                contains_sensitive_content=True,
+                redaction_required=True,
+            ),
+            parts=(ExchangePayloadPart(part_type="text", text="secret detail"),),
+        )
+    )
+
+    proc = _run_cli(["scheduler", "inspect-agent-mailbox", "--agent-id", "agent:client"], cwd=project)
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["agent_id"] == "agent:client"
+    assert payload["inbox_count"] == 2
+    assert payload["actionable_count"] == 1
+    assert payload["inbox"][0]["artifact_id"] == "ex-mailbox-cli"
+    assert payload["inbox"][0]["routing_reasons"] == ["audience"]
+    assert payload["inbox"][1]["preview"]["redacted"] is True
+    assert "secret detail" not in proc.stdout
+    assert payload["authority_split"]["read_model_only"] is True
+    assert not (project / ".codex" / "scheduler").exists()
+
+
+def test_scheduler_exchange_reply_and_transition_cli_round_trip(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-question",
+            version="v1",
+            kind="query",
+            intent="ask",
+            producer="agent:guide",
+            audience=("agent:client",),
+            lifecycle_state="proposed",
+            parts=(ExchangePayloadPart(part_type="text", text="Can you take this?"),),
+        )
+    )
+
+    reply = _run_cli(
+        [
+            "scheduler",
+            "reply-exchange-artifact",
+            "--source-artifact-id",
+            "ex-cli-question",
+            "--source-version",
+            "v1",
+            "--reply-artifact-id",
+            "ex-cli-answer",
+            "--producer",
+            "agent:client",
+            "--text",
+            "I can take this.",
+            "--structured-json",
+            '{"product_type":"agent_reply","ok":true}',
+            "--created-at",
+            "2026-06-22T21:20:00+08:00",
+        ],
+        cwd=project,
+    )
+    transition = _run_cli(
+        [
+            "scheduler",
+            "transition-exchange-artifact",
+            "--artifact-id",
+            "ex-cli-question",
+            "--version",
+            "v1",
+            "--target-state",
+            "accepted",
+            "--actor",
+            "agent:guide",
+            "--reason",
+            "reply accepted",
+            "--timestamp",
+            "2026-06-22T21:21:00+08:00",
+        ],
+        cwd=project,
+    )
+    mailbox = _run_cli(
+        ["scheduler", "inspect-agent-mailbox", "--agent-id", "agent:guide"],
+        cwd=project,
+    )
+
+    assert reply.returncode == 0, reply.stderr
+    reply_payload = json.loads(reply.stdout)
+    assert reply_payload["reply_artifact_id"] == "ex-cli-answer"
+    assert reply_payload["audience"] == ["agent:guide"]
+    assert reply_payload["authority_split"]["exchange_store_mutated"] is True
+    assert transition.returncode == 0, transition.stderr
+    transition_payload = json.loads(transition.stdout)
+    assert transition_payload["previous_lifecycle_state"] == "proposed"
+    assert transition_payload["current_lifecycle_state"] == "accepted"
+    assert transition_payload["changed"] is True
+    assert mailbox.returncode == 0, mailbox.stderr
+    mailbox_payload = json.loads(mailbox.stdout)
+    assert [item["artifact_id"] for item in mailbox_payload["inbox"]] == ["ex-cli-answer"]
+    assert not (project / ".codex" / "scheduler").exists()
+
+
+def test_scheduler_inspect_agent_history_cli_reads_causality_without_mutation(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangeCausality,
+        ExchangeLog,
+        ExchangePayloadPart,
+        JsonArtifactVersionStore,
+        VisibilityPolicy,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-history-question",
+            version="v1",
+            kind="query",
+            intent="ask",
+            producer="agent:guide",
+            audience=("agent:client",),
+            lifecycle_state="proposed",
+            causality=ExchangeCausality(correlation_id="thread:cli-history"),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="log",
+                    log=ExchangeLog(
+                        timestamp="2026-06-22T22:20:00+08:00",
+                        actor="agent:guide",
+                        action="asked",
+                        summary="asked client",
+                    ),
+                ),
+            ),
+        )
+    )
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-history-answer",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:client",
+            audience=("agent:guide",),
+            lifecycle_state="accepted",
+            causality=ExchangeCausality(
+                replies_to=("ex-cli-history-question@v1",),
+                caused_by=("ex-cli-history-question@v1",),
+                correlation_id="thread:cli-history",
+            ),
+            visibility_policy=VisibilityPolicy(
+                audience=("agent:guide",),
+                contains_sensitive_content=True,
+                redaction_required=True,
+            ),
+            parts=(
+                ExchangePayloadPart(part_type="text", text="secret answer body"),
+                ExchangePayloadPart(
+                    part_type="log",
+                    log=ExchangeLog(
+                        timestamp="2026-06-22T22:20:01+08:00",
+                        actor="agent:client",
+                        action="answered",
+                        summary="safe answer summary",
+                    ),
+                ),
+            ),
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-agent-history",
+            "--agent-id",
+            "agent:client",
+            "--correlation-id",
+            "thread:cli-history",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["artifact_count"] == 2
+    assert payload["participant_counts"] == {"agent:client": 2, "agent:guide": 2}
+    assert payload["lifecycle_counts"] == {"accepted": 1, "proposed": 1}
+    assert payload["causality_edges"][0]["relation_kind"] == "replies_to"
+    assert [entry["action"] for entry in payload["log_entries"]] == ["asked", "answered"]
+    assert payload["log_entries"][1]["source_redacted"] is True
+    assert "safe answer summary" in proc.stdout
+    assert "secret answer body" not in proc.stdout
+    assert payload["authority_split"]["read_model_only"] is True
+    assert not (project / ".codex" / "scheduler").exists()
+
+
+def test_scheduler_inspect_agent_action_candidates_cli_reads_without_mutation(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+        VisibilityPolicy,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-action-task",
+            version="v1",
+            kind="request",
+            intent="propose",
+            producer="agent:guide",
+            audience=("scheduler", "agent:client"),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "scheduler_task_submission",
+                        "task_id": "task/client",
+                        "title": "Client task",
+                    },
+                ),
+            ),
+        )
+    )
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-action-blocker",
+            version="v1",
+            kind="blocker",
+            intent="declare_blocked",
+            producer="agent:client",
+            audience=("agent:guide",),
+            visibility_policy=VisibilityPolicy(
+                audience=("agent:guide",),
+                contains_sensitive_content=True,
+                redaction_required=True,
+            ),
+            parts=(
+                ExchangePayloadPart(part_type="text", text="secret blocker detail"),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-block",
+                        relation_kind="blocks",
+                        source=ExchangeReference(ref_kind="task", ref_id="task/client"),
+                        target=ExchangeReference(ref_kind="task", ref_id="task/server"),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-agent-action-candidates",
+            "--agent-id",
+            "agent:guide",
+            "--candidate-type",
+            "blocker_candidate",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["candidate_type_counts"] == {"blocker_candidate": 1}
+    assert payload["candidates"][0]["artifact_id"] == "ex-cli-action-blocker"
+    assert payload["candidates"][0]["relation_clues"][0]["relation_kind"] == "blocks"
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["review_state_mutated"] is False
+    assert "secret blocker detail" not in proc.stdout
+    assert not (project / ".codex" / "scheduler").exists()
+
+
+def test_scheduler_decide_agent_action_candidate_cli_writes_disposition_only(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-decision-task",
+            version="v1",
+            kind="request",
+            intent="propose",
+            producer="agent:guide",
+            audience=("scheduler",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "scheduler_task_submission",
+                        "task_id": "task/cli-decision",
+                    },
+                ),
+            ),
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-decision-task@v1:scheduler:0",
+            "--disposition-artifact-id",
+            "ex-cli-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "admitExchangeArtifact",
+            "--reason",
+            "ready",
+            "--timestamp",
+            "2026-06-22T23:20:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["candidate_id"] == "ex-cli-decision-task@v1:scheduler:0"
+    assert payload["disposition"] == "accept"
+    assert payload["target_surface"] == "admitExchangeArtifact"
+    assert payload["authority_split"]["source_exchange_artifact_mutated"] is False
+    record = JsonArtifactVersionStore(store_path).get("ex-cli-decision", "v1")
+    structured = next(part for part in record.artifact.parts if part.part_type == "structured")
+    assert structured.data["product_type"] == "agent_exchange_action_candidate_disposition"
+    assert structured.data["source_artifact_id"] == "ex-cli-decision-task"
+    assert not (project / ".codex" / "scheduler").exists()
+
+
+def test_scheduler_consume_accepted_scheduler_candidate_cli_admits_source(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ContextScope,
+        JsonArtifactVersionStore,
+        SchedulerTaskSubmission,
+        read_scheduler_state_snapshot,
+        scheduler_task_submission_to_artifact,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        scheduler_task_submission_to_artifact(
+            SchedulerTaskSubmission(
+                task_id="task/cli-consume",
+                title="CLI consume task",
+                instruction="Run from accepted disposition.",
+                agent=AgentSpec(agent_id="agent:worker", runtime_provider="fake"),
+                context_scope=ContextScope(context_id="context:cli-consume"),
+            ),
+            artifact_id="ex-cli-consume-task",
+            version="v1",
+            producer="agent:guide",
+        )
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-consume-task@v1:scheduler:0",
+            "--disposition-artifact-id",
+            "ex-cli-consume-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "admitExchangeArtifact",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-accepted-scheduler-candidate",
+            "--disposition-artifact-id",
+            "ex-cli-consume-decision",
+            "--disposition-version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    assert payload["ok"] is True
+    assert payload["source_artifact_id"] == "ex-cli-consume-task"
+    assert payload["admission_result"]["admission_ledger_record_id"]
+    assert payload["admission_result"]["submitted_task_ids"] == ["task/cli-consume"]
+    assert payload["authority_split"]["scheduler_mutated"] is True
+    state = read_scheduler_state_snapshot(project / ".codex" / "scheduler" / "scheduler-state.json")
+    assert "task/cli-consume" in state.tasks
+
+
+def test_scheduler_consume_accepted_review_candidate_cli_registers_review(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        ExchangeScope,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-review",
+            version="v1",
+            kind="review",
+            intent="require_review",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            scope=ExchangeScope(task_id="task/cli-review"),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "reason": "review CLI artifact",
+                        "open_items": ["Check CLI review intake."],
+                    },
+                ),
+            ),
+        )
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-review@v1:review",
+            "--disposition-artifact-id",
+            "ex-cli-review-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "reviewIntake",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-accepted-review-candidate",
+            "--disposition-artifact-id",
+            "ex-cli-review-decision",
+            "--disposition-version",
+            "v1",
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    assert payload["ok"] is True
+    assert payload["source_artifact_id"] == "ex-cli-review"
+    assert payload["dispatch_result"]["consumer_kind"] == "review_intake"
+    assert payload["review_pending"][0]["envelope_id"] == "agent-exchange-review-ex-cli-review-v1"
+    assert payload["authority_split"]["review_state_mutated"] is True
+    assert payload["authority_split"]["scheduler_mutated"] is False
+    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
+
+
+def test_scheduler_consume_accepted_handoff_candidate_cli_writes_handoff(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        ExchangeScope,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    handoff_dir = project / ".codex" / "handoffs"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-handoff",
+            version="v1",
+            kind="handoff",
+            intent="inform",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            scope=ExchangeScope(task_id="task/cli-handoff"),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "reason": "handoff CLI artifact",
+                        "to_role": "agent:guide",
+                        "open_items": ["Check CLI handoff payload."],
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-handoff",
+                        relation_kind="hands_off",
+                        source=ExchangeReference(ref_kind="agent", ref_id="agent:worker"),
+                        target=ExchangeReference(ref_kind="agent", ref_id="agent:guide"),
+                    ),
+                ),
+            ),
+        )
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-handoff@v1:handoff",
+            "--disposition-artifact-id",
+            "ex-cli-handoff-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "handoffIntake",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-accepted-handoff-candidate",
+            "--disposition-artifact-id",
+            "ex-cli-handoff-decision",
+            "--disposition-version",
+            "v1",
+            "--handoff-dir",
+            ".codex/handoffs",
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    assert payload["ok"] is True
+    assert payload["source_artifact_id"] == "ex-cli-handoff"
+    assert payload["dispatch_result"]["consumer_kind"] == "handoff"
+    assert payload["authority_split"]["handoff_mutated"] is True
+    handoff_path = handoff_dir / f"{payload['handoff_payload']['handoff_id']}.json"
+    assert handoff_path.exists()
+    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
+
+
+def test_scheduler_consume_accepted_merge_candidate_cli_resolves_gate(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+        JsonlSchedulerMergeGateEventLog,
+        ScheduledTask,
+        SchedulerMergeGate,
+        SchedulerState,
+        read_scheduler_state_snapshot,
+        write_scheduler_state_snapshot,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    merge_log_path = project / ".codex" / "scheduler" / "merge-gate-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-merge",
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-merge",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(ref_kind="lane", ref_id="lane:worker"),
+                        target=ExchangeReference(ref_kind="lane", ref_id="lane:main"),
+                    ),
+                ),
+            ),
+        )
+    )
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-c": ScheduledTask(
+                    task_id="task-c",
+                    title="C",
+                    instruction="merge target",
+                    agent=AgentSpec(agent_id="agent:c", runtime_provider="fake"),
+                    state="waiting",
+                ),
+            },
+            merge_gates=(
+                SchedulerMergeGate(
+                    gate_id="merge-cli",
+                    title="CLI merge",
+                    target_task_id="task-c",
+                    state="review_required",
+                    gate_kind="review",
+                    required_review=True,
+                ),
+            ),
+        ),
+        snapshot_path,
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-merge@v1:merge",
+            "--disposition-artifact-id",
+            "ex-cli-merge-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "mergeIntake",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-accepted-merge-candidate",
+            "--disposition-artifact-id",
+            "ex-cli-merge-decision",
+            "--disposition-version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--merge-gate-event-log-path",
+            ".codex/scheduler/merge-gate-events.jsonl",
+            "--gate-id",
+            "merge-cli",
+            "--approved",
+            "--reason",
+            "CLI approved merge",
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    assert payload["ok"] is True
+    assert payload["current_gate_state"] == "complete"
+    assert payload["authority_split"]["merge_gate_mutated"] is True
+    state = read_scheduler_state_snapshot(snapshot_path)
+    events = JsonlSchedulerMergeGateEventLog(merge_log_path).read_all()
+    assert state.merge_gates[0].state == "complete"
+    assert events[-1].event_kind == "merge_gate_completed"
+    assert not (project / ".codex" / "handoffs").exists()
+
+
+def test_scheduler_consume_accepted_blocker_candidate_cli_blocks_task(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        AgentSpec,
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+        JsonlSchedulerEventLog,
+        ScheduledTask,
+        SchedulerState,
+        read_scheduler_state_snapshot,
+        write_scheduler_state_snapshot,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-cli-blocker",
+            version="v1",
+            kind="blocker",
+            intent="declare_blocked",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-blocker",
+                        relation_kind="blocks",
+                        source=ExchangeReference(ref_kind="task", ref_id="task-blocked"),
+                        target=ExchangeReference(ref_kind="task", ref_id="task-upstream"),
+                    ),
+                ),
+            ),
+        )
+    )
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-blocked": ScheduledTask(
+                    task_id="task-blocked",
+                    title="Blocked",
+                    instruction="block me",
+                    agent=AgentSpec(agent_id="agent:b", runtime_provider="fake"),
+                    state="waiting",
+                ),
+            },
+        ),
+        snapshot_path,
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "ex-cli-blocker@v1:blocker",
+            "--disposition-artifact-id",
+            "ex-cli-blocker-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "blockerState",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-accepted-blocker-candidate",
+            "--disposition-artifact-id",
+            "ex-cli-blocker-decision",
+            "--disposition-version",
+            "v1",
+            "--snapshot-path",
+            ".codex/scheduler/scheduler-state.json",
+            "--event-log-path",
+            ".codex/scheduler/scheduler-events.jsonl",
+            "--task-id",
+            "task-blocked",
+            "--reason",
+            "CLI accepted blocker",
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    state = read_scheduler_state_snapshot(snapshot_path)
+    events = JsonlSchedulerEventLog(event_log_path).read_all()
+    assert payload["ok"] is True
+    assert payload["current_task_state"] == "blocked"
+    assert payload["authority_split"]["blocker_state_mutated"] is True
+    assert state.tasks["task-blocked"].blocked_reason == "CLI accepted blocker"
+    assert events[-1].event_kind == "task_blocked"
 
 
 def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_path) -> None:
@@ -1421,6 +2440,73 @@ def test_scheduler_operator_dogfood_closure_cli_runs_binding_consumer_flow(
     assert (
         project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
     ).exists()
+    assert not (
+        project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+    ).exists()
+
+
+def test_scheduler_evidence_publish_consumer_closure_cli_runs_full_flow(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    proc = _run_cli(
+        [
+            "scheduler",
+            "evidence-publish-consumer-closure",
+            "--binding-evidence-id",
+            "cli-publish-binding",
+            "--binding-artifact-id",
+            "artifact:cli-published-binding",
+            "--binding-artifact-version",
+            "v3",
+            "--consumer-artifact-id",
+            "artifact:cli-published-binding-consumer",
+            "--consumer-version",
+            "v4",
+            "--loop-evidence-id",
+            "cli-publish-consumer-loop",
+            "--timestamp",
+            "2026-06-22T18:30:00+08:00",
+            "--guide-context",
+            "cli-publish-consumer-test",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "evidence-publish-to-consumer-closure"
+    assert payload["publish_result"]["artifact_id"] == "artifact:cli-published-binding"
+    assert payload["consumer_seed_result"]["binding_artifact_ids"] == [
+        "artifact:cli-published-binding",
+    ]
+    assert payload["consumer_seed_result"]["binding_artifact_versions"] == ["v3"]
+    assert payload["closure_summary"]["consumer_references_published_artifact"] is True
+    assert payload["closure_summary"]["lifecycle_state"] == "consumed"
+    assert payload["closure_summary"]["binding_summary_ok"] is True
+    assert payload["closure_summary"]["loop_evidence_id"] == "cli-publish-consumer-loop"
+    assert payload["closure_summary"]["host_evidence_card_count"] == 2
+    assert payload["authority_split"]["binding_evidence_written"] is True
+    assert payload["authority_split"]["binding_artifact_published"] is True
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["agent_home_directory_created"] is False
+    assert payload["authority_split"]["scratch_directories_created"] is False
+    assert payload["authority_split"]["scratch_manifest_written"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert (
+        project / ".codex" / "scheduler" / "evidence" / "cli-publish-binding.json"
+    ).exists()
+    assert (
+        project
+        / ".codex"
+        / "scheduler"
+        / "evidence"
+        / "cli-publish-consumer-loop.json"
+    ).exists()
+    assert not (project / ".codex" / "scratch").exists()
+    assert not (project / ".codex" / "agents").exists()
     assert not (
         project / ".codex" / "progress-graph" / "local-work-trajectory.json"
     ).exists()

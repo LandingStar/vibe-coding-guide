@@ -1,1133 +1,328 @@
-# 项目总清单与状态板
+# Project Master Checklist
 
-## 文档定位
+## Purpose
 
-本文件是 `doc-based-coding-platform` 的总入口、状态板与协作恢复入口。
+This file is the short recovery/status entry for the current repository. It is
+intended to stay small enough for agents to read after context compression.
 
-若当前对话、workspace 现实状态与其他文档冲突，优先级应为：
+The full historical checklist was archived on 2026-06-22:
 
-1. 用户在最新对话中的明确决定
-2. 当前 workspace 的现实状态
-3. 正式设计文档与协议文档
-4. 当前 active handoff
+- `design_docs/history/Project Master Checklist Archive 2026-06-22.md`
 
-## 当前快照
+Use that archive only when historical traceability is needed. Do not re-expand
+this file into a full project timeline.
 
-- Snapshot Date: `2026-06-22`
+## Authority And Conflict Order
+
+If repository documents disagree, use this order:
+
+1. The user's latest explicit decision
+2. Current workspace reality
+3. Formal docs and protocol documents under `docs/` and `design_docs/tooling/`
+4. Active planning gate / active direction analysis
+5. Current checkpoint and handoff
+6. This checklist as a compact status index
+7. Archived historical records
+
+## Current Snapshot
+
+- Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 — Agent orchestration / supervisor storage binding artifact publish surface completed`
-- Active Slice: `(none; Supervisor Storage Binding Artifact Publish Surface completed)`
-- Latest Completed Slice: `Supervisor Storage Binding Artifact Publish Surface`
-- Safe Stop Status: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- Test Baseline: VS Code extension build passed; Electron provisioning test `4 passed`; Electron runner executable resolution test `3 passed`; Progress Graph Preview panel test `11 passed`; provisioning dry-run passed without download; explicit provisioning for VS Code `1.93.1` passed; Electron smoke passed with repo-local executable; rendered evidence summary confirmed `panelVisible=true`, scheduler root/payload present, `lanes=4`, `events=6`, `relations=12`; screenshot sanity check passed (`1600x1000`, `sampled_unique_colors=38`). Release script now includes a pre-provisioned Electron smoke gate by default; focused release tests `26 passed`, Electron provisioning test `4 passed`, Electron runner test `3 passed`, release dry-run and skip dry-run passed, release smoke preflight/summary helper passed. Full release run `.\.venv\Scripts\python.exe scripts/release.py --no-isolation` passed after refreshing official instance pack lock: full pytest `1754 passed, 3 skipped`, VSIX packaged, Electron smoke release gate `PASSED`, and `release/doc-based-coding-v0.9.8.zip` regenerated. Scheduler event-log compaction focused validation passed: compaction/replay focused pytest `17 passed`, full runtime orchestration pytest `185 passed`. Background scheduler daemon lifecycle focused validation passed: lifecycle/daemon-loop focused pytest `16 passed`, full runtime orchestration pytest `191 passed`. Scheduler lifecycle CLI/MCP surface validation passed: py_compile passed; focused CLI `2 passed`; focused tracked MCP admission `2 passed`; scheduler MCP prompt `1 passed`; wider CLI `34 passed`, tracked MCP admission `5 passed`, runtime orchestration `191 passed`, doc-loop prompts `20 passed`. Edit lease conflict classifier validation passed: py_compile passed; focused runtime classifier/admission tests `9 passed`; full runtime orchestration `198 passed`. Write-back enforcement unification validation passed: py_compile passed; focused write-back lease evidence tests `5 passed`; full runtime orchestration `198 passed`. Git worktree sandbox provider spike validation passed: py_compile passed; focused sandbox/preflight tests `13 passed, 206 deselected`; full runtime orchestration `219 passed`. Git worktree receipt readback validation passed: py_compile passed; focused readback/worktree tests `12 passed, 211 deselected`; full runtime orchestration `223 passed`. Durable sandbox allocation receipt evidence validation passed: py_compile passed; focused durable evidence/readback tests `14 passed, 212 deselected`; full runtime orchestration `226 passed`. Controlled host run opt-in provider wiring validation passed: py_compile passed; focused host/git/evidence tests `15 passed, 213 deselected`; full runtime orchestration `228 passed`. Cleanup policy runner over durable receipts validation passed: py_compile passed; focused cleanup/evidence/git-worktree tests `16 passed, 215 deselected`; wider cleanup/evidence/readback/host/git tests `21 passed, 210 deselected`; full runtime orchestration `230 passed`. Cleanup runner CLI/MCP surface validation passed: py_compile passed; CLI cleanup focused `3 passed, 34 deselected`; MCP cleanup focused `2 passed, 6 deselected`; runtime cleanup/evidence/git focused `16 passed, 215 deselected`; full CLI `37 passed`; full tracked MCP admission `8 passed`; full runtime orchestration `231 passed`; full MCP tools `86 passed`. Host UX cleanup evidence readback linkage validation passed: py_compile passed; focused progress graph cleanup readback `3 passed, 65 deselected`; focused MCP host-evidence resource `4 passed, 24 deselected`; wider host evidence readback `8 passed, 59 deselected` and `7 passed, 21 deselected`; VS Code extension build passed; HTML test `16 passed`; panel test `11 passed`; screenshot artifacts `output/playwright/host-evidence-ui/cleanup-evidence-panel.png` and `output/playwright/host-evidence-ui/cleanup-evidence-panel-element.png`. Daemon loop git-worktree opt-in validation passed: py_compile passed; focused daemon-loop git-worktree tests `2 passed, 231 deselected`; focused daemon-loop regression `7 passed, 226 deselected`. Host workflow allocate-read-cleanup-read validation passed: py_compile passed; focused workflow tests `3 passed, 233 deselected`; adjacent host/git/workflow regression `7 passed, 229 deselected`; focused Host Evidence cleanup readback regression `2 passed, 66 deselected`; full runtime orchestration `236 passed`. Host sandbox receipt workflow CLI/MCP surface validation passed: py_compile passed; focused CLI workflow tests `3 passed, 37 deselected`; focused MCP workflow tests `2 passed, 8 deselected`; scheduler CLI focused regression `33 passed, 7 deselected`; full MCP admission `10 passed`; full MCP tools `86 passed`. Host UX sandbox receipt workflow selection validation passed: VS Code extension build passed; focused Scheduler Operator / Progress Graph Preview node tests `32 passed`; CLI cleanup focused pytest `3 passed, 37 deselected`; Host Evidence cleanup readback focused pytest `2 passed, 66 deselected`; screenshot artifact `output/playwright/host-ux-sandbox-receipt-workflow/host-ux-cleanup-fixture.png`.
-- Latest Validation: Host UX sandbox receipt evidence discovery passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `33 passed`; CLI cleanup focused pytest `3 passed, 37 deselected`; Host Evidence cleanup readback focused pytest `2 passed, 66 deselected`; screenshot artifact `output/playwright/host-ux-sandbox-receipt-evidence-discovery/receipt-evidence-discovery.png`.
-- Latest Validation: Host UX full sandbox receipt workflow mode passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `36 passed`; CLI sandbox receipt workflow focused pytest `3 passed, 37 deselected`; runtime host sandbox receipt workflow focused pytest `3 passed, 233 deselected`; screenshot artifact `output/playwright/host-ux-full-sandbox-receipt-workflow-mode/workflow-mode.png`.
-- Latest Validation: Host UX daemon-loop sandbox receipt workflow mode passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `38 passed`; CLI sandbox receipt workflow focused pytest `3 passed, 37 deselected`; runtime host sandbox receipt workflow focused pytest `3 passed, 233 deselected`; MCP sandbox receipt workflow focused pytest `2 passed, 8 deselected`; screenshot artifact `output/playwright/host-ux-daemon-loop-sandbox-receipt-workflow-mode/daemon-loop-workflow-mode.png`.
-- Latest Validation: Host UX cleanup outcome diff sandbox receipt workflow passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `39 passed`; screenshot artifact `output/playwright/host-ux-cleanup-outcome-diff-sandbox-receipt-workflow/cleanup-outcome-diff.png`.
-- Latest Validation: Host UX evidence-aware workflow defaults sandbox receipt workflow passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `39 passed`; screenshot artifacts `output/playwright/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow/workflow-defaults.png` and `output/playwright/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow/workflow-defaults-candidate.png`.
-- Latest Validation: Host-managed scheduler daemon process harness passed py_compile for `scheduler_daemon_harness.py`, orchestration exports, and CLI; focused runtime lifecycle/harness tests `11 passed, 230 deselected`; focused CLI lifecycle tests `3 passed, 38 deselected`.
-- Latest Validation: Scheduler harness retry/deadline/cancellation policy passed py_compile for `scheduler_daemon_harness.py`, orchestration exports, and CLI; focused runtime lifecycle/harness tests `15 passed, 230 deselected`; focused CLI lifecycle tests `4 passed, 38 deselected`; wider runtime scheduler daemon/lifecycle/loop-evidence tests `32 passed, 213 deselected`; wider CLI scheduler lifecycle/daemon-loop/help tests `8 passed, 34 deselected`.
-- Latest Validation: Scheduler harness policy MCP surface passed py_compile for MCP tools/server; focused MCP lifecycle tests `4 passed, 8 deselected`; scheduler prompt focused tests `2 passed, 18 deselected`; full MCP admission tests `12 passed`; full MCP tools tests `86 passed`; combined MCP admission + doc-loop prompts `32 passed`; focused runtime lifecycle/harness regression `15 passed, 230 deselected`.
-- Latest Validation: Host-managed daemon supervisor contract passed py_compile for `scheduler_daemon_supervisor.py` and orchestration exports; focused supervisor tests `4 passed, 245 deselected`; adjacent supervisor/harness/lifecycle regression `19 passed, 230 deselected`; full runtime orchestration `249 passed`.
-- Latest Validation: Daemon supervisor CLI/MCP surface passed py_compile for CLI/MCP/supervisor files; focused CLI lifecycle tests `5 passed, 38 deselected`; focused MCP lifecycle/supervisor tests `5 passed, 8 deselected`; scheduler prompt focused tests `2 passed, 18 deselected`; full MCP admission tests `13 passed`; full MCP tools tests `86 passed`; focused runtime supervisor/harness/lifecycle regression `19 passed, 230 deselected`; full CLI tests `43 passed`.
-- Latest Validation: Supervisor dogfood workflow passed py_compile for CLI/MCP/progress-graph workflow files; focused runtime workflow tests `2 passed, 249 deselected`; focused CLI workflow tests `2 passed, 43 deselected`; focused MCP lifecycle/supervisor tests `5 passed, 8 deselected`; scheduler prompt focused tests `2 passed, 18 deselected`; wider runtime supervisor/harness/lifecycle/workflow regression `21 passed, 230 deselected`; full CLI tests `45 passed`; full MCP admission tests `13 passed`; full MCP tools tests `86 passed`.
-- Latest Validation: Supervisor agent home session binding passed py_compile for `supervisor_storage_binding.py`, orchestration exports, progress-graph workflow helper, and focused tests; focused binding tests `2 passed, 251 deselected`; adjacent supervisor workflow/binding regression `4 passed, 249 deselected`; storage governance + supervisor binding regression `7 passed, 246 deselected`.
-- Latest Validation: Durable supervisor storage binding evidence passed py_compile for `supervisor_storage_binding_evidence.py`, orchestration exports, Host Evidence readback helper, and focused tests; focused runtime evidence/workflow/binding tests `6 passed, 249 deselected`; focused Host Evidence readback tests `3 passed, 66 deselected`; adjacent runtime evidence/readback regression `11 passed, 244 deselected`; adjacent Host Evidence bundle/presentation regression `9 passed, 60 deselected`.
-- Latest Validation: Supervisor storage binding ExchangeArtifact projection passed py_compile for `supervisor_storage_binding_evidence.py`, orchestration exports, and focused tests; focused runtime evidence/workflow/binding/projection tests `8 passed, 249 deselected`; adjacent runtime exchange/storage regression `14 passed, 243 deselected`; `git diff --check` passed; `analyze_changes` reported no impact nodes and no coupling alerts.
-- Latest Validation: Supervisor storage binding artifact admission readiness passed py_compile for `scheduler_submission.py`, orchestration exports, and focused tests; focused runtime binding-ref/evidence/admission tests `15 passed, 246 deselected`; adjacent runtime scheduler-submission/admission regression `17 passed, 244 deselected`; CLI admission/operator regression `10 passed, 35 deselected`; MCP admission regression `3 passed, 10 deselected`; `git diff --check` passed; `analyze_changes` reported no impact nodes and no coupling alerts.
-- Latest Validation: Supervisor storage binding reference inspection surface passed py_compile for runtime/CLI/MCP/prompt/test files; focused runtime binding inspection/admission regression `20 passed, 244 deselected`; CLI inspection/admission/operator regression `13 passed, 35 deselected`; MCP admission inspection regression `4 passed, 10 deselected`; MCP tools adjacent regression `13 passed, 73 deselected`; scheduler MCP prompt focused test passed; `git diff --check` passed; `analyze_changes` reported no impact nodes and one expected MCP tool registration coupling alert, satisfied by `src/mcp/server.py` schema/routing and MCP route tests.
-- Latest Validation: Operator workflow binding reference inspection step passed py_compile for operator workflow, admission ledger, CLI, MCP, and focused tests; focused runtime operator binding tests `3 passed, 264 deselected`; focused CLI operator binding test `1 passed, 48 deselected`; focused MCP operator binding test `1 passed, 14 deselected`; wider runtime operator/admission/binding regression `13 passed, 254 deselected`; wider CLI operator/inspection/admission regression `14 passed, 35 deselected`; wider MCP operator/inspection/admission regression `5 passed, 10 deselected`; scheduler MCP prompt focused test `1 passed, 19 deselected`.
-- Latest Validation: Admission ledger binding reference summary passed py_compile for admission ledger, scheduler submission, operator workflow, CLI, MCP, and focused tests; focused runtime ledger binding summary tests `3 passed, 267 deselected`; focused CLI inspect-admissions binding summary test `1 passed, 49 deselected`; focused MCP binding summary ledger test `1 passed, 15 deselected`; wider runtime ledger/admission/binding/operator regression `14 passed, 256 deselected`; wider CLI inspect/admit/operator regression `17 passed, 33 deselected`; wider MCP admit/inspect/operator regression `6 passed, 10 deselected`; scheduler MCP prompt focused test `1 passed, 19 deselected`.
-- Latest Validation: Supervisor storage binding consumer fixture passed py_compile for scheduler operator fixture, orchestration exports, CLI, MCP, and focused tests; focused runtime binding-consumer fixture tests `2 passed, 270 deselected`; focused CLI binding-consumer/help tests `2 passed, 49 deselected`; focused MCP binding-consumer fixture test `1 passed, 16 deselected`; wider runtime scheduler operator fixture/binding regression `11 passed, 261 deselected`; wider CLI seed/operator/binding/admission regression `9 passed, 42 deselected`; wider MCP operator/binding regression `5 passed, 12 deselected`; scheduler MCP prompt focused test `1 passed, 19 deselected`; `analyze_changes` reported no impact nodes and no coupling alerts.
-- Latest Validation: Exchange store binding admission summary projection passed py_compile for exchange store, admission ledger, fixture, CLI, MCP, and focused tests; focused runtime binding readiness/latest summary projection tests `2 passed, 272 deselected`; focused CLI exchange-artifacts bundle projection test `1 passed, 51 deselected`; focused MCP exchange-artifacts bundle/operator fixture tests `2 passed, 16 deselected`; wider runtime exchange store/binding regression `11 passed, 263 deselected`; wider CLI resource/operator/admission regression `6 passed, 46 deselected`; wider MCP operator/binding/resource regression `6 passed, 12 deselected`; `analyze_changes` reported no impact nodes and no coupling alerts.
-- Latest Validation: Host UX binding reference visibility passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `44 passed`; backend py_compile passed; focused CLI binding bundle/consumer tests `2 passed, 50 deselected`; focused MCP bundle/consumer tests `2 passed, 16 deselected`; screenshot artifact `output/playwright/host-ux-binding-reference-visibility/binding-reference-visibility.png` (`1400x2164`, sampled unique colors `23`); `analyze_changes` reported no impact nodes and no coupling alerts. Wide extension regression `node --test "dist/test/**/*.test.js"` had one pre-existing dirty `aiChatToolLoop.test.ts` prompt assertion failure outside this slice.
-- Latest Validation: ExchangeArtifact consumption lifecycle passed py_compile for exchange store, admission ledger, orchestration exports, CLI, MCP, and focused tests; focused runtime consumption tests `3 passed, 274 deselected`; focused CLI consumption/admission tests `2 passed, 51 deselected`; focused MCP consumption/route tests `2 passed, 17 deselected`; wider runtime exchange/admission/binding regression `22 passed, 255 deselected`; wider CLI admission/bundle/fixture regression `10 passed, 43 deselected`; wider MCP admission/bundle/binding regression `7 passed, 12 deselected`; full touched test files passed: runtime orchestration `277 passed`, CLI `53 passed`, MCP admission `19 passed`; `analyze_changes` reported no impact nodes and one expected MCP tools/server registration coupling alert, satisfied by `src/mcp/server.py` schema/routing and MCP route tests.
-- Latest Validation: Host UX consumed ExchangeArtifact operator flow passed py_compile for operator workflow, CLI, MCP, and focused tests; focused backend tests passed: runtime operator workflow `2 passed`, CLI operator workflow `2 passed`, MCP operator workflow `4 passed`; adjacent backend regression passed: runtime `22 passed, 256 deselected`, CLI `13 passed, 41 deselected`, MCP admission `8 passed, 11 deselected`; VS Code extension build passed; focused Scheduler Operator / Progress Graph Preview node tests `44 passed`; screenshot artifact `output/playwright/host-ux-consumed-exchange-artifact-operator-flow/consumed-exchange-artifact-operator-flow.png` (`1400x2865`, sampled unique colors `9`); `analyze_changes` reported no impact nodes and one expected MCP tools/server registration coupling alert, satisfied by `src/mcp/server.py` schema/routing and MCP route tests.
-- Latest Validation: Operator dogfood closure MCP surface passed py_compile for MCP tools/server/closure/tests; focused MCP closure tests `2 passed, 19 deselected`; adjacent MCP operator/bundle tests `7 passed, 14 deselected`; focused runtime closure tests `2 passed, 278 deselected`; focused CLI closure tests `2 passed, 54 deselected`; scheduler prompt tests `2 passed, 18 deselected`; `git diff --check` passed with Windows line-ending warnings only; `analyze_changes` reported no impact nodes and one expected MCP tools/server registration coupling alert, satisfied by `src/mcp/server.py` schema/routing and focused MCP route tests. `schedulerOperatorDogfoodClosure` now exposes the same deterministic fake-runtime closure product through Codex/MCP.
-- Latest Validation: Host UX operator dogfood closure control passed VS Code extension build; focused Scheduler Operator / Progress Graph Preview node tests `43 passed`; screenshot artifact `output/playwright/host-ux-operator-dogfood-closure-control/operator-dogfood-closure-control.png`; scoped `git diff --check` passed with Windows line-ending warnings only; `analyze_changes` reported no impact nodes and no coupling alerts. Scheduler Operator Host UX now invokes the shared `doc-based-coding scheduler operator-dogfood-closure` product and renders compact closure summary / authority split.
-- Latest Validation: Live Qoder runtime provider dogfood passed backend py_compile for `src/__main__.py`; focused Qoder CLI tests `7 passed`; scheduler prompt/provisioning focused tests `4 passed`; Qoder smoke/helper focused tests `6 passed`; Qoder runtime focused tests `31 passed`; combined Qoder regression `45 passed`; credential-safe readiness reported `sdk_importable=false`, `token_present=false`, `ready=false`, `authentication_failed`; readiness-negative `qoder smoke --no-initialize-snapshot` wrote no smoke snapshot/evidence/projection files; `git diff --check` passed with Windows line-ending warnings only; `analyze_changes` reported no impact nodes and no coupling alerts. `doc-based-coding qoder smoke` now delegates to the host-owned `run_host_owned_qoder_smoke()` helper while preserving fake-only scheduler/MCP boundaries.
-- Latest Direction Analysis: `design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md` is now the current scheduler/orchestration direction entry. It recommends an `Evidence Publish To Consumer Closure` slice that proves durable supervisor storage binding evidence can be published through the new surface and consumed by a scheduler task closure before entering real storage lifecycle or Host UX work; `design_docs/direction-candidates-after-phase-35.md` has the corresponding candidate index.
-- Latest Validation: Supervisor storage binding artifact publish surface passed py_compile for CLI/MCP/runtime exports; focused runtime publish tests `2 passed`; focused CLI publish/help tests `3 passed`; focused MCP publish route test `1 passed`; related CLI binding/operator regression `17 passed`; related MCP binding/operator regression `9 passed`; related runtime binding/operator/supervisor regression `33 passed`; scheduler MCP prompt focused test `1 passed`. `schedulerStorageBindingArtifactPublish` and CLI `doc-based-coding scheduler publish-storage-binding-artifact` now publish one durable supervisor storage binding evidence summary as a compact exact-version ExchangeArtifact without admitting tasks, running providers, creating agent home/scratch directories, embedding raw binding payloads, refreshing projection, or mutating Local Work Trajectory.
-- Latest Recommendation: `design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md` recommends `Evidence Publish To Consumer Closure` as the next narrow gate: compose supervisor dogfood workflow, durable binding evidence, publish surface, consuming scheduler submission, binding-ref inspection, exact admission, consumed marking, bounded fake loop, projection refresh, and Host Evidence readback. Real agent home/scratch directory lifecycle and Host UX binding visibility remain downstream candidates.
+- Current Phase: `Post-v1.0 - Agent orchestration / host-owned guide-worker provider wrapper completed`
+- Current Focus: `Select the next orchestration planning gate`
+- Latest Completed Planning Gate:
+  `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+- Latest Completed Slice: `Host-Owned Guide Worker Provider Execution Wrapper`
+- Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+- Last Checkpoint: `.codex/checkpoints/latest.md`
+  (may point to parked work; do not treat it as newer than this checklist)
 
-## 当前 Handoff Footprint
+## Current Recovery Read Order
 
-- handoff_id: `2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close`
-- source_path: `.codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md`
-- scope_key: `knowledge-graph-engine-progress-preview-integration`
-- created_at: `2026-06-02T10:16:21+08:00`
+Start with these files, in order:
 
-## 当前文档入口
+1. `design_docs/Project Master Checklist.md`
+2. `review/agent-communication-product-closure-2026-06-22.md`
+3. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+4. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+7. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+8. `design_docs/Global Phase Map and Current Position.md`
+9. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
-- `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`
-- `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md`
-- `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`
-- `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`
-- `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`
-- `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`
-- `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`
-- `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`
-- `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md`
-- `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md`
-- `design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md`
-- `design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md`
-- `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-cli.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md`
-- `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`
-- `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-host-evidence-binding.md`
-- `design_docs/stages/planning-gate/2026-06-19-host-injected-scheduler-daemon-loop.md`
-- `design_docs/stages/planning-gate/2026-06-19-host-loop-projection-workflow-polish.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-evidence-presentation-polish.md`
-- `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`
-- `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-admission-host-evidence-operator-workflow-ui.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-workflow-dogfood-fixture.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-unified-workflow-surface.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-multilane-dogfood-fixture.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-host-ux-unified-workflow-binding.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-extension-host-click-sequence-smoke.md`
-- `design_docs/stages/planning-gate/2026-06-19-scheduler-projection-readability-review.md`
-- `design_docs/stages/planning-gate/2026-06-19-extension-host-scheduler-projection-lifecycle-smoke.md`
-- `design_docs/stages/planning-gate/2026-06-19-electron-webview-runner-spike.md`
-- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-isolated-vscode-executable.md`
-- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-executable-provisioning-policy.md`
-- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-vscode-provisioning-automation.md`
-- `design_docs/stages/planning-gate/2026-06-20-electron-smoke-release-checklist-preprovisioned-gate.md`
-- `design_docs/stages/planning-gate/2026-06-20-scheduler-event-log-compaction-and-replay-hardening.md`
-- `design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md`
-- `design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md`
-- `design_docs/stages/planning-gate/2026-06-20-edit-lease-conflict-classifier-and-admission-evidence.md`
-- `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`
-- `design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`
-- `design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md`
-- `design_docs/stages/planning-gate/2026-06-21-durable-sandbox-allocation-receipt-evidence.md`
-- `design_docs/stages/planning-gate/2026-06-21-controlled-host-run-opt-in-provider-wiring.md`
-- `design_docs/stages/planning-gate/2026-06-21-cleanup-policy-runner-over-durable-receipts.md`
-- `design_docs/stages/planning-gate/2026-06-21-cleanup-runner-cli-mcp-surface.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md`
-- `design_docs/stages/planning-gate/2026-06-21-daemon-loop-git-worktree-opt-in.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-workflow-allocate-read-cleanup-read.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-ux-sandbox-receipt-workflow-selection.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md`
-- `design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md`
-- `design_docs/stages/planning-gate/2026-06-21-scheduler-harness-policy-mcp-surface.md`
-- `design_docs/stages/planning-gate/2026-06-21-host-managed-daemon-supervisor-contract.md`
-- `design_docs/stages/planning-gate/2026-06-21-daemon-supervisor-cli-mcp-surface.md`
-- `design_docs/stages/planning-gate/2026-06-21-supervisor-dogfood-workflow.md`
-- `design_docs/stages/planning-gate/2026-06-21-supervisor-agent-home-session-binding.md`
-- `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-evidence.md`
-- `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-exchange-artifact-projection.md`
-- `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-artifact-admission-readiness.md`
-- `review/controlled-host-runtime-dogfood-harness-2026-06-17.md`
-- `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`
-- `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`
-- `review/credentialed-live-qoder-smoke-2026-06-17.md`
-- `review/host-evidence-consumer-2026-06-18.md`
-- `review/host-evidence-mcp-resource-exposure-2026-06-18.md`
-- `review/cli-resource-inspection-for-host-evidence-2026-06-18.md`
-- `review/resource-error-isolation-for-host-evidence-2026-06-18.md`
-- `review/host-evidence-presentation-contract-2026-06-18.md`
-- `review/host-evidence-presentation-resource-exposure-2026-06-18.md`
-- `review/credentialed-live-qoder-rerun-over-presentation-resources-2026-06-18.md`
-- `review/qoder-host-provisioning-check-guide-2026-06-18.md`
-- `review/exchange-artifact-durable-store-foundation-2026-06-18.md`
-- `review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md`
-- `review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md`
-- `review/exchange-artifact-operator-admission-cli-2026-06-19.md`
-- `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`
-- `review/exchange-artifact-admission-ledger-2026-06-19.md`
-- `review/stored-artifact-mcp-admission-tool-2026-06-19.md`
-- `review/exchange-artifact-admission-state-projection-2026-06-19.md`
-- `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`
-- `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`
-- `review/scheduler-loop-host-evidence-binding-2026-06-19.md`
-- `review/host-injected-scheduler-daemon-loop-2026-06-19.md`
-- `review/host-loop-projection-workflow-polish-2026-06-19.md`
-- `review/scheduler-loop-evidence-presentation-polish-2026-06-19.md`
-- `review/host-loop-workflow-evidence-metadata-2026-06-19.md`
-- `review/host-evidence-ui-binding-2026-06-19.md`
-- `review/scheduler-admission-host-evidence-operator-workflow-ui-2026-06-19.md`
-- `review/scheduler-operator-workflow-dogfood-fixture-2026-06-19.md`
-- `review/scheduler-operator-unified-workflow-surface-2026-06-19.md`
-- `review/scheduler-operator-multilane-dogfood-fixture-2026-06-19.md`
-- `review/scheduler-operator-host-ux-unified-workflow-binding-2026-06-19.md`
-- `review/scheduler-operator-extension-host-click-sequence-smoke-2026-06-19.md`
-- `review/scheduler-projection-readability-review-2026-06-19.md`
-- `review/extension-host-scheduler-projection-lifecycle-smoke-2026-06-19.md`
-- `review/electron-webview-runner-spike-2026-06-19.md`
-- `review/electron-smoke-isolated-vscode-executable-2026-06-20.md`
-- `review/electron-smoke-vscode-executable-provisioning-policy-2026-06-20.md`
-- `review/electron-smoke-vscode-provisioning-automation-2026-06-20.md`
-- `review/electron-smoke-release-checklist-preprovisioned-gate-2026-06-20.md`
-- `review/scheduler-event-log-compaction-and-replay-hardening-2026-06-20.md`
-- `review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md`
-- `review/scheduler-daemon-lifecycle-cli-mcp-surface-2026-06-20.md`
-- `review/edit-lease-conflict-classifier-and-admission-evidence-2026-06-20.md`
-- `review/lease-and-sandbox-authorization-readback-2026-06-21.md`
-- `review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md`
-- `review/git-worktree-receipt-readback-and-cleanup-policy-2026-06-21.md`
-- `review/durable-sandbox-allocation-receipt-evidence-2026-06-21.md`
-- `review/controlled-host-run-opt-in-provider-wiring-2026-06-21.md`
-- `review/cleanup-policy-runner-over-durable-receipts-2026-06-21.md`
-- `review/cleanup-runner-cli-mcp-surface-2026-06-21.md`
-- `review/host-ux-cleanup-evidence-readback-linkage-2026-06-21.md`
-- `review/daemon-loop-git-worktree-opt-in-2026-06-21.md`
-- `review/host-workflow-allocate-read-cleanup-read-2026-06-21.md`
-- `review/host-sandbox-receipt-workflow-cli-mcp-surface-2026-06-21.md`
-- `review/host-ux-sandbox-receipt-workflow-selection-2026-06-21.md`
-- `review/host-managed-scheduler-daemon-process-harness-2026-06-21.md`
-- `review/scheduler-harness-retry-deadline-cancellation-policy-2026-06-21.md`
-- `review/scheduler-harness-policy-mcp-surface-2026-06-21.md`
-- `review/host-managed-daemon-supervisor-contract-2026-06-21.md`
-- `review/daemon-supervisor-cli-mcp-surface-2026-06-21.md`
-- `review/supervisor-dogfood-workflow-2026-06-21.md`
-- `review/supervisor-agent-home-session-binding-2026-06-21.md`
-- `review/supervisor-storage-binding-evidence-2026-06-21.md`
-- `review/supervisor-storage-binding-exchange-artifact-projection-2026-06-21.md`
-- `review/supervisor-storage-binding-artifact-admission-readiness-2026-06-21.md`
-- `design_docs/supervisor-agent-home-session-binding-followup-direction-analysis.md`
-- `design_docs/supervisor-storage-binding-evidence-followup-direction-analysis.md`
-- `design_docs/supervisor-storage-binding-exchange-artifact-projection-followup-direction-analysis.md`
-- `design_docs/supervisor-storage-binding-artifact-admission-readiness-followup-direction-analysis.md`
-- `design_docs/supervisor-storage-binding-artifact-publish-surface-followup-direction-analysis.md`
-- `design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md`
-- `design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`
-- `design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md`
-- `design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md`
-- `design_docs/controlled-host-run-opt-in-provider-wiring-followup-direction-analysis.md`
-- `design_docs/cleanup-policy-runner-over-durable-receipts-followup-direction-analysis.md`
-- `design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md`
-- `design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md`
-- `design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md`
-- `design_docs/host-workflow-allocate-read-cleanup-read-followup-direction-analysis.md`
-- `design_docs/host-sandbox-receipt-workflow-cli-mcp-surface-followup-direction-analysis.md`
-- `design_docs/host-ux-sandbox-receipt-workflow-selection-followup-direction-analysis.md`
-- `design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md`
-- `design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md`
-- `design_docs/scheduler-harness-policy-mcp-surface-followup-direction-analysis.md`
-- `design_docs/host-managed-daemon-supervisor-contract-followup-direction-analysis.md`
-- `design_docs/daemon-supervisor-cli-mcp-surface-followup-direction-analysis.md`
-- `design_docs/exchange-artifact-operator-admission-surface-direction-analysis.md`
-- `design_docs/exchange-artifact-operator-admission-followup-direction-analysis.md`
-- `design_docs/exchange-artifact-admission-after-workflow-polish-direction-analysis.md`
-- `design_docs/exchange-artifact-admission-ledger-followup-direction-analysis.md`
-- `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`
-- `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`
-- `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`
-- `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`
-- `design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md`
-- `design_docs/host-injected-scheduler-daemon-loop-followup-direction-analysis.md`
-- `design_docs/host-loop-projection-workflow-polish-followup-direction-analysis.md`
-- `design_docs/scheduler-loop-evidence-presentation-polish-followup-direction-analysis.md`
-- `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`
-- `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`
-- `design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md`
-- `design_docs/scheduler-operator-workflow-dogfood-fixture-followup-direction-analysis.md`
-- `design_docs/scheduler-operator-unified-workflow-surface-followup-direction-analysis.md`
-- `design_docs/scheduler-operator-multilane-dogfood-fixture-followup-direction-analysis.md`
-- `design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md`
-- `design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md`
-- `design_docs/scheduler-projection-readability-review-followup-direction-analysis.md`
-- `design_docs/extension-host-scheduler-projection-lifecycle-smoke-followup-direction-analysis.md`
-- `design_docs/electron-webview-runner-spike-followup-direction-analysis.md`
-- `design_docs/electron-smoke-isolated-vscode-executable-followup-direction-analysis.md`
-- `design_docs/electron-smoke-vscode-executable-provisioning-followup-direction-analysis.md`
-- `design_docs/electron-smoke-vscode-provisioning-automation-followup-direction-analysis.md`
-- `design_docs/electron-smoke-release-validation-promotion-direction-analysis.md`
-- `design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md`
-- `design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md`
-- `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`
-- `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`
-- `design_docs/host-evidence-consumer-followup-direction-analysis.md`
-- `design_docs/host-evidence-mcp-resource-exposure-followup-direction-analysis.md`
-- `design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md`
-- `design_docs/resource-error-isolation-for-host-evidence-followup-direction-analysis.md`
-- `design_docs/host-evidence-presentation-contract-followup-direction-analysis.md`
-- `design_docs/host-evidence-presentation-resource-exposure-followup-direction-analysis.md`
-- `design_docs/credentialed-live-qoder-rerun-over-presentation-resources-followup-direction-analysis.md`
-- `design_docs/qoder-host-provisioning-check-guide-followup-direction-analysis.md`
-- `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md`
-- `review/host-authorized-scheduler-runner-adapter-2026-06-17.md`
-- `design_docs/host-authorized-scheduler-runner-followup-direction-analysis.md`
-- `design_docs/agent-runtime-layering-and-orchestration-slice-plan.md`
+Historical recovery beyond this list should use:
+
+- `design_docs/history/Project Master Checklist Archive 2026-06-22.md`
+
+## Active Work
+
+### Checklist Recovery-Surface Optimization
+
+Status: `completed`
+
+Goal:
+
+- Keep this file as a compact recovery/status entry instead of a full history
+  log.
+- Make the latest user pivot, prepared guide-worker gate, and completed agent
+  communication closure visible without requiring agents to scan archived
+  history.
+- Keep stale checkpoint/handoff data discoverable but not stronger than the
+  latest user decision and current workspace reality.
+
+### Guide Worker Exchange Workflow Dogfood
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-23-guide-worker-exchange-workflow-dogfood.md`
+
+Goal:
+
+- Prove guide/worker use of the completed `ExchangeArtifact` communication
+  surfaces in one deterministic fake-runtime-safe workflow.
+
+Current implementation surface:
+
+- Runtime helper: `run_guide_worker_exchange_dogfood()`
+- CLI: `doc-based-coding scheduler guide-worker-exchange-dogfood`
+- First candidate type: `scheduler_submission_candidate`
+
+Validation:
+
+- Runtime helper focused test passed.
+- CLI focused test passed.
+- Agent communication runtime regression passed.
+- Focused adjacent CLI regression passed.
+- Scheduler MCP prompt tests passed.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+- `analyze_changes` returned no impact nodes and no coupling alerts.
+
+### Guide Worker Local Trajectory Orchestration MVP
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+
+Goal:
+
+- Implement the first scheduler-owned guide/worker workflow on one Local Work
+  Trajectory slice: guide creates concrete worker instructions, scheduler
+  admits worker tasks, and a finite cross-lane wave can run one ready worker
+  task per lane.
+
+Current implementation surface:
+
+- Runtime helper: `run_guide_worker_local_trajectory_orchestration()`
+- CLI: `doc-based-coding scheduler guide-worker-local-orchestration`
+- Parallelism contract: scheduling wave only; fake runtime still executes
+  sequentially inside the wave.
+
+Validation:
+
+- `py_compile` for helper/exports/CLI/tests passed.
+- Focused runtime/CLI tests passed: `3 passed, 359 deselected`.
+
+### Guide Worker Local Orchestration MCP Surface
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+
+Goal:
+
+- Expose the guide-worker local trajectory orchestration helper through Codex
+  MCP with structured `workerInstructions`, while keeping runtime execution
+  fake-only and preserving the distinction between scheduling waves and true
+  process parallelism.
+
+Current implementation surface:
+
+- Runtime parser: `guide_worker_instructions_from_sequence()`
+- MCP tool: `schedulerGuideWorkerLocalOrchestration`
+
+Validation:
+
+- `py_compile` for runtime/MCP/tests passed.
+- Focused MCP route tests passed: `4 passed, 22 deselected`.
+
+### Guide Worker Lane Wave Executor Contract
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+
+Goal:
+
+- Make guide-worker scheduling waves executable through a bounded, lane-distinct
+  wave executor that can invoke runtime adapters as one wave and merge results
+  back into scheduler state deterministically.
+
+Current implementation surface:
+
+- Runtime executor: `execute_guide_worker_parallel_wave()`
+- Result model: `GuideWorkerWaveExecutionResult`
+- MCP option: `waveExecutionMode`
+
+Validation:
+
+- `py_compile` for runtime/MCP/tests passed.
+- Focused runtime/MCP/CLI tests passed: `9 passed, 381 deselected`.
+
+### Guide Worker Provider Runtime Mapping
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+
+Goal:
+
+- Let guide-worker instructions map worker tasks to a requested runtime
+  provider, while keeping live provider execution behind host-authorized
+  injected registries and preserving MCP fake-only safeguards.
+
+Current implementation surface:
+
+- Instruction field: `worker_runtime_provider`
+- JSON/MCP alias: `workerRuntimeProvider`
+- Host-injected mock Qoder execution test over the existing wave executor
+
+Validation:
+
+- `py_compile` for runtime/MCP/tests passed.
+- Focused runtime/MCP/CLI tests passed: `11 passed, 381 deselected`.
+
+### Host-Owned Guide Worker Provider Execution Wrapper
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+
+Goal:
+
+- Provide a host-owned wrapper for provider-backed guide-worker lane waves while
+  keeping Codex MCP fake-only.
+
+Current implementation surface:
+
+- Host helper: `run_host_owned_guide_worker_provider_execution()`
+- CLI: `doc-based-coding qoder guide-worker-smoke`
+- Evidence product: `host_guide_worker_provider_execution_evidence`
+
+Validation:
+
+- `py_compile` for wrapper/runtime/CLI/tests passed.
+- Focused wrapper/CLI/runtime tests passed: `6 passed, 433 deselected`.
+- Related MCP/CLI/runtime regression passed: `16 passed, 378 deselected`.
+
+### Evidence Publish To Consumer Closure
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md`
+
+Goal:
+
+- Prove durable supervisor storage binding evidence can enter a downstream
+  scheduler consumer closure through the compact binding artifact publish
+  surface.
+
+Current implementation surface:
+
+- Runtime helper: `run_evidence_publish_to_consumer_closure()`
+- CLI: `doc-based-coding scheduler evidence-publish-consumer-closure`
+
+Validation:
+
+- Focused runtime/CLI closure tests passed: `4 passed, 363 deselected`.
+
+## Latest Completed Slice
+
+### Agent Communication Product Closure
+
+Status: `completed`
+
+Summary:
+
+- Closed the first artifact-centered agent communication product layer:
+  mailbox/history, reply/lifecycle, action candidates, dispositions, and
+  accepted-candidate consumers.
+- Exposed the surfaces through runtime helpers, CLI, MCP tools/resources, and
+  prompt/tool-audit docs.
+- Preserved the rule that text alone does not mutate scheduler/review/handoff/
+  merge/blocker state.
+
+Key docs:
+
+- `review/agent-communication-product-closure-2026-06-22.md`
 - `design_docs/agent-coordination-exchange-artifact-design-record.md`
-- `design_docs/qoder-runtime-adapter-requirements.md`
-- `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md`
-- `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`
-- `docs/starter-surface.md`
-- `docs/codex-entry-contract.md`
-- `docs/README.md`
-- `docs/host-interaction-model.md`
-- `docs/installation-guide.md`
-- `docs/qoder-host-provisioning-check-guide.md`
-- `docs/official-instance-doc-loop.md`
-- `design_docs/tooling/Document-Driven Workflow Standard.md`
-- `design_docs/tooling/Temporary Scratch and Stable Docs Standard.md`
-- `design_docs/tooling/Dual-Package Distribution Standard.md`
-- `design_docs/tooling/Backlog and Reserve Management Standard.md`
-- `design_docs/controlled-real-worker-payload-evidence-accumulation-direction-analysis.md`
-- `design_docs/dogfood-evidence-issue-feedback-integration-direction-analysis.md`
-- `design_docs/dogfood-evidence-issue-feedback-boundary.md`
-- `design_docs/dogfood-issue-promotion-feedback-packet-contract-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-16-dogfood-issue-promotion-feedback-packet-contract.md`
-- `design_docs/stages/planning-gate/2026-04-16-dogfood-evidence-issue-feedback-integration.md`
-- `design_docs/stages/planning-gate/2026-04-16-controlled-real-worker-payload-evidence-accumulation.md`
-- `review/controlled-real-worker-payload-evidence-accumulation-2026-04-16.md`
-- `design_docs/live-payload-rerun-followup-direction-analysis.md`
-- `design_docs/live-payload-rerun-verification-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-16-live-payload-rerun-verification.md`
-- `design_docs/stages/planning-gate/2026-04-16-real-worker-payload-adoption-judgment.md`
-- `review/live-payload-rerun-verification-2026-04-16.md`
-- `review/real-worker-payload-adoption-judgment-2026-04-16.md`
-- `design_docs/direction-candidates-after-phase-35.md`
-- `design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md`
-- `design_docs/orchestration-bridge-mvp-boundary-draft.md`
-- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice1-draft.md`
-- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice2-draft.md`
-- `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice3-draft.md`
-- `design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md`
-- `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`
-- `design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md`
-- `design_docs/project-progress-graph-interactive-control-surface-direction-analysis.md`
-- `design_docs/project-progress-graph-interactive-control-surface-slice1-draft.md`
-- `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md`
-- `design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md`
-- `design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md`
-- `design_docs/project-progress-v2-graph-library-selection-comparison.md`
-- `design_docs/project-progress-v2-graph-asset-boundary-draft.md`
-- `design_docs/project-progress-v2-graph-adapter-shape-draft.md`
-- `design_docs/project-progress-v2-graph-focused-validation-draft.md`
-- `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md`
-- `design_docs/project-progress-preview-freshness-signaling-and-workflow-polishing-slice1-draft.md`
-- `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`
-- `design_docs/project-progress-richer-interactive-preview-slice1-draft.md`
-- `design_docs/project-progress-graph-component-planning.md`
-- `design_docs/project-progress-graph-open-work-breakdown.md`
-- `design_docs/v0.9.5-preview-release-followup-direction-analysis.md`
-- `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md`
-- `design_docs/orchestration-bridge-daemon-contract-first-slice2-group-item-projection-draft.md`
-- `design_docs/orchestration-bridge-daemon-contract-first-slice2-work-item-rollup-draft.md`
-- `design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md`
-- `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`
-- `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md`
-- `design_docs/orchestration-bridge-contract-runtime-alignment-slice2-delivery-signal-backflow-draft.md`
-- `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md`
-- `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`
-- `design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md`
-- `design_docs/project-progress-companion-prose-projection-followup-direction-analysis.md`
-- `design_docs/project-progress-companion-prose-projection-slice1-draft.md`
-- `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`
-- `design_docs/release-close-handoff-current-refresh-hardening-slice1-draft.md`
-- `design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md`
-- `design_docs/project-progress-multi-graph-direction-analysis.md`
-- `design_docs/project-progress-multi-graph-foundation-followup-direction-analysis.md`
-- `design_docs/project-progress-multi-graph-slice1-draft.md`
-- `design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md`
-- `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`
-- `design_docs/orchestration-bridge-landing-dispatch-integration-direction-analysis.md`
-- `design_docs/orchestration-bridge-landing-dispatch-integration-slice1-draft.md`
-- `design_docs/workspace-parallel-task-orchestration-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-24-parallel-safe-subgraph-fanout-fanin.md`
-- `design_docs/host-interaction-surface-isolation-direction-analysis.md`
-- `design_docs/codex-independent-entry-contract-direction-analysis.md`
-- `design_docs/llmdoc-public-surface-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-23-codex-independent-entry-contract.md`
-- `design_docs/stages/planning-gate/2026-04-23-public-surface-convergence.md`
-- `design_docs/stages/planning-gate/2026-04-23-temporary-scratch-stable-docs-split.md`
-- `design_docs/stages/planning-gate/2026-04-23-host-interaction-surface-isolation.md`
-- `design_docs/dogfood-pipeline-workflow-integration-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-16-dogfood-pipeline-mcp-exposure.md`
-- `design_docs/overrides-field-consumption-direction-analysis.md`
-- `design_docs/hierarchical-pack-topology-direction-analysis.md`
-- `design_docs/phase-35-external-skill-interface-direction-analysis.md`
-- `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md`
-- `design_docs/stages/planning-gate/2026-04-13-ci-cd-build-release-automation.md`
-- `design_docs/stages/planning-gate/2026-04-13-pack-index-and-cli-management.md`
-- `design_docs/stages/planning-gate/2026-04-13-bl1-driver-responsibilities.md`
-- `design_docs/stages/planning-gate/2026-04-11-handoff-model-initiated-invocation.md`
-- `design_docs/stages/planning-gate/2026-04-11-mcp-pack-info-refresh-consistency.md`
-- `design_docs/stages/planning-gate/2026-04-11-strict-doc-loop-runtime-enforcement.md`
-- `design_docs/stages/planning-gate/2026-04-11-doc-loop-enforcement-and-mcp-client-neutrality.md`
-- `design_docs/stages/planning-gate/2026-04-11-installation-flow-documentation.md`
-- `design_docs/stages/planning-gate/2026-04-11-compatibility-metadata-and-version-declaration.md`
-- `design_docs/stages/planning-gate/2026-04-11-official-instance-validator-check-contract.md`
-- `design_docs/stages/planning-gate/2026-04-11-dual-package-minimal-install-implementation.md`
-- `design_docs/Global Phase Map and Current Position.md`
-- `design_docs/stages/planning-gate/2026-04-11-first-stable-release-closure.md`
-- `docs/first-stable-release-boundary.md`
-- `design_docs/stages/planning-gate/2026-04-11-error-recovery-entry-points.md`
-- `design_docs/stages/planning-gate/2026-04-11-structured-error-format.md`
-- `design_docs/stages/planning-gate/2026-04-11-v1-stable-release-confirmation.md`
-- `design_docs/stages/planning-gate/2026-04-11-dual-package-install-standard.md`
-- `design_docs/direction-candidates-after-phase-34.md`
-- `CHANGELOG.md`
-- `design_docs/dogfood-feedback-phase-27.md`
-- `design_docs/direction-candidates-after-phase-31.md`
-- `design_docs/phase-0-26-review.md`
-- `design_docs/stages/README.md`
-- `design_docs/tooling/README.md`
-- `.codex/handoffs/CURRENT.md`
+- `design_docs/agent-runtime-layering-and-orchestration-slice-plan.md`
 
-## 已确认决策
+Validation:
 
-- 本项目默认采用“生成/更新 doc 规划 -> 按 doc 实施 -> 结果回写 doc”的工作流。
-- 根目录 `docs/` 是当前仓库里关于平台与官方实例定位的最高权威来源。
-- `design_docs/` 现在主要承载状态板、planning/phase 文档与内部设计推导。
-- 重要设计节点默认必须先交用户审核，再进入下一大步。
-- handoff 只负责安全停点交接，不替代正式设计文档。
-- 本仓库已经开始使用自身产出的文档型成果作为默认控制面。
-- Pipeline / CLI / MCP / Instructions / project-local pack 等运行时入口在首个稳定 release 前保持 pre-release dogfood 定位，不作为所有切片的强制默认依赖。
+- `py_compile` for agent communication runtime/CLI/MCP/tests passed.
+- Focused product validation: `39 passed, 191 deselected`.
+- Wider related validation: `230 passed`.
+- `git diff --check`: no whitespace errors; Windows line-ending warnings only.
+- `analyze_changes`: MCP registration coupling was covered by server
+  schema/routing and route tests.
 
-## 当前待办与风险
+## Current Pending Todo
 
-> Phase 4–26 的详细完成记录已归档至 `design_docs/phase-0-26-review.md`。
+- [x] Finish this Checklist recovery-surface optimization pass.
+- [x] Align AGENTS/bootstrap/tooling guidance with the compact Checklist role.
+- [x] Finish focused and adjacent validation for
+  `Guide Worker Exchange Workflow Dogfood`.
+- [x] Open and complete the next narrow guide-worker orchestration planning
+  gate.
+- [x] Complete the guide-worker local orchestration MCP wrapper.
+- [x] Complete the fake/mock-validated lane wave executor contract.
+- [x] Complete provider runtime mapping for host-injected worker adapters.
+- [x] Complete host-owned guide-worker provider execution wrapper.
+- [x] Complete `Evidence Publish To Consumer Closure` and remove its parked
+  recovery branch from the current hot path.
+- [ ] Select the next narrow orchestration planning gate from the remaining
+  guide-policy / runtime-provider / UI-readback follow-up list.
 
-- [x] 2026-04-28：已完成 `design_docs/stages/planning-gate/2026-04-27-release-close-handoff-current-refresh-hardening.md`；release-close canonical handoff、`CURRENT.md`、Checklist、Phase Map 与 checkpoint 已统一到同一 handoff，progress graph artifacts 已按新状态面刷新
-- [x] 2026-04-28：已重新选定下一条 post-release 窄主线为 `companion prose projection recovery`
-- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`
-- [x] 2026-04-28：已创建 Slice 1 设计草案 `design_docs/project-progress-companion-prose-projection-slice1-draft.md`
-- [x] 2026-04-28：已完成 `design_docs/stages/planning-gate/2026-04-28-project-progress-companion-prose-projection.md`；`direction-candidates-global` 现已支持 pure companion prose sections、section-local companion nodes，以及 explicit actual-next-gate -> planning-gates-index linkage
-- [x] 2026-04-28：`tests/test_progress_graph_doc_projection.py` 已通过 companion prose targeted validation（3 passed），真实 `.codex/progress-graph/latest.json` / `.dot` / `.html` 已刷新
-- [x] 2026-04-28：已按未执行议案视角重审候选，并明确选择恢复 `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md`；当前 gate 已从 `PAUSED` 恢复为 `ACTIVE`
-- [x] 2026-04-28：已定稿 `design_docs/orchestration-bridge-landing-dispatch-integration-slice1-draft.md`；`build_landing_consumer_payload()`、handoff consumer protocol、`EscalationNotifier.notify()`、review-intake adapter 与 unified delivery result 的边界已固定
-- [x] 2026-04-28：`src/runtime/orchestration/landing_dispatch.py` 已落地最小 dispatch helper / protocol；`tests/test_runtime_orchestration_landing_dispatch.py` 与 `tests/test_runtime_orchestration_landing_consumers.py` 联合通过（8 passed）
-- [x] 2026-04-28：已把显式 handoff consumer 与 review-intake adapter 接到真实 owner surface：handoff 复用 executor handoff JSON 持久化语义，review_intake 复用 `FeedbackAPI.register()` pending review surface
-- [x] 2026-04-28：`tests/test_runtime_orchestration_landing_dispatch.py` 已补 owner-surface wiring 验证；当前与 `tests/test_runtime_orchestration_landing_consumers.py` 联合通过（10 passed）
-- [x] 2026-04-28：已扩大 landing dispatch 验证到 `tests/test_runtime_orchestration*.py` 相关 6 文件；orchestration 联合验证通过（30 passed）
-- [x] 2026-04-28：已完成 landing dispatch gate-close writeback；planning-gate 已关闭，follow-up direction analysis 与 direction candidates 已同步，safe-stop handoff / `CURRENT.md` / checkpoint / Checklist / Phase Map 已统一到同一 canonical handoff
-- [x] 2026-04-28：已从 `design_docs/orchestration-bridge-landing-dispatch-integration-followup-direction-analysis.md` 选定 Candidate 1 `thin orchestration bridge / daemon contract-first`
-- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md`
-- [x] 2026-04-28：已创建 Slice 1 草案 `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md`
-- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice1-draft.md` 固定 bridge-owned lifecycle / recovery boundary 与 governance-kernel / landing-dispatch ownership matrix
-- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice2-group-item-projection-draft.md` 定义 `GroupTerminalOutcome` / grouped review / writeback summary / landing dispatch result 的 group-item-first upward projection contract
-- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice2-work-item-rollup-draft.md` 定义 `BridgeWorkItem` 如何基于 group-item projection 做 deterministic roll-up 的 boundary-level contract
-- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-daemon-contract-first-slice3-stop-boundary-draft.md` 定义哪些 dominant roll-up 会推动 `waiting_external_resolution`、哪些只意味着继续等待
-- [x] 2026-04-28：已判断当前 docs-only gate 满足 close 条件，并将 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-daemon-contract-first.md` 切为 `COMPLETED`
-- [x] 2026-04-28：已创建 follow-up analysis `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md`
-- [x] 2026-04-28：已从 `design_docs/orchestration-bridge-daemon-contract-first-followup-direction-analysis.md` 选定 Candidate A `contract/runtime alignment over existing bridge surface`
-- [x] 2026-04-28：已创建并激活 `design_docs/stages/planning-gate/2026-04-28-orchestration-bridge-contract-runtime-alignment.md`
-- [x] 2026-04-28：已创建 Slice 1 草案 `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md`
-- [x] 2026-04-28：已在 `design_docs/orchestration-bridge-contract-runtime-alignment-slice1-draft.md` 建立 `models.py` / `projection.py` / `rollup.py` / `stop_conditions.py` / `landing.py` 的 contract/runtime 对齐清单
-- [x] 2026-04-28：已选定第一条 conformance edit：owner-facing delivery signal 是否需要最小回流到 bridge model surface
-- [x] 2026-04-28：已创建 Slice 2 草案 `design_docs/orchestration-bridge-contract-runtime-alignment-slice2-delivery-signal-backflow-draft.md`
-- [x] 2026-04-28：已决定最小 delivery signal 采用 group-item-first 落点：`models.py` 承载 compact signal，`projection.py` 负责归一化，`landing_dispatch.py` 保持 source-of-truth
-- [x] 2026-04-28：已把最小 delivery signal 收窄为 delivery family / delivery state / record clue / failure clue 四类 compact clue
-- [x] 2026-04-28：已决定最小代码接入方式为 `models.py` 增字段 + `projection.py` 独立 delivery projector，现有治理 projector 不混入 delivery kwargs
-- [x] 2026-04-28：已决定当前 Slice 2 暂不接 integration hook，先保持 isolated conformance surface
-- [x] 2026-04-28：已定义独立 delivery projector 的最小 contract
-- [x] 2026-04-28：已按该 contract 落最小代码实现并补 targeted tests；`tests/test_runtime_orchestration.py` 通过（10 passed）
-- [x] 2026-04-29：已判断当前 `orchestration-bridge-contract-runtime-alignment` gate 在内容面已满足 close 条件；当前 gate 仅因 follow-up direction analysis 与 safe-stop writeback bundle 尚未执行而继续保持 `ACTIVE`
-- [x] 2026-04-29：已确认此前 close 规则执行不精确的主要原因是本 gate 本地 `Stop condition` 未显式复写 safe-stop writeback bundle，且 `/memories/repo/project-state.md` 仍停留在“无 active planning gate”的过期状态
-- [x] 2026-04-29：已补 current-gate follow-up direction analysis，并同步 direction candidates / Phase Map / checkpoint / handoff bundle；`orchestration-bridge-contract-runtime-alignment` gate 已正式关闭
-- [x] 2026-04-29：已完成 `orchestration-bridge-contract-runtime-alignment` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-04-29_1925_orchestration-bridge-contract-runtime-alignment_stage-close`，当前仓库重新回到无 active planning-gate 状态
-- [x] 2026-04-29：已从 `design_docs/orchestration-bridge-contract-runtime-alignment-followup-direction-analysis.md` 选定 Candidate A `delivery signal integration hook over existing bridge surface`
-- [x] 2026-04-29：已创建并激活 `design_docs/stages/planning-gate/2026-04-29-orchestration-bridge-delivery-signal-integration-hook.md`
-- [x] 2026-04-29：已创建 Slice 1 草案 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice1-draft.md`
-- [x] 2026-04-30：已创建 Slice 2 / Slice 3 草案 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice2-draft.md` 与 `design_docs/orchestration-bridge-delivery-signal-integration-hook-slice3-draft.md`
-- [x] 2026-04-30：已在 `src/runtime/orchestration/landing.py` 落地最小 post-dispatch overlay helper `overlay_delivery_dispatch_result(...)`，并在 `tests/test_runtime_orchestration_landing_dispatch.py` 完成 focused validation（9 passed）
-- [x] 2026-04-30：`design_docs/orchestration-bridge-mvp-boundary-draft.md` 已确认 bridge MVP 的四个 completion signals 全部成立，bridge MVP 技术验收条件满足
-- [x] 2026-04-30：已完成 `orchestration-bridge-delivery-signal-integration-hook` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-04-30_1818_orchestration-bridge-delivery-signal-integration-hook_stage-close`，当前仓库重新回到无 active planning-gate 状态
-- [x] 2026-04-30：已创建 `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md`，当前默认回到 graph 用户交互候选面，推荐 Candidate A `richer interactive preview over current export surface`
-- [x] 2026-04-30：已从 `design_docs/project-progress-user-interaction-after-bridge-mvp-direction-analysis.md` 选定 Candidate A `richer interactive preview over current export surface`
-- [x] 2026-04-30：已创建并激活 `design_docs/stages/planning-gate/2026-04-30-project-progress-richer-interactive-preview-over-current-export-surface.md`
-- [x] 2026-04-30：已创建 Slice 1 草案 `design_docs/project-progress-richer-interactive-preview-slice1-draft.md`，当前第一刀收窄为 graph-local filter / node detail / focused reveal，不重开 projection、freshness signaling 或 handoff/safe-stop coverage
-- [x] 2026-05-03：已完成 `project-progress-richer-interactive-preview-over-current-export-surface` gate-close writeback；planning-gate 已关闭，canonical handoff / `CURRENT.md` / Checklist / Phase Map / checkpoint 已统一到 `2026-05-03_1210_project-progress-richer-interactive-preview-over-current-export-surface_stage-close`，`design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md` 与 `design_docs/direction-candidates-after-phase-35.md` 已固定 close 后的下一步候选，当前仓库重新回到无 active planning-gate 状态
-- [x] 2026-05-03：已从 `design_docs/project-progress-richer-interactive-preview-followup-direction-analysis.md` 选定 Candidate A `preview freshness signaling and workflow polishing`
-- [x] 2026-05-03：已创建并激活 `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md`
-- [x] 2026-05-03：已创建 Slice 1 草案 `design_docs/project-progress-preview-freshness-signaling-and-workflow-polishing-slice1-draft.md`，当前第一刀收窄为 stale hint、dirty badge、refresh-state 与 artifact freshness 可见性，不进入 watcher / auto-refresh、compound node 或 source coverage 扩面
-- [x] 2026-05-05：Candidate A 已启动 Slice 2 实装；`vscode-extension/src/views/progressGraphPreview.ts` 不再让 raw `latest.html` 直接绕开宿主 shell，当前最小 host wrapper / chrome 已接入 artifact mtime、last-loaded time 与 refresh lifecycle，可表达 `fresh` / `stale` / `refreshing` / `failed` / `missing` 五类 freshness state，且 `npm run build` 已通过
-- [x] 2026-05-05：当前已确认 Candidate A 的承载策略：在 UX 彻底稳定接管前，继续保持原始 HTML 与宿主 UX 并行；raw `latest.html` 仍是 graph 主内容，host shell 只并行提供 freshness / refresh-state 与操作入口
-- [x] 2026-05-06：已补 `missing` / `stale` / `failed` 三类 freshness helper 的可执行 Node spot check，当前 freshness signaling gate 满足收口条件
-- [x] 2026-05-06：已完成 `design_docs/stages/planning-gate/2026-05-03-project-progress-preview-freshness-signaling-and-workflow-polishing.md` 的 close writeback，当前该 gate 已关闭
-- [x] 2026-05-06：已创建并激活 `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md`
-- [x] 2026-05-06：已创建 Slice 1 草案 `design_docs/project-progress-graph-interactive-control-surface-slice1-draft.md`，当前第一刀收窄为 read-only control overlay + orchestration compact snapshot contract，不进入 direct mutation controls 或 daemon persistence
-- [x] 2026-05-06：已继续完成当前 active gate 的 contract-only groundwork：`design_docs/project-progress-graph-interactive-control-surface-snapshot-schema-draft.md`、`design_docs/project-progress-graph-interactive-control-surface-slice2-projection-helper-contract-draft.md`、`design_docs/project-progress-graph-interactive-control-surface-slice2-graph-binding-contract-draft.md` 与 `design_docs/project-progress-graph-interactive-control-surface-slice3-overlay-consumer-surface-draft.md` 已收口 snapshot schema、projection helper、graph binding 与 read-only overlay consumer 四层 contract；当前下一窄切口已转为最小代码骨架，而不再继续扩 contract 文档
-- [x] 2026-05-06：当前 active gate 已继续进入最小代码骨架实现：`tools/progress_graph/control_snapshot.py` / `tools/progress_graph/control_binding.py` 已落地，`vscode-extension/src/views/progressGraphArtifacts.ts` 已把 `control-snapshot.json` 接入真实 regenerate pipeline，且 `vscode-extension/src/views/progressGraphPreview.ts` 已能消费该 artifact；随后 `write_control_snapshot(...)` 的默认 source 已进一步接到当前 `.codex/checkpoints/latest.md` + active planning-gate，使 workspace 中的 `control-snapshot.json` 不再是空壳，而是 active gate + open todo 的最小非空 bridge 观察面。此后 `vscode-extension/src/views/progressGraphPreviewHtml.ts` 与 `vscode-extension/src/test/progressGraphPreviewHtml.test.ts` 又已完成 focused host spot check，当前下一窄切口转为最小 source coverage，而不是继续停留在空 snapshot 入口或宿主壳层占位
-- [x] 2026-05-06：已把 persisted current handoff mirror `.codex/handoffs/CURRENT.md` 接入 `write_control_snapshot(...)` fallback；当前 handoff 已作为 completed work item + delivered handoff row 进入 unbound runtime panel，`tests/test_progress_graph_control_snapshot.py` 现通过（8 passed），实际 `.codex/progress-graph/control-snapshot.json` 也已刷新到包含 active planning-gate、open checkpoint todo 与 current handoff persisted source 的状态
-- [x] 2026-05-06：已完成 escalation source 调研收口：当前 `review_intake` 仍只落到 `FeedbackAPI` in-memory surface；escalation 当前只有 `EscalationNotifier.notify()` contract 与可选 `FileNotifier` utility，没有默认 wiring、默认输出目录或现成 JSON artifact，因此不在当前 active gate 内伪造新的 persisted source；相关 future slice 已记录到 `design_docs/stages/planning-gate/2026-05-06-escalation-notification-persisted-surface-contract.md`
-- [x] 2026-05-07：已把 `design_docs/stages/planning-gate/2026-05-06-project-progress-graph-interactive-control-surface.md` 暂停在 stable baseline，并按用户采纳切出 V2 并行展示线；`design_docs/stages/planning-gate/2026-05-07-parallel-v2-graph-renderer-and-library-selection.md` 已完成 docs-first 收口，当前最窄执行线已切到 `design_docs/stages/planning-gate/2026-05-07-sigma-graphology-v2-graph-view-poc.md`
-- [x] 2026-05-07：Sigma.js + Graphology V2 graph-view PoC 已直接接入现有 VS Code preview：`vscode-extension/src/views/progressGraphPreview.ts` 现从 `.codex/progress-graph/latest.json` 选图构建 V2 payload，`vscode-extension/src/views/progressGraphPreviewHtml.ts` 已注入并行 V2 section，`vscode-extension/src/webviews/progressGraphV2PoC.ts` 已实现 Sigma.js + Graphology + ForceAtlas2 的浏览器侧 graph-view，`vscode-extension/esbuild.config.mjs` 已改为双构建，依赖已写入 `vscode-extension/package.json`
-- [x] 2026-05-07：当前 focused validation 已通过：`npm run build` 成功、`vscode-extension/src/test/progressGraphPreviewHtml.test.ts` 已补 V2 shell 注入断言并通过、关键入口文件 diagnostics clean
-- [x] 2026-05-07：已完成真实 VS Code 宿主视觉 spot check；此前暴露的 edge=0、Sigma `x/y` 初始化错误与 `project-checklist-current` 零边问题已修复，当前用户验证已确认边可见且无 `x/y` 报错
-- [x] 2026-05-07：已把当前 PoC 的图感微调推进到可见实现态；`vscode-extension/src/webviews/progressGraphV2PoC.ts` 现已接入 idle label anchors、click-to-focus camera follow，以及 semantic-band seed + ForceAtlas2 cloud tuning；`npm run build` 与关键 diagnostics 持续通过
-- [x] 2026-05-08：已在 `vscode-extension/src/views/progressGraphPreviewHtml.ts` + `vscode-extension/src/webviews/progressGraphV2PoC.ts` 接入最小 Obsidian-ish Graph Config：外观滑杆、力度滑杆与 query-based 颜色组均已可用，且配置会通过 webview state 保留
-- [x] 2026-05-08：已完成当前配置面的 focused validation：`npm run build` 通过，`vscode-extension/src/views/progressGraphPreviewHtml.ts` 的 in-memory helper validation 通过，相关 diagnostics clean；现有 `vscode-extension/package.json` 的 `npm test` 入口仍指向缺失的 `dist/test/runTest.js`，暂未在本切片内修复
-- [x] 2026-05-08：已补做 Obsidian 颜色组语义对齐调研并落实到实现：官方 Graph 文档确认 Groups 只包含 `search term + color`，且查询直接复用 Search；公开讨论与版本线索显示颜色组顺序影响优先级，首个匹配组获胜，因此当前实现已补入 Search 风格核心语法与颜色组顺序调整
-- [x] 2026-05-09：G6 graph-view 当前交互收口已成立：`vscode-extension/src/webviews/progressGraphV2G6.ts` 现已把 hover / selected 高亮切到 G6 element state，修复了 hover / click / node-scale 相关 shrink 回归，selected 相对 hover 的确认感已单独拉开，节点标签也已切到深色可读文案；真实 VS Code 宿主 spot check 已确认当前图面闭环成立
+## Write Rules For This File
 
-### 活跃待办
+Keep this file short:
 
-- [x] 首个稳定 release 收口：定义默认自用入口的稳定条件 — `docs/first-stable-release-boundary.md`
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-dual-package-minimal-install-implementation.md` 落地双发行包最小可安装实现
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-official-instance-validator-check-contract.md` 收口官方实例 validator/check 契约边界
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-compatibility-metadata-and-version-declaration.md` 收口兼容元数据与版本声明
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-installation-flow-documentation.md` 固定安装流程说明与 MCP 安装态接入文档
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-doc-loop-enforcement-and-mcp-client-neutrality.md` 修补严格 doc-loop 执行缺口与 MCP 客户端中立表述
-- [x] post-v1.0：评估是否进入 strict doc-loop runtime enforcement 切片
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-strict-doc-loop-runtime-enforcement.md` 收口 runtime 可审计的 doc-loop 约束边界
-- [x] post-v1.0：评估是否进入 MCP pack info 刷新一致性切片
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-mcp-pack-info-refresh-consistency.md` 修复长生命周期 MCP pack state 刷新一致性
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-11-handoff-model-initiated-invocation.md` 收口 handoff model 主动调用与 blocked 停止语义
-- [x] post-v1.0：在当前安全停点生成 handoff
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-conversation-progression-contract-stability.md` 收口“非用户许可不终止 + 选择/审批时以提问推进”的稳定行为支架
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-safe-stop-writeback-bundle.md` 将 safe-stop writeback 收口为 bundle 能力，使 handoff generation / `CURRENT.md` refresh / Checklist / Phase Map / direction / checkpoint 同步成为 first-class workflow contract（crucial）
-- [x] post-v1.0：完成与当前项目和具体 skill 解耦的通用外部 skill 交互接口方向分析（首个目标可围绕当前 handoff skill）
-- [x] post-v1.0：按 `design_docs/phase-35-external-skill-interface-direction-analysis.md` 的边界起草 H planning-gate，并将 `authority -> shipped copies` 作为 companion mechanism 收口
-- [x] post-v1.0：按 `design_docs/stages/planning-gate/2026-04-12-external-skill-interaction-interface.md` 收口通用外部 skill 交互接口能力，并将 `authority -> shipped copies` 作为 companion mechanism 落地
-- [x] post-v1.0：记录 driver 与外部 skill 交互标准 / 接口 / 留空转接层，以及本轮其余 skill 特化后续项（暂不实现）— 已结构化记录为 `design_docs/direction-candidates-after-phase-35.md` §Driver / Adapter / 转接层 Backlog（BL-1 / BL-2 / BL-3）
-- [x] 2026-04-26：用户提出 `project progress multi-graph` 新主线后，原 `design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 已按 scope interrupt 标记为 `PAUSED`
-- [x] 2026-04-26：已完成 `design_docs/project-progress-multi-graph-direction-analysis.md` 与 `design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md`
-- [x] 2026-04-26：`tools/progress_graph/model.py` / `tools/progress_graph/query.py` foundation 已落地，`tests/test_progress_graph.py` targeted validation 通过（6 passed）
-- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-doc-loop-projection-and-snapshot-persistence.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-doc-loop-projection-slice1-draft.md`
-- [x] 2026-04-26：已完成 doc-loop projection and snapshot persistence，checkpoint / planning-gate / checklist 已可投影成真实 progress snapshot，`.codex/progress-graph/latest.json` 已写出
-- [x] 2026-04-26：已评估并进入 `user-facing graph export surface`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-user-facing-graph-export-surface.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-export-surface-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/export.py` 已落地 graph-level / history-level export helper，`tests/test_progress_graph_export.py` targeted validation 通过（3 passed）
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-export-surface-followup-direction-analysis.md`
-- [x] 2026-04-26：已评估并进入 `static renderer / preview consumer over export surface`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-graphviz-preview-consumer.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-graphviz-preview-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/graphviz.py` 已落地 DOT preview writer，`tests/test_progress_graph_graphviz.py` targeted validation 通过（3 passed），真实 artifact `.codex/progress-graph/latest.dot` 已写出
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-graphviz-preview-followup-direction-analysis.md`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-html-preview-consumer.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-html-preview-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/html_preview.py` 已落地自包含 HTML preview writer，`tests/test_progress_graph_html_preview.py` targeted validation 通过（3 passed），真实 artifact `.codex/progress-graph/latest.html` 已写出
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-html-preview-followup-direction-analysis.md`
-- [x] 2026-04-26：已评估并进入 `doc source enrichment and linkage refinement`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-phase-map-current-position-projection.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-phase-map-projection-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `phase-map-current-position` graph 与 phase-map entry -> planning-gate 最小 linkage，`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed），`progress_graph` 全套验证通过（17 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 phase-map graph 刷新
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-phase-map-projection-followup-direction-analysis.md`
-- [x] 2026-04-26：已评估并进入 `direction-analysis candidate projection`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-direction-analysis-candidate-projection.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-direction-analysis-candidate-projection-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `direction-analysis-current` graph，并从 `design_docs/Project Master Checklist.md` 解析当前 `project-progress` follow-up analysis source path；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-direction-analysis-candidate-projection-followup-direction-analysis.md`
-- [x] 2026-04-26：已评估并进入 `global direction-candidates aggregation`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-global-direction-candidates-aggregation.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-global-direction-candidates-aggregation-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `direction-candidates-global` graph，并把 `design_docs/direction-candidates-after-phase-35.md` 中 `project progress` sections 投影成 section + candidate nodes；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 `direction-candidates-global` graph 刷新
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-global-direction-candidates-aggregation-followup-direction-analysis.md`
-- [x] 2026-04-26：已评估并进入 `richer candidate-doc linkage refinement`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-richer-candidate-doc-linkage-refinement.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-richer-candidate-doc-linkage-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已为 checklist / phase map / global direction-candidates 图层接入稳定 source-document node，并把 candidate `basis_refs` 翻译成 explicit linkage；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed），`progress_graph` 全套验证通过（17 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 richer candidate-doc linkage 刷新
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-richer-candidate-doc-linkage-followup-direction-analysis.md`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-external-reference-projection.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-external-reference-projection-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已接入 `research-compass-current` graph，把 `review/research-compass.md` 的 source-document 与 `全量研究地图` 稳定研究入口投影到 progress graph，并把 candidate `basis_refs` 翻译成 explicit external-reference linkage；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 external-reference graph 刷新
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-external-reference-projection-followup-direction-analysis.md`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-host-preview-integration.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-host-preview-integration-slice1-draft.md`
-- [x] 2026-04-26：`vscode-extension` 已新增 `docBasedCoding.openProgressGraphPreview` 命令与最小 WebView panel，可直接打开 `.codex/progress-graph/latest.html`，缺失 artifact 时显示明确 fallback；`npm run build` 通过
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-host-preview-integration-followup-direction-analysis.md`
-- [x] 2026-04-26：已确认下一步方向为 `richer research-compass topic projection`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-research-compass-topic-projection.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-research-compass-topic-projection-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已为 `research-compass-current` graph 接入 `按问题检索` topic nodes 与 topic -> entry reference edges；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-research-compass-topic-projection-followup-direction-analysis.md`
-- [x] 2026-04-26：已确认下一步方向为 `preview workflow integration`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-preview-workflow-integration.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-preview-workflow-integration-slice1-draft.md`
-- [x] 2026-04-26：`vscode-extension/src/views/progressGraphPreview.ts` 已升级为 singleton 独立 WebView workflow，panel 内已具备 `Refresh Preview` / `Reveal Artifact`；`npm run build` 通过
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-preview-workflow-integration-followup-direction-analysis.md`
-- [x] 2026-04-26：已创建并完成 `design_docs/stages/planning-gate/2026-04-26-project-progress-preview-artifact-refresh-pipeline-integration.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-preview-artifact-refresh-pipeline-integration-slice1-draft.md`
-- [x] 2026-04-26：`vscode-extension` 已通过 workspace Python 接入 progress graph artifact regenerate 链；`Refresh Preview` 已成为 regenerate + reload，且真实 `.codex/progress-graph/latest.json` / `.dot` / `.html` 重建已验证成功
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-preview-artifact-refresh-pipeline-integration-followup-direction-analysis.md`
-- [x] 2026-04-26：已确认下一步方向为 `non-project-progress candidate aggregation`
-- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-non-project-progress-candidate-aggregation.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-non-project-progress-candidate-aggregation-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已把 `design_docs/direction-candidates-after-phase-35.md` 中非 `project progress` 且采用 `### 新候选 A/B/C` 的 section 接入 `direction-candidates-global`，并把 candidate-local `当前判断：**推荐**` 映射到 recommended surface；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 non-project-progress candidate aggregation 刷新
-- [x] 2026-04-26：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-project-progress-non-project-progress-candidate-aggregation.md`
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-non-project-progress-candidate-aggregation-followup-direction-analysis.md`
-- [x] 2026-04-26：已确认下一步方向为 `legacy non-project-progress format aggregation`
-- [x] 2026-04-26：已创建并激活 `design_docs/stages/planning-gate/2026-04-26-project-progress-legacy-non-project-numbered-candidate-aggregation.md`
-- [x] 2026-04-26：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-non-project-numbered-candidate-aggregation-slice1-draft.md`
-- [x] 2026-04-26：`tools/progress_graph/doc_projection.py` 已把 `design_docs/direction-candidates-after-phase-35.md` 中 non-project 的 legacy numbered sections 接入 `direction-candidates-global`；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-26：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy non-project numbered aggregation 刷新
-- [x] 2026-04-26：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-project-progress-legacy-non-project-numbered-candidate-aggregation.md`
-- [x] 2026-04-26：已创建后续方向分析 `design_docs/project-progress-legacy-non-project-numbered-candidate-aggregation-followup-direction-analysis.md`
-- [x] 2026-04-26：已将 section recency 语义问题登记为 PAUSED planning-gate：`design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
-- [x] 2026-04-27：已确认下一步方向为 `plain A/B/C legacy candidate aggregation`
-- [x] 2026-04-27：已创建并激活 `design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-plain-lettered-candidate-aggregation.md`
-- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-plain-lettered-candidate-aggregation-slice1-draft.md`
-- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 non-project 的 plain `### A./B./C.` sections 接入 `direction-candidates-global`，同时保持 plain / `新候选` 标题前缀分离；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy plain lettered aggregation 刷新
-- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-plain-lettered-candidate-aggregation.md`
-- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-legacy-plain-lettered-candidate-aggregation-followup-direction-analysis.md`
-- [x] 2026-04-27：已确认下一步方向为 `extended plain lettered variant aggregation`
-- [x] 2026-04-27：已创建并激活 `design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-extended-plain-lettered-candidate-aggregation.md`
-- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-legacy-extended-plain-lettered-candidate-aggregation-slice1-draft.md`
-- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 non-project 的无前缀 extended plain lettered variants 接入 `direction-candidates-global`；`tests/test_progress_graph_doc_projection.py` targeted validation 通过（2 passed）
-- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 legacy extended plain lettered aggregation 刷新
-- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-27-project-progress-legacy-extended-plain-lettered-candidate-aggregation.md`
-- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-legacy-extended-plain-lettered-candidate-aggregation-followup-direction-analysis.md`
-- [x] 2026-04-27：已确认下一步方向为 `global direction-candidates recency semantics`
-- [x] 2026-04-27：已激活 `design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
-- [x] 2026-04-27：已创建 Slice 1 设计草案 `design_docs/project-progress-global-direction-candidates-recency-semantics-slice1-draft.md`
-- [x] 2026-04-27：`tools/progress_graph/doc_projection.py` 已把 `direction-candidates-global` 的 latest section 选择改为按 title 日期优先、文档更早位置 tie-break，并补 `recency_date` metadata
-- [x] 2026-04-27：`tests/test_progress_graph_doc_projection.py` 已新增顶部插入 numbered section probe，targeted validation 通过（3 passed）
-- [x] 2026-04-27：真实 artifact `.codex/progress-graph/latest.json` / `.dot` / `.html` 已按 recency semantics 刷新
-- [x] 2026-04-27：已关闭 planning-gate：`design_docs/stages/planning-gate/2026-04-26-global-direction-candidates-section-recency-semantics.md`
-- [x] 2026-04-27：已创建后续方向分析 `design_docs/project-progress-global-direction-candidates-recency-semantics-followup-direction-analysis.md`
-- [x] post-v1.0：release 构建与安装验证 — 双包 wheel 构建通过、干净 venv 安装验证通过（原 v1.0.0，后降级为 preview；当前产物为 `release/doc-based-coding-v0.9.3.zip`）
-- [x] post-v1.0：对话中临时规则突破 / 修改能力（BL-4）— 已收口为可追溯、可审计、可撤销的 runtime contract：`TemporaryOverride` 数据模型 + `.codex/temporary-overrides.json` 持久化 + `governance_override` MCP tool + 约束可突破性分类（C1/C2/C3/C6/C7 overridable, C4/C5/C8 non-overridable）+ safe-stop writeback bundle 自动过期 + instructions generator 与 pack rules 同步
-- [x] post-v1.0：driver 本体与 doc-loop 实例包资产及 release 产物的分离审查 — 审查完成：交叉导入/包配置/CLI 入口/发布包/根级文件/docs/测试组织均边界清晰；唯一违规（`src/` 硬编码实例路径）已修复为 pack-declared `shipped_copies` 动态发现；Slice B（reference 放置策略）暂存待决
-- [x] post-v1.0：pack manifest schema 版本化 — `manifest_version` 字段 + 版本感知 loader（major 不兼容拒绝 / minor 向前兼容警告）+ 全部 4 个 manifest 文件已标注 `"1.0"` + `docs/pack-manifest.md` Schema Versioning 节已文档化
-- [x] post-v1.0：修复 pre-existing test failure（`test_mcp_require_pipeline_uses_error_info`）— 全套测试 669 passed, 0 failures
-- [x] post-v1.0：validate 命令治理阻塞 vs 运行失败语义区分 — 退出码三级（0/1/2）+ `command_status`/`governance_status`/`blocking_constraints` JSON 字段 + 终端文案显式区分 + C5 在初始状态降级为 warn — 675 passed, 0 failures
-- [ ] 持续 pre-release dogfood：在实际开发中受控使用 CLI / MCP / Instructions，并收集反馈
-  - **2026-04-21 MCP 真实场景 dogfood**：7 工具调用，5 症状，1 提升（IC-001 意图分类器覆盖率）；S3（`get_next_action` 无 gate 矛盾指令）已修复——`_EMPTY_PLANNING_GATE_MARKERS` 扩展中文标记；详见 `feedback/dogfood-2026-04-21-mcp-realworld.md`；1284 passed, 2 skipped
-- [ ] post-v1.0 backlog：将 dogfood 所需的证据收集、问题收集、问题反馈整合收口为组件或 skill；当前先完成 adoption judgment，并在其 1/2 步里同步观察哪些流程值得抽象固化，再决定是否起独立 planning-gate
-- [ ] 2026-05-12：按 `design_docs/stages/planning-gate/2026-05-12-plugin-side-codex-host-support-gap.md` 收口插件侧 Codex 支持缺口；当前仅登记为 `PROPOSED` future slice，不混入当前 `Knowledge Graph Engine Progress Preview Integration` 主线，待当前图谱接入主线收口或用户显式改优先级后再决定是否激活
-- [ ] 2026-05-12：记录“工作流管线可视化功能”为 post-v1.0 future backlog；当前仅保留为待规划需求，后续若提升优先级，再按窄 planning-gate 明确可视化范围、数据来源与交互边界
-- [x] Multica 借鉴 — 条件化 always_on 加载（scope_paths 驱动跳过不相关 pack 内容）— `ContextBuilder.build(scope_path=)` 新增条件化过滤：有 scope_paths 声明但不匹配的 pack 跳过 always_on 加载，universal pack 始终包含。6 新测试 — 1229 passed, 2 skipped
-- [x] Multica 借鉴 — RuntimeBridge 三入口统一初始化抽象 — `src/runtime/bridge.py` 新增；WorkerHealth 状态跟踪 + _TrackedWorker + refresh()/reload_config()；CLI 已迁移；MCP 集成待 worker 启用时接入。13 新测试 — 1242 passed, 2 skipped
-- [x] Multica 借鉴 — 依赖方向反转（consumes 字段）— PackManifest 新增 `consumes: list[str]`，`check_consumes()` 校验所有 consumes 是否被 merged provides 满足；Pipeline.info() 暴露 consumes_status；warning-only 不阻塞加载。5 新测试 — 1247 passed, 2 skipped
-- [x] Multica 借鉴 — 代码层依赖方向约束文档化 — 来源: 洞察 2.3（pack/ → workflow/ → mcp/ 单向依赖）；实施难度: 低（文档 + lint rule）；优先级: 低 ✅ `design_docs/tooling/Module Dependency Direction Standard.md` + `scripts/lint_imports.py`；3/3 已知违规全部消除（零例外），`KEYWORD_MAP`/`IMPACT_TABLE`/`PLATFORM_INTENTS` 提升到 `interfaces.py`
-- [ ] Multica 借鉴 — 长期：Multi-agent runtime abstraction layer — 来源: 洞察 2.4（N×M daemon 教训）；优先级: 长期/条件触发（仅在计划支持多 agent runtime 时激活）
-- [ ] Active planning-gate：按 `design_docs/stages/planning-gate/2026-04-24-parallel-safe-subgraph-fanout-fanin.md` 收口 parallel-safe subgraph orchestration 的最小 contract，先固定 `TaskGroup` / child lineage / `per-invocation` namespace / disjoint write set / barrier merge / grouped review outcome；当前明确不进入 full `team/swarm` runtime
-  - **2026-04-24 Slice 1 foundation 进展**：`src/interfaces.py` 已新增 `TaskGroup` / `ParallelChildTask` / `ChildExecutionRecord`；`src/collaboration/subgraph_mode.py` 与 `src/pep/executor.py` 已支持 parent-issued lineage / namespace，并对显式 lineage hints 的 subgraph 路径接入 dispatch preflight；定向回归 `tests/test_collaboration.py tests/test_pep_delegation.py tests/test_worker_registry_executor.py` 全部通过（67 passed）
-  - **2026-04-24 Slice 2 foundation 进展**：`src/interfaces.py` 已新增 `MergeBarrierOutcome`，`src/pep/executor.py` 已支持 parent-side merge barrier conflict classification helper，当前覆盖 `no_conflict` / `review_required` / `blocked`；同一组定向回归更新后全部通过（60 passed）
-  - **2026-04-24 Slice 3 foundation 进展**：`src/interfaces.py` 已新增 `GroupedReviewOutcome`，`src/pep/executor.py` 已把 grouped review surface、`grouped_review_state`、以及 `merge_barrier_classified` / `grouped_review_prepared` / `grouped_review_state_changed` 审计事件接到显式 lineage hints 的 subgraph 路径，`src/pep/writeback_engine.py` 已支持 grouped review write-back summary 与 `all_clear` 下的 child payload write-back；定向回归 `tests/test_collaboration.py tests/test_pep_writeback_integration.py` 全部通过（60 passed）
-  - **2026-04-24 post-Slice3 方向分析**：已新增 `design_docs/parallel-safe-subgraph-post-slice3-direction-analysis.md`，当前推荐下一条 planning-gate 为 `Executor-local Real Multi-Child Subgraph Batch`
-  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-executor-local-real-multichild-subgraph-batch.md` 已创建并激活；当前下一步为 Slice 1：`parent-built child batch input + executor dispatch loop`
-  - **2026-04-24 Executor-local multi-child Slice 1**：`src/pep/executor.py` 已支持 parent-provided `parallel_children` batch hints，并可在单个 `TaskGroup` 中真实运行多个 child、产出多个 `child_execution_records` / `subgraph_contexts`；`tests/test_collaboration.py tests/test_pep_writeback_integration.py` 共 63 项回归通过
-  - **2026-04-24 新发现的下一阶段边界**：当前 strict preflight 仍要求 child `allowed_artifacts` 不重叠，因此 real multi-child path 已证明 `all_clear` 闭环，但 conflict-bearing `review_required` grouped review 语义需要先再做一次窄 direction analysis，而不宜直接继续编码
-  - **2026-04-24 conflict-bearing grouped review direction analysis**：已新增 `design_docs/parallel-safe-subgraph-conflict-bearing-grouped-review-direction-analysis.md`；当前推荐优先保持 strict preflight，并把 real multi-child 第一版边界明确写成 `all_clear-only`
-  - **2026-04-24 Executor-local multi-child gate 收口**：`design_docs/stages/planning-gate/2026-04-24-executor-local-real-multichild-subgraph-batch.md` 已完成；当前已采纳 strict preflight + `all_clear-only` 作为 real multi-child 第一版权威边界，后续若要支持冲突路径，应另起 `shared-review zone` planning-gate
-  - **2026-04-24 shared-review zone direction analysis**：已新增 `design_docs/parallel-safe-subgraph-shared-review-zone-direction-analysis.md`；当前推荐下一条新 planning-gate 为 `Shared-Review Zone Contract And Preflight`
-  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-shared-review-zone-contract-and-preflight.md` 已创建并激活；当前下一步为 Slice 1：`shared-review zone companion fields + preflight exception surface`
-  - **2026-04-24 shared-review zone Slice 1**：`src/interfaces.py` 已为 `ParallelChildTask` 新增 `shared_review_zone_id`，`src/pep/executor.py` 的 preflight 已新增 machine-readable `overlap_decisions`，并支持 same-artifact zone-driven overlap 例外；定向回归 `tests/test_collaboration.py -k "shared_review_zone or overlapping_allowed_artifacts"` 已通过（4 passed）
-  - **2026-04-24 shared-review zone Slice 2**：`src/interfaces.py` / `src/pep/executor.py` 已为 `MergeBarrierOutcome` / `GroupedReviewOutcome` 新增 `review_driver` 与 `shared_review_zone_ids`，并把 zone-driven `review_required` 接到结果面与 audit detail；定向回归 `tests/test_collaboration.py -k "zone_driven_review_required or shared_review_zone_driver"` 已通过（2 passed）
-  - **2026-04-24 shared-review zone Slice 3**：`src/pep/writeback_engine.py` 的 grouped review summary 已保留 `review_driver` 与 `shared_review_zone_ids`；定向回归 `tests/test_pep_writeback_integration.py -k "summary_includes_grouped_review_metadata"` 已通过（1 passed）
-  - **2026-04-24 shared-review zone gate 收口**：`design_docs/stages/planning-gate/2026-04-24-shared-review-zone-contract-and-preflight.md` 已完成；当前下一个真实问题变成：review 已批准后，zone-driven payload writeback 是否仍应维持 `all_clear-only` 限制
-  - **2026-04-24 zone-approved payload writeback direction analysis**：已新增 `design_docs/shared-review-zone-approved-payload-writeback-direction-analysis.md`；当前推荐下一条 planning-gate 为 `Zone-Approved Payload Writeback Semantics`
-  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-zone-approved-payload-writeback-semantics.md` 已创建并激活；当前下一步为 Slice 1：`approval eligibility contract`
-  - **2026-04-24 zone-approved payload writeback Slice 1/2**：`src/pep/writeback_engine.py` 已允许 `shared-review-zone-approved` path 进入 grouped child payload planning，并新增 `grouped_child_writeback_summary.eligibility_basis` 与 writeback markdown summary 对齐；定向回归 `tests/test_pep_writeback_integration.py -k "shared_review_zone_approval_unlocks_grouped_payload_writeback or non_zone_review_required_remains_ineligible_for_grouped_payload_writeback or subgraph_grouped_review_applied_executes_child_payload_writeback or subgraph_multi_child_batch_applied_executes_grouped_payload_writeback"` 已通过（4 passed）
-  - **2026-04-24 zone-approved payload writeback gate 收口**：`design_docs/stages/planning-gate/2026-04-24-zone-approved-payload-writeback-semantics.md` 已完成；当前 shared-review zone 已形成“显式 overlap 例外 → grouped review driver → reviewer approve → approval-driven grouped payload writeback”的最小闭环
-  - **2026-04-24 group-internal handoff/escalation direction analysis**：已新增 `design_docs/group-internal-handoff-escalation-terminal-semantics-direction-analysis.md`；当前推荐下一条 planning-gate 为 `Group Internal Handoff / Escalation Terminal Bundle`
-  - **2026-04-24 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-24-group-internal-handoff-escalation-terminal-bundle.md` 已创建并激活；当前下一步为 Slice 1：`terminal bundle contract + comparison review`
-  - **2026-04-24 group-internal handoff/escalation 对照分析**：已新增 `design_docs/group-internal-handoff-escalation-terminal-semantics-comparison.md`；当前判断为 A 方案（group-level terminal bundle）合理性最高，B 方案合理性低，C 方案仅具短期保守合理性
-  - **2026-04-24 group-internal handoff/escalation Slice 1 draft**：已新增 `design_docs/group-internal-handoff-escalation-slice1-contract-draft.md`；当前推荐以独立 `GroupTerminalOutcome` companion object 承载 group terminal semantics，并在 terminal bundle 形成后停止普通 grouped review / grouped writeback 路径
-  - **2026-04-25 group terminal Slice 1 实现起点**：`src/interfaces.py` 已新增 `GroupTerminalOutcome`，`src/pep/executor.py` 已新增 `group_terminal_outcome` 序列化 helper，并在显式 `escalation_recommendation` 证据下暂停普通 merge / grouped review 路径；`tests/test_collaboration.py` 全量回归通过（50 passed）
-  - **2026-04-25 group terminal Slice 2 初始结果面**：`GroupTerminalOutcome` 现已通过 `suppressed_surfaces` 显式标记被暂停的 `merge_barrier` / `grouped_review` / `grouped_child_writeback` 路径；当前下一步收口点变成 summary 与 audit detail 是否要同步镜像这一 suppression 状态
-  - **2026-04-25 group terminal Slice 2 writeback summary mirror**：`src/pep/writeback_engine.py` 现已把 group terminal suppression 镜像到 `grouped_review_writeback_summary` 与 `grouped_child_writeback_summary`；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` 已通过（73 passed）
-  - **2026-04-25 group terminal Slice 2 audit detail mirror**：`src/pep/executor.py` 现已把 group terminal suppression 镜像到 `group_terminal_prepared` audit detail；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` 已通过（74 passed）
-  - **2026-04-25 group terminal Slice 3 child handoff evidence**：valid child `Handoff` 现已收口为 `terminal_kind = handoff`，invalid handoff 会经 `handoff_validator` 降级为 blocked child result；联合回归 `tests/test_collaboration.py` + `tests/test_pep_writeback_integration.py` + `tests/test_subagent_modules.py` 已通过（98 passed）
-  - **2026-04-25 orchestration bridge / daemon layer direction analysis**：已新增 `design_docs/orchestration-bridge-daemon-layer-direction-analysis.md`；当前倾向是先定义 thin bridge over current governance kernel，而不是继续把 scheduler 叠进 executor
-  - **2026-04-25 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-25-orchestration-bridge-work-item-group-item-contract.md` 已创建并激活；当前下一步为 Slice 1：固定 bridge-owned `work item` / `group item` primitive 与 ownership boundary
-  - **2026-04-25 orchestration bridge Slice 1 draft**：已新增 `design_docs/orchestration-bridge-daemon-slice1-work-item-group-item-contract-draft.md`；当前推荐把 bridge primitive 收窄为 scheduler-facing identity / lifecycle / governance-footprint wrapper，不复制完整 grouped review / group terminal 对象
-  - **2026-04-25 orchestration bridge ownership matrix**：Slice 1 draft 现已补出 bridge / executor / governance kernel 的 ownership matrix；当前下一窄切口变成 `BridgeWorkItem` / `BridgeGroupItem` 的最小 lifecycle table
-  - **2026-04-25 orchestration bridge lifecycle table**：Slice 1 draft 现已补出 `BridgeWorkItem` / `BridgeGroupItem` 的最小 lifecycle transition table，并明确 lifecycle 只表达调度阶段，不承载 grouped review / group terminal 语义；当前下一窄切口转为 Slice 2 的 governance result projection
-  - **2026-04-25 orchestration bridge Slice 2 draft**：已新增 `design_docs/orchestration-bridge-daemon-slice2-governance-result-projection-draft.md`；当前推荐先固定 `BridgeGroupItem` 的 compact result projection field matrix，再决定是否需要 work-item 级 roll-up 或 stop-condition mapping
-  - **2026-04-25 orchestration bridge projection field matrix**：Slice 2 draft 现已补出 `governance_surface_kind` / `governance_surface_state` / `blocked_reason` / `writeback_disposition` 的允许值与归一化规则；当前下一窄切口变为 work-item roll-up 与 stop-condition boundary 的先后顺序
-  - **2026-04-25 orchestration bridge next-branch decision**：顺序已收敛为先做 work-item roll-up，再进入 stop-condition boundary；当前不再回头修改 compact projection 字段合同
-  - **2026-04-26 orchestration bridge work-item roll-up draft**：已新增 `design_docs/orchestration-bridge-daemon-slice2-work-item-rollup-draft.md`；当前已把 `BridgeWorkItem` 的 roll-up 字段、surface precedence 与 writeback precedence 写清，下一窄切口转为 Slice 3 的 stop-condition boundary
-  - **2026-04-26 orchestration bridge stop-condition draft**：已新增 `design_docs/orchestration-bridge-daemon-slice3-stop-condition-boundary-draft.md`；当前已把 `review_required` / `group_terminal` / `blocked` 对 bridge boundary judgment 的映射写清，下一步更适合进行 Slice 1-3 合同回看并决定是否 gate close
-  - **2026-04-26 orchestration bridge contract gate complete**：`design_docs/stages/planning-gate/2026-04-25-orchestration-bridge-work-item-group-item-contract.md` 已切为 COMPLETE；三份 Slice 草案已覆盖当前 gate scope，后续已转入 `design_docs/orchestration-bridge-contract-runtime-followup-direction-analysis.md`
-  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-runtime-primitives.md` 已创建并激活；当前把 `bridge runtime primitives` 收窄为先解决 `src/runtime/bridge.py` 与 orchestration bridge primitive 的模块边界隔离
-  - **2026-04-26 bridge runtime Slice 1 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice1-surface-isolation-draft.md`；当前推荐把 orchestration bridge runtime primitive 放入 `src/runtime/orchestration/` 子包，而不是继续堆进现有 `RuntimeBridge`
-  - **2026-04-26 bridge runtime module boundary fixed**：Slice 1 draft 现已把 `RuntimeBridge` 与 orchestration bridge primitive 的 module boundary、子包布局与最小 public symbol surface 写清；当前下一窄切口转为 Slice 2 的 runtime model / helper contract
-  - **2026-04-26 bridge runtime Slice 2 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice2-model-helper-contract-draft.md`；当前已把 `BridgeWorkItem` / `BridgeGroupItem` 的 runtime model、optional dispatch-lineage 字段，以及 `projection.py` / `rollup.py` 的 pure helper signature 写清，下一窄切口转为 Slice 3 的 `stop_conditions.py` evaluator contract
-  - **2026-04-26 bridge runtime Slice 3 draft**：已新增 `design_docs/orchestration-bridge-runtime-primitives-slice3-stop-evaluator-tests-draft.md`；当前已把 `StopConditionDecision`、`evaluate_stop_condition()` 的 boundary matrix，以及独立的 `tests/test_runtime_orchestration.py` 测试边界写清，下一步更适合做 gate review/close
-  - **2026-04-26 bridge runtime primitives gate complete**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-runtime-primitives.md` 已切为 COMPLETE；后续方向已转入 `design_docs/orchestration-bridge-runtime-implementation-followup-direction-analysis.md`
-  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-models-helpers-implementation.md` 已创建并激活；当前实现顺序收窄为先落 `models.py`
-  - **2026-04-26 bridge models Slice 1 draft**：已新增 `design_docs/orchestration-bridge-models-implementation-slice1-draft.md`；当前推荐先实现 `BridgeWorkItem` / `BridgeGroupItem` 与共享 type alias，再进入 helper 与测试
-  - **2026-04-26 bridge models/helpers gate complete**：`src/runtime/orchestration/models.py`、`projection.py`、`rollup.py`、`stop_conditions.py` 与 `tests/test_runtime_orchestration.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` 联合回归 21 passed；当前 gate 已切为 COMPLETE
-  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-executor-result-adapter.md` 已创建并激活；当前下一步收窄为先固定 executor serialized execution-result adapter contract
-  - **2026-04-26 bridge adapter Slice 1 draft**：已新增 `design_docs/orchestration-bridge-executor-result-adapter-slice1-draft.md`；当前推荐先让 adapter 只消费 `Executor.execute()` 返回的 dict surface，而不是回退到内部 dataclass object
-  - **2026-04-26 bridge adapter gate complete**：`src/runtime/orchestration/executor_adapter.py` 与 `tests/test_runtime_orchestration_adapter.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` 联合回归 25 passed；当前 gate 已切为 COMPLETE
-  - **2026-04-26 post-adapter direction analysis**：已新增 `design_docs/orchestration-bridge-post-adapter-direction-analysis.md`；当前 AI 倾向是先做 coordinator glue，而不是直接跳到 landing 或 daemon runtime
-  - **2026-04-26 bridge coordinator gate complete**：`src/runtime/orchestration/coordinator.py` 与 `tests/test_runtime_orchestration_coordinator.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` + `tests/test_runtime_orchestration_coordinator.py` 联合回归 29 passed；当前 gate 已切为 COMPLETE
-  - **2026-04-26 新 active planning-gate**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-integration.md` 已创建并激活；当前下一步收窄为先固定 external-resolution landing contract
-  - **2026-04-26 bridge landing Slice 1 draft**：已新增 `design_docs/orchestration-bridge-landing-integration-slice1-draft.md`；当前推荐先覆盖 `group_terminal` / `review_required` 两类 boundary，再考虑 daemon runtime
-  - **2026-04-26 bridge landing gate complete**：`src/runtime/orchestration/landing.py` 与 `tests/test_runtime_orchestration_landing.py` 已落地；`tests/test_runtime_bridge.py` + `tests/test_runtime_orchestration.py` + `tests/test_runtime_orchestration_adapter.py` + `tests/test_runtime_orchestration_coordinator.py` + `tests/test_runtime_orchestration_landing.py` 联合回归 33 passed；当前 gate 已切为 COMPLETE
-  - **2026-04-26 post-landing direction analysis**：已新增 `design_docs/orchestration-bridge-post-landing-direction-analysis.md`；当前 AI 倾向是先做 landing consumer wiring，而不是直接跳到 daemon runtime
-  - **2026-04-26 bridge landing consumer gate complete**：`src/runtime/orchestration/landing_consumers.py` 与 `tests/test_runtime_orchestration_landing_consumers.py` 已落地；`tests/test_runtime_bridge.py` + 全部 orchestration tests 联合回归 36 passed；当前 gate 已切为 COMPLETE
-  - **2026-04-26 landing dispatch gate 暂停**：`design_docs/stages/planning-gate/2026-04-26-orchestration-bridge-landing-dispatch-integration.md` 在 Slice 1 起点被新的 `project progress multi-graph` 主线打断，当前状态已改为 `PAUSED`
-  - **2026-04-26 progress multigraph direction analysis**：已新增 `design_docs/project-progress-multi-graph-direction-analysis.md`，明确这不是 `dependency_graph` 的小扩展，而是独立的 progress-history foundation
-  - **2026-04-26 progress multigraph foundation gate complete**：`design_docs/stages/planning-gate/2026-04-26-project-progress-multi-graph-foundation.md` 已完成；`tools/progress_graph/model.py` / `query.py` 已提供 snapshot-backed 多图模型与查询原语，`tests/test_progress_graph.py` 通过 6 个 targeted tests
-  - **2026-04-26 progress multigraph follow-up direction analysis**：已新增 `design_docs/project-progress-multi-graph-foundation-followup-direction-analysis.md`；当前默认下一步是 `doc-loop projection and snapshot persistence`
-- [ ] Multica 借鉴 — 设计审查 checkpoint：新 pack 原语引入前问 "does this need a new primitive?" — 来源: 洞察 2.1（#1211 克制回复）；优先级: 流程级（无代码，但设计评审时始终检查）
-- [x] dogfood 发现 #1：`query_decision_logs` MCP 工具未注册 — 方法已在 `src/mcp/tools.py` 实现但未在 `src/mcp/server.py` 的 `list_tools` 中注册路由，导致工具不可达（低工作量修复）—— 已修复，803 passed
-- [x] dogfood 发现 #2：decision log 持久化与 dry_run 耦合 — MCP 默认 `dry_run=True`，decision_log_entry 只在返回值中出现但不写 `.codex/decision-logs/` 文件—— 已解耦，审计日志现始终持久化
-- [x] dogfood 发现 #3：v0.9.1 安装验证中发现 4 类问题（版本漂移、pack 自动发现缺失、本地 wheel 安装不顺畅、状态提取不完整）— 详见 `issues/issue_doc_loop_v091_release_and_pack_discovery.md`；所有问题已修复：site-packages 自动发现已实现（`_discover_packs` + `include_site_packages` 测试隔离参数）、版本一致性检查脚本 `release/verify_version_consistency.py` 已新增、INSTALL_GUIDE.md 已覆盖离线安装、状态提取已正常工作 — 803 passed, 0 failures
-- [x] dogfood 发现 #3：v0.9.1 安装验证中发现 4 类问题（版本漂移、pack 自动发现缺失、本地 wheel 安装不顺畅、状态提取不完整）— 详见 `issues/issue_doc_loop_v091_release_and_pack_discovery.md`；所有问题已修复：site-packages 自动发现已实现（`_discover_packs` + `include_site_packages` 测试隔离参数）、版本一致性检查脚本 `release/verify_version_consistency.py` 已新增、INSTALL_GUIDE.md 已覆盖离线安装、状态提取已正常工作；当前全量回归为 823 passed, 2 skipped
-- [x] CI/CD 本地自动化脚本 — `scripts/build.py`（双包 wheel 一键构建 + clean + 版本校验 + 内容物验证）+ `scripts/release.py`（构建 + pytest + release zip 打包）+ `--no-isolation` 选项避免 PyPI 网络依赖 — E2E 验证通过（823 passed, 2 skipped, release zip 147.0 KB）
-- [x] dogfood 发现 #4：4 个测试硬编码版本号 `0.9.1`，导致 version bump 时 CI 失败 — 已改为动态读取 `pyproject.toml` 版本（`_read_canonical_version()`），v0.9.2 release 验证通过
-- [x] Pack Index Metadata & CLI Pack Management — `src/pack/pack_manager.py`（install/remove/list/info）+ CLI `pack` 子命令 + `docs/pack-index-format.md` 格式文档 + `docs/plugin-model.md` Pack Origins 更新 + 20 targeted tests — 823 passed, 2 skipped
-- [x] dogfood 发现 #5：`pack install` 创建 `platform.json pack_dirs` 后，config 路径不再扫描 `.codex/packs/` 散装 `.pack.json` 文件，导致原有 pack 不可见 — 已修复：config 路径增加 fallback 扫描 — 823 passed
-- [x] 状态面一致性收口 — `design_docs/stages/planning-gate/2026-04-14-state-surface-consistency-closeout.md` 已完成；Checklist / Phase Map / CURRENT / checkpoint 已统一到 v0.9.3 preview 口径，并回到无 active planning-gate 的 safe stop
-- [x] BL-1 Driver 职责定义文档 — `docs/driver-responsibilities.md` 定义 driver 角色、职责边界、输入来源/结果分发路径，与 `external-skill-interaction.md` 形成消费方-提供方对称引用，与 `subagent-management.md` supervisor 角色对齐
-- [x] depends_on 依赖校验（gap analysis #11）—— warning-only 校验 + Pipeline.info() 暴露
-- [x] provides 消费用于 delegation capability check（gap analysis #5）—— `RuleConfig.available_capabilities` + delegation advisory warning + review 升级
-- [x] checks 字段与 manifest 直连（gap analysis #16）—— `PackRegistrar` 自动注册 `check(context)` 脚本 + `Pipeline.info().registered_checks` 暴露 + runtime writeback 前可消费
-- [x] hierarchical pack topology（tree-scoped packs）—— `PackManifest.parent/scope_paths` + `PackTree` + `ContextBuilder.build_scoped()` + `Pipeline.process_scoped()` / MCP `scope_path` + authority docs sync
-- [x] overrides 字段消费（gap analysis #12）—— `PackContext.merged_overrides` 提取 + `check_overrides()` warning-only 验证 + `PrecedenceResolver` explicit_override 标注 + `Pipeline.info()` 暴露 override_declarations / override_warnings + 权威文档 `overrides` 开放问题已回答
-- [x] BL-8 merge 层冲突解决结果对 decision log 可见 —— `DecisionLogEntry.merge_conflicts` 字段 + `build_entry()` 自动提取 + `DecisionLogStore.query(has_merge_conflicts=)` 过滤 + MCP `query_decision_logs` has_merge_conflicts 参数 + 7 新测试 — 1278 passed, 2 skipped
-- [x] completion boundary protocol（完成边界失忆修复）—— pack 规则 `completion_boundary_protocol` + `get_next_action()` `completion_boundary_reminder` + instructions generator 静态冗余 + Document-Driven Workflow Standard 第 6 条
-- [x] 类型/接口依赖关系图谱提取（Slice 1）—— `tools/dependency_graph/` 模块：基于 Pylance MCP 的图谱聚合（而非自写 AST 提取器），186 节点 / 56 边，`dependents_of` / `dependencies_of` / `implementors_of` 查询 + AST 符号发现 174 个 + dogfood 验证 9 个 Protocol 依赖链 + 27 测试 — 850 passed, 2 skipped
-- [x] 对话行为约束规则重写 — 正面模板 + 4 项发送前检查清单替代原有负面禁止列表；同步 `.github/copilot-instructions.md`、`AGENTS.md`、bootstrap `AGENTS.md`、`doc-loop-vibe-coding/references/conversation-progression.md`
-- [x] 变更影响分析与耦合钩子（Slice 2）—— `tools/dependency_graph/impact.py` ImpactAnalyzer BFS 传播 + `coupling.py` CouplingStore/CouplingChecker + `coupling_annotations.json` 5 个耦合标注 + query.py 扩展 + 22 测试 — 872 passed, 2 skipped
-- [x] VibeCoding-Workflow 外部项目分析 — `review/vibecoding-workflow-sakura1618.md` 逐条模式映射：Run Budget / Anti-Drift / Milestone Replan 触发条件 + 博客半自动→全自动交叉验证
-- [x] Anti-Drift 规则采纳 — AD-1~AD-5 + slice_budget + milestone_replan_triggers 已加入 `project-local.pack.json` rules
-- [x] External Project Review Standard — `design_docs/tooling/External Project Review Standard.md`：5 步标准流程（快速概览→结构化对比→借鉴点提取→差异分析→行动项生成）+ review 文档模板 + 质量门
-- [x] MCP 变更影响与耦合检查工具（Slice 3）—— `impact_analysis` + `coupling_check` MCP 工具注册 + GovernanceTools 方法 + server 分发 + 9 测试 — 881 passed, 2 skipped
-- [x] 子 agent 研究综合报告 —— `design_docs/subagent-research-synthesis.md`：5 份外部研究 + 内部设计 + gap 分析综合、P1-P4 优先级排序、Gap A/C/D 已验证修复
-- [x] Worker Registry 驱动 Executor 动态选择（P1/BL-2）—— Executor 接受 WorkerRegistry、`_resolve_worker` 动态路由、`worker_selected`/`worker_fallback` audit 事件、向后兼容旧 `worker=` 注入 + 11 测试 — 892 passed, 2 skipped
-- [x] Handoff Recovery Hardening —— `CURRENT.md` intake 新增 `source_hash` 校验 + 唯一 active canonical 断言 + refresh-current 冲突明细 + Authoritative Sources 降噪 + 6 测试 — 898 passed, 2 skipped
-- [x] Handoff Validator 独立化（P2）—— `HandoffValidator` protocol + 默认 schema/invariant validator + `_execute_handoff_mode()` 独立 validation 分支 + `handoff_validated`/`handoff_validation_failed` 审计事件 + 7 测试 — 905 passed, 2 skipped
-- [x] Subagent Report richer writeback payload 前置切片（P3-prep）—— `Subagent Report` schema 新增可选 `artifact_payloads`（`path` / `content` / `operation` / `content_type`），`docs/subagent-schemas.md` 固定其与 `changed_artifacts` 的边界，schema-driven report validator 接受合法 payload，HTTP worker 透传远端 payload + 7 测试 — 912 passed, 2 skipped
-- [x] artifact_payloads -> WritebackPlan Mapping（P3）—— `WritebackEngine.plan()` 直接消费 `report.artifact_payloads`，对 `allowed_artifacts`、绝对/越界路径与空路径执行硬边界校验，summary writeback 增加 payload planned/skipped 摘要，`create` 不再覆盖已有文件，补齐单元与集成回归 — 922 passed, 2 skipped
-- [x] StubWorker Payload Producer Alignment（A1）—— `StubWorkerBackend` 在 `allowed_artifacts` 非空时产出受控 `artifact_payloads`，目录边界映射到固定子路径，官方示例 report 与实例 schema 校验同步，first-party delegation -> payload-derived writeback 最小闭环打通 — targeted 51 passed, 1 skipped；full 931 passed, 2 skipped
-- [x] Handoff Authority-Doc Footprint（P4）—— latest canonical handoff 的 4 字段 pointer contract 已同步到 authority docs / checkpoint / safe-stop helper；新增 `Current Handoff` 结构段与 `current_handoff_footprint` helper 输出，保持 handoff 正文仍以 canonical 文件为真相源 — targeted 72 passed；full 936 passed, 2 skipped
-- [x] LLMWorker Structured Payload Producer Alignment —— `LLMWorker` 现在返回 schema-valid `Subagent Report`，受控 prompt / response contract 下最多产出 1 个 `artifact_payloads` candidate；非结构化响应回退为 schema-valid `partial` report，API 错误回退为 schema-valid `blocked` report，delegation -> LLMWorker -> payload-derived writeback mock 链打通 — targeted 51 passed, 1 skipped；full 942 passed, 2 skipped
-- [x] Payload + Handoff Footprint Controlled Dogfood —— baseline `StubWorker` payload path 在临时目录里稳定触发 payload-derived writeback，且 `CURRENT.md` / checkpoint 的 latest handoff footprint 一致；live DashScope `LLMWorker` 返回 schema-valid `completed` report，但真实 payload candidate 使用了 schema 不接受的 `operation` / `content_type` 枚举，导致 payload 被保守丢弃，结果已写入 `review/payload-handoff-footprint-controlled-dogfood-2026-04-16.md` — baseline/runtime observation only；full baseline 保持 942 passed, 2 skipped
-- [x] LLMWorker Live Payload Contract Hardening —— prompt contract 显式收紧到允许枚举并增加禁止示例；`content_type` 只接受极窄 alias normalization（`text/markdown -> markdown`、`text/plain -> text`、`application/json -> json`）；当 LLM 主动尝试 payload 但所有 candidate 都被 guard 拒绝时，`status` 从 `completed` 下调为 `partial` — targeted 55 passed, 1 skipped；full 946 passed, 2 skipped
-- [x] Live Payload Rerun Verification —— 单次受控 live DashScope rerun 在临时目录中成功返回合法 `artifact_payloads`，`path=docs/controlled-dogfood-llm.md`、`operation=update`、`content_type=markdown`，最终 payload writeback 成功命中目标文件；结果已写入 `review/live-payload-rerun-verification-2026-04-16.md` — runtime observation only；code baseline 保持 946 passed, 2 skipped
-- [x] Real-Worker Payload Adoption Judgment —— 当前权威口径已收口为“`LLMWorker` real-worker payload path 已有 1 条正向 live signal，可继续作为受控 dogfood 路径观察，但仍不属于默认稳定面”；扩大 wording 的最小额外证据门已定义为“在无新 runtime 改动前提下再拿到 1 条独立受控 live success”；dogfood evidence / issue / feedback integration 继续保留为 backlog — doc-only slice，结果已写入 `review/real-worker-payload-adoption-judgment-2026-04-16.md`
-- [x] Controlled Real-Worker Payload Evidence Accumulation —— 在无新 runtime code、schema 或 worker 语义变更前提下，`LLMWorker` 受控 payload path 再获得 1 条独立正向 live signal，raw response、final report 与 payload-derived writeback 三层再次同时成立；当前权威口径已收紧为“`LLMWorker` 受控 payload path 已具备最小可重复 dogfood 能力”，结果已写入 `review/controlled-real-worker-payload-evidence-accumulation-2026-04-16.md`
-- [x] Dogfood Evidence / Issue / Feedback Integration —— docs-only boundary consolidation 已完成：`design_docs/dogfood-evidence-issue-feedback-boundary.md` 已明确 evidence / issue / feedback 三类对象边界、文档映射与未来 component / skill 的最小 I/O ceiling，当前已据此收窄下一条实现前切片
+- Update it when current phase, active gate, latest completed slice, recovery
+  order, or immediate pending todo changes.
+- Do not append long validation streams or full historical phase logs here.
+- Put historical detail in `design_docs/history/` or the relevant planning gate
+  / review / direction-analysis document.
+- Keep new entries linked to their source docs.
 
-### 当前待推进切片
+## Related Indexes
 
-- [x] Dogfood Issue Promotion / Feedback Packet Contract —— contract gate 已完成（6/6）、dry-run 验证通过、interface draft gate 已完成（8/8）、`src/dogfood/` pipeline 已实现（models + evaluator + builder + dispatcher）、18 项新测试全部通过、全量基线 964 passed, 2 skipped
-- [x] Dogfood Promotion Packet Interface Draft + Implementation —— 产出 `design_docs/dogfood-promotion-packet-interface-draft.md`、`src/dogfood/` 4 个模块、`tests/test_dogfood_pipeline.py`（16 单元测试）+ `tests/test_dogfood_e2e.py`（2 E2E 测试）
-- [x] decision logs 最小字段设计（research gap #1）—— `DecisionLogEntry` 19 字段 + `DecisionLogStore` JSON Lines 持久化 + Pipeline 后处理聚合 + MCP `query_decision_logs()` 工具 + 785 passed
-- [x] 子 agent tracing 与 write-back 对接（research gap #2）—— ExecutionResult trace_id/delegation_mode + WritebackEngine audit event 发射（writeback_planned/artifact_changed）+ Executor contract_generated/subagent_report_received/writeback_blocked_by_check event + 793 passed
-- [x] 多实例共存冲突解决策略（research gap #4）—— `_deep_merge()` 冲突收集器 + `PackContext.merge_conflicts` 字段 + `PrecedenceResolver` 同层 tie_broken_by 标记 + `Pipeline.info()` merge_conflicts 暴露 + 801 passed
-
-### 研究参考待办（来源：Claude Managed Agents Platform 分析 — `review/claude-managed-agents-platform.md`）
-
-- [x] B-REF-1: Pack 渐进式加载设计 — 三级加载（METADATA/MANIFEST/FULL）已实现：Slice 1 LoadLevel enum + ContextBuilder 分阶段 build + upgrade()；Slice 2 Pipeline MANIFEST 降级 + pack_context lazy upgrade；Slice 3 MCP get_pack_info level/scope_path 参数 + description 字段 — 1095 passed, 2 skipped
-- [x] B-REF-2: Pack description 质量标准 — 已建立质量标准文档（`design_docs/tooling/Pack Description Quality Standard.md`）+ `validate_description()` 验证函数 + 现有 pack 已添加符合标准的 description + 9 个新测试 — 1104 passed, 2 skipped
-
-> **当前测试基线**: 1278 passed, 2 skipped
-- [x] B-REF-3: Pack 内部组织规范 — 引用深度 ≤ 1 + 按域拆分 + TOC 规则已建立（`design_docs/tooling/Pack Internal Organization Standard.md`）+ `validate_pack_organization()` 验证函数 + 13 个新测试 — 1117 passed, 2 skipped
-- [x] B-REF-4: Permission policy 分层覆盖模型 — `ToolPermissionResolver` + `ToolPermissionConfig` + `RuleConfig.tool_permissions` 字段；pack 级 default + 单 tool 级 override；deny → BLOCK + deny_message，ask → requires_confirmation 注释；`governance_decide` 新增 `action_type` 参数 + 21 新测试 — 1154 passed, 2 skipped
-- [x] B-REF-5: 工作流中断原语 (interrupt primitive) — `workflow_interrupt` MCP tool：接收 reason + discovered_item → 生成 interrupt_id + suggested_filename + 结构化 guidance → 记录到 decision log；实现"发现超出 scope 时回退到 planning-gate"的显式化 — 1161 passed, 2 skipped
-- [x] B-REF-6: 子 agent 上下文隔离评估 — 评估结论：当前隔离模型合理（合同声明 → Prompt 隔离 → Subgraph delta merge 三层等效于 Claude "共享 FS + 隔离 context"），无需架构级变更；建议增量优化：report_validator 增加 allowed_artifacts 路径硬校验
-- [x] B-REF-7: Custom tool surface 合并审计 — 审计报告已完成 + `analyze_changes` 统一入口已实施（`design_docs/tooling/MCP Tool Surface Audit.md`）：11 个 MCP tools + 旧名保留为别名 + 6 个新测试 — 1133 passed, 2 skipped
-
-### VS Code Extension
-
-- [x] P0+P1: Extension 骨架 + MCP Client + Constraint Dashboard — 15 个 TS 文件，esbuild 编译通过，`.vsix` 已打包（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p0-p1.md`）
-- [x] F5 端到端验证 — Extension Dev Host 中成功运行：Activity Bar 图标、MCP stdio 连接、Constraint Dashboard 显示 C1-C8 状态、Output Channel 日志正常（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-f5-e2e-verification.md`）— 1133 passed, 2 skipped
-- [x] P2: Pack Explorer + Decision Log Viewer + Governance Status Bar — `packExplorer.ts` 实化（get_pack_info manifest 级展示）、`decisionLogViewer.ts`（query_decision_logs 50 条）、`statusBar.ts`（violation count）、package.json 新增 view/commands、extension.ts 集成（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p2.md`）— esbuild 零错误
-- [x] P3: Governance Interceptor — `MCPGovernanceInterceptor` 调用 `governance_decide`、`onWillSaveTextDocument` 拦截、BLOCK 时 modal warning + "Save Anyway" 用户覆盖（`design_docs/stages/planning-gate/2026-04-18-vscode-extension-p3.md`）— esbuild 零错误
-- [x] P4: Copilot LLM 集成 — `CopilotLLMProvider` 连接 `vscode.lm` API、`classifyIntent` 命令（intent classification 通过 Copilot 模型）、自动初始化 + 状态日志 — esbuild 零错误
-- [x] P4+: Copilot 深度集成 — Governance BLOCK 时 Copilot 自动生成解释和修复建议、`generatePackDescription` / `generatePackRules` 命令用 Copilot 辅助生成 pack 文档、interceptor.updateCopilot() 热绑定 — esbuild 零错误
-- [x] P5: Review UI WebView — `ReviewPanelProvider` WebView 面板、BLOCK 时自动打开、approve/reject 工作流（override & save）、CSP nonce 安全策略、替代旧 modal dialog — esbuild 零错误
-- [x] P6: Terminal 拦截 — `TerminalGovernanceMonitor` 监听 shell integration 事件、命令开始时调用 governance_decide、BLOCK 时警告+可选 kill、`killOnBlock` 配置项、engine 升级至 1.93+ — esbuild 零错误
-- [x] P6+: File Lifecycle 拦截 — `registerFileLifecycleListeners` 拦截 create/delete/rename 三类文件操作、BLOCK 时 abort + 警告 — esbuild 零错误
-- [x] .vsix 打包 — README 完善、CHANGELOG、icon.png、LICENSE、marketplace 元数据、engine 1.93+、`npm run package` → `doc-based-coding-0.1.0.vsix` (18KB, 零 warning)
-- [x] .vsix 安装验证 — `code --install-extension` 成功、文件已部署到 `~/.vscode/extensions/doc-based-coding.doc-based-coding-0.1.0/`
-- [x] P7: Chat Participant — `@governance` 注册到 Copilot Chat、`/check` `/decide` `/constraints` `/packs` 四个子命令、通用对话带 governance context 注入、followup 建议 — esbuild 零错误、.vsix 重新打包安装
-- [x] Extension 安装向导 — `setup/wizard.ts` + `pythonDetector.ts` + `runtimeInstaller.ts`；首次激活检测 Python/Runtime → 模态对话框引导 zip/wheel 安装 → 自动配置 pythonPath → MCP 自动启动 → `.vscode/mcp.json` 生成使原生 MCP 列表可见（`design_docs/stages/planning-gate/2026-04-18-extension-install-wizard-slice1.md`）— esbuild 零错误
-- [x] 全局记忆/文档/规则支持（跨工作区）— A→C→D 全路线完成：P0 user-global pack kind + P1 config.json 配置层 + P2 Extension Config Management UI（TreeView + WebView + MCP update_user_config）。`~/.doc-based-coding/packs/` 自动发现 + `config.json` 支持 `extra_pack_dirs`/`default_model`/`default_llm_params`，36 个新 Python 测试 — 1197 passed, 2 skipped
-- [x] 研究借鉴 Multica 架构 — https://github.com/multica-ai/multica — 多 agent 协调平台的架构模式参考。三阶段深度研究完成：`review/multica/01-architecture-deep-dive.md`（Go backend + Daemon + 前端 monorepo + Skills + Autopilot + 安全 + 技术债务）、`review/multica/02-direction-and-weaknesses.md`（5 大发展方向 + 5 大不足 + 版本演进）、`review/multica-borrowing/borrowing-insights.md`（hash 锁定→pack 版本管理、Platform Bridge→多入口统一、知识复合克制启示、互补潜力）；research-compass 已更新
-- [x] Pack Integrity Hash (pack-lock.json) — Multica skills-lock.json 借鉴落地。`src/pack/pack_integrity.py`：`compute_pack_hash()` 全目录确定性 SHA-256 + `PackLockFile` 锁文件 CRUD + `verify_pack()`/`verify_all()` 验证。Pipeline `_load_packs()` 非阻塞 integrity warning + `install_pack()` 自动 lock + `remove_pack()` 自动 unlock + MCP 工具 `pack_lock`/`pack_unlock`/`pack_verify`。20 新测试 — 1223 passed, 2 skipped
-- [x] 子 agent model 管理 — 插件支持配置/切换子 agent 使用的 LLM model：`docBasedCoding.llm.family` 配置项 + `selectModel` Quick Pick 命令 + `onDidChangeConfiguration` 自动 re-init
-- [x] 硬编码禁止 git push — 插件在 governance 层拦截 `git push`（唯一修改远程的操作），不可绕过；pull/fetch/clone 等读取操作放行
-  - [x] VS Code Extension 侧：`gitRemoteGuard.ts` 正则预拦截 + TerminalGovernanceMonitor 集成 + Ctrl+C 终止 + modal error
-  - [x] MCP Python 侧：`governance_decide` pre-check 对 `terminal-command: git push` 返回 BLOCK
-  - [x] VS Code SCM UI：`gitRemoteGuardScm.ts` 生成 git wrapper 脚本，设置 workspace `git.path`，拦截 push (exit 128)
-  - [x] VSIX 0.1.2 已打包含全部 guard 代码（终端 + SCM UI + MCP）
-- [x] BL-8 Extension 同步 — `DecisionLogEntry` 类型新增 `merge_conflicts` 字段 + tooltip 展示冲突详情 + ⚠ warning 图标 + 三态筛选按钮（all/with/without conflicts）+ `filterDecisionLogsMergeConflicts` 命令 — esbuild 零错误
-- [x] Chat Participant `/dogfood` 子命令 — `@governance /dogfood` 调用 `promote_dogfood_evidence` MCP 工具，支持纯文本和 JSON 输入，输出 Promotion Decisions / Issues / Feedback Packet / Consumer Payloads — esbuild 零错误
-- [x] VSIX 0.1.3 打包 — 含 BL-8 筛选按钮 + `/dogfood` Chat 子命令（28.66 KB）
-- [x] Codex 主链适配 + Extension provider abstraction — `generate-instructions` 支持 `generic|codex|copilot` 与 `AGENTS.md` 推断；extension 命令层改为依赖抽象 provider 契约并保留 GitHub Copilot 默认实现；targeted `pytest` 35 passed + `vscode-extension` esbuild 通过
-
-### 已完成里程碑
-
-- ✅ Phase 0–3：文档定型 + prototype cleanup
-- ✅ Phase 4–5：平台对象规格化（9 JSON Schema）
-- ✅ Phase 6–10：PDP/PEP Runtime + Subagent + Handoff + 升级路径
-- ✅ Phase 11–14：Review 状态机 + 写回 + 审核编排 + E2E 治理测试
-- ✅ Phase 15：Real Worker Adapter (LLM + HTTP)
-- ✅ Phase 16：Pack Runtime Loader
-- ✅ Phase 17：Audit & Tracing System
-- ✅ Phase 18：Validator/Checks/Trigger Framework
-- ✅ Phase 19：Official Instance E2E Validation (40 项)
-- ✅ Phase 20：Worker Collaboration Modes
-- ✅ Phase 21：Checkpoint Persistence + Direction Template
-- ✅ Phase 22：v0.1-dogfood Release (Pipeline + MCP + Instructions)
-- ✅ Phase 23：PackContext Downstream Wiring
-- ✅ Phase 24：MCP Prompts/Resources + always_on 注入
-- ✅ Phase 25：Extension Bridging (Pack → Registry)
-- ✅ Phase 26：on_demand 懒加载 API
-- ✅ Phase 27：Dogfood 深度验证
-- ✅ Phase 28：Dogfood Feedback Remediation
-- ✅ Phase 29：Self-Hosting Workflow Rule Formalization
-- ✅ Phase 30：Dogfood Feedback Remediation Part 2 (F8 First)
-- ✅ Phase 31：F4 Validator Diagnostics Follow-up
-- ✅ Phase 32：First Stable Release Closure（边界定义 + 收口清单）
-- ✅ Phase 33：Error Recovery for Entry Points（Pipeline/MCP/CLI 容错）
-- ✅ Phase 34：Structured Error Format Unification（ErrorInfo 统一错误结构）
-- ✅ Phase 35：v1.0 Stable Release Confirmation（B7 用户确认 + 版本标记）
-
-### 风险
-
-- 无当前阻塞项。- `pack_manager.py` 中 `runtime_compatibility` 字段在 install/list 时仅存储但从未校验兼容性（缺少 runtime 版本比对逻辑）；`_compute_checksum()` 已定义但未被任何代码路径调用——两者均为预留接口，可在后续 pack 升级/完整性校验需求时补充实现。
-  - **已实现**（`design_docs/stages/planning-gate/2026-04-17-pack-manager-reserved-interfaces.md`）：`_check_runtime_compatibility()` + `_get_runtime_version()` + install 前 hard reject + checksum 记录到 `platform.json` + `PackInfo.checksum` 字段 — 1058 passed, 2 skipped- safe-stop writeback 现已显式化为 bundle contract、`current_handoff_footprint` 与 MCP helper 输出；当前残余风险在于它仍主要是“contract + validation + files_to_update”层，而不是自动执行所有写回动作的全自动 executor。
-- 当前“外部 skill 交互”已经有通用 contract 与 handoff reference implementation；当前残余风险在于它仍只在 handoff family 与本轮触达的 shipped copies 上得到验证，尚未扩展到更多 future skill families。
-- 当前 runtime contract 已明确声明：`check_constraints()` 只 machine-check C4/C5；更严格的对话推进约束仍由规则/提示词层承担，而非完整运行时审计层。
-- `_summarize_content` 对 flat 内容可能丢信息（已知，低影响）。
-- `src/pep/markdown_updater.py`：Markdown section 级别定位与更新。
-  - find_section / replace_section / append_to_section / insert_after_line / replace_line。
-  - 支持 heading 匹配、regex 行匹配。
-- WritebackEngine 进化：WritebackPlan 新增 match 字段 + 4 种 directive 操作。
-  - section_replace / section_append / line_insert / line_replace。
-  - 通过 markdown_updater 执行语义级别文档更新。
-- `src/review/feedback_api.py`：FeedbackAPI 外部 reviewer 入口。
-  - register / list_pending / submit / get_result。
-  - in-memory 存储，可从外部提交 approve/reject/revision feedback。
-- E2E 治理测试覆盖 5 条完整治理路径：
-  - question→inform→applied（快速路径）
-  - correction→review→approve→applied→writeback
-  - scope-change→approve→escalation→reject→terminal
-  - correction→review→revision→resubmit→approve→applied
-  - delegation→contract→worker→report→auto-apply
-- 228 项 pytest 测试全部通过（1 skipped）。
-- Phase 14 Write-Back 语义文档更新 + E2E 治理测试已全部完成。
-- Phase 15 已启动：Real Worker Adapter (LLM + HTTP)。
-- `src/workers/` 包：WorkerConfig / WorkerRegistry / LLMWorker / HTTPWorker。
-- WorkerConfig：dataclass，API key 通过环境变量读取（api_key_env → os.environ.get），不硬编码。
-- WorkerRegistry：按 worker_type 注册和获取 worker 实例。
-- LLMWorker：OpenAI-compatible API（兼容阿里云 DashScope），contract → prompt → LLM → report。
-  - stdlib urllib.request（无外部依赖），指数退避重试，temperature 0.3。
-  - 真实 LLM 调用测试通过（DashScope qwen-plus，1.44s 响应）。
-- HTTPWorker：向外部 API endpoint POST contract，解析 response 为 report。
-- 253 项 pytest 测试全部通过（1 skipped）。
-- Phase 15 Real Worker Adapter 已全部完成。
-- Phase 16 已启动：Pack Runtime Loader。
-- `src/pack/` 包：ManifestLoader / ContextBuilder / OverrideResolver。
-- `src/pack/manifest_loader.py`：PackManifest dataclass + load/load_dict 加载器。
-  - 解析 pack-manifest.json，校验必填字段（name/version/kind）。
-  - 支持完整字段集：provides, intents, gates, always_on, on_demand, rules 等。
-- `src/pack/context_builder.py`：ContextBuilder + PackContext。
-  - 多层 pack 注册（platform → instance → project-local）。
-  - 合并 intents/gates/document_types（去重保序）。
-  - 加载 always_on 文件内容，rules 深度合并。
-- `src/pack/override_resolver.py`：RuleConfig dataclass + resolve/default_rule_config。
-  - RuleConfig 统一承载 PDP 所有 resolver 的可配置规则。
-  - resolve(PackContext) 将 pack 规则叠加到平台默认值上。
-  - default_rule_config() 返回当前硬编码默认值。
-- PDP 5 个 resolver 全部重构：classify/resolve 新增可选 rule_config 参数。
-  - None 时使用硬编码默认值（向后兼容）。
-  - 非 None 时从 RuleConfig 读取规则。
-- decision_envelope.build_envelope() 新增可选 rule_config 参数。
-- 官方实例 doc-loop-vibe-coding 的 pack-manifest.json 可成功加载并消费。
-- 288 项 pytest 测试全部通过（1 skipped）。
-- Phase 16 Pack Runtime Loader 已全部完成。
-- Phase 17 已启动：Audit & Tracing System。
-- `src/audit/` 包：AuditLogger / TraceContext / MemoryAuditBackend / FileAuditBackend。
-- `src/audit/trace_context.py`：TraceContext (frozen dataclass) + new_trace / child_trace。
-  - trace_id 串联 PDP → PEP → writeback 全链路。
-- `src/audit/audit_logger.py`：AuditEvent + AuditBackend Protocol + AuditLogger。
-  - MemoryAuditBackend：内存存储（测试/轻量场景）。
-  - FileAuditBackend：JSON Lines 文件存储。
-  - AuditLogger：多后端分发 + emit/query 接口。
-- PDP decision_envelope.build_envelope() 集成审计：
-  - 新增可选 audit_logger + trace_ctx 参数。
-  - 6 种审计事件：input_received, intent_classified, gate_resolved, delegation_decided, escalation_decided, precedence_resolved。
-  - envelope 中新增 trace_id 字段。
-- PEP executor 集成审计：
-  - 新增可选 audit_logger 构造参数。
-  - 3 种审计事件：execution_started, review_feedback, writeback_completed。
-- 全链路审计测试确认 ≥7 条治理事件覆盖 pdp + pep 两个阶段。
-- 313 项 pytest 测试全部通过（1 skipped）。
-- Phase 17 Audit & Tracing System 已全部完成。
-- Phase 18 已启动：Validator/Checks/Trigger Framework。
-- `src/validators/` 包：Validator / Check / Trigger Protocol + Registry + 内置实现。
-- `src/validators/base.py`：3 个 Protocol（Validator / Check / Trigger）+ 3 个 Result dataclass。
-- `src/validators/registry.py`：ValidatorRegistry（按名称注册/获取/列出 validators/checks/triggers）。
-- `src/validators/schema_validator.py`：SchemaValidator（JSON Schema 校验，内置 jsonschema）。
-- `src/validators/script_validator.py`：ScriptValidator（Python 函数调用作为校验器）。
-- `src/validators/trigger_dispatcher.py`：TriggerDispatcher（事件路由 + 多 handler 分发）。
-- `src/pep/executor.py` 进化：新增可选 validator_registry 构造参数。
-  - delegation report 后自动调用 pack validators（结果存入 pack_validations）。
-  - writeback 前自动调用 pack checks（失败时阻止写回 + 记录 writeback_blocked_by）。
-- 348 项 pytest 测试全部通过（1 skipped）。
-- Phase 18 Validator/Checks/Trigger Framework 已全部完成。
-- Phase 19 已启动：Official Instance E2E Validation。
-- `tests/test_official_instance_e2e.py`：40 项 E2E 测试。
-  - ManifestLoader 加载官方实例 manifest，字段完整。
-  - ContextBuilder 合并 always_on 内容、intents、gates、document_types。
-  - OverrideResolver 从实例 pack 消解出有效 RuleConfig。
-  - PDP 使用实例规则后决策结果符合预期（question→inform、correction→review、scope-change→approve）。
-  - PDP + audit 全链路，审计事件 ≥4 种类型。
-  - PEP inform 快速路径产出 write-back 文件。
-  - SchemaValidator + ScriptValidator 校验 delegation report。
-  - Blocking check 阻止 writeback；passing check 允许 writeback。
-  - TriggerDispatcher 基于实例 manifest triggers 分发事件。
-  - 完整治理链 E2E：inform/delegation/review-approve/validators 四条路径。
-  - Bootstrap 产出通过 validate_doc_loop.py 校验。
-- 387 项 pytest 测试全部通过（2 skipped）。
-- Phase 19 Official Instance E2E Validation 已全部完成。
-- Phase 20 已启动：Worker Collaboration Modes (Handoff + Subgraph)。
-- `src/collaboration/` 包：CollaborationMode 枚举 + ModeExecutor Protocol。
-- `src/collaboration/modes.py`：CollaborationMode(worker/handoff/subgraph) + ModeExecutor Protocol。
-- `src/collaboration/handoff_mode.py`：HandoffRequest dataclass + prepare/execute/_build_handoff。
-  - 显式控制权转移：fire-and-transfer（区别于 worker 的 fire-and-collect）。
-  - 生成 Handoff 对象（符合 handoff.schema.json）。
-  - 审计事件：handoff_initiated / handoff_completed / handoff_failed。
-- `src/collaboration/subgraph_mode.py`：SubgraphContext dataclass + create_context/execute/merge_result。
-  - 隔离执行上下文（namespace）+ 状态快照（state_snapshot）。
-  - delta 捕获：artifacts_changed / assumptions / unresolved_items。
-  - merge_result：受控合并 delta 到父状态。
-  - 审计事件：subgraph_created / subgraph_completed / subgraph_failed。
-- `src/pdp/delegation_resolver.py` 进化：_select_mode() 基于 RuleConfig.extra 选择协作模式。
-  - 默认 supervisor-worker；pack 可通过 extra.collaboration_mode 覆盖为 handoff/subgraph。
-  - mode 影响 worker_only / requires_review / allow_handoff 字段。
-- `src/pack/override_resolver.py` 进化：RuleConfig 新增 extra 字段（dict[str, object]）。
-- `src/pep/executor.py` 进化：_execute_delegation 重构为模式分发。
-  - _execute_worker_mode：保持原有 supervisor-worker 逻辑不变。
-  - _execute_handoff_mode：调用 handoff_mode.prepare/execute + RSM → waiting_review。
-  - _execute_subgraph_mode：调用 subgraph_mode.create_context/execute + RSM → waiting_review。
-- 414 项 pytest 测试全部通过（2 skipped）。
-- Phase 20 Worker Collaboration Modes 已全部完成。
-- 下一步：方向选择。
-- Phase 21 已启动：Checkpoint Persistence + Direction Template。
-- `src/workflow/checkpoint.py`：write_checkpoint / read_checkpoint / validate_checkpoint 工具函数。
-- `tests/test_checkpoint.py`：17 项 pytest 测试全部通过。
-- `design_docs/stages/_templates/Direction Candidates Template.md`：候选方向文档化模板。
-- `design_docs/tooling/Document-Driven Workflow Standard.md`：新增 Checkpoint 触发时机 + 方向模板段落。
-- `.codex/checkpoints/latest.md`：首个 checkpoint 已生成并通过 round-trip 验证。
-- 431 项 pytest 测试全部通过（2 skipped）。
-- Phase 21 Checkpoint Persistence + Direction Template 已全部完成。
-- Phase 22 已启动：v0.1-dogfood Release — Pipeline + MCP Server。
-- 集成方案分析完成 → 方案 E（MCP + Instructions 生成）已确认。
-  - 5 种 Copilot 集成方案运行时模拟 → 见 `design_docs/stages/planning-gate/copilot-integration-runtime-simulation.md`
-  - 约束执行力从 advisory 提升到 structural。
-- Pack Manifest 字段间隙分析完成 → 见 `design_docs/stages/planning-gate/pack-context-wiring-gap-analysis.md`
-  - 19 个字段中仅 `rules` 一条完整贯通路径。
-  - 4 个 merged 集合为死数据，6 个扩展件字段未接线。
-- `src/workflow/pipeline.py`：Pipeline 编排类。
-  - `Pipeline.from_project(root)` 自动发现 pack 并加载。
-  - `Pipeline.process(input_text)` → PipelineResult（envelope + execution + audit）。
-  - `Pipeline.check_constraints()` → ConstraintResult（C5 等约束检查）。
-  - Pack 自动发现：.codex/platform.json 配置优先，否则约定扫描。
-- `src/__main__.py`：CLI 入口。
-  - `python -m src process "input"` / `info` / `validate` / `check` 四个命令。
-- `src/mcp/tools.py`：GovernanceTools 层。
-  - `governance_decide(input)` → BLOCK/ALLOW + 约束检查 + PDP/PEP 结果。
-  - `check_constraints()` → 约束状态 + files_to_reread + 当前 phase。
-  - `get_next_action()` → 下一步推荐 + 文档引用 + ask_user 标志。
-  - `writeback_notify(phase)` → 自动推进建议 + 待更新文件列表。
-  - `get_pack_info()` → 已加载 pack 信息。
-- `src/mcp/server.py`：MCP Server（stdio 传输）。
-  - VS Code 配置 `.vscode/mcp.json` 已就绪。
-  - E2E 协议验证通过：initialize → tools/list → tools/call。
-- 474 项 pytest 测试全部通过（2 skipped）。
-- Phase 22 Slice 1+2 已完成。
-- Phase 22 MCP dogfood 验证通过，修复 checkpoint 解析 bug。
-- Phase 22 Slice 3（Instructions Generator）已完成：
-  - `src/workflow/instructions_generator.py`：从 PackContext 生成 copilot-instructions 段落。
-  - CLI：`python -m src generate-instructions [--output PATH]`。
-  - 20 项 pytest 测试全部通过。
-- Phase 22 Slice 4（project-local pack 约束声明）已完成：
-  - `.codex/packs/project-local.pack.json` 新增 `rules.constraints`（C1-C8 完整约束）。
-  - 生成的 instructions 包含所有约束（含 severity 标签）。
-- Phase 22 Slice 5 推迟（PackContext downstream wiring，留待 dogfood 反馈后精准设计）。
-- 494 项 pytest 测试全部通过（2 skipped）。
-- Phase 22 v0.1-dogfood Release 已收口完成。
-- Phase 23 已启动：PackContext Downstream Wiring + Dogfood。
-- `src/pack/override_resolver.py` 进化：RuleConfig 新增 `allowed_gates: set[str]` 字段。
-  - resolve() 将 PackContext.merged_intents → platform_intents、merged_gates → allowed_gates。
-  - wiring 代码移到 early return 之前，确保即使无显式 rules 也能传递 merged 集合。
-- `src/pdp/intent_classifier.py` 进化：classify() 新增 platform_intents 限制检查。
-  - 若 rule_config.platform_intents 非空且分类结果不在其中，返回 "unknown"。
-  - platform_intents 为权威来源，keyword_map 不自动豁免。
-- `src/pdp/gate_resolver.py` 进化：resolve() 新增 allowed_gates 校验。
-  - 若 rule_config.allowed_gates 非空且结果不在其中，fallback 到最高可用 gate（approve→review→inform）。
-- `tests/test_packcontext_wiring.py`：18 项新测试覆盖三个切片。
-- 512 项 pytest 测试全部通过（2 skipped）。
-- Phase 23 PackContext Downstream Wiring + Dogfood 已全部完成。
-- Phase 24 已启动：MCP Prompts/Resources + always_on 注入。
-- `src/mcp/server.py` 进化：新增 list_prompts / get_prompt / list_resources / read_resource 处理器。
-  - Pack 声明的 prompts 可通过 `/<server>.<prompt>` 调用。
-  - always_on 文件作为 MCP Resources 暴露（内存读取）。
-  - on_demand 文件作为 MCP Resources 暴露（按需磁盘读取）。
-- `src/mcp/tools.py` 进化：GovernanceTools 新增 list_prompts / get_prompt / list_resources / read_resource 方法。
-  - prompt 描述自动从文件首行非标题文本提取。
-  - Resource URI 格式：`pack://always-on/{filename}` 和 `pack://{pack}/on-demand/{path}`。
-- `src/workflow/instructions_generator.py` 进化：_always_on_section() 现输出文件内容摘要。
-  - _summarize_content() 提取标题和关键段落，最多 20 行。
-- `tests/test_mcp_prompts_resources.py`：19 项新测试覆盖三个切片。
-- 531 项 pytest 测试全部通过（2 skipped）。
-- Phase 24 MCP Prompts/Resources + always_on 注入已全部完成。
-- Phase 25 已启动：Extension Bridging (Pack → Registry)。
-- `src/pack/registrar.py`：PackRegistrar 桥接组件。
-  - 读取 manifest.validators，动态加载 Python 模块，找 validate() 函数包装为 ScriptValidator。
-  - 读取 manifest.triggers，创建 EventStubTrigger 注册到 TriggerDispatcher。
-  - 无 validate() 函数的脚本自动跳过（记录到 skipped）。
-  - 文件不存在时优雅降级（警告而不崩溃）。
-- `src/workflow/pipeline.py` 进化：_load_packs() 现调用 PackRegistrar 注册扩展件。
-  - Pipeline.info() 新增 registered_validators / registered_triggers / skipped 字段。
-- `tests/test_extension_bridging.py`：13 项新测试覆盖所有切片。
-- 544 项 pytest 测试全部通过（2 skipped）。
-- Phase 25 Extension Bridging 已全部完成。
-- Phase 26 已启动：on_demand 懒加载 API。
-- `src/pack/context_builder.py` 进化：PackContext 新增 on_demand_entries 字段和 load_on_demand()/list_on_demand() 方法。
-  - ContextBuilder.build() 现收集所有 pack 的 on_demand 条目到 on_demand_entries。
-  - load_on_demand(key) 按需读取文件并缓存。
-  - 多 pack 同 key 时高优先级 pack 覆盖。
-- `src/mcp/tools.py` 进化：read_resource() 现使用 PackContext.load_on_demand()。
-- `tests/test_on_demand.py`：11 项新测试覆盖所有场景。
-- 555 项 pytest 测试全部通过（2 skipped）。
-- Phase 26 on_demand 懒加载 API 已全部完成。
-- gap analysis 19 个字段中的 `depends_on` 校验、`provides` 消费、`checks` manifest 直连与 `overrides` 字段消费现已全部完成；所有已知实现型 gap 均已关闭。
-- Phase 27 已完成：Dogfood 深度验证。
-- Phase 28 已完成：Dogfood Feedback Remediation。
-- `src/pdp/intent_classifier.py`：保留既有 `correction` 关键词，同时新增 `issue-report` 扩展关键词，并加入 `correction/issue-report` 窄 tie-break 规则。
-- `src/workflow/checkpoint.py`：新增 `sync_checkpoint_phase()`，用于在 write-back 完成后刷新 checkpoint phase 且保留其他字段。
-- `src/mcp/tools.py`：`writeback_notify()` 在 live 路径下调用 checkpoint 同步。
-- `src/workflow/pipeline.py`：暴露 `is_dry_run` 属性，供上层工具判断是否允许写入 checkpoint。
-- `tests/test_pdp_basic.py`、`tests/test_checkpoint.py`、`tests/test_mcp_tools.py`：新增 7 项回归测试覆盖 issue-report 分类与 live checkpoint 同步。
-- 566 项 pytest 测试全部通过（2 skipped）。
-- Phase 28 Dogfood Feedback Remediation 已全部完成。
-- 下一步：基于 `design_docs/direction-candidates-after-phase-28.md` 选择 Phase 29 方向。
-- 风险：当前无 blocking 项；剩余 dogfood 问题主要是 F4/F8。
-
-## 最近一次写回
-
-- `2026-06-22`: 完成 `design_docs/stages/planning-gate/2026-06-22-live-qoder-runtime-provider-dogfood.md`。当前新增 host-owned CLI `doc-based-coding qoder smoke` / `python -m src qoder smoke`，复用既有 `run_host_owned_qoder_smoke()`、`QoderSDKQueryClientConfig`、`HostOwnedQoderSmokeRunConfig`、`RuntimeHostInvocation(surface="host-authorized-adapter")` 与 `RuntimeProviderPermissionGrant(provider="qoder", allow_sdk_client=True)`；该命令支持 credential-safe auth/cwd/model/max-turns/permission-policy/path/host-invocation 参数，默认 smoke task 保持 `max_turns=1`，并且不接受 raw token 值。该切片不新增 MCP real-provider execution、不放宽 scheduler CLI/MCP fake-only 边界、不启动 daemon/background service、不创建 agent home/scratch、不保存 raw transcript/SDK logs/token、不从 scheduler/runtime execution 突变 Local Work Trajectory。review evidence 位于 `review/live-qoder-runtime-provider-dogfood-2026-06-22.md`；validation 为 py_compile passed、focused Qoder CLI `7 passed`、scheduler prompt/provisioning focused `4 passed`、Qoder smoke/helper focused `6 passed`、Qoder runtime focused `31 passed`、combined Qoder regression `45 passed`、credential-safe readiness-negative check、`qoder smoke --no-initialize-snapshot` 未写测试 snapshot/evidence/projection、`git diff --check` passed with Windows line-ending warnings only、`analyze_changes` 无 impact/coupling alert。当前本机仍为 readiness-negative，后续 credentialed live success 取决于 host provision `qoder-agent-sdk` 与支持的 auth。
-
-- `2026-06-22`: 完成 `design_docs/stages/planning-gate/2026-06-22-operator-dogfood-closure-mcp-surface.md`。当前 operator dogfood closure 已暴露为 Codex-facing MCP tool `schedulerOperatorDogfoodClosure`，复用 `SchedulerOperatorDogfoodClosureRequest` / `run_scheduler_operator_dogfood_closure()` 与 CLI/runtime 相同 JSON result shape。默认 `binding-consumer` fixture 可在 MCP 中完成 seed、binding-ref inspection、exact admission、successful admission 后 consumed lifecycle marking、bounded fake scheduler loop、scheduler projection refresh 与 Host Evidence readback；`runtimeProvider != fake` 会返回明确 fake-only guard 且不声明 mutation authority。scheduler MCP prompt、bootstrap prompt 与 `design_docs/tooling/MCP Tool Surface Audit.md` 已同步。该切片不新增 Host UX、不运行 live Qoder/real provider、不启动服务/定时器/后台 daemon、不创建 agent home 或 scratch、不执行 cleanup、不从 runtime/CLI/MCP code 突变 Local Work Trajectory。review evidence 位于 `review/operator-dogfood-closure-mcp-surface-2026-06-22.md`；validation 为 py_compile passed、focused MCP closure tests `2 passed, 19 deselected`、adjacent MCP operator/bundle tests `7 passed, 14 deselected`、focused runtime closure tests `2 passed, 278 deselected`、focused CLI closure tests `2 passed, 54 deselected`、scheduler prompt tests `2 passed, 18 deselected`、`git diff --check` passed with Windows line-ending warnings only；`analyze_changes` 无 impact nodes，MCP registration coupling alert 已由 server schema/routing 与 route tests 覆盖。后续方向分析位于 `design_docs/operator-dogfood-closure-mcp-surface-followup-direction-analysis.md`，当前产品面倾向下一条能力为 `Host UX Operator Dogfood Closure Control`。
-
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-artifact-admission-readiness.md`。当前 scheduler submissions 已具备 supervisor storage binding artifact 的 exact-version 引用与可选 admission preflight：`src.runtime.orchestration.scheduler_submission` 新增 `SUPERVISOR_STORAGE_BINDING_ARTIFACT_REF_KIND = "supervisor_storage_binding_artifact"`、`BindingArtifactReferenceValidation` 与 `validate_supervisor_storage_binding_artifact_refs()`；下游任务可用 `ExchangeReference(ref_kind="supervisor_storage_binding_artifact", ref_id="<binding artifact id>", version="<exact version>")` 声明输入。validator 只读 `JsonArtifactVersionStore`，确认目标 artifact 存在且恰好包含一个 compact `supervisor_storage_binding_artifact` structured payload，并覆盖 missing version、missing artifact、wrong product、ambiguous product；`admit_exchange_artifact_version_to_scheduler()` 新增默认关闭的 `validate_binding_artifact_refs` opt-in，在 scheduler snapshot mutation 前 fail closed。该切片不自动 schedule 下游工作、不标记 binding artifact consumed、不改变 runtime execution contract、不新增 CLI/MCP/Host UX、不读取 raw evidence JSON、不创建 agent home 或 scratch 目录、不写 scratch manifest、不执行 cleanup、不刷新 scheduler projection、不从 runtime/workflow code 突变 Local Work Trajectory。review evidence 位于 `review/supervisor-storage-binding-artifact-admission-readiness-2026-06-21.md`；validation 为 py_compile passed、focused runtime binding-ref/evidence/admission tests `15 passed, 246 deselected`、adjacent runtime scheduler-submission/admission regression `17 passed, 244 deselected`、CLI admission/operator regression `10 passed, 35 deselected`、MCP admission regression `3 passed, 10 deselected`、`git diff --check` passed、`analyze_changes` 无 impact/coupling alert。后续方向分析位于 `design_docs/supervisor-storage-binding-artifact-admission-readiness-followup-direction-analysis.md`，当前倾向下一条能力为 `Read-Only Binding Reference Inspection Surface`。
-- `2026-06-22`: 完成 `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-reference-inspection-surface.md`。当前 exact stored scheduler submission 已具备 supervisor storage binding refs 的只读检查面：`BindingArtifactReferenceTaskInspection`、`BindingArtifactReferenceInspection` 与 `inspect_supervisor_storage_binding_artifact_refs_for_submission()` 可读取一个 `JsonArtifactVersionStore` artifact id/version，接受 single/batch scheduler submission，逐 task 复用 `validate_supervisor_storage_binding_artifact_refs()`，并返回 `supervisor_storage_binding_reference_inspection` JSON-safe 产品。CLI `doc-based-coding scheduler inspect-binding-refs` 与 MCP `schedulerBindingReferenceInspect` 暴露同一产品；校验错误时 CLI 非零退出但仍打印结构化 JSON，MCP 返回 `ok=false` 产品。scheduler MCP prompt 与 `design_docs/tooling/MCP Tool Surface Audit.md` 已记录该 surface。该切片不 admit/submit task、不写 scheduler snapshot/event log、不突变 ExchangeArtifact store/admission ledger、不标记 consumed、不读取 raw evidence JSON、不运行 provider、不刷新 projection、不新增 Host UX、不从 runtime/CLI/MCP code 突变 Local Work Trajectory。review evidence 位于 `review/supervisor-storage-binding-reference-inspection-surface-2026-06-22.md`；validation 为 py_compile passed、focused runtime inspection/admission regression `20 passed, 244 deselected`、CLI inspection/admission/operator regression `13 passed, 35 deselected`、MCP admission inspection regression `4 passed, 10 deselected`、MCP tools adjacent regression `13 passed, 73 deselected`、scheduler MCP prompt focused test passed、`git diff --check` passed；`analyze_changes` 无 impact nodes，MCP registration coupling alert 已由 server schema/routing 与 route tests 覆盖。
-
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-exchange-artifact-projection.md`。当前 supervisor storage binding evidence summary 已可投影为 compact `ExchangeArtifact`：`src.runtime.orchestration.supervisor_storage_binding_evidence` 新增 `SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE` / `SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION` 与 `supervisor_storage_binding_evidence_summary_to_artifact()`，生成 `retention` / `inform` artifact，包含 `structured` summary、scheduler-readable `storage_manifest`、`evidence` payload、durable evidence file `ref` 与 compact projection `log`。artifact scope 对单值 task/context/lane/runtime id 做保守填充，多值事实保留在 structured payload，避免强行选择 primary id；raw `binding` payload 不进入 ExchangeArtifact。该切片不新增 scheduler admission、CLI/MCP/Host UX、不标记 artifact consumed、不运行 live provider、不创建 agent home 或 scratch 目录、不写 scratch manifest、不执行 cleanup、不刷新 scheduler projection、不突变 scheduler state、不从 runtime/workflow code 突变 Local Work Trajectory。review evidence 位于 `review/supervisor-storage-binding-exchange-artifact-projection-2026-06-21.md`；validation 为 py_compile passed、focused runtime evidence/workflow/binding/projection tests `8 passed, 249 deselected`、adjacent runtime exchange/storage regression `14 passed, 243 deselected`、`git diff --check` passed、`analyze_changes` 无 impact/coupling alert。后续方向分析位于 `design_docs/supervisor-storage-binding-exchange-artifact-projection-followup-direction-analysis.md`，当前倾向下一条后端能力为 `Exact-Version Admission Readiness For Supervisor Storage Binding Artifacts`。
-
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-supervisor-storage-binding-evidence.md`。当前 supervisor storage/context binding 已具备 durable evidence 产品：`src.runtime.orchestration.supervisor_storage_binding_evidence` 新增 `SupervisorStorageBindingEvidence` / `SupervisorStorageBindingEvidenceWriteResult` / `SupervisorStorageBindingEvidenceSummary` 与 build/default-path/write/read-summary helpers，默认 evidence 路径为 `.codex/scheduler/evidence/<safe-id>.json`；summary readback 暴露 evidence、binding、supervisor/session/run/host/requester、agent/context-session、scheduler task/context/lane、runtime session、home registration、scratch、source snapshot、metadata 与 authority facts，并刻意不嵌入 raw binding payload。既有 Host Evidence bundle/presentation 现在可只读识别 `supervisor_storage_binding_evidence`，避免 evidence directory scanning 把它当 unsupported product；这不是新的 CLI/MCP/Host UX action。该切片不新增 scheduler admission、不表示为 `ExchangeArtifact`、不运行 live provider、不创建 agent home 或 scratch 目录、不写 scratch manifest、不执行 cleanup、不刷新 scheduler projection、不突变 scheduler state、不从 runtime/workflow code 突变 Local Work Trajectory。review evidence 位于 `review/supervisor-storage-binding-evidence-2026-06-21.md`；validation 为 py_compile passed、focused runtime evidence/workflow/binding tests `6 passed, 249 deselected`、focused Host Evidence readback tests `3 passed, 66 deselected`、adjacent runtime evidence/readback regression `11 passed, 244 deselected`、adjacent Host Evidence bundle/presentation regression `9 passed, 60 deselected`。后续方向分析位于 `design_docs/supervisor-storage-binding-evidence-followup-direction-analysis.md`，当前倾向下一条后端能力为 `ExchangeArtifact Projection For Supervisor Storage Binding Evidence`。
-
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-supervisor-agent-home-session-binding.md`。当前 supervisor run identity 已可绑定为 agent-private storage/context readback 产品：`src.runtime.orchestration.supervisor_storage_binding` 新增 `SupervisorAgentStorageBindingRequest` / `SupervisorAgentStorageBinding` / `build_supervisor_agent_storage_binding()`，`tools.progress_graph.build_supervisor_dogfood_storage_binding()` 可从已完成的 deterministic supervisor dogfood workflow 读取 scheduler snapshot 并派生 context-session、scheduler task/context/lane ids、runtime session ids、一个 requested `AgentHomeRegistration` 与 task-derived `AgentScratchSpace` facts。该切片保持 product/readback-only，不新增 CLI/MCP/Host UX、不运行 live provider、不创建 agent home 或 scratch 目录、不写 scratch manifest、不执行 cleanup、不刷新 scheduler projection、不从 runtime/workflow code 突变 Local Work Trajectory。review evidence 位于 `review/supervisor-agent-home-session-binding-2026-06-21.md`；validation 为 py_compile passed、focused binding tests `2 passed, 251 deselected`、adjacent supervisor workflow/binding regression `4 passed, 249 deselected`、storage governance + binding regression `7 passed, 246 deselected`。后续方向分析位于 `design_docs/supervisor-agent-home-session-binding-followup-direction-analysis.md`，当前倾向下一条后端能力为 `Durable Supervisor Storage Binding Evidence`。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-full-release-electron-smoke-evidence-run.md`。本轮用完整 `.\.venv\Scripts\python.exe scripts/release.py --no-isolation` 验证 pre-provisioned Electron smoke release gate 已能穿过真实 release flow：双 wheel build 成功、full pytest `1754 passed, 3 skipped`、VSIX `doc-based-coding-0.2.1.vsix` 打包成功、release Electron smoke summary 保持 `ok=true / panelVisible=true / lanes=4 / events=6 / relations=12`、`release/doc-based-coding-v0.9.8.zip` 重新生成。第一次 full run 暴露 `doc-loop-vibe-coding` pack lock hash 过期，已通过 MCP `pack_lock(pack_name="doc-loop-vibe-coding")` 刷新并由 `pack_verify` 复验为 `ok`。review evidence 位于 `review/full-release-electron-smoke-evidence-run-2026-06-20.md`；release docs / commit message 已同步到 Electron smoke release gate 口径。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-scheduler-event-log-compaction-and-replay-hardening.md`。当前 scheduler compaction/replay 已支持显式 archive/reset boundary：`write_compacted_scheduler_snapshot()` 默认仍保持非破坏性，但在传入 `archive_event_log_path` 与 `reset_event_log=True` 时会先把 compacted snapshot 已代表的 scheduler events 写入 archive JSONL，再将 active event log 重置为空的 post-compaction replay boundary；`SchedulerCompactionResult` 暴露 archive/reset/replay-boundary metadata，`JsonlSchedulerEventLog` 新增 `write_all()` 与 `clear()`，strict replay unknown-task error 现明确说明 scheduler event log 是 replay/audit material、不会跨 compaction/recovery boundary 创建 task contract。review evidence 位于 `review/scheduler-event-log-compaction-and-replay-hardening-2026-06-20.md`；validation 结果为 compaction/replay focused pytest `17 passed`、full runtime orchestration pytest `185 passed`。该切片未启动 background daemon service、未运行 real provider、未绑定 UI、未实现 real sandbox provider、未突变 ExchangeArtifact/admission ledger、未从 scheduler code 突变 agent-owned Local Work Trajectory。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-background-scheduler-daemon-lifecycle-protocol.md`。当前 scheduler daemon 已新增本地 lifecycle control contract：`SchedulerDaemonLifecycleControl` / `SchedulerDaemonLifecycleRequest` / `SchedulerDaemonLifecycleResult` / `SchedulerDaemonLifecycleRunOnceRequest` / `SchedulerDaemonLifecycleRunOnceResult`，并由 `apply_scheduler_daemon_lifecycle_action()`、`inspect_scheduler_daemon_lifecycle_control()`、`read/write_scheduler_daemon_lifecycle_control()` 与 `run_scheduler_daemon_lifecycle_once()` 形成 start / heartbeat / pause / resume / cancel / shutdown / stale readback 和 bounded run-once 控制闭环。该控制面只写 local JSON control file，stale heartbeat detection 同时兼容 epoch-second 字符串和 ISO-8601 timestamp；`run_scheduler_daemon_lifecycle_once()` 仅在 lifecycle state 为 `running` 时调用既有 `run_scheduler_daemon_loop()`，paused/cancelled/stopped/stale 均跳过 scheduler mutation，cancelling 会在 provider execution 前被消费为 cancelled。review evidence 位于 `review/background-scheduler-daemon-lifecycle-protocol-2026-06-20.md`；validation 结果为 lifecycle/daemon-loop focused pytest `16 passed`、full runtime orchestration pytest `191 passed`。该切片未启动 background daemon process、未添加 sleep/poll/watch/OS service、未运行 real provider、未绑定 UI、未实现 real sandbox provider、未突变 ExchangeArtifact/admission ledger、未从 scheduler code 突变 agent-owned Local Work Trajectory。
-- `2026-06-20`: 新增 `design_docs/scheduler-daemon-lifecycle-cli-mcp-surface-direction-analysis.md`。该方向分析对比了 lifecycle control 的 CLI-only、MCP+CLI、Host UX 先行、真实后台 daemon host 四条路线，推荐下一条窄 gate 为 `Scheduler Daemon Lifecycle CLI/MCP Read-Write Surface`：先暴露 `doc-based-coding scheduler lifecycle <action>` 与 MCP `schedulerLifecycleControl` / `schedulerLifecycleRunOnce`，保持 fake-runtime run-once、显式路径、authority_split 和不自动刷新 projection；继续推迟真实后台进程、watch/poll、真实 Qoder provider、Host UX 绑定、ExchangeArtifact/admission ledger mutation，以及 scheduler code 对 agent-owned Local Work Trajectory 的突变。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-scheduler-daemon-lifecycle-cli-mcp-surface.md`。当前 scheduler daemon lifecycle control 已暴露为显式 CLI/MCP read-write surface：CLI 新增 `doc-based-coding scheduler lifecycle inspect/start/heartbeat/pause/resume/cancel/shutdown/run-once`；MCP 新增 `schedulerLifecycleControl` 与 `schedulerLifecycleRunOnce`，并完成 server schema / routing。该 surface 要求显式 `controlPath`，`start` 要求 snapshot/event-log/daemon id；`run-once` 仍仅支持 fake runtime，projection refresh 保持独立。review evidence 位于 `review/scheduler-daemon-lifecycle-cli-mcp-surface-2026-06-20.md`；validation 结果为 py_compile passed、focused CLI `2 passed`、focused tracked MCP admission `2 passed`、scheduler MCP prompt `1 passed`、wider CLI `34 passed`、tracked MCP admission `5 passed`、runtime orchestration `191 passed`、doc-loop prompts `20 passed`。该切片未启动 background daemon process、未添加 sleep/poll/watch/OS service、未运行 real provider、未绑定 Host UX、未突变 ExchangeArtifact/admission ledger、未从 scheduler code/CLI/MCP 突变 agent-owned Local Work Trajectory。
-- `2026-06-20`: 新增 `design_docs/edit-lease-conflict-policy-expansion-direction-analysis.md`。该方向分析在 scheduler lifecycle surface 收口后回到并发写入安全问题，确认当前 `EditScopeLease` 已是一等调度元数据，但 scheduler admission 仍只有粗粒度 write/write exact overlap 阻断；subgraph preflight、write-back `allowed_artifacts` 与 scheduler lease 尚无统一机器级 policy result。推荐下一条窄 gate 为 `Edit Lease Conflict Classifier And Admission Evidence`：先做纯 classifier / decision dataclass、路径规范化、exact overlap / directory containment / denied hit / review-zone / unsupported policy 分类，并只接入 scheduler admission；继续推迟 lease acquisition/expiry lifecycle、write-back enforcement unification、sandbox mount binding、Host UX/MCP readback、真实 sandbox provider 与 Local Work Trajectory mutation。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-edit-lease-conflict-classifier-and-admission-evidence.md`。当前 scheduler admission 已新增结构化 edit lease policy surface：`EditLeaseConflictDecision` 与 `classify_edit_lease_conflict()` 支持 unsafe path、unsupported policy、exact overlap、directory containment、directory overlap、denied artifact hit、read/write compatibility 与 `review-zone` overlap 分类；`AdmissionDecision.edit_lease_conflict` 可直接携带 evidence。`review-zone` overlap 不自动运行，而是进入既有 `ScheduledTask.state = review_required` 并记录 `task_review_required` 事件。review evidence 位于 `review/edit-lease-conflict-classifier-and-admission-evidence-2026-06-20.md`；validation 结果为 py_compile passed、focused runtime classifier/admission tests `9 passed`、full runtime orchestration `198 passed`。该切片未添加 lease acquisition/expiry lifecycle、未改变 write-back execution、未绑定 real sandbox provider、未添加 Host UX/MCP readback、未改变 ExchangeArtifact admission 语义、未从 scheduler code 突变 agent-owned Local Work Trajectory。
-- `2026-06-20`: 完成 `design_docs/stages/planning-gate/2026-06-20-write-back-enforcement-unification.md`。当前 `WritebackEngine` 已可消费 optional `edit_lease_conflict` / `edit_lease_decision` evidence，支持 dict-like 与 dataclass-like `EditLeaseConflictDecision` 输入；report payload 与 grouped child payload 规划会在路径/allowed-artifact 本地校验之后按 lease state 产生 disposition：`review_required` 记录 `review_routed` 且不执行 payload write，`blocked` / `waiting` 记录 `blocked` 且不执行 payload write，compatible / absent evidence 保持既有行为。write-back markdown summary 现在区分 report/grouped child 的 review-routed 与 blocked payload 计数。review evidence 位于 `review/write-back-enforcement-unification-2026-06-20.md`；validation 结果为 py_compile passed、focused write-back lease evidence tests `5 passed`、full runtime orchestration `198 passed`。该切片未添加 lease acquisition/expiry lifecycle、未拉取 live scheduler state、未改变 scheduler admission、未执行 review-routed payload、未绑定 MCP/Host UX readback、未改变 ExchangeArtifact admission、未从 scheduler/write-back code 突变 agent-owned Local Work Trajectory。
-- `2026-06-20`: 新增 `design_docs/edit-lease-lifecycle-after-writeback-unification-direction-analysis.md`。该方向分析在 edit lease classifier 与 write-back enforcement unification 收口后，比较了 lease acquisition/expiration lifecycle、sandbox mount binding、Host UX/MCP lease readback、daemon lifecycle Host UX binding 与 real sandbox provider spike。当前推荐下一条窄 gate 为 `Edit Lease Acquisition And Expiration Lifecycle`：先定义 scheduler-owned lease lifecycle record/event 与 acquire/release/expire/revoke helper，要求显式时间输入，继续推迟 real sandbox enforcement、Host UX/MCP readback、write-back live scheduler query、ExchangeArtifact 语义变化和 Local Work Trajectory mutation。
-- `2026-06-20`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md`。本 gate 将 edit lease 下一步收窄为 scheduler-owned lifecycle record/event：`requested/acquired/waiting/review_required/released/expired/revoked/blocked`，并要求 acquire/release/expire/revoke helper、显式时间输入、scheduler event replay 与 state snapshot round-trip。继续保持 real sandbox enforcement、sandbox mount binding、Host UX/MCP readback、write-back live scheduler query、ExchangeArtifact 语义变化、Local Work Trajectory mutation 与 daemon expiry sweeping 为非目标。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-20-edit-lease-acquisition-and-expiration-lifecycle.md`。当前 scheduler 已新增 `EditLeaseLifecycleState` / `EditLeaseLifecycleRecord` 与 `SchedulerState.edit_lease_lifecycle`；task submission 会为声明的 edit lease 记录 `requested`，admission 会基于现有 `classify_edit_lease_conflict()` evidence 记录 `acquired` / `waiting` / `review_required` / `blocked`，task completion 与 permission approval 会 `released`，runtime failure 与 permission rejection 会 `revoked`，`expire_edit_leases(now=...)` 只在显式时间输入下产生 `expired`。`SchedulerEvent` 支持 `lease_id` 与 lifecycle snapshot，scheduler replay 与 state snapshot 均可保留 lifecycle evidence。review evidence 位于 `review/edit-lease-acquisition-and-expiration-lifecycle-2026-06-21.md`；validation 结果为 py_compile passed、focused lifecycle/classifier suite `17 passed`、full runtime orchestration `207 passed`。下一步推荐 `Sandbox Mount Binding Over Acquired Leases`。
-- `2026-06-21`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`。本 gate 将 sandbox 下一步收窄为 metadata-only mount authorization：`SandboxRequest` / `SandboxAllocation` 应消费 `SchedulerState.edit_lease_lifecycle` 中的 acquired record，只有 acquired lifecycle 能授权 lease-scoped visible mounts；缺失或非 acquired lifecycle 应 fail closed。继续保持真实 filesystem/process enforcement、Docker/git-worktree/remote-VM provider、Host UX/MCP readback、write-back planning、daemon expiry sweeping 与 Local Work Trajectory mutation 为非目标。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-sandbox-mount-binding-over-acquired-leases.md`。当前 metadata-only sandbox allocation 已接入 acquired edit lease lifecycle：`SandboxRequest.edit_lease_lifecycle` 可携带 lifecycle record，`SandboxAllocation` 会报告 `lease_authorized_mounts` / `lease_authorization_state` / `lease_authorization_reason`，`SharedProcessSandboxProvider` 只在 matching acquired lifecycle 下把 lease allowed artifacts 加入 visible mounts，缺失或非 acquired lifecycle 均 fail closed。`build_orchestration_preflight_bundle()` 支持传入 `scheduler_state` 并把 task lifecycle record 传给 sandbox request，`drain_preflighted_ready_tasks()` 会自动传当前 state。review evidence 位于 `review/sandbox-mount-binding-over-acquired-leases-2026-06-21.md`；validation 为 py_compile passed、focused sandbox/preflight suite `16 passed`、full runtime orchestration `210 passed`。
-- `2026-06-21`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`。本 gate 将下一步收窄为只读 scheduler authorization diagnostics：从 `SchedulerState` / snapshot / optional event-log recovery 中汇总 task edit lease declaration、edit lease lifecycle 与 metadata-only shared-process sandbox mount authorization facts，并通过 MCP `schedulerAuthorizationReadback` 暴露。继续保持 Host UX、CLI、真实 sandbox provider、runtime execution、scheduler mutation、projection refresh、ExchangeArtifact/admission ledger mutation、write-back planning 与 Local Work Trajectory mutation 为非目标。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-lease-and-sandbox-authorization-readback.md`。当前新增 `src/runtime/orchestration/scheduler_authorization_readback.py`，通过 `inspect_scheduler_authorization()` / `inspect_scheduler_authorization_snapshot()` 汇总 task edit lease declaration、edit lease lifecycle state counts、per-task lifecycle missing/non-missing facts、metadata-only shared-process sandbox mount authorization 与 orphan lifecycle records；snapshot readback 可选 `schedulerEventLogPath` 并复用既有 `recover_scheduler_state()`。MCP 新增 `schedulerAuthorizationReadback`，返回同一 readback product 与 read-only `authority_split`。review evidence 位于 `review/lease-and-sandbox-authorization-readback-2026-06-21.md`；validation 为 py_compile passed、focused runtime readback/sandbox/preflight `12 passed`、focused MCP readback/lifecycle `3 passed`、full runtime orchestration `214 passed`、full MCP admission `6 passed`。
-- `2026-06-21`: 新增 `design_docs/lease-and-sandbox-authorization-readback-followup-direction-analysis.md`。该方向分析比较 Host UX binding、real sandbox provider spike、CLI readback surface 与 daemon lease expiry sweep；当前推荐下一条窄 gate 为 `Host UX Binding For Authorization Readback`，先把 `schedulerAuthorizationReadback` 的只读诊断产品暴露给 operator，并把 `Git Worktree Sandbox Provider Spike Over Acquired Leases` 保留为后续 backend safety candidate。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-git-worktree-sandbox-provider-spike-over-acquired-leases.md`。当前新增最小 `GitWorktreeSandboxProvider` 与 typed `GitWorktreeSandboxReceipt` / `GitWorktreeCommandReceipt`：provider 只在 `git-worktree` profile 下工作，要求显式 sandbox root，基于 task/profile 生成 deterministic worktree path 和 branch name，用 acquired edit lease lifecycle 授权 lease-scoped writable mounts；缺失或非 acquired lifecycle fail closed 且不创建 worktree。cleanup helper 会移除 worktree 与 deterministic branch，并把 allocation/cleanup command output 记录在 receipt 中。review evidence 位于 `review/git-worktree-sandbox-provider-spike-over-acquired-leases-2026-06-21.md`；validation 为 py_compile passed、focused sandbox/preflight tests `13 passed, 206 deselected`、full runtime orchestration `219 passed`。后续方向分析位于 `design_docs/git-worktree-sandbox-provider-spike-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Git Worktree Receipt Readback And Cleanup Policy`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-git-worktree-receipt-readback-and-cleanup-policy.md`。当前 scheduler authorization readback 已新增 JSON-safe `GitWorktreeCommandReceiptSummary` / `GitWorktreeReceiptSummary`，`SandboxAuthorizationSummary` 可携带 optional `git_worktree_receipt`，`inspect_scheduler_authorization()` 可消费 caller-supplied `SandboxAllocation` evidence 并在 readback product 中展示 allocation / cleanup / branch cleanup command receipt、cleanup state、cleanup owner 与 cleanup policy。该 readback path 不执行 provider、不启动 cleanup、不改变 scheduler admission。review evidence 位于 `review/git-worktree-receipt-readback-and-cleanup-policy-2026-06-21.md`；validation 为 py_compile passed、focused readback/worktree tests `12 passed, 211 deselected`、full runtime orchestration `223 passed`。后续方向分析位于 `design_docs/git-worktree-receipt-readback-cleanup-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Durable Sandbox Allocation Receipt Evidence`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-durable-sandbox-allocation-receipt-evidence.md`。当前新增 `sandbox_allocation_receipt_evidence` JSON contract 与 `src/runtime/orchestration/sandbox_allocation_evidence.py`，支持默认 `.codex/scheduler/evidence/` 路径、writer/reader/summary helper、`SandboxAllocation` round-trip、git-worktree receipt command output 保真，以及 `inspect_scheduler_authorization_snapshot(..., sandbox_allocation_evidence_path=...)` 按 task id 合并 durable receipt evidence。该路径保持 read-only，不执行 provider、不运行 cleanup、不突变 scheduler state。review evidence 位于 `review/durable-sandbox-allocation-receipt-evidence-2026-06-21.md`；validation 为 py_compile passed、focused durable evidence/readback tests `14 passed, 212 deselected`、full runtime orchestration `226 passed`。后续方向分析位于 `design_docs/durable-sandbox-allocation-receipt-evidence-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Controlled Host Run Opt-In Provider Wiring`。
-- `2026-06-21`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-21-controlled-host-run-opt-in-provider-wiring.md`。本 gate 将下一步收窄为 host-controlled scheduler run 的显式 git-worktree provider opt-in：只有 caller 提供 source repo root 与 sandbox root 时才注册/使用 `GitWorktreeSandboxProvider`，用 acquired edit lease lifecycle 授权 allocation，并写出 durable `sandbox_allocation_receipt_evidence`；默认 fake-runtime/shared-process 行为、cleanup runner、Host UX、scheduler admission schema 与 Local Work Trajectory runtime mutation 均保持非目标。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-controlled-host-run-opt-in-provider-wiring.md`。当前 one-shot `HostSchedulerRunRequest` 新增显式 git-worktree opt-in 字段：`git_worktree_sandbox_root`、`sandbox_allocation_evidence_id`、`sandbox_allocation_evidence_path`；`run_host_authorized_scheduler_once()` 仅在 opt-in 时注册 `GitWorktreeSandboxProvider`，要求 caller 提供 `workspace_root` source repo 与 evidence id，并在 preflight allocation attempt 后写出 durable `sandbox_allocation_receipt_evidence`。`PreflightDrainResult` 现在保留 sandbox allocations，默认 fake-runtime/shared-process host-run 行为保持不变。review evidence 位于 `review/controlled-host-run-opt-in-provider-wiring-2026-06-21.md`；validation 为 py_compile passed、focused host/git/evidence tests `15 passed, 213 deselected`、full runtime orchestration `228 passed`。后续方向分析位于 `design_docs/controlled-host-run-opt-in-provider-wiring-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Cleanup Policy Runner Over Durable Receipts`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-cleanup-policy-runner-over-durable-receipts.md`。当前新增显式 cleanup runner：`src/runtime/orchestration/sandbox_cleanup_runner.py` 提供 `SandboxCleanupRunnerResult` 与 `run_sandbox_allocation_cleanup_over_receipts()`，可读取 durable `sandbox_allocation_receipt_evidence`，选择 cleanup-required allocated git-worktree receipts，调用 `GitWorktreeSandboxProvider.cleanup()`，并写出带 cleanup command receipts 与 authority split 的更新证据。该路径不启动后台 daemon、不在 host-run 中隐式 cleanup、不改变 scheduler admission/readback 路径、不从 runtime code 突变 Local Work Trajectory。review evidence 位于 `review/cleanup-policy-runner-over-durable-receipts-2026-06-21.md`；validation 为 py_compile passed、focused cleanup/evidence/git-worktree tests `16 passed, 215 deselected`、wider cleanup/evidence/readback/host/git tests `21 passed, 210 deselected`、full runtime orchestration `230 passed`。后续方向分析位于 `design_docs/cleanup-policy-runner-over-durable-receipts-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Cleanup Runner CLI/MCP Surface`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-cleanup-runner-cli-mcp-surface.md`。当前显式 cleanup runner 已暴露为 CLI/MCP operator surface：`doc-based-coding scheduler cleanup-receipts` 与 MCP `schedulerCleanupReceipts` 都要求显式 input evidence path，并支持 optional output evidence path/id、timestamp 与 git executable；两者复用 `run_sandbox_allocation_cleanup_over_receipts()`，返回 `SandboxCleanupRunnerResult` JSON shape。该路径不做默认 evidence discovery、不启动 cleanup daemon、不在 host-run/readback/admission/projection 中隐式 cleanup、不从 runtime/CLI/MCP code 突变 Local Work Trajectory。review evidence 位于 `review/cleanup-runner-cli-mcp-surface-2026-06-21.md`；validation 为 py_compile passed、CLI cleanup focused `3 passed, 34 deselected`、MCP cleanup focused `2 passed, 6 deselected`、runtime cleanup/evidence/git focused `16 passed, 215 deselected`、full CLI `37 passed`、full tracked MCP admission `8 passed`、full runtime orchestration `231 passed`、full MCP tools `86 passed`。后续方向分析位于 `design_docs/cleanup-runner-cli-mcp-surface-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Host UX Readback Linkage For Cleanup Evidence`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-ux-cleanup-evidence-readback-linkage.md`。当前只读 `dbc://host-evidence/presentation` 已可消费 durable `sandbox_allocation_receipt_evidence`，并在 Host Evidence 中展示 sandbox cleanup card：allocation/git-worktree counts、cleanup required/completed/failed counts、cleanup execution authority clue、source evidence/worktree/branch refs、Local Work Trajectory mutation clue，以及 failed cleanup 优先于 still-required 的状态判定。该切片不新增 Host UX cleanup button、不启动 cleanup daemon、不做默认 evidence discovery、不改变 scheduler admission/evidence schema、不运行 live Qoder/runtime、不从 runtime/CLI/MCP/Host UX code 突变 Local Work Trajectory。review evidence 位于 `review/host-ux-cleanup-evidence-readback-linkage-2026-06-21.md`；validation 为 py_compile passed、focused cleanup readback `3 passed, 65 deselected`、focused MCP host-evidence resource `4 passed, 24 deselected`、wider host-evidence focused suites `8 passed, 59 deselected` 与 `7 passed, 21 deselected`、VS Code extension build passed、HTML test `16 passed`、panel test `11 passed`、截图 artifacts 位于 `output/playwright/host-evidence-ui/cleanup-evidence-panel.png` 与 `output/playwright/host-evidence-ui/cleanup-evidence-panel-element.png`。后续方向分析位于 `design_docs/host-ux-cleanup-evidence-readback-linkage-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Daemon Loop Git-Worktree Opt-In`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-daemon-loop-git-worktree-opt-in.md`。当前 bounded host daemon loop 已支持显式 git-worktree sandbox provider opt-in：`HostSchedulerDaemonLoopRequest` 新增 `git_worktree_sandbox_root`、`sandbox_allocation_evidence_id` 与 optional `sandbox_allocation_evidence_path`，host daemon adapter 只在 opt-in 完整时注册 `GitWorktreeSandboxProvider`，要求 caller 提供 `workspace_root` source repo，并从 loop preflight allocation attempts 写出 durable `sandbox_allocation_receipt_evidence`。`HostSchedulerDaemonLoopResult` 现在暴露 opt-in/evidence path 与 authority facts，Host Evidence 可读到 daemon-loop 产生的 allocation receipt；cleanup 仍保持显式、在 daemon loop 外执行。review evidence 位于 `review/daemon-loop-git-worktree-opt-in-2026-06-21.md`；validation 为 py_compile passed、focused daemon-loop git-worktree tests `2 passed, 231 deselected`、focused daemon-loop regression `7 passed, 226 deselected`。后续方向分析位于 `design_docs/daemon-loop-git-worktree-opt-in-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Host Workflow For Allocate-Read-Cleanup-Read`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-workflow-allocate-read-cleanup-read.md`。当前 `tools.progress_graph.host_sandbox_receipt_workflow` 新增 backend host/operator workflow helper：`HostSandboxReceiptWorkflowRequest` / `HostSandboxReceiptWorkflowResult` / `run_host_sandbox_receipt_workflow()` 可在 `run_once` 与 `daemon_loop` 两种模式下串联 host allocation、durable `sandbox_allocation_receipt_evidence` 写出、focused Host Evidence readback、显式 cleanup runner 与 post-cleanup readback。cleanup 仍必须通过 `cleanup=True` 显式开启；cleanup output path/id 在未 opt in 时 fail closed。该切片不新增 CLI/MCP/Host UX surface、不启动 cleanup daemon、不注册默认 git-worktree provider、不改变 scheduler admission schema、不从 runtime/CLI/MCP/Host UX code 突变 Local Work Trajectory。review evidence 位于 `review/host-workflow-allocate-read-cleanup-read-2026-06-21.md`；validation 为 py_compile passed、focused workflow tests `3 passed, 233 deselected`、adjacent host/git/workflow regression `7 passed, 229 deselected`、focused Host Evidence cleanup readback regression `2 passed, 66 deselected`、full runtime orchestration `236 passed`。后续方向分析位于 `design_docs/host-workflow-allocate-read-cleanup-read-followup-direction-analysis.md`，推荐下一条窄 gate 为 `CLI/MCP Surface For Host Sandbox Receipt Workflow`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-sandbox-receipt-workflow-cli-mcp-surface.md`。当前 shared host sandbox receipt workflow 已暴露为 CLI `doc-based-coding scheduler sandbox-receipt-workflow` 与 MCP `schedulerSandboxReceiptWorkflow`：两者支持 `run-once` / `daemon-loop`，要求显式 scheduler snapshot/event log/source git repo/git-worktree sandbox root/allocation evidence id，并复用 `run_host_sandbox_receipt_workflow()` 执行 allocation readback、显式 cleanup 与 post-cleanup readback。CLI/MCP surface 仍 fake-only，cleanup 必须通过 `--cleanup` / `cleanup=true` 显式开启，cleanup output 未 opt in 时由 backend fail closed。该切片不新增 Host UX、不运行 live provider、不注册默认 git-worktree provider、不启动 cleanup daemon、不刷新 projection、不从 CLI/MCP/runtime code 突变 Local Work Trajectory。review evidence 位于 `review/host-sandbox-receipt-workflow-cli-mcp-surface-2026-06-21.md`；validation 为 py_compile passed、focused CLI workflow tests `3 passed, 37 deselected`、focused MCP workflow tests `2 passed, 8 deselected`、scheduler CLI focused regression `33 passed, 7 deselected`、full MCP admission `10 passed`、full MCP tools `86 passed`。后续方向分析位于 `design_docs/host-sandbox-receipt-workflow-cli-mcp-surface-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Host UX Selection For Sandbox Receipt Workflow`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-ux-sandbox-receipt-workflow-selection.md`。当前 VS Code Progress Graph Preview / Scheduler Operator 面板新增 `Sandbox Receipt Cleanup` 控件：operator 可手动输入 durable `sandbox_allocation_receipt_evidence` path，勾选显式确认后触发 shared `cleanupReceipts` action，扩展侧复用 CLI `doc-based-coding scheduler cleanup-receipts`，并在完成后通过既有 reload/readback 路径展示 latest action 与 Host Evidence cleanup card。该切片不做 automatic evidence discovery、不启动 cleanup daemon、不运行 live Qoder/real provider、不改 scheduler admission/evidence schema、不刷新 scheduler projection、不从 Host UX/CLI/MCP/runtime code 突变 Local Work Trajectory。review evidence 位于 `review/host-ux-sandbox-receipt-workflow-selection-2026-06-21.md`；validation 为 VS Code extension build passed、focused Scheduler Operator / Progress Graph Preview node tests `32 passed`、CLI cleanup focused pytest `3 passed, 37 deselected`、Host Evidence cleanup readback focused pytest `2 passed, 66 deselected`、截图 artifact 位于 `output/playwright/host-ux-sandbox-receipt-workflow/host-ux-cleanup-fixture.png`。后续方向分析位于 `design_docs/host-ux-sandbox-receipt-workflow-selection-followup-direction-analysis.md`，推荐下一条窄 gate 为 `Host UX Evidence Discovery For Sandbox Receipts`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-evidence-aware-workflow-defaults-sandbox-receipt-workflow.md`。当前 VS Code Scheduler Operator Host UX 的 visible sandbox receipt evidence candidates 新增显式 `Use for workflow` 动作，可把所选 receipt evidence path 填入 `Sandbox Receipt Workflow` 的 allocation evidence path，并从文件名 stem 派生 allocation evidence id；既有 cleanup `Select` 仍只填 cleanup evidence path。该切片不做 backend evidence directory scanning、不读取 raw evidence JSON、不新增 CLI/MCP、不自动勾选 cleanup、不执行 cleanup 或 workflow action、不改 runtime schema、不从 Host UX/runtime code 突变 Local Work Trajectory。review evidence 位于 `review/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-2026-06-21.md`；validation 为 VS Code extension build passed、focused Scheduler Operator / Progress Graph Preview node tests `39 passed`、截图 artifacts 位于 `output/playwright/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow/workflow-defaults.png` 与 `output/playwright/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow/workflow-defaults-candidate.png`。后续方向分析位于 `design_docs/host-ux-evidence-aware-workflow-defaults-sandbox-receipt-workflow-followup-direction-analysis.md`，建议默认暂停 Host UX sandbox receipt 分支，只有真实 evidence 暴露 diff 推断不足时再进入 `Backend-Enriched Cleanup Diff Payload`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-managed-scheduler-daemon-process-harness.md`。当前 backend scheduler/orchestration 线新增 bounded host-managed scheduler daemon process harness：`src/runtime/orchestration/scheduler_daemon_harness.py` 定义 `SchedulerDaemonHarnessRequest` / `SchedulerDaemonHarnessCycle` / `SchedulerDaemonHarnessResult` / `SchedulerDaemonHarnessStopReason` 与 `run_scheduler_daemon_harness()`，CLI 新增 `doc-based-coding scheduler lifecycle harness`。该 harness 复用既有 `run_scheduler_daemon_lifecycle_once()`，不复制 scheduler execution 语义；支持 bounded cycles、lifecycle inspect、cancelling consumption、cycle summary 与 authority split。该切片不启动 OS service、不做 sleep/watch/auto-start/unbounded daemon、不运行 live Qoder/real provider、不新增 MCP/Host UX、不自动刷新 projection、不执行 hidden cleanup、不突变 ExchangeArtifact/admission ledger/Local Work Trajectory。review evidence 位于 `review/host-managed-scheduler-daemon-process-harness-2026-06-21.md`；validation 为 py_compile passed、focused runtime lifecycle/harness tests `11 passed, 230 deselected`、focused CLI lifecycle tests `3 passed, 38 deselected`。后续方向分析位于 `design_docs/host-managed-scheduler-daemon-process-harness-followup-direction-analysis.md`，当前倾向下一条后端能力为 `Retry / Deadline / Cancellation Policy Over Harness Results`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-scheduler-harness-retry-deadline-cancellation-policy.md`。当前 bounded host-managed scheduler daemon process harness 外新增确定性 host-owned policy wrapper：`SchedulerDaemonHarnessPolicy` / `SchedulerDaemonHarnessPolicyAttempt` / `SchedulerDaemonHarnessPolicyResult` / `SchedulerDaemonHarnessPolicyStopReason` 与 `run_scheduler_daemon_harness_with_policy()` 已落地；CLI `doc-based-coding scheduler lifecycle harness` 新增 `--policy-cancelled`、`--deadline-epoch-seconds`、`--max-attempts` 与 `--retry-stop-reasons`。policy preflight 可在取消或 deadline 已到时不读取/不突变 scheduler state；retry 只由显式 retryable stop reason 与 max attempts 驱动。该切片不改变 `run_scheduler_daemon_harness()` 语义、不新增 sleep/watch/OS service、不运行 live Qoder/real provider、不新增 MCP/Host UX、不自动刷新 projection、不执行 hidden cleanup、不突变 ExchangeArtifact/admission ledger/Local Work Trajectory。review evidence 位于 `review/scheduler-harness-retry-deadline-cancellation-policy-2026-06-21.md`；validation 为 py_compile passed、focused runtime lifecycle/harness tests `15 passed, 230 deselected`、focused CLI lifecycle tests `4 passed, 38 deselected`、wider runtime scheduler daemon/lifecycle/loop-evidence tests `32 passed, 213 deselected`、wider CLI scheduler lifecycle/daemon-loop/help tests `8 passed, 34 deselected`。后续方向分析位于 `design_docs/scheduler-harness-retry-deadline-cancellation-policy-followup-direction-analysis.md`，当前倾向下一条后端能力为 `MCP Surface For Policy-Controlled Harness`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-scheduler-harness-policy-mcp-surface.md`。当前 policy-controlled bounded scheduler lifecycle harness 已暴露为 MCP tool `schedulerLifecycleHarness`：`GovernanceTools.scheduler_lifecycle_harness()` 和 `src/mcp/server.py` schema / `call_tool` routing 复用 `SchedulerDaemonHarnessRequest`、`SchedulerDaemonHarnessPolicy` 与 `run_scheduler_daemon_harness_with_policy()`，支持 `policyCancelled`、`deadlineEpochSeconds`、`nowEpochSeconds`、`maxAttempts`、`retryStopReasons` 以及 bounded harness/loop 参数，并保持 `runtimeProvider='fake'` only。该切片不改变 harness/runtime 语义、不新增 Host UX/CLI 行为、不运行 live Qoder/real provider、不启动 OS service/watch/unbounded daemon、不自动刷新 projection、不执行 cleanup、不突变 ExchangeArtifact/admission ledger/Local Work Trajectory。scheduler MCP prompt 当前面和 bootstrap 副本、`design_docs/tooling/MCP Tool Surface Audit.md` 已记录新 surface。review evidence 位于 `review/scheduler-harness-policy-mcp-surface-2026-06-21.md`；validation 为 py_compile passed、focused MCP lifecycle tests `4 passed, 8 deselected`、scheduler prompt focused tests `2 passed, 18 deselected`、full MCP admission tests `12 passed`、full MCP tools tests `86 passed`、combined MCP admission + doc-loop prompts `32 passed`、focused runtime lifecycle/harness regression `15 passed, 230 deselected`。后续方向分析位于 `design_docs/scheduler-harness-policy-mcp-surface-followup-direction-analysis.md`，当前倾向下一条后端能力为 `Host-Managed Daemon Supervisor Contract`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-host-managed-daemon-supervisor-contract.md`。当前 backend scheduler/orchestration 线新增 runtime-only host-managed daemon supervisor contract：`src/runtime/orchestration/scheduler_daemon_supervisor.py` 定义 `SchedulerDaemonSupervisorRequest` / `SchedulerDaemonSupervisorStatus` / `SchedulerDaemonSupervisorResult` / `SchedulerDaemonSupervisorStopReason` 与 `run_scheduler_daemon_supervisor_step()`，在 `run_scheduler_daemon_harness_with_policy()` 外提供 host/session/run identity、cancellation source、deadline/status readback 与 authority split。cancelled/deadline supervisor preflight 可在读取 lifecycle control 前返回；正常执行会在 policy harness 前后读取 lifecycle state 与 queue summary。该切片不新增 CLI/MCP/Host UX surface、不启动 OS service/watch/timer/unbounded daemon、不运行 live Qoder/real provider、不改变 harness/policy 语义、不自动刷新 projection、不执行 cleanup、不突变 ExchangeArtifact/admission ledger/Local Work Trajectory，也不绑定 agent home/context session storage lifecycle。review evidence 位于 `review/host-managed-daemon-supervisor-contract-2026-06-21.md`；validation 为 py_compile passed、focused supervisor tests `4 passed, 245 deselected`、adjacent supervisor/harness/lifecycle regression `19 passed, 230 deselected`、full runtime orchestration `249 passed`。后续方向分析位于 `design_docs/host-managed-daemon-supervisor-contract-followup-direction-analysis.md`，当前倾向下一条后端能力为 `CLI/MCP Surface For Daemon Supervisor Step`。
-- `2026-06-21`: 完成 `design_docs/stages/planning-gate/2026-06-21-daemon-supervisor-cli-mcp-surface.md`。当前 host-managed daemon supervisor step 已具备 CLI/MCP invocation surface：CLI `doc-based-coding scheduler lifecycle supervisor-step` 与 MCP tool `schedulerDaemonSupervisorStep` 复用 `SchedulerDaemonSupervisorRequest`、`SchedulerDaemonHarnessRequest`、`SchedulerDaemonHarnessPolicy` 和 `run_scheduler_daemon_supervisor_step()`，支持 supervisor/session/run/host/requester identity、cancellation source/reason、status readback label，以及已有 bounded harness/policy 参数。该 surface fake-runtime-only、显式 path、bounded，并返回 supervisor result JSON；MCP 额外补充 normalized `runtime_provider` clue。该切片不改变 supervisor/harness/policy runtime 语义、不新增 Host UX、不运行 live Qoder/real provider、不启动 OS service/watch/timer/unbounded daemon、不自动刷新 projection、不执行 cleanup、不突变 ExchangeArtifact/admission ledger/Local Work Trajectory，也不绑定 agent home/context session storage lifecycle。scheduler MCP prompt 当前面和 bootstrap 副本、`design_docs/tooling/MCP Tool Surface Audit.md` 已记录新 surface。review evidence 位于 `review/daemon-supervisor-cli-mcp-surface-2026-06-21.md`；validation 为 py_compile passed、focused CLI lifecycle tests `5 passed, 38 deselected`、focused MCP lifecycle/supervisor tests `5 passed, 8 deselected`、scheduler prompt focused tests `2 passed, 18 deselected`、full MCP admission tests `13 passed`、full MCP tools tests `86 passed`、focused runtime supervisor/harness/lifecycle regression `19 passed, 230 deselected`、full CLI tests `43 passed`。后续方向分析位于 `design_docs/daemon-supervisor-cli-mcp-surface-followup-direction-analysis.md`，当前倾向下一条后端能力为 `Supervisor Dogfood Workflow`。
-- `2026-06-17`: 完成 `design_docs/stages/planning-gate/2026-06-17-host-authorized-scheduler-runner-adapter.md` close writeback，状态切为 `COMPLETED`；激活下一条 `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md`。本轮 host runner 已落地 `HostSchedulerRunRequest` / `HostSchedulerRunResult` / `run_host_authorized_scheduler_once()` 与 `run_host_authorized_scheduler_once_and_refresh_projection()`，验证 fake runtime 与 mock-Qoder host-authorized seam 均可通过同一结果合同暴露 provider、host surface、run count、stop reason、output refs、history summary 与 authority split，且 MCP `schedulerRunOnceAndProject` 保持 fake-only。验证结果：host-authorized scheduler runner / scheduler MCP / progress projection focused suite `280 passed, 1 skipped`。
-- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-host-runtime-dogfood-harness.md` 已正式切为 `COMPLETED`。本轮新增 `src/runtime/orchestration/scheduler_dogfood.py` 的 host-run evidence JSON contract / writer 与 `tools/progress_graph/scheduler_dogfood.py` 的 `run_host_runtime_dogfood_harness()`，可用 fake runtime 和 mock-Qoder host-authorized seam 写出同形 evidence JSON 并刷新 scheduler-derived trajectory projection。prompt guidance 已同步到 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 与 bootstrap copy。验证结果：runtime orchestration / scheduler MCP / progress trajectory / doc-loop prompt-resource focused suite `284 passed, 1 skipped`；后续推荐入口为 `design_docs/controlled-host-runtime-dogfood-harness-followup-direction-analysis.md` 中的 `Controlled Real Qoder Wrapper Spike`。
-- `2026-06-17`: 已创建并激活 `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md`。本 gate 将下一步收窄为 host-owned real Qoder SDK wrapper behind `QoderQueryClient`，并把凭据/授权失败、SDK 缺失、权限回调/拒绝、fail-closed 与 rollback 行为列为硬验收；继续保持 MCP scheduler execution fake-only，不进入 daemon、UI、真实 sandbox 或多 agent 调度扩张。
-- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` 已推进到 `READY-FOR-CLOSE-REVIEW`。本轮新增 `src/runtime/orchestration/qoder_sdk_client.py` 的 `QoderSDKQueryClientConfig` / `QoderSDKQueryClient`，以动态导入方式包裹可选 `qoder_agent_sdk`，并通过 `validate_host_ready()` 在 host dogfood harness 运行前 fail-closed；缺 SDK、缺 auth、非法 stream、权限回调默认拒绝、surface-without-approval 与 token redaction 均已有 focused tests。`tools/progress_graph/scheduler_dogfood.py` 只在 wrapper 提供 readiness hook 时前置检查，mock-Qoder 旧路径保持兼容，MCP `schedulerRunOnceAndProject` 仍保持 fake-only。review evidence 位于 `review/controlled-real-qoder-wrapper-spike-2026-06-17.md`；验证结果：`272 passed, 1 skipped`。
-- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-controlled-real-qoder-wrapper-spike.md` 已正式切为 `COMPLETED`；当前新增 follow-up analysis `design_docs/controlled-real-qoder-wrapper-spike-followup-direction-analysis.md`，并激活下一条 `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md`。本轮已落地 `tools/progress_graph/qoder_smoke.py` 的 host-owned smoke helper，可初始化最小 Qoder smoke scheduler snapshot、构造 host invocation / qoder permission grant、复用 `QoderSDKQueryClient` 或 injected `QoderQueryClient`，并委托 `run_host_runtime_dogfood_harness()` 写出同形 evidence / projection。当前 gate 已推进到 `READY-FOR-CLOSE-REVIEW`，review evidence 位于 `review/host-owned-qoder-smoke-runner-helper-2026-06-17.md`；验证结果：`295 passed, 1 skipped`。
-- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-host-owned-qoder-smoke-runner-helper.md` 已正式切为 `COMPLETED`。本轮新增 follow-up analysis `design_docs/host-owned-qoder-smoke-runner-helper-followup-direction-analysis.md`，并激活下一条 `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md`。该 gate 先检查本机 `qoder-agent-sdk` / `QODER_PERSONAL_ACCESS_TOKEN` readiness，不打印或提交凭据；若 readiness 成立则通过 `run_host_owned_qoder_smoke()` 跑一条 bounded live smoke，否则记录 pre-scheduler readiness-negative evidence。
-- `2026-06-17`: `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` 已推进到 `READY-FOR-CLOSE-REVIEW`。本机 readiness 检查结果为 `sdk_importable=False`、`token_present=False`、`ready=False`、`error_kind=authentication_failed`、`raw_error_type=MissingEnvironmentVariable`；未打印或持久化 token 值，且 `.codex/scheduler/qoder-smoke-state.json`、`.codex/scheduler/evidence/qoder-smoke.json`、`.codex/progress-graph/scheduler-work-trajectory.json` 均不存在，证明失败停在 scheduler 前。review evidence 位于 `review/credentialed-live-qoder-smoke-2026-06-17.md`。
-- `2026-06-18`: `design_docs/stages/planning-gate/2026-06-17-credentialed-live-qoder-smoke.md` 已正式切为 `COMPLETED`，并完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-consumer.md`。本轮新增 `HostSchedulerRunEvidenceSummary`、`read_host_scheduler_run_evidence_summary()`、`read_host_scheduler_run_evidence_summaries()` 与 `tools.progress_graph.read_host_evidence_bundle()`，把 host-run evidence JSON 投影为不含嵌入式 `host_result` 的只读 summary contract，供后续 UI/MCP/release tooling 安全消费；该 consumer 不执行 provider、不刷新 scheduler projection、不突变 Local Work Trajectory，也不会为 readiness-negative review doc 伪造 evidence JSON。review evidence 位于 `review/host-evidence-consumer-2026-06-18.md`，follow-up analysis 位于 `design_docs/host-evidence-consumer-followup-direction-analysis.md`；验证结果：runtime orchestration / progress trajectory / doc-loop prompt-resource focused suite `221 passed, 1 skipped`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-mcp-resource-exposure.md`。本轮通过既有 MCP resource surface 暴露只读 `dbc://host-evidence/bundle`，由 `GovernanceTools.read_resource()` 调用 `tools.progress_graph.read_host_evidence_bundle()` 并返回 compact JSON；resource 缺 evidence 目录时返回空 bundle，读取本身不创建 scheduler projection 或 Local Work Trajectory artifact，也不新增 provider execution tool。review evidence 位于 `review/host-evidence-mcp-resource-exposure-2026-06-18.md`；验证结果：MCP prompt/resource + progress trajectory focused suite `26 passed`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-cli-resource-inspection-for-host-evidence.md`。本轮新增 `doc-based-coding resources list` 与 `doc-based-coding resources read <uri>`，复用 `GovernanceTools.list_resources()` / `read_resource()`，使 `dbc://host-evidence/bundle` 可在无 MCP host 的情况下通过 CLI 检查；missing resource 返回清晰非零错误，prompt fallback 已同步到 `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` 与 bootstrap copy。review evidence 位于 `review/cli-resource-inspection-for-host-evidence-2026-06-18.md`，follow-up analysis 位于 `design_docs/cli-resource-inspection-for-host-evidence-followup-direction-analysis.md`；验证结果：doc-loop prompt/resource focused suite `4 passed, 7 deselected`，CLI list/read/missing 手测通过，change impact/coupling alert 为空。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-resource-error-isolation-for-host-evidence.md`。本轮在 `tools.progress_graph.host_evidence.HostEvidenceBundle` 增加 `errors[]` / `error_count`，使 resource/CLI 消费面遇到 malformed evidence JSON 时隔离为 per-file error summary，同时保留有效 `summaries[]`；严格 runtime evidence reader 仍保持抛错语义。review evidence 位于 `review/resource-error-isolation-for-host-evidence-2026-06-18.md`；验证结果：progress/doc-loop/runtime 相关回归 `204 passed, 1 skipped`，外部临时 workspace CLI 坏 evidence 手测返回 `error_count=1`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-contract.md`。本轮新增 `HostEvidencePresentation` / `HostEvidencePresentationCard` / `HostEvidencePresentationErrorRow` 与 `build_host_evidence_presentation()`，把 robust `HostEvidenceBundle` 归一为 UI/operator-facing cards 与 error rows，并覆盖 empty / completed / permission-review / failed / partial / degraded 状态推导；现有 MCP resource 与 CLI bundle payload 保持不变。review evidence 位于 `review/host-evidence-presentation-contract-2026-06-18.md`；验证结果：doc-loop / runtime orchestration / progress trajectory / MCP resource 相关回归 `231 passed, 1 skipped`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-host-evidence-presentation-resource-exposure.md`。本轮新增只读资源 `dbc://host-evidence/presentation`，由 `GovernanceTools.read_resource()` 复用 `read_host_evidence_bundle()` 与 `build_host_evidence_presentation()` 输出 presentation JSON；现有 CLI `doc-based-coding resources read` 可直接检查该 URI，且 bundle resource payload 保持不变。review evidence 位于 `review/host-evidence-presentation-resource-exposure-2026-06-18.md`；验证结果：doc-loop / runtime orchestration / progress trajectory 相关回归 `209 passed, 1 skipped`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-credentialed-live-qoder-rerun-over-presentation-resources.md`。本轮在不触碰 VS Code/UI dirty branch 的前提下复验本机 Qoder readiness 与资源读取：当前 `qoder_agent_sdk` 不可 import、`QODER_PERSONAL_ACCESS_TOKEN` 不存在，`QoderSDKQueryClient.validate_host_ready()` 以 `authentication_failed / MissingEnvironmentVariable` fail-closed；`dbc://host-evidence/bundle` 返回空 bundle，`dbc://host-evidence/presentation` 返回 `status=empty`，且 `.codex/scheduler/qoder-smoke-state.json`、`.codex/scheduler/evidence/qoder-smoke.json`、`.codex/progress-graph/scheduler-work-trajectory.json` 均不存在，确认未伪造 evidence 或突变 scheduler projection。review evidence 位于 `review/credentialed-live-qoder-rerun-over-presentation-resources-2026-06-18.md`；验证结果：doc-loop / runtime orchestration / progress trajectory 相关回归 `209 passed, 1 skipped`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-qoder-host-provisioning-check-guide.md`。本轮新增 `QoderSDKHostReadinessReport` 与 `QoderSDKQueryClient.host_readiness_report()`，并暴露 `doc-based-coding qoder readiness` / `python -m src qoder readiness`，以 secret-safe JSON 报告 `sdk_importable`、`auth_mode`、`auth_env_var`、`token_present`、`ready`、`error_kind`、`raw_error_type` 与 redacted summary；同时新增 `docs/qoder-host-provisioning-check-guide.md` 并同步 scheduler smoke prompt。当前本机 `env` 模式仍为 `sdk_importable=false / token_present=false / ready=false / authentication_failed`，`qodercli` 模式仍因 SDK 不可 import 而 `sdk_unavailable`。review evidence 位于 `review/qoder-host-provisioning-check-guide-2026-06-18.md`；验证结果：doc-loop prompt / runtime orchestration focused suite `155 passed`。
-- `2026-06-18`: 完成 `design_docs/stages/planning-gate/2026-06-18-exchange-artifact-durable-store-foundation.md`。本轮从 Qoder host readiness 后的方向分析收束到编排层底座，新增 `JsonArtifactVersionStore`、`exchange_artifact_to_json_dict()`、`exchange_artifact_from_json_dict()` 与 `EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION`，使 `ExchangeArtifact` 协调产品具备本地 JSON 持久化、精确版本读取、重复版本拒绝、scheduler-relevant 校验复用，以及当前九类 payload part 的 round-trip 支撑；`InMemoryArtifactVersionStore` 保持用于测试和注入 runtime。review evidence 位于 `review/exchange-artifact-durable-store-foundation-2026-06-18.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `238 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-store-inspection-and-admission-prep.md`。本轮新增 `ExchangeArtifactInspectionBundle`、`ExchangeArtifactVersionSummary`、`ExchangeArtifactAdmissionCandidate`、`default_exchange_artifact_store_path()` 与 `inspect_exchange_artifact_store()`，并通过只读资源 `dbc://exchange-artifacts/bundle` / CLI `doc-based-coding resources read dbc://exchange-artifacts/bundle` 暴露 `.codex/orchestration/exchange-artifacts.json` 的精确版本摘要与 scheduler submission 候选元数据。该资源只做 admission prep，不提交任务、不改变 scheduler snapshot 权威、不刷新 scheduler projection、不突变 Local Work Trajectory。review evidence 位于 `review/exchange-artifact-store-inspection-and-admission-prep-2026-06-19.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `243 passed`（pytest 成功后 Windows 进程尾声打印 access-violation 栈；最小 import 与 CLI resource smoke 正常，已记录为残余 Windows/Python test-process 信号）。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-exact-version-scheduler-admission.md`。本轮新增 `PersistedExchangeArtifactAdmissionResult`、`submit_scheduler_task_with_persistence()` 与 `admit_exchange_artifact_version_to_scheduler()`，可从 `JsonArtifactVersionStore` 读取指定 `(artifact_id, version)`，要求其恰好包含一个 `scheduler_task_submission` 或 `scheduler_task_batch_submission` payload，并通过既有 scheduler submission adapters 写入 scheduler snapshot / event log。该 helper 不运行 provider、不刷新 scheduler projection、不标记 exchange artifact consumed、不突变 Local Work Trajectory，也不新增 stored-artifact MCP 写工具；review evidence 位于 `review/exchange-artifact-exact-version-scheduler-admission-2026-06-19.md`；验证结果：runtime orchestration / MCP tools / doc-loop prompt focused suite `249 passed`（pytest 成功后仍出现既有 Windows/Python access-violation printout，断言与 exit code 成功）。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-operator-admission-workflow-polish.md`。本轮在 CLI operator admission 之后补齐无 MCP host 的验证闭环：新增 `doc-based-coding scheduler inspect-state` 只读检查 scheduler snapshot / event-log summary，新增 `doc-based-coding scheduler project` 显式刷新 scheduler-derived trajectory projection；两者保持 admission、readback、projection refresh 与 provider execution 分离，不新增 stored-artifact MCP 写工具、不运行 provider、不标记 exchange artifact consumed、不突变 Local Work Trajectory。review evidence 位于 `review/exchange-artifact-operator-admission-workflow-polish-2026-06-19.md`；验证结果：CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite `267 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-ledger.md`。本轮新增本地 durable admission ledger：`ExchangeArtifactAdmissionRecord` / `JsonExchangeArtifactAdmissionLedger` / `inspect_exchange_artifact_admission_ledger()` 默认写读 `.codex/orchestration/exchange-artifact-admissions.json`；CLI `scheduler admit-exchange-artifact` 新增 `--admission-ledger-path`、`--allow-duplicate-admission`、`--actor`，成功 admission 记录 `admitted`，重复 exact artifact/version 默认在 scheduler mutation 前拒绝并记录 `rejected_duplicate`，显式允许重复时记录 `allow_duplicate=true`；新增 `scheduler inspect-admissions` 只读检查 ledger。MCP 写工具、daemon、UI、provider execution 与 exchange-store consumed marking 仍延后；review evidence 位于 `review/exchange-artifact-admission-ledger-2026-06-19.md`；验证结果：CLI / runtime orchestration / MCP tools / doc-loop prompt focused suite `274 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-stored-artifact-mcp-admission-tool.md`。本轮新增 MCP 写工具 `admitExchangeArtifact`，由 `GovernanceTools.admit_exchange_artifact()` 接入并复用 `admit_exchange_artifact_version_with_ledger()`，使 MCP 与 CLI 共用 exact-version ExchangeArtifact scheduler admission、durable admission ledger、duplicate rejection 与 explicit duplicate override policy；重复 exact artifact/version admission 默认在 scheduler mutation 前拒绝并记录 `rejected_duplicate`，`allowDuplicateAdmission=true` 才允许重放，且继续与 scheduler `replaceExisting` 语义分离。该工具不运行 provider、不自动刷新 scheduler projection、不标记 exchange artifact consumed、不突变 Local Work Trajectory；review evidence 位于 `review/stored-artifact-mcp-admission-tool-2026-06-19.md`；后续方向分析位于 `design_docs/stored-artifact-mcp-admission-tool-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `198 passed`，本地 ignored MCP harness 扩展验证 `279 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-exchange-artifact-admission-state-projection.md`。本轮新增 `ExchangeArtifactAdmissionStateProjection`，并把 ledger-derived `admission_state` 投影到 `ExchangeArtifactVersionSummary` / `dbc://exchange-artifacts/bundle` / `doc-based-coding resources read dbc://exchange-artifacts/bundle`；默认读取 `.codex/orchestration/exchange-artifact-admissions.json`，缺 ledger 时返回 `not_admitted`， malformed ledger 隔离进 bundle `errors[]` 而不隐藏有效 store summaries。该投影只读，不标记 exchange artifact consumed、不突变 exchange store lifecycle、不运行 provider、不刷新 scheduler projection、不突变 Local Work Trajectory；review evidence 位于 `review/exchange-artifact-admission-state-projection-2026-06-19.md`；后续方向分析位于 `design_docs/exchange-artifact-admission-state-projection-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `201 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-daemon-durable-queue-readiness.md`。本轮新增 daemon-ready bounded tick 合同：`SchedulerDaemonTickRequest` / `SchedulerDaemonTickResult` / `SchedulerDaemonQueueSummary` / `run_scheduler_daemon_tick()` / `summarize_scheduler_queue()`，并暴露 CLI `doc-based-coding scheduler tick`；该命令要求显式 scheduler snapshot/event-log path，默认 `--max-runs 1`，仅支持 fake runtime，执行后返回 queue summary、run_count、stop_reason、scheduler event count 与 authority_split。该切片不启动后台 daemon、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-daemon-durable-queue-readiness-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-daemon-durable-queue-readiness-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `207 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-durable-daemon-loop-policy.md`。本轮新增 bounded repeated daemon loop policy：`SchedulerDaemonLoopStopPolicy` / `SchedulerDaemonLoopRequest` / `SchedulerDaemonLoopIteration` / `SchedulerDaemonLoopResult` / `run_scheduler_daemon_loop()`，并暴露 CLI `doc-based-coding scheduler daemon-loop`；该命令要求显式 scheduler snapshot/event-log path，支持 `--max-ticks`、`--max-runs-per-tick`、`--max-runtime-failures`，仅支持 fake runtime，执行后返回 tick_count、total_run_count、stop_reason、iterations、final_queue_summary、scheduler event count 与 authority_split。该切片不启动后台 daemon service、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-durable-daemon-loop-policy-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-durable-daemon-loop-policy-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / MCP admission / doc-loop prompt focused suite `214 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-host-evidence-binding.md`。本轮新增 scheduler-loop evidence 产品：`SchedulerLoopEvidence` / `SchedulerLoopEvidenceSummary` / `SchedulerLoopEvidenceWriteResult` / `build_scheduler_loop_evidence()` / `write_scheduler_loop_evidence()` / `read_scheduler_loop_evidence_summary()` / `default_scheduler_loop_evidence_path()`；CLI `doc-based-coding scheduler daemon-loop` 新增显式 `--evidence-id` / `--evidence-path` 写入 `.codex/scheduler/evidence/<safe-id>.json`，既有 `dbc://host-evidence/bundle` / `dbc://host-evidence/presentation` 可只读识别 `host_scheduler_run_evidence` 与 `scheduler_loop_evidence` 混合目录。该切片不新增 MCP execution tool、不运行真实 provider、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不突变 Local Work Trajectory；review evidence 位于 `review/scheduler-loop-host-evidence-binding-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-loop-host-evidence-binding-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `278 passed, 1 skipped`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-injected-scheduler-daemon-loop.md`。本轮新增 host-owned daemon-loop adapter：`HostSchedulerDaemonLoopRequest` / `HostSchedulerDaemonLoopResult` / `run_host_authorized_scheduler_daemon_loop()`，复用 `RuntimeRegistryWiringConfig`、`build_runtime_registry_from_config()` 与 `run_scheduler_daemon_loop()`，可由 host Python 注入 fake 或 mock-Qoder runtime registry 并显式写入 `scheduler_loop_evidence`。非 fake provider 仍要求 `RuntimeHostInvocation(surface="host-authorized-adapter")`、`RuntimeProviderPermissionGrant` 与 injected `QoderQueryClient`；CLI/MCP daemon-loop 仍 fake-only。该切片不运行 live provider、不启动后台 daemon service、不自动刷新 scheduler projection、不突变 ExchangeArtifact/admission ledger、不从 scheduler code 突变 Local Work Trajectory；review evidence 位于 `review/host-injected-scheduler-daemon-loop-2026-06-19.md`；后续方向分析位于 `design_docs/host-injected-scheduler-daemon-loop-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `283 passed, 1 skipped`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-loop-projection-workflow-polish.md`。本轮新增 host-owned daemon-loop projection workflow：`HostSchedulerDaemonLoopProjectionRefreshResult` / `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()`，在 `tools.progress_graph` 层复用既有 host daemon-loop helper，保留 fake/mock-Qoder runtime injection 与 optional `scheduler_loop_evidence` 写入，然后显式刷新 scheduler-derived trajectory projection 并返回 `scheduler_projection_path` / `projection_summary` / authority split。该 workflow 不新增 CLI/MCP real-provider surface、不运行 live provider、不启动后台 daemon、不突变 ExchangeArtifact/admission ledger、不从 scheduler code 突变 Local Work Trajectory；review evidence 位于 `review/host-loop-projection-workflow-polish-2026-06-19.md`；后续方向分析位于 `design_docs/host-loop-projection-workflow-polish-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `285 passed, 1 skipped`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-loop-evidence-presentation-polish.md`。本轮改善只读 `dbc://host-evidence/presentation` 中的 `scheduler_loop_evidence` card：稳定呈现 runtime provider、host surface、host invocation id、tick/run/event counts、completed/ready/blocked/failed queue counts，并在 evidence metadata 或 authority split 提供线索时呈现 `scheduler_projection_path`、projection role/refreshed state 与 Local Work Trajectory mutation authority clue。旧 evidence 无 projection metadata 时仍可渲染；`metadata.surface` 保留为 evidence generation metadata，不覆盖 card host surface，只有 `metadata.runtime_host_surface` 可覆盖。该切片不变更 evidence schema、不执行 provider、不刷新 scheduler projection、不突变 scheduler state / ExchangeArtifact / admission ledger / Local Work Trajectory、不绑定 VS Code/UI、不启动后台 daemon；review evidence 位于 `review/scheduler-loop-evidence-presentation-polish-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-loop-evidence-presentation-polish-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `287 passed, 1 skipped`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-loop-workflow-evidence-metadata.md`。本轮让 composed host loop projection workflow 在 projection refresh 后，把 compact projection clues 补写回其刚生成的 `scheduler_loop_evidence` metadata：`workflow_surface="host-loop-projection-workflow"`、`scheduler_projection_path`、`scheduler_projection_role="read-only-view"`、`scheduler_projection_refreshed=true` 与 compact `scheduler_projection_summary`。`dbc://host-evidence/presentation` 现可优先使用该 workflow metadata 显示 projection refreshed state；底层 host daemon-loop evidence 保持兼容并保留 lower-level surface metadata。该切片不改 evidence schema、不新增 provider execution/real-provider CLI/MCP surface、不绑定 UI、不启动后台 daemon、不突变 ExchangeArtifact/admission ledger、不突变 agent-owned Local Work Trajectory、不嵌入完整 trajectory JSON；review evidence 位于 `review/host-loop-workflow-evidence-metadata-2026-06-19.md`；后续方向分析位于 `design_docs/host-loop-workflow-evidence-metadata-followup-direction-analysis.md`；验证结果：tracked CLI / runtime orchestration / progress graph evidence / MCP admission / doc-loop prompt focused suite `288 passed, 1 skipped`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-host-evidence-ui-binding.md`。本轮把 VS Code progress graph preview 接到只读 `dbc://host-evidence/presentation` resource：新增 host evidence presentation reader，复用 progress graph runtime/source-root resolution；预览状态携带 presentation-only Host Evidence model，并在浮动控制区呈现 status/card/error counts、scheduler-loop evidence card、runtime providers、host surface、invocation id、stop reason/detail、run/output/permission review counts、key facts、refs、authority clues、malformed evidence rows 与 backend read-error state。UI 不解析 raw evidence artifacts、不执行 provider、不启动 daemon、不从 UI 突变 scheduler / ExchangeArtifact admission / Local Work Trajectory，也不改 backend presentation schema；review evidence 位于 `review/host-evidence-ui-binding-2026-06-19.md`；后续方向分析位于 `design_docs/host-evidence-ui-binding-followup-direction-analysis.md`；验证结果：VS Code extension build passed，focused preview tests `21 passed`，backend resource smoke `status=empty/card_count=0/error_count=0`，截图 artifact 位于 `output/playwright/host-evidence-ui/host-evidence-panel.png`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-admission-host-evidence-operator-workflow-ui.md`。本轮把 VS Code progress graph preview 扩展为 Scheduler Operator 工作流面：读取 `dbc://exchange-artifacts/bundle` 显示 scheduler-admission candidates，独立读取 `scheduler inspect-state` 摘要，展示默认 artifact store / admission ledger / scheduler snapshot / event log / projection 路径，并提供显式 `Admit`、`Run bounded loop`、`Refresh projection` 按钮，分别调用既有 `scheduler admit-exchange-artifact`、fake-only `scheduler daemon-loop`、`scheduler project` CLI surface；Host Evidence 仍作为 durable scheduler-loop evidence 的只读回读面。该切片不新增 live Qoder/real-provider execution、不启动 background daemon、不自动 admission、不标记 ExchangeArtifact consumed、不从 UI 突变 agent-owned Local Work Trajectory、不改 backend scheduler/admission/evidence schema、不替换 MCP/CLI 命令。review evidence 位于 `review/scheduler-admission-host-evidence-operator-workflow-ui-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-admission-host-evidence-operator-workflow-ui-followup-direction-analysis.md`；验证结果：VS Code extension build passed，focused preview tests `23 passed`，backend resource smoke 为空工作区预期状态，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-workflow-dogfood-fixture.md`。本轮新增 Scheduler Operator dogfood fixture：`build_scheduler_operator_dogfood_batch()` / `seed_scheduler_operator_dogfood_fixture()` 生成一条 deterministic fake-runtime 两任务链 `dogfood:prepare -> dogfood:verify`，并通过 `doc-based-coding scheduler seed-dogfood-fixture` 写入默认 `.codex/orchestration/exchange-artifacts.json` 或显式 artifact store path；`JsonArtifactVersionStore.put()` 新增 explicit `replace_existing=True`，默认仍拒绝 exact duplicate。完整 smoke 覆盖 `seed -> resources read -> admit -> inspect -> daemon-loop fake -> project -> host-evidence presentation`，但 fixture 自身只突变 ExchangeArtifact store，不自动 admission、不运行 provider、不刷新 projection、不写 Host Evidence、不标记 consumed、不突变 Local Work Trajectory。review evidence 位于 `review/scheduler-operator-workflow-dogfood-fixture-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-workflow-dogfood-fixture-followup-direction-analysis.md`；验证结果：runtime fixture focused tests `2 passed`，CLI workflow focused tests `2 passed`，scheduler / ExchangeArtifact / Host Evidence focused regression `126 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-multilane-dogfood-fixture.md`。本轮新增第二个 Scheduler Operator dogfood fixture：`build_scheduler_operator_multilane_dogfood_batch()` / `seed_scheduler_operator_multilane_dogfood_fixture()` 生成 deterministic fake-runtime 四任务、四 lane、四依赖的多线 scheduler admission candidate；CLI `doc-based-coding scheduler seed-dogfood-fixture --fixture multilane` 可写入该 candidate，默认仍保持 simple fixture。新 fixture 已通过 shared `schedulerOperatorWorkflow` backend/CLI/MCP 路径完成 exact admission、bounded fake loop、scheduler projection refresh 与 Host Evidence presentation readback；fixture seed 仍只突变 ExchangeArtifact store，不自动 admission、不运行 provider、不刷新 projection、不写 Host Evidence、不标记 consumed、不突变 Local Work Trajectory。review evidence 位于 `review/scheduler-operator-multilane-dogfood-fixture-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-multilane-dogfood-fixture-followup-direction-analysis.md`；验证结果：focused runtime tests `5 passed`，focused CLI workflow tests `5 passed`，focused MCP workflow test `1 passed`，scheduler / ExchangeArtifact / Host Evidence / operator workflow focused regression `137 passed`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-host-ux-unified-workflow-binding.md`。本轮把 VS Code Scheduler Operator Host UX 的 `Admit`、`Run bounded loop`、`Refresh projection` 三个按钮统一改为调用共享 CLI surface `doc-based-coding scheduler operator-workflow`，分别只携带 `--admit`、`--run-loop`、`--refresh-projection` 显式 action flag；artifact store、admission ledger、scheduler snapshot/event log、projection output、evidence id/path、actor 与 guide context 继续在 Host UX invocation 中显式传入。last-action summary 现兼容 shared workflow 的 nested `admission_result` / `loop_result` / `projection_result` payload，并保留旧直连命令 payload 兼容。该切片不改 UI 视觉模型、不改 backend scheduler/admission/evidence schema、不运行 live provider、不启动 background daemon、不标记 ExchangeArtifact consumed、不从 UI 或 scheduler workflow 突变 agent-owned Local Work Trajectory；review evidence 位于 `review/scheduler-operator-host-ux-unified-workflow-binding-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-host-ux-unified-workflow-binding-followup-direction-analysis.md`；验证结果：VS Code extension build passed，panel test `10 passed`，HTML test `13 passed`，focused backend/CLI/MCP workflow regression `10 passed`，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-operator-extension-host-click-sequence-smoke.md`。本轮新增 Scheduler Operator Host UX click/message contract helper：webview-shaped `schedulerOperatorAction` messages 与 shared `doc-based-coding scheduler operator-workflow` CLI args 共用 `vscode-extension/src/views/schedulerOperatorContracts.ts`；Progress Graph Preview panel 的 message coercion 与 workflow runner 的 args 构造均复用该 helper。新增 executable smoke 覆盖 `Admit -> Run bounded loop -> Refresh projection`，确认每一步只携带一个显式 action flag，bounded loop 保持 fake runtime 与 deterministic evidence id/path 测试能力，缺参 admission 在 UI mutation 前被拒绝。该切片不新增 full Electron extension-host runner、不运行 live provider、不启动 background daemon、不改 backend scheduler/admission/evidence schema、不从 UI 或 scheduler workflow 突变 agent-owned Local Work Trajectory、不改视觉模型；review evidence 位于 `review/scheduler-operator-extension-host-click-sequence-smoke-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-operator-extension-host-click-sequence-smoke-followup-direction-analysis.md`；验证结果：VS Code extension build passed，click/message contract smoke `3 passed`，panel test `10 passed`，HTML test `13 passed`，截图 artifact 位于 `output/playwright/scheduler-operator-ui/scheduler-operator-panel.png`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-scheduler-projection-readability-review.md`。本轮使用 deterministic multi-lane Scheduler Operator fixture 生成 scheduler-derived Local Work Trajectory projection，记录 `4 lanes / 6 events / 12 relations / 19 scheduler history lines`，并修复两个窄可读性问题：backend fan-in / scheduler-owned merge projection event 现在排在目标 task 前，不再产生反向 lane-order sequence；frontend scheduler-state projection 现在按最早 projected task order 排 lane，使用 full-fit mode、分离宽高 fit 预算、绑定初始 viewport，并对 full-fit 后续定位禁用动画以避免截图或首帧裁切。该切片不新增 live provider、不启动 background daemon、不新增 full Electron runner、不改 scheduler/admission/evidence schema、不突变 agent-owned Local Work Trajectory、不替换 React Flow renderer；review evidence 位于 `review/scheduler-projection-readability-review-2026-06-19.md`；后续方向分析位于 `design_docs/scheduler-projection-readability-review-followup-direction-analysis.md`；验证结果：VS Code extension build passed，Local Work Trajectory renderer test `2 passed`，Progress Graph Preview HTML test `13 passed`，focused scheduler projection/runtime pytest `4 passed, 243 deselected`，截图 artifact 位于 `output/playwright/scheduler-trajectory-preview/readability-review.png`。
-- `2026-06-19`: 完成 `design_docs/stages/planning-gate/2026-06-19-extension-host-scheduler-projection-lifecycle-smoke.md`。本轮新增 Host UX scheduler operator lifecycle seam：`progressGraphSchedulerOperatorLifecycle.ts` 固定 `schedulerOperatorAction -> running state render -> shared workflow invocation -> notification -> reload` 顺序，`ProgressGraphPreviewPanel` 继续只承担 VS Code progress/window/runtime adapter；Scheduler Trajectory Projection toolbar 现显式显示 `lanes/events/relations`，HTML smoke 固定 deterministic projection 的 `4 lanes / 6 events / 12 relations` 与 scheduler trajectory payload mount。该切片不新增 live provider、不启动 background daemon、不新增 full Electron runner、不改 scheduler/admission/evidence schema、不突变 agent-owned Local Work Trajectory、不替换 React Flow renderer；review evidence 位于 `review/extension-host-scheduler-projection-lifecycle-smoke-2026-06-19.md`；后续方向分析位于 `design_docs/extension-host-scheduler-projection-lifecycle-smoke-followup-direction-analysis.md`；验证结果：VS Code extension build passed，scheduler lifecycle smoke `3 passed`，Progress Graph Preview HTML test `13 passed`，panel test `10 passed`，Local Work Trajectory renderer test `2 passed`，scheduler operator contract test `3 passed`，focused scheduler projection/runtime pytest `4 passed, 243 deselected`，截图 artifact 位于 `output/playwright/scheduler-projection-lifecycle-smoke/lifecycle-smoke-trajectory-panel.png`。
-- `2026-06-10`: 完成 side planning-gate `design_docs/stages/planning-gate/2026-06-09-python-reference-dependency-baseline-generator-adapter.md`，状态切为 `COMPLETED`。本轮落地 `tools/dependency_graph/reference_adapter.py`，将 `tools/dependency_graph/build_baseline.py` 收口为兼容 wrapper，并补齐 create / refresh / generate / validate / repair / rollback 生命周期、Python + Pylance usage fixture 增强路径、JavaScript conservative support、维护指南与 prompt surface。验证结果：dependency baseline / MCP 相关 focused suite `146 passed`，`scripts/build.py --no-isolation --skip-checks` 通过且 runtime wheel 明确包含 `tools/dependency_graph/reference_adapter.py`，instance pack / bootstrap validators 与 pack verify 均通过。
-- `2026-04-24`: 完成 `scratch 轻量恢复协议` docs-only slice，关闭 `design_docs/stages/planning-gate/2026-04-23-scratch-lightweight-recovery-protocol.md`，生成并激活 safe-stop handoff `2026-04-24_1013_scratch-lightweight-recovery-protocol_stage-close`；scratch recovery 的适用范围、四状态集合与最小恢复字段已同步到长期标准，仓库回到无 active gate 的可恢复状态。
-- `2026-04-23`: 完成 llmdoc 借鉴触发的 docs-only 收口，生成并激活 safe-stop handoff `2026-04-23_2238_llmdoc-derived-doc-surface-and-host-boundaries_stage-close`；宿主交互模型、scratch/stable 分流、starter surface 与 Codex entry contract 已同步，仓库保持无 active gate 的可恢复状态。
-- `2026-04-22`: 完成 Codex 主链适配与 VS Code extension provider abstraction，生成并激活 safe-stop handoff `2026-04-22_2312_codex-adaptation-mainline-and-extension-abstraction_stage-close`，仓库回到无 active gate 的可恢复状态。
-- `2026-04-08`: 初始化 doc-loop 骨架。
-- `2026-04-08`: 对齐当前仓库的 repo-local adoption 入口，使 `docs/` 成为 project-local pack 的正式权威输入之一。
-- `2026-04-08`: 起草 `doc-loop-vibe-coding` prototype authority rereview 的 planning-gate。
-- `2026-04-08`: 形成 `doc-loop-vibe-coding` prototype authority rereview 结论并进入用户审核节点。
-- `2026-04-09`: 用户审核通过 rereview 全部 4 项判断，Phase 2 关闭，确认 Phase 3 方向为 prototype cleanup。
-- `2026-04-09`: Phase 3 Slice A 完成——将 SKILL.md、references/workflow.md、references/subagent-delegation.md 对齐到平台治理语义，修复 handoff 示例引用。
-- `2026-04-09`: Phase 3 Slice B 完成——将 bootstrap 模板（AGENTS.md、Checklist、Phase Map、tooling 标准）对齐到平台治理语义。
-- `2026-04-09`: Phase 4 Slice A 完成——创建 PDP Decision Envelope 说明文档与 JSON Schema，建立平台核心对象规格化框架。
-- `2026-04-09`: Phase 4 Slice B 完成——创建 Intent Classification 说明文档与独立 JSON Schema，固化平台最小 intent 枚举、高影响标记、实例扩展机制。
-- `2026-04-09`: Phase 4 Slice C 完成——创建 Gate Decision 说明文档与 JSON Schema，固化 gate-review state machine 映射规则，重构 Envelope 中 gate 子结构。
-- `2026-04-09`: Phase 4 Slice D 完成——创建 Delegation Decision 说明文档与 JSON Schema，固化 5 个关键问题、拒绝/保护条件、Contract 关联。
-- `2026-04-09`: Phase 4 Slice E 完成——创建 Escalation Decision 与 Precedence Resolution 说明文档及独立 JSON Schema，Envelope 全部子决策类型均已 `$ref` 收口，Phase 4 完结。
-- `2026-04-10`: Phase 5 Slice A+B 完成——创建 Subagent Contract、Report、Handoff 的独立 JSON Schema (draft-2020-12)，更新 subagent-schemas.md 添加 schema 引用，解决 mode/status 枚举固化问题，Phase 5 完结。
-- `2026-04-10`: Phase 6 Slice A+B 完成——实现 PDP 核心（intent_classifier + gate_resolver + decision_envelope）和 PEP 执行层（executor dry-run + action_log），25 项 pytest 全部通过，Phase 6 完结。
-- `2026-04-10`: Phase 7 Slice A+B 完成——实现 delegation_resolver、escalation_resolver、precedence_resolver，集成到 envelope，47 项 pytest 全部通过，提取子 agent 机制需求 5 项，Phase 7 完结。
-- `2026-04-10`: Phase 15 Slice A+B+C 完成——创建 workers 包（WorkerConfig + WorkerRegistry + LLMWorker + HTTPWorker），实现真实 worker 执行后端，LLM Worker 兼容 DashScope OpenAI-compatible API，真实调用验证通过，253 项 pytest 全部通过，Phase 15 完结。
-- `2026-04-10`: Phase 16 Slice A+B+C 完成——创建 pack 包（ManifestLoader + ContextBuilder + OverrideResolver），重构 PDP 5 个 resolver 支持可选 rule_config 参数，实现 3 层配置覆盖（platform → instance → project-local），官方实例 manifest 可成功加载，288 项 pytest 全部通过，Phase 16 完结。
-- `2026-04-10`: Phase 17 Slice A+B 完成——创建 audit 包（AuditLogger + TraceContext + Memory/File Backend），PDP 和 PEP 集成审计（全链路 9 种事件类型），向后兼容无破坏性，313 项 pytest 全部通过，Phase 17 完结。
-- `2026-04-10`: Phase 18 Slice A+B 完成——创建 validators 包（Validator/Check/Trigger Protocol + Registry + SchemaValidator + ScriptValidator + TriggerDispatcher），PEP executor 集成 pack validators（report 后）和 checks（writeback 前），348 项 pytest 全部通过，Phase 18 完结。
-- `2026-04-10`: Phase 19 Slice A+B 完成——官方实例 E2E 验证：ManifestLoader 加载实例 manifest、ContextBuilder 合并上下文、OverrideResolver 消解规则、PDP 使用实例规则决策、PEP 执行+writeback+validator/check 闭环、全链路审计、Bootstrap 产出校验。新增 40 项 E2E 测试，387 项 pytest 全部通过，Phase 19 完结。
-- `2026-04-10`: Phase 20 Slice A+B 完成——Worker 协作模式（Handoff + Subgraph）：创建 collaboration 包（CollaborationMode 枚举 + HandoffRequest/SubgraphContext + prepare/execute/merge 全流程），PDP delegation_resolver 支持 mode 选择（pack 可覆盖），PEP executor 重构为模式分发（worker/handoff/subgraph 三路径），RuleConfig 新增 extra 字段，414 项 pytest 全部通过，Phase 20 完结。
-- `2026-04-10`: Phase 21 Slice A+B+C 完成——Checkpoint Persistence + Direction Template：创建 src/workflow/checkpoint.py（write/read/validate 工具函数）+ 17 项 pytest 测试，创建候选方向文档化模板，更新 Document-Driven Workflow Standard 添加 checkpoint 触发时机，生成首个 checkpoint 并通过 round-trip 验证，431 项 pytest 全部通过，Phase 21 完结。
-- `2026-04-10`: Phase 22 Slice 1-4 完成——v0.1-dogfood Release：Pipeline 编排器（PDP→PEP 统一链）+ CLI 入口（4 命令）+ MCP Server（stdio, 5 工具）+ Instructions Generator（PackContext→Markdown）+ project-local pack 约束声明（C1-C8）。MCP dogfood 验证通过，修复 checkpoint 解析 bug。494 项 pytest 全部通过，Phase 22 收口。
-- `2026-04-10`: Phase 23 Slice A+B+C 完成——PackContext Downstream Wiring：OverrideResolver 将 merged_intents/merged_gates 传入 RuleConfig（platform_intents + allowed_gates），intent_classifier 新增 platform_intents 限制检查，gate_resolver 新增 allowed_gates 校验与 fallback。Pack 声明现可真正控制 PDP 分类与门级行为。512 项 pytest 全部通过，Phase 23 完结。
-- `2026-04-10`: Phase 24 Slice A+B+C 完成——MCP Prompts/Resources + always_on 注入：MCP server 新增 list_prompts/get_prompt/list_resources/read_resource 处理器，Pack prompts 可通过 Copilot `/<server>.<prompt>` 调用，always_on/on_demand 作为 MCP Resources 暴露，Instructions Generator 现输出 always_on 文件内容摘要。531 项 pytest 全部通过，Phase 24 完结。
-- `2026-04-10`: Phase 25 Slice A+B 完成——Extension Bridging：创建 PackRegistrar 桥接组件，Pack 声明的 validators 自动加载并注册到 ValidatorRegistry，triggers 自动注册到 TriggerDispatcher。Pipeline 集成 PackRegistrar，info() 暴露注册状态。544 项 pytest 全部通过，Phase 25 完结。
-- `2026-04-10`: Phase 26 完成——on_demand 懒加载 API：PackContext 新增 on_demand_entries + load_on_demand()/list_on_demand() 方法，按需读取文件并缓存。MCP read_resource() 现使用 load_on_demand()。gap analysis 最大间隙已闭合。555 项 pytest 全部通过，Phase 26 完结。
-- `2026-04-10`: Phase 27 完成——Dogfood 深度验证：执行 governance_decide / check_constraints / writeback_notify 三个真实场景，沉淀 11 个反馈项到 `design_docs/dogfood-feedback-phase-27.md`，修复 planning gate 状态扫描误报、README 被误识别为 gate、checkpoint 未纳入 files_to_reread、active gate 回退检测缺失等问题，并新增 5 项回归测试。559 项 pytest 全部通过，Phase 27 完结。
-- `2026-04-10`: Phase 28 完成——Dogfood Feedback Remediation：修复 `issue-report` 分类准确率（中文/英文 bug report）并保持 `correction` 既有行为稳定；新增 `sync_checkpoint_phase()` 并在 live `writeback_notify()` 路径下自动刷新 checkpoint phase。新增 7 项回归测试，566 项 pytest 全部通过，Phase 28 完结。
-- `2026-04-11`: Phase 29 完成——Self-Hosting Workflow Rule Formalization：将“文档型成果立即自用、运行时入口在首个稳定 release 前只作为 pre-release dogfood”写入 Workflow Standard、官方实例定位、Checklist 与 doc-loop prompts。当前确认核心链条已可运行，但尚未达到可默认依赖的稳定版门槛；本 Phase 只做文档与提示词收口，不修改代码，也未新增自动化测试。
-- `2026-04-11`: Phase 30 完成——Dogfood Feedback Remediation Part 2 (F8 First)：按用户审核先只处理 F8。`src/__main__.py` 中 `check` 命令现默认只输出约束 / 状态信息，不再混入完整治理链；若提供文本输入，会明确提示改用 `process`。新增 `tests/test_cli.py`，针对 `check` 无输入、有输入、帮助文本 3 个场景做回归验证；`pytest tests/test_cli.py` 通过（3 passed）。F4 保留为下一条独立诊断切片。
-- `2026-04-11`: Phase 31 完成——F4 Validator Diagnostics Follow-up：`src/pack/registrar.py` 新增 `skipped_details` 诊断层，区分 `missing-path`、`unsupported-extension`、`load-failed`、`missing-validate` 四类 skipped 原因，并通过 `summary()` / `Pipeline.info()` 暴露。新增官方实例 real-pack 场景覆盖，确认当前两个 validator 脚本被 skipped 的原因是 `missing-validate`，不是路径 bug。`pytest tests/test_extension_bridging.py` 通过（15 passed）。
-
+- Phase/status narrative:
+  `design_docs/Global Phase Map and Current Position.md`
+- Active checkpoint:
+  `.codex/checkpoints/latest.md`
+- Active handoff mirror:
+  `.codex/handoffs/CURRENT.md`
+- Direction candidates:
+  `design_docs/direction-candidates-after-phase-35.md`
+- Tooling protocols:
+  `design_docs/tooling/`
+- Platform authority docs:
+  `docs/`

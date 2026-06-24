@@ -11,6 +11,7 @@ from src.runtime.orchestration import (
     AgentSpec,
     AgentRuntimeAdapterRegistry,
     ContextScope,
+    GuideWorkerInstruction,
     GitWorktreeCommandReceipt,
     GitWorktreeSandboxReceipt,
     EditScopeLease,
@@ -66,6 +67,7 @@ from tools.progress_graph import (
     TrajectoryLane,
     TrajectoryRelation,
     HostOwnedQoderSmokeRunConfig,
+    HostOwnedGuideWorkerProviderExecutionConfig,
     add_local_work_compound,
     add_local_work_lane,
     add_local_work_lanes,
@@ -97,6 +99,7 @@ from tools.progress_graph import (
     resume_single_line_event,
     run_host_authorized_scheduler_daemon_loop_and_refresh_projection,
     run_host_authorized_scheduler_once_and_refresh_projection,
+    run_host_owned_guide_worker_provider_execution,
     run_host_owned_qoder_smoke,
     run_host_runtime_dogfood_harness,
     run_persisted_scheduler_once_and_refresh_projection,
@@ -2122,6 +2125,133 @@ def test_host_owned_qoder_smoke_runner_auth_failure_fails_before_state_pollution
     )
     assert restored.tasks["task-qoder-smoke-auth-fail"].state == "proposed"
     assert restored.tasks["task-qoder-smoke-auth-fail"].run_id == ""
+
+
+def test_host_owned_guide_worker_provider_execution_runs_mock_qoder_wave(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex/scheduler/evidence/guide-worker-provider.json"
+    client = _RecordingQoderClient(
+        QoderQueryResult(summary="guide-worker qoder complete", output_text="ok")
+    )
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-provider",
+            timestamp="2026-06-24T08:30:00+08:00",
+            evidence_output_path=evidence_path,
+            host_invocation_id="guide-worker-provider-test",
+            requested_by="host:test",
+            reason="mock qoder guide-worker provider execution test",
+            grant_id="grant-guide-worker-provider-test",
+            approved_by="host:test",
+        ),
+        qoder_query_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["workflow_surface"] == "host-owned-guide-worker-provider-execution"
+    assert payload["runtime_providers"] == ["qoder"]
+    assert payload["worker_runtime_providers"] == ["qoder"]
+    assert payload["host_invocation"]["invocation_id"] == "guide-worker-provider-test"
+    assert payload["submitted_task_ids"] == [
+        "task/guide-worker-provider/client",
+        "task/guide-worker-provider/server",
+    ]
+    assert payload["lane_ids"] == ["lane:client", "lane:server"]
+    assert payload["wave_execution_results"][0]["mode"] == "threaded"
+    assert payload["wave_execution_results"][0]["completed_task_ids"] == [
+        "task/guide-worker-provider/client",
+        "task/guide-worker-provider/server",
+    ]
+    assert payload["authority_split"]["runtime_registry_authority"] == "host_runtime_wiring"
+    assert payload["authority_split"]["mcp_live_provider_surface"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["metadata"]["runner"] == "host-owned-guide-worker-provider-execution"
+    assert len(client.requests) == 2
+    assert {request.agent.runtime_provider for request in client.requests} == {"qoder"}
+    assert evidence_path.exists()
+    state = read_scheduler_state_snapshot(
+        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+    )
+    assert state.tasks["task/guide-worker-provider/client"].agent.runtime_provider == "qoder"
+    assert state.tasks["task/guide-worker-provider/server"].agent.runtime_provider == "qoder"
+    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_host_owned_guide_worker_provider_execution_auth_failure_writes_no_state(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex/scheduler/evidence/guide-worker-auth-fail.json"
+
+    with pytest.raises(QoderRuntimeError) as raised:
+        run_host_owned_guide_worker_provider_execution(
+            tmp_path,
+            config=HostOwnedGuideWorkerProviderExecutionConfig(
+                evidence_id="guide-worker-auth-fail",
+                timestamp="2026-06-24T08:35:00+08:00",
+                evidence_output_path=evidence_path,
+            ),
+            sdk_importer=lambda name: _NeverUsedQoderSDK(),
+            environment={},
+        )
+
+    assert raised.value.error_kind == "authentication_failed"
+    assert evidence_path.exists() is False
+    assert (
+        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+    ).exists() is False
+    assert (
+        tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    ).exists() is False
+    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_host_owned_guide_worker_provider_execution_mixed_fake_and_qoder_workers(
+    tmp_path: Path,
+) -> None:
+    client = _RecordingQoderClient(
+        QoderQueryResult(summary="mixed qoder worker complete", output_text="ok")
+    )
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-mixed-provider",
+            timestamp="2026-06-24T08:45:00+08:00",
+            providers=("fake", "qoder"),
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/mixed/fake",
+                    title="Fake worker lane",
+                    instruction="Complete this fake worker task.",
+                    lane_id="lane:fake",
+                    worker_runtime_provider="fake",
+                    output_artifact_id="task/mixed/fake:result",
+                ),
+                GuideWorkerInstruction(
+                    task_id="task/mixed/qoder",
+                    title="Qoder worker lane",
+                    instruction="Complete this qoder worker task.",
+                    lane_id="lane:qoder",
+                    worker_runtime_provider="qoder",
+                    output_artifact_id="task/mixed/qoder:result",
+                ),
+            ),
+        ),
+        qoder_query_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["runtime_providers"] == ["fake", "qoder"]
+    assert payload["worker_runtime_providers"] == ["fake", "qoder"]
+    assert payload["orchestration"]["scenario"]["runtime_provider"] == "mixed"
+    assert payload["task_states"]["task/mixed/fake"] == "complete"
+    assert payload["task_states"]["task/mixed/qoder"] == "complete"
+    assert len(client.requests) == 1
 
 
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:

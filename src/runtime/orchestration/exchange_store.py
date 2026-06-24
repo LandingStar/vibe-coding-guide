@@ -834,6 +834,21 @@ def _detect_admission_candidates(
     return tuple(candidates)
 
 
+def detect_exchange_artifact_admission_candidates(
+    artifact: ExchangeArtifact,
+    *,
+    store_path: str | Path | None = None,
+    admission_records: tuple[ExchangeArtifactAdmissionRecord, ...] = (),
+) -> tuple[ExchangeArtifactAdmissionCandidate, ...]:
+    """Detect scheduler admission candidates using the store inspection rules."""
+
+    return _detect_admission_candidates(
+        artifact,
+        store_path=None if store_path is None else Path(store_path),
+        admission_records=admission_records,
+    )
+
+
 def _task_submission_candidate(
     artifact: ExchangeArtifact,
     part_index: int,
