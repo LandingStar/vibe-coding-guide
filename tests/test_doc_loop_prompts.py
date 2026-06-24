@@ -146,6 +146,7 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding qoder guide-worker-smoke" in text
         assert "run_host_owned_guide_worker_provider_execution" in text
         assert "host_guide_worker_provider_execution_evidence" in text
+        assert "per-worker execution receipts" in text
         assert "doc-based-coding scheduler evidence-publish-consumer-closure" in text
         assert "run_evidence_publish_to_consumer_closure" in text
         assert "not a new MCP tool" in text
@@ -720,6 +721,8 @@ def test_qoder_host_provisioning_guide_is_linked_from_docs() -> None:
     assert "doc-based-coding qoder smoke" in guide
     assert "doc-based-coding qoder guide-worker-smoke" in guide
     assert "run_host_owned_guide_worker_provider_execution" in guide
+    assert "--planner-lane" in guide
+    assert "per-worker execution receipts" in guide
     assert "QODER_PERSONAL_ACCESS_TOKEN" in guide
     assert "token_present" in guide
     assert "--no-initialize-snapshot" in guide

@@ -12,6 +12,8 @@ from src.runtime.orchestration import (
     AgentRuntimeAdapterRegistry,
     ContextScope,
     GuideWorkerInstruction,
+    GuideWorkerPlannerLaneSpec,
+    GuideWorkerPlanningRequest,
     GitWorktreeCommandReceipt,
     GitWorktreeSandboxReceipt,
     EditScopeLease,
@@ -2252,6 +2254,183 @@ def test_host_owned_guide_worker_provider_execution_mixed_fake_and_qoder_workers
     assert payload["task_states"]["task/mixed/fake"] == "complete"
     assert payload["task_states"]["task/mixed/qoder"] == "complete"
     assert len(client.requests) == 1
+
+
+def test_host_owned_guide_worker_provider_execution_runs_planned_qoder_workers(
+    tmp_path: Path,
+) -> None:
+    client = _RecordingQoderClient(
+        QoderQueryResult(summary="planned qoder worker complete", output_text="ok")
+    )
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-planned-provider",
+            timestamp="2026-06-24T18:30:00+08:00",
+            worker_instructions=(),
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="Build maze game",
+                task_summary="Split browser client and server API work.",
+                lane_specs=(
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:client",
+                        label="Client UI",
+                        focus="browser maze controls and CLI-like test hooks",
+                        allowed_artifacts=("client", "web"),
+                    ),
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:server",
+                        label="Server API",
+                        focus="state API and port boundary",
+                        allowed_artifacts=("server", "api"),
+                    ),
+                ),
+            ),
+            planner_worker_runtime_provider="qoder",
+        ),
+        qoder_query_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["planning"]["source"] == "planning_request"
+    assert payload["planning"]["worker_count"] == 2
+    assert payload["submitted_task_ids"] == [
+        "task/guide-worker-provider-execution/client",
+        "task/guide-worker-provider-execution/server",
+    ]
+    assert payload["worker_runtime_providers"] == ["qoder"]
+    assert payload["planned_worker_instructions"][0]["worker_runtime_provider"] == "qoder"
+    assert payload["worker_execution_receipts"] == [
+        {
+            "task_id": "task/guide-worker-provider-execution/client",
+            "lane_id": "lane:client",
+            "title": "Client UI",
+            "worker_agent_id": "agent:qoder-worker",
+            "runtime_provider": "qoder",
+            "task_state": "complete",
+            "run_id": "qoder-run-1",
+            "session_id": "qoder-session-1",
+            "output_artifact_id": "task/guide-worker-provider-execution/client:result",
+            "output_artifact_ref": {
+                "ref_kind": "exchange_artifact",
+                "ref_id": "task/guide-worker-provider-execution/client:result",
+                "version": "v1",
+            },
+            "acceptance": [
+                "Client UI lane result artifact exists.",
+                "Result records concrete validation evidence or a clear blocker.",
+            ],
+        },
+        {
+            "task_id": "task/guide-worker-provider-execution/server",
+            "lane_id": "lane:server",
+            "title": "Server API",
+            "worker_agent_id": "agent:qoder-worker",
+            "runtime_provider": "qoder",
+            "task_state": "complete",
+            "run_id": "qoder-run-2",
+            "session_id": "qoder-session-2",
+            "output_artifact_id": "task/guide-worker-provider-execution/server:result",
+            "output_artifact_ref": {
+                "ref_kind": "exchange_artifact",
+                "ref_id": "task/guide-worker-provider-execution/server:result",
+                "version": "v1",
+            },
+            "acceptance": [
+                "Server API lane result artifact exists.",
+                "Result records concrete validation evidence or a clear blocker.",
+            ],
+        },
+    ]
+    assert len(client.requests) == 2
+    assert [request.task.title for request in client.requests] == [
+        "Client UI",
+        "Server API",
+    ]
+    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_host_owned_guide_worker_provider_execution_explicit_workers_override_planner(
+    tmp_path: Path,
+) -> None:
+    client = _RecordingQoderClient(
+        QoderQueryResult(summary="explicit qoder worker complete", output_text="ok")
+    )
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-explicit-overrides-planner",
+            timestamp="2026-06-24T18:35:00+08:00",
+            providers=("qoder",),
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/explicit/qoder",
+                    title="Explicit qoder worker",
+                    instruction="Run only this explicit worker.",
+                    lane_id="lane:explicit",
+                    worker_runtime_provider="qoder",
+                    output_artifact_id="task/explicit/qoder:result",
+                ),
+            ),
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="Ignored planner",
+                lane_specs=(
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:ignored",
+                        label="Ignored",
+                        focus="This lane must not run.",
+                        worker_runtime_provider="fake",
+                    ),
+                ),
+            ),
+        ),
+        qoder_query_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["planning"]["source"] == "explicit_worker_instructions"
+    assert payload["submitted_task_ids"] == ["task/explicit/qoder"]
+    assert len(client.requests) == 1
+
+
+def test_host_owned_guide_worker_provider_execution_rejects_unconfigured_planner_provider(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / ".codex/scheduler/evidence/planner-provider-fail.json"
+
+    with pytest.raises(ValueError, match="requests provider 'qoder'"):
+        run_host_owned_guide_worker_provider_execution(
+            tmp_path,
+            config=HostOwnedGuideWorkerProviderExecutionConfig(
+                evidence_id="planner-provider-fail",
+                evidence_output_path=evidence_path,
+                providers=("fake",),
+                worker_instructions=(),
+                planning_request=GuideWorkerPlanningRequest(
+                    task_title="Provider guard",
+                    lane_specs=(
+                        GuideWorkerPlannerLaneSpec(
+                            lane_id="lane:qoder",
+                            label="Qoder lane",
+                            focus="Should be rejected before writes.",
+                            worker_runtime_provider="qoder",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    assert evidence_path.exists() is False
+    assert (
+        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+    ).exists() is False
+    assert (
+        tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    ).exists() is False
 
 
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:

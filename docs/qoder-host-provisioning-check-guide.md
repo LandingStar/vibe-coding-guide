@@ -176,6 +176,10 @@ Useful bounded options:
 --evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
 --host-invocation-id host-owned-guide-worker-provider-execution-cli
 --reason "bounded host-owned guide-worker provider execution"
+--guide-task-title "Build maze game"
+--guide-task-summary "Split browser client and server API work."
+--planner-lane lane:client=Client UI:browser controls and test hooks:client,web
+--planner-lane lane:server=Server API:state API and port boundary:server,api
 --max-parallel-lanes 2
 --max-waves 1
 --wave-execution-mode serial|threaded
@@ -184,10 +188,14 @@ Useful bounded options:
 
 This command validates SDK/auth readiness before writing ExchangeArtifact
 store, scheduler snapshot, event log, or evidence files. On success it writes
-compact `host_guide_worker_provider_execution_evidence` with provider, lane,
-wave, task state, output artifact, path, and authority facts. It does not
-refresh scheduler projection, accept raw token values, persist raw transcripts,
-create agent home/scratch directories, or mutate Local Work Trajectory.
+compact `host_guide_worker_provider_execution_evidence` with planner metadata,
+generated instructions, per-worker execution receipts, provider, lane, wave,
+task state, output artifact, path, and authority facts. If `--planner-lane` is
+supplied, the command derives workers from the deterministic guide planner and
+defaults those planned workers to Qoder for this host-owned wrapper. It does
+not refresh scheduler projection, accept raw token values, persist raw
+transcripts, create agent home/scratch directories, or mutate Local Work
+Trajectory.
 
 ## Output Contract
 

@@ -405,6 +405,14 @@ def guide_worker_instructions_from_sequence(
     )
 
 
+def resolve_guide_worker_instructions(
+    request: GuideWorkerLocalOrchestrationRequest,
+) -> tuple[tuple[GuideWorkerInstruction, ...], str]:
+    """Resolve the concrete worker instructions that a request will execute."""
+
+    return _resolve_worker_instructions(request)
+
+
 def run_guide_worker_local_trajectory_orchestration(
     request: GuideWorkerLocalOrchestrationRequest,
     *,
@@ -416,7 +424,7 @@ def run_guide_worker_local_trajectory_orchestration(
 
     _validate_request(request)
 
-    instructions, planning_source = _resolve_worker_instructions(request)
+    instructions, planning_source = resolve_guide_worker_instructions(request)
     _validate_instructions(request, instructions)
 
     version = "v1"

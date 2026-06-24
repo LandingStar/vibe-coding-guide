@@ -1212,6 +1212,10 @@ Expected CLI options:
 --evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
 --host-invocation-id host-owned-guide-worker-provider-execution-cli
 --reason "bounded host-owned guide-worker provider execution"
+--guide-task-title "Build maze game"
+--guide-task-summary "Split browser client and server API work."
+--planner-lane lane:client=Client UI:browser controls and test hooks:client,web
+--planner-lane lane:server=Server API:state API and port boundary:server,api
 --max-parallel-lanes 2
 --max-waves 1
 --wave-execution-mode serial|threaded
@@ -1223,15 +1227,19 @@ Expected helper behavior:
 1. Validate Qoder SDK/auth readiness before writing ExchangeArtifact store,
    scheduler state, event logs, or evidence.
 2. Create a guide instruction artifact and scheduler worker task batch.
-3. Emit worker tasks with `AgentSpec.runtime_provider` from
+3. When `--planner-lane` is supplied, derive worker tasks from the deterministic
+   guide planner and default those planned workers to Qoder in this host-owned
+   wrapper. Explicit worker instructions still take precedence at the helper
+   layer.
+4. Emit worker tasks with `AgentSpec.runtime_provider` from
    `workerRuntimeProvider`.
-4. Execute at most one ready worker task per lane per wave through the
+5. Execute at most one ready worker task per lane per wave through the
    host-authorized runtime registry.
-5. Merge wave results deterministically by task id.
-6. Write compact `host_guide_worker_provider_execution_evidence` with
-   provider, lane, wave, task state, output artifact, path, and authority
-   facts.
-7. Keep MCP `schedulerGuideWorkerLocalOrchestration` fake-only.
+6. Merge wave results deterministically by task id.
+7. Write compact `host_guide_worker_provider_execution_evidence` with
+   planner metadata, generated instructions, per-worker execution receipts,
+   provider, lane, wave, task state, output artifact, path, and authority facts.
+8. Keep MCP `schedulerGuideWorkerLocalOrchestration` fake-only.
 
 If SDK/auth are missing, the wrapper should fail before evidence, scheduler
 state, or exchange-store writes. Treat that as expected negative-path evidence.

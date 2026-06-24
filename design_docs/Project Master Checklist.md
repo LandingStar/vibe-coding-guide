@@ -29,13 +29,13 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / autonomous guide instruction planner completed`
-- Current Focus: `Continue guide-worker orchestration toward real policy/runtime execution`
+- Current Phase: `Post-v1.0 - Agent orchestration / planned guide-worker execution closure completed`
+- Current Focus: `Continue guide-worker orchestration toward real sandbox/writeback policy`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-- Latest Completed Slice: `Autonomous Guide Instruction Planner`
+  `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+- Latest Completed Slice: `Guide Worker Planned Execution Closure`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+  `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,15 +44,16 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-3. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-4. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-7. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-8. `review/agent-communication-product-closure-2026-06-22.md`
-9. `design_docs/Global Phase Map and Current Position.md`
-10. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+3. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+4. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+8. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+9. `review/agent-communication-product-closure-2026-06-22.md`
+10. `design_docs/Global Phase Map and Current Position.md`
+11. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -263,6 +264,36 @@ Validation:
 - `analyze_changes` returned no impact nodes; MCP registration coupling was
   covered by server schema/routing and route tests.
 
+### Guide Worker Planned Execution Closure
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+
+Goal:
+
+- Let the host-owned guide-worker provider wrapper execute planner-derived
+  lane-bound workers and publish per-worker execution receipts.
+
+Current implementation surface:
+
+- Resolver: `resolve_guide_worker_instructions()`
+- Config fields: `planning_request`, `planner_worker_runtime_provider`
+- CLI planner flags on `qoder guide-worker-smoke`
+- Evidence fields: `planning`, `planned_worker_instructions`,
+  `worker_execution_receipts`
+
+Validation:
+
+- `py_compile` for wrapper/runtime/CLI/tests passed.
+- Focused wrapper/CLI/prompt tests passed: `10 passed, 166 deselected`.
+- Related runtime/MCP/CLI regression passed: `17 passed, 383 deselected`.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+- `analyze_changes` returned no impact nodes and no coupling alerts.
+
 ### Evidence Publish To Consumer Closure
 
 Status: `completed`
@@ -331,10 +362,12 @@ Validation:
 - [x] Complete host-owned guide-worker provider execution wrapper.
 - [x] Complete the deterministic guide instruction planner for high-level task
   plus lane-spec decomposition.
+- [x] Complete host-owned planned guide-worker execution receipts.
 - [x] Complete `Evidence Publish To Consumer Closure` and remove its parked
   recovery branch from the current hot path.
 - [ ] Select the next narrow orchestration planning gate from guide policy,
-  host runtime execution, agent storage isolation, or UI/readback follow-up.
+  sandbox/writeback isolation, agent storage isolation, or UI/readback
+  follow-up.
 
 ## Write Rules For This File
 

@@ -101,6 +101,7 @@ from .guide_worker_local_orchestration import (
     execute_guide_worker_parallel_wave,
     guide_worker_instruction_from_mapping,
     guide_worker_instructions_from_sequence,
+    resolve_guide_worker_instructions,
     run_guide_worker_local_trajectory_orchestration,
     select_ready_worker_parallel_wave,
 )
@@ -530,6 +531,7 @@ __all__ = [
     "execute_guide_worker_parallel_wave",
     "guide_worker_instruction_from_mapping",
     "guide_worker_instructions_from_sequence",
+    "resolve_guide_worker_instructions",
     "AgentExchangeReplyResult",
     "AgentExchangeTransitionResult",
     "AgentExchangeTransitionState",

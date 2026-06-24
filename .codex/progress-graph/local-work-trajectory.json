@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T08:17:08.901956+00:00",
+  "recorded_at": "2026-06-24T12:26:52.447894+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 3,
-    "event_count": 12,
-    "relation_count": 11,
+    "event_count": 14,
+    "relation_count": 13,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -234,6 +234,38 @@
         "activated_at": "2026-06-24T08:15:46.641223+00:00",
         "completed_at": "2026-06-24T08:17:08.901956+00:00"
       }
+    },
+    "event:013": {
+      "id": "event:013",
+      "lane_id": "lane:main",
+      "title": "Open guide-worker execution closure planning gate",
+      "kind": "decision",
+      "status": "completed",
+      "order": 9,
+      "summary": "Begin the guide-worker execution closure slice: document and implement host-owned execution over planner-derived lane workers plus per-worker execution receipts.",
+      "metadata": {
+        "created_at": "2026-06-24T10:11:37.368763+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-24T10:14:39.686903+00:00",
+        "activated_at": "2026-06-24T10:14:39.686903+00:00",
+        "completed_at": "2026-06-24T12:14:10.008141+00:00"
+      }
+    },
+    "event:014": {
+      "id": "event:014",
+      "lane_id": "lane:main",
+      "title": "Fix planned execution default instruction precedence",
+      "kind": "task",
+      "status": "completed",
+      "order": 10,
+      "summary": "Implementation and validation resumed for the planned execution default instruction precedence correction.",
+      "metadata": {
+        "created_at": "2026-06-24T12:20:08.156088+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-24T12:26:42.774244+00:00",
+        "activated_at": "2026-06-24T12:26:42.774244+00:00",
+        "completed_at": "2026-06-24T12:26:52.447894+00:00"
+      }
     }
   },
   "relations": [
@@ -330,6 +362,24 @@
     {
       "source_event_id": "event:007",
       "target_event_id": "event:012",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:012",
+      "target_event_id": "event:013",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:013",
+      "target_event_id": "event:014",
       "kind": "sequence",
       "summary": "",
       "metadata": {

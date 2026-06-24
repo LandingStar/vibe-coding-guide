@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ from src.runtime.orchestration import (
     GuideWorkerInstruction,
     GuideWorkerLocalOrchestrationRequest,
     GuideWorkerLocalOrchestrationResult,
+    GuideWorkerPlanningRequest,
     InMemoryArtifactVersionStore,
     JsonArtifactVersionStore,
     QoderQueryClient,
@@ -30,6 +31,7 @@ from src.runtime.orchestration import (
     build_runtime_registry_from_config,
     default_exchange_artifact_admission_ledger_path,
     default_exchange_artifact_store_path,
+    resolve_guide_worker_instructions,
     run_guide_worker_local_trajectory_orchestration,
 )
 
@@ -54,42 +56,11 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     guide_agent_id: str = "agent:guide"
     worker_agent_id: str = "agent:qoder-worker"
     artifact_id_prefix: str = "guide-worker-provider-execution"
-    worker_instructions: tuple[GuideWorkerInstruction, ...] = field(
-        default_factory=lambda: (
-            GuideWorkerInstruction(
-                task_id="task/guide-worker-provider/client",
-                title="Qoder client worker",
-                instruction=(
-                    "Act as the client-lane worker. Complete the bounded "
-                    "guide-assigned client task and return compact result evidence."
-                ),
-                lane_id="lane:client",
-                worker_agent_id="agent:qoder-client-worker",
-                worker_runtime_provider="qoder",
-                acceptance=(
-                    "Return a compact result summary.",
-                    "Do not include secrets or raw credential material.",
-                ),
-                output_artifact_id="task/guide-worker-provider/client:result",
-            ),
-            GuideWorkerInstruction(
-                task_id="task/guide-worker-provider/server",
-                title="Qoder server worker",
-                instruction=(
-                    "Act as the server-lane worker. Complete the bounded "
-                    "guide-assigned server task and return compact result evidence."
-                ),
-                lane_id="lane:server",
-                worker_agent_id="agent:qoder-server-worker",
-                worker_runtime_provider="qoder",
-                acceptance=(
-                    "Return a compact result summary.",
-                    "Do not include secrets or raw credential material.",
-                ),
-                output_artifact_id="task/guide-worker-provider/server:result",
-            ),
-        )
+    worker_instructions: tuple[GuideWorkerInstruction, ...] = ()
+    planning_request: GuideWorkerPlanningRequest = field(
+        default_factory=GuideWorkerPlanningRequest
     )
+    planner_worker_runtime_provider: str = ""
     providers: tuple[RuntimeProviderKind, ...] = ("qoder",)
     qoder_client_config: QoderSDKQueryClientConfig = field(default_factory=QoderSDKQueryClientConfig)
     host_invocation_id: str = "host-owned-guide-worker-provider-execution"
@@ -157,10 +128,13 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
             "submitted_task_ids": result_payload["submitted_task_ids"],
             "lane_ids": result_payload["lane_ids"],
             "parallel_waves": result_payload["parallel_waves"],
+            "planning": result_payload["planning"],
+            "planned_worker_instructions": result_payload["planned_worker_instructions"],
             "wave_execution_results": result_payload["wave_execution_results"],
             "run_task_ids": result_payload["run_task_ids"],
             "task_states": result_payload["task_states"],
             "output_artifact_refs": _output_artifact_refs(self.result),
+            "worker_execution_receipts": _worker_execution_receipts(self.result),
             "authority_split": authority_split,
             "metadata": dict(self.metadata),
         }
@@ -229,6 +203,8 @@ def run_host_owned_guide_worker_provider_execution(
 
     host_invocation = _host_invocation(active_config, providers)
     runtime_config = _runtime_config(active_config, providers, host_invocation)
+    planning_request = _effective_planning_request(active_config, providers)
+    worker_instructions = _effective_worker_instructions(active_config)
     store = artifact_store or InMemoryArtifactVersionStore()
     _seed_in_memory_store_from_json(
         store,
@@ -249,7 +225,8 @@ def run_host_owned_guide_worker_provider_execution(
         worker_agent_id=active_config.worker_agent_id,
         artifact_id_prefix=active_config.artifact_id_prefix,
         timestamp=active_config.timestamp,
-        worker_instructions=active_config.worker_instructions,
+        planning_request=planning_request,
+        worker_instructions=worker_instructions,
         max_parallel_lanes=active_config.max_parallel_lanes,
         max_waves=active_config.max_waves,
         replace_existing=active_config.replace_existing,
@@ -385,7 +362,10 @@ def _validate_requested_worker_providers(
     providers: tuple[RuntimeProviderKind, ...],
 ) -> None:
     available = set(providers)
-    for index, instruction in enumerate(config.worker_instructions):
+    instructions, _ = resolve_guide_worker_instructions(
+        _provider_validation_request(config)
+    )
+    for index, instruction in enumerate(instructions):
         provider = instruction.worker_runtime_provider or "fake"
         if provider not in available:
             raise ValueError(
@@ -393,6 +373,99 @@ def _validate_requested_worker_providers(
                 f"{index} requests provider {provider!r}, but configured providers are "
                 f"{', '.join(providers)}"
             )
+
+
+def _provider_validation_request(
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+) -> GuideWorkerLocalOrchestrationRequest:
+    providers = _normalize_providers(config.providers)
+    return GuideWorkerLocalOrchestrationRequest(
+        artifact_store_path=Path(config.artifact_store_path),
+        admission_ledger_path=Path(config.admission_ledger_path),
+        snapshot_path=Path(config.snapshot_path),
+        event_log_path=Path(config.event_log_path),
+        trajectory_id=config.trajectory_id,
+        guide_agent_id=config.guide_agent_id,
+        worker_agent_id=config.worker_agent_id,
+        artifact_id_prefix=config.artifact_id_prefix,
+        timestamp=config.timestamp,
+        planning_request=_effective_planning_request(config, providers),
+        worker_instructions=_effective_worker_instructions(config),
+        workspace_root=config.workspace_root,
+        scratch_root=config.scratch_root,
+    )
+
+
+def _effective_planning_request(
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+    providers: tuple[RuntimeProviderKind, ...],
+) -> GuideWorkerPlanningRequest:
+    planning = config.planning_request
+    if not planning.lane_specs:
+        return planning
+    default_provider = config.planner_worker_runtime_provider.strip()
+    if not default_provider and len(providers) == 1:
+        default_provider = providers[0]
+    if not default_provider:
+        return planning
+    return replace(
+        planning,
+        lane_specs=tuple(
+            replace(
+                spec,
+                worker_agent_id=spec.worker_agent_id or config.worker_agent_id,
+                worker_runtime_provider=spec.worker_runtime_provider or default_provider,
+            )
+            for spec in planning.lane_specs
+        ),
+    )
+
+
+def _effective_worker_instructions(
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+) -> tuple[GuideWorkerInstruction, ...]:
+    if config.worker_instructions:
+        return config.worker_instructions
+    if config.planning_request.lane_specs:
+        return ()
+    return _default_worker_instructions()
+
+
+def _default_worker_instructions() -> tuple[GuideWorkerInstruction, ...]:
+    return (
+        GuideWorkerInstruction(
+            task_id="task/guide-worker-provider/client",
+            title="Qoder client worker",
+            instruction=(
+                "Act as the client-lane worker. Complete the bounded "
+                "guide-assigned client task and return compact result evidence."
+            ),
+            lane_id="lane:client",
+            worker_agent_id="agent:qoder-client-worker",
+            worker_runtime_provider="qoder",
+            acceptance=(
+                "Return a compact result summary.",
+                "Do not include secrets or raw credential material.",
+            ),
+            output_artifact_id="task/guide-worker-provider/client:result",
+        ),
+        GuideWorkerInstruction(
+            task_id="task/guide-worker-provider/server",
+            title="Qoder server worker",
+            instruction=(
+                "Act as the server-lane worker. Complete the bounded "
+                "guide-assigned server task and return compact result evidence."
+            ),
+            lane_id="lane:server",
+            worker_agent_id="agent:qoder-server-worker",
+            worker_runtime_provider="qoder",
+            acceptance=(
+                "Return a compact result summary.",
+                "Do not include secrets or raw credential material.",
+            ),
+            output_artifact_id="task/guide-worker-provider/server:result",
+        ),
+    )
 
 
 def _validate_real_runtime_client_ready(
@@ -435,6 +508,49 @@ def _output_artifact_refs(
     ]
 
 
+def _worker_execution_receipts(
+    result: GuideWorkerLocalOrchestrationResult,
+) -> list[dict[str, object]]:
+    run_records_by_task_id = {
+        record.task_id: record
+        for record in result.final_state.run_records
+    }
+    receipts: list[dict[str, object]] = []
+    for instruction in result.planned_worker_instructions:
+        task = result.final_state.tasks.get(instruction.task_id)
+        record = run_records_by_task_id.get(instruction.task_id)
+        output_ref = task.output_artifact_ref if task is not None else None
+        receipts.append(
+            {
+                "task_id": instruction.task_id,
+                "lane_id": instruction.lane_id,
+                "title": instruction.title,
+                "worker_agent_id": (
+                    instruction.worker_agent_id or result.request.worker_agent_id
+                ),
+                "runtime_provider": instruction.worker_runtime_provider or "fake",
+                "task_state": "" if task is None else task.state,
+                "run_id": "" if record is None else record.run_id,
+                "session_id": "" if record is None else record.session_id,
+                "output_artifact_id": (
+                    instruction.output_artifact_id
+                    or f"{instruction.task_id}:result"
+                ),
+                "output_artifact_ref": (
+                    {}
+                    if output_ref is None
+                    else {
+                        "ref_kind": output_ref.ref_kind,
+                        "ref_id": output_ref.ref_id,
+                        "version": output_ref.version,
+                    }
+                ),
+                "acceptance": list(instruction.acceptance),
+            }
+        )
+    return receipts
+
+
 def _evidence_metadata(
     config: HostOwnedGuideWorkerProviderExecutionConfig,
 ) -> dict[str, object]:
@@ -442,6 +558,7 @@ def _evidence_metadata(
         "runner": "host-owned-guide-worker-provider-execution",
         "sdk_module_name": config.qoder_client_config.sdk_module_name,
         "permission_request_policy": config.qoder_client_config.permission_request_policy,
+        "planner_worker_runtime_provider": config.planner_worker_runtime_provider,
     }
     metadata.update(dict(config.evidence_metadata))
     return metadata

@@ -346,6 +346,8 @@ def test_qoder_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
 
     assert proc.returncode == 0
     assert "--wave-execution-mode serial|threaded" in proc.stdout
+    assert "--guide-task-title" in proc.stdout
+    assert "--planner-lane" in proc.stdout
     assert "host-owned live-provider guide-worker smoke surface" in proc.stdout
     assert "never accepts a raw token value" in proc.stdout
     assert "not an MCP real-provider execution surface" in proc.stdout

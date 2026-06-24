@@ -269,6 +269,8 @@ _QODER_GUIDE_WORKER_SMOKE_USAGE = (
     "[--snapshot-path PATH] [--event-log-path PATH] "
     "[--evidence-id ID] [--evidence-path PATH] "
     "[--host-invocation-id ID] [--reason TEXT] "
+    "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]] "
     "[--max-parallel-lanes N] [--max-waves N] "
     "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
 )
@@ -577,6 +579,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     evidence_path = ""
     host_invocation_id = ""
     reason = ""
+    guide_task_title = ""
+    guide_task_summary = ""
+    planner_lane_specs: list[str] = []
     max_parallel_lanes = 2
     max_waves = 1
     wave_execution_mode = "threaded"
@@ -601,6 +606,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             "--evidence-path",
             "--host-invocation-id",
             "--reason",
+            "--guide-task-title",
+            "--guide-task-summary",
+            "--planner-lane",
             "--max-parallel-lanes",
             "--max-waves",
             "--wave-execution-mode",
@@ -646,6 +654,12 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
                 host_invocation_id = value
             elif arg == "--reason":
                 reason = value
+            elif arg == "--guide-task-title":
+                guide_task_title = value
+            elif arg == "--guide-task-summary":
+                guide_task_summary = value
+            elif arg == "--planner-lane":
+                planner_lane_specs.append(value)
             elif arg == "--max-parallel-lanes":
                 try:
                     max_parallel_lanes = int(value)
@@ -699,6 +713,8 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     try:
         from .runtime.orchestration import (
             DEFAULT_QODER_TOKEN_ENV,
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
             QoderSDKQueryClientConfig,
         )
         from tools.progress_graph import (
@@ -715,41 +731,57 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             permission_request_policy=permission_request_policy,  # type: ignore[arg-type]
             sdk_module_name=sdk_module_name or "qoder_agent_sdk",
         )
-        config = HostOwnedGuideWorkerProviderExecutionConfig(
-            evidence_id=evidence_id or "guide-worker-provider-execution",
-            timestamp=timestamp,
-            artifact_store_path=artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=(
+        planning_request = GuideWorkerPlanningRequest(
+            task_title=guide_task_title,
+            task_summary=guide_task_summary,
+            lane_specs=tuple(
+                _parse_guide_worker_planner_lane_spec(
+                    item,
+                    GuideWorkerPlannerLaneSpec,
+                )
+                for item in planner_lane_specs
+            ),
+        )
+        config_kwargs = {
+            "evidence_id": evidence_id or "guide-worker-provider-execution",
+            "timestamp": timestamp,
+            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "admission_ledger_path": (
                 admission_ledger_path
                 or ".codex/orchestration/exchange-artifact-admissions.json"
             ),
-            snapshot_path=(
+            "snapshot_path": (
                 snapshot_path
                 or ".codex/scheduler/guide-worker-provider-execution-state.json"
             ),
-            event_log_path=(
+            "event_log_path": (
                 event_log_path
                 or ".codex/scheduler/guide-worker-provider-execution-events.jsonl"
             ),
-            evidence_output_path=evidence_path or None,
-            qoder_client_config=qoder_config,
-            host_invocation_id=(
+            "evidence_output_path": evidence_path or None,
+            "qoder_client_config": qoder_config,
+            "host_invocation_id": (
                 host_invocation_id
                 or "host-owned-guide-worker-provider-execution-cli"
             ),
-            requested_by="cli:qoder-guide-worker-smoke",
-            reason=reason or "host-owned Qoder guide-worker smoke run from CLI",
-            grant_id=(
+            "requested_by": "cli:qoder-guide-worker-smoke",
+            "reason": reason or "host-owned Qoder guide-worker smoke run from CLI",
+            "grant_id": (
                 f"grant-{host_invocation_id}"
                 if host_invocation_id
                 else "grant-host-owned-guide-worker-provider-execution-cli"
             ),
-            approved_by="cli:qoder-guide-worker-smoke",
-            approved_at=timestamp,
-            max_parallel_lanes=max_parallel_lanes,
-            max_waves=max_waves,
-            wave_execution_mode=wave_execution_mode,
-        )
+            "approved_by": "cli:qoder-guide-worker-smoke",
+            "approved_at": timestamp,
+            "planning_request": planning_request,
+            "max_parallel_lanes": max_parallel_lanes,
+            "max_waves": max_waves,
+            "wave_execution_mode": wave_execution_mode,
+        }
+        if planner_lane_specs:
+            config_kwargs["worker_instructions"] = ()
+            config_kwargs["planner_worker_runtime_provider"] = "qoder"
+        config = HostOwnedGuideWorkerProviderExecutionConfig(**config_kwargs)
         result = run_host_owned_guide_worker_provider_execution(root, config=config)
     except Exception as e:
         return _handle_error(
