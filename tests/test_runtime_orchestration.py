@@ -98,6 +98,8 @@ from src.runtime.orchestration import (
     GuideWorkerInstruction,
     GuideWorkerLocalOrchestrationRequest,
     GuideWorkerParallelWave,
+    GuideWorkerPlannerLaneSpec,
+    GuideWorkerPlanningRequest,
     execute_guide_worker_parallel_wave,
     guide_worker_instructions_from_sequence,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
@@ -380,6 +382,118 @@ def test_guide_worker_local_orchestration_runs_cross_lane_wave(tmp_path) -> None
     assert state.tasks["task/gw-local-test/server"].context_scope.lane_id == "lane:server"
     assert len(state.run_records) == 2
     assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
+def test_guide_worker_local_orchestration_plans_instructions_from_task(
+    tmp_path,
+) -> None:
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:planned",
+            artifact_id_prefix="gw-planned",
+            timestamp="2026-06-24T10:00:00Z",
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="Build a maze game with separated client and server",
+                task_summary=(
+                    "Create a web maze game where browser interaction and server "
+                    "state are isolated by a network boundary."
+                ),
+                lane_specs=(
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:client",
+                        label="Client UI",
+                        focus="browser maze controls and CLI-like test hooks",
+                        allowed_artifacts=("client", "web"),
+                        acceptance=(
+                            "Client worker reports browser controls.",
+                            "Client worker reports CLI-like hooks for tests.",
+                        ),
+                    ),
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:server",
+                        label="Server API",
+                        focus="server state API and port boundary",
+                        allowed_artifacts=("server", "api"),
+                        acceptance=(
+                            "Server worker reports state API.",
+                            "Server worker reports port isolation.",
+                        ),
+                    ),
+                ),
+            ),
+            max_parallel_lanes=2,
+            max_waves=1,
+            workspace_root=str(tmp_path),
+        )
+    )
+
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["planning"]["planner"] == "deterministic-lane-spec-v1"
+    assert payload["planning"]["source"] == "planning_request"
+    assert payload["planning"]["leader_agent_id"] == "agent:guide"
+    assert payload["planning"]["worker_count"] == 2
+    assert payload["planning"]["task_title"] == (
+        "Build a maze game with separated client and server"
+    )
+    assert payload["submitted_task_ids"] == [
+        "task/gw-planned/client",
+        "task/gw-planned/server",
+    ]
+    assert payload["lane_ids"] == ["lane:client", "lane:server"]
+    assert payload["parallel_waves"][0]["task_ids"] == [
+        "task/gw-planned/client",
+        "task/gw-planned/server",
+    ]
+    assert payload["planned_worker_instructions"][0]["title"] == "Client UI"
+    assert "browser maze controls" in payload["planned_worker_instructions"][0]["instruction"]
+    assert payload["planned_worker_instructions"][1]["allowed_artifacts"] == [
+        "server",
+        "api",
+    ]
+
+
+def test_guide_worker_local_orchestration_explicit_instructions_override_planner(
+    tmp_path,
+) -> None:
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:planned",
+            artifact_id_prefix="gw-explicit-wins",
+            timestamp="2026-06-24T10:10:00Z",
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="This planner should not be used",
+                task_summary="Explicit worker instructions take precedence.",
+            ),
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/explicit/only",
+                    title="Explicit worker",
+                    instruction="Run only this explicit worker instruction.",
+                    lane_id="lane:explicit",
+                ),
+            ),
+            max_parallel_lanes=2,
+            max_waves=1,
+            workspace_root=str(tmp_path),
+        )
+    )
+
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["planning"]["source"] == "explicit_worker_instructions"
+    assert payload["submitted_task_ids"] == ["task/explicit/only"]
+    assert payload["lane_ids"] == ["lane:explicit"]
 
 
 def test_guide_worker_parallel_wave_selects_one_ready_task_per_lane(tmp_path) -> None:

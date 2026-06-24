@@ -741,6 +741,53 @@ def test_scheduler_guide_worker_local_orchestration_cli_runs_lane_wave(tmp_path)
     assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
 
 
+def test_scheduler_guide_worker_local_orchestration_cli_plans_lanes(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "guide-worker-local-orchestration",
+            "--artifact-id-prefix",
+            "cli-planned",
+            "--guide-task-title",
+            "Build maze game",
+            "--guide-task-summary",
+            "Separate browser client and server API work.",
+            "--planner-lane",
+            "lane:client=Client UI:browser controls and test hooks:client,web",
+            "--planner-lane",
+            "lane:server=Server API:state API and port boundary:server,api",
+            "--max-parallel-lanes",
+            "2",
+            "--timestamp",
+            "2026-06-24T10:20:00Z",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["planning"]["source"] == "planning_request"
+    assert payload["planning"]["leader_agent_id"] == "agent:guide"
+    assert payload["planning"]["worker_count"] == 2
+    assert payload["planning"]["task_title"] == "Build maze game"
+    assert payload["submitted_task_ids"] == [
+        "task/cli-planned/client",
+        "task/cli-planned/server",
+    ]
+    assert payload["parallel_waves"][0]["task_ids"] == [
+        "task/cli-planned/client",
+        "task/cli-planned/server",
+    ]
+    assert payload["planned_worker_instructions"][0]["allowed_artifacts"] == [
+        "client",
+        "web",
+    ]
+    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
 def test_scheduler_inspect_agent_mailbox_cli_reads_exchange_store_without_mutation(tmp_path) -> None:
     from src.runtime.orchestration import (
         ExchangeArtifact,

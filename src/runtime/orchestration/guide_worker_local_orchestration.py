@@ -83,6 +83,30 @@ class GuideWorkerInstruction:
 
 
 @dataclass(frozen=True, slots=True)
+class GuideWorkerPlannerLaneSpec:
+    """One lane requested by the guide planner."""
+
+    lane_id: str
+    label: str
+    focus: str
+    allowed_artifacts: tuple[str, ...] = ()
+    acceptance: tuple[str, ...] = ()
+    depends_on_lane_ids: tuple[str, ...] = ()
+    worker_agent_id: str = ""
+    worker_runtime_provider: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class GuideWorkerPlanningRequest:
+    """High-level guide task description used to derive worker instructions."""
+
+    task_title: str = ""
+    task_summary: str = ""
+    lane_specs: tuple[GuideWorkerPlannerLaneSpec, ...] = ()
+    planner: str = "deterministic-lane-spec-v1"
+
+
+@dataclass(frozen=True, slots=True)
 class GuideWorkerParallelWave:
     """A deterministic cross-lane scheduling wave."""
 
@@ -163,6 +187,9 @@ class GuideWorkerLocalOrchestrationRequest:
     worker_agent_id: str = "agent:worker"
     artifact_id_prefix: str = DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX
     timestamp: str = "2026-06-23T00:00:00Z"
+    planning_request: GuideWorkerPlanningRequest = field(
+        default_factory=GuideWorkerPlanningRequest
+    )
     worker_instructions: tuple[GuideWorkerInstruction, ...] = ()
     max_parallel_lanes: int = 2
     max_waves: int = 1
@@ -185,6 +212,8 @@ class GuideWorkerLocalOrchestrationResult:
     submitted_task_ids: tuple[str, ...]
     lane_ids: tuple[str, ...]
     parallel_waves: tuple[GuideWorkerParallelWave, ...]
+    planned_worker_instructions: tuple[GuideWorkerInstruction, ...] = ()
+    planning_source: str = "default_planner"
     wave_execution_results: tuple[GuideWorkerWaveExecutionResult, ...] = ()
     run_results: tuple[PreflightedTaskRunResult, ...] = ()
     final_state: SchedulerState = field(default_factory=SchedulerState)
@@ -241,6 +270,21 @@ class GuideWorkerLocalOrchestrationResult:
             "submitted_task_ids": list(self.submitted_task_ids),
             "lane_ids": list(self.lane_ids),
             "parallel_waves": [wave.to_json_dict() for wave in self.parallel_waves],
+            "planning": {
+                "planner": self.request.planning_request.planner
+                or "deterministic-lane-spec-v1",
+                "source": self.planning_source,
+                "leader_agent_id": self.request.guide_agent_id,
+                "worker_count": len(self.planned_worker_instructions),
+                "task_title": self.request.planning_request.task_title,
+                "task_summary": self.request.planning_request.task_summary,
+                "lane_spec_count": len(self.request.planning_request.lane_specs),
+                "generated_instruction_count": len(self.planned_worker_instructions),
+            },
+            "planned_worker_instructions": [
+                _instruction_to_payload(instruction, self.request)
+                for instruction in self.planned_worker_instructions
+            ],
             "wave_execution_results": [
                 result.to_json_dict() for result in self.wave_execution_results
             ],
@@ -372,7 +416,7 @@ def run_guide_worker_local_trajectory_orchestration(
 
     _validate_request(request)
 
-    instructions = request.worker_instructions or _default_worker_instructions(request)
+    instructions, planning_source = _resolve_worker_instructions(request)
     _validate_instructions(request, instructions)
 
     version = "v1"
@@ -467,6 +511,8 @@ def run_guide_worker_local_trajectory_orchestration(
         submitted_task_ids=tuple(instruction.task_id for instruction in instructions),
         lane_ids=tuple(dict.fromkeys(instruction.lane_id for instruction in instructions)),
         parallel_waves=tuple(parallel_waves),
+        planned_worker_instructions=instructions,
+        planning_source=planning_source,
         wave_execution_results=tuple(wave_execution_results),
         run_results=tuple(run_results),
         final_state=current,
@@ -1084,6 +1130,80 @@ def _default_worker_instructions(
             ),
         ),
     )
+
+
+def _resolve_worker_instructions(
+    request: GuideWorkerLocalOrchestrationRequest,
+) -> tuple[tuple[GuideWorkerInstruction, ...], str]:
+    if request.worker_instructions:
+        return request.worker_instructions, "explicit_worker_instructions"
+    if request.planning_request.lane_specs:
+        return _planned_worker_instructions(request), "planning_request"
+    return _default_worker_instructions(request), "default_planner"
+
+
+def _planned_worker_instructions(
+    request: GuideWorkerLocalOrchestrationRequest,
+) -> tuple[GuideWorkerInstruction, ...]:
+    planning = request.planning_request
+    task_title = planning.task_title.strip() or "Local trajectory work"
+    task_summary = planning.task_summary.strip() or task_title
+    lane_ids = {spec.lane_id for spec in planning.lane_specs}
+    instructions: list[GuideWorkerInstruction] = []
+    for spec in planning.lane_specs:
+        lane_id = spec.lane_id.strip()
+        label = spec.label.strip() or lane_id.replace("lane:", "").replace("-", " ").title()
+        focus = spec.focus.strip() or label
+        if not lane_id:
+            raise ValueError("planning_request.lane_specs requires non-empty lane_id")
+        unknown_dependencies = [
+            dependency
+            for dependency in spec.depends_on_lane_ids
+            if dependency not in lane_ids
+        ]
+        if unknown_dependencies:
+            raise ValueError(
+                "planning_request.lane_specs dependency lane id not found: "
+                f"{', '.join(unknown_dependencies)}"
+            )
+        task_suffix = _safe_task_suffix(lane_id)
+        task_id = f"task/{request.artifact_id_prefix}/{task_suffix}"
+        depends_on_task_ids = tuple(
+            f"task/{request.artifact_id_prefix}/{_safe_task_suffix(dependency)}"
+            for dependency in spec.depends_on_lane_ids
+        )
+        instructions.append(
+            GuideWorkerInstruction(
+                task_id=task_id,
+                title=label,
+                instruction=(
+                    f"Work on the '{label}' lane for: {task_title}. "
+                    f"Lane focus: {focus}. Overall task context: {task_summary}. "
+                    "Produce a deterministic worker result artifact summarizing "
+                    "the completed work, changed surface, and validation evidence."
+                ),
+                lane_id=lane_id,
+                worker_agent_id=spec.worker_agent_id,
+                worker_runtime_provider=spec.worker_runtime_provider,
+                allowed_artifacts=spec.allowed_artifacts,
+                acceptance=spec.acceptance
+                or (
+                    f"{label} lane result artifact exists.",
+                    "Result records concrete validation evidence or a clear blocker.",
+                ),
+                depends_on_task_ids=depends_on_task_ids,
+                output_artifact_id=f"{task_id}:result",
+            )
+        )
+    return tuple(instructions)
+
+
+def _safe_task_suffix(value: str) -> str:
+    suffix = value.strip().lower()
+    if suffix.startswith("lane:"):
+        suffix = suffix[len("lane:") :]
+    suffix = "".join(ch if ch.isalnum() else "-" for ch in suffix).strip("-")
+    return suffix or "work"
 
 
 def _default_runtime_registry(

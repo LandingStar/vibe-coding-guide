@@ -715,6 +715,67 @@ def test_mcp_server_exposes_and_routes_scheduler_guide_worker_local_orchestratio
     asyncio.run(exercise_server())
 
 
+def test_mcp_scheduler_guide_worker_local_orchestration_plans_lanes(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "artifactIdPrefix": "mcp-planned",
+                        "timestamp": "2026-06-24T10:30:00+08:00",
+                        "guideTask": {
+                            "title": "Build maze game",
+                            "summary": "Separate browser client and server API work.",
+                        },
+                        "plannerLaneSpecs": [
+                            {
+                                "laneId": "lane:client",
+                                "label": "Client UI",
+                                "focus": "browser controls and test hooks",
+                                "allowedArtifacts": ["client", "web"],
+                            },
+                            {
+                                "laneId": "lane:server",
+                                "label": "Server API",
+                                "focus": "state API and port boundary",
+                                "allowedArtifacts": ["server", "api"],
+                            },
+                        ],
+                        "maxParallelLanes": 2,
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["planning"]["source"] == "planning_request"
+        assert payload["planning"]["leader_agent_id"] == "agent:guide"
+        assert payload["planning"]["worker_count"] == 2
+        assert payload["planning"]["task_title"] == "Build maze game"
+        assert payload["submitted_task_ids"] == [
+            "task/mcp-planned/client",
+            "task/mcp-planned/server",
+        ]
+        assert payload["parallel_waves"][0]["task_ids"] == [
+            "task/mcp-planned/client",
+            "task/mcp-planned/server",
+        ]
+        assert payload["planned_worker_instructions"][1]["allowed_artifacts"] == [
+            "server",
+            "api",
+        ]
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+    asyncio.run(exercise_server())
+
+
 def test_mcp_scheduler_guide_worker_local_orchestration_serializes_same_lane(
     tmp_path: Path,
 ) -> None:
@@ -834,6 +895,93 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_worker_qoder_pro
         assert payload["authority_split"]["scheduler_state_mutated"] is False
         assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
         assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_rejects_planner_qoder_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "guideTask": {
+                            "title": "Planner qoder guard",
+                            "summary": "The planner path must stay fake-only in MCP.",
+                        },
+                        "plannerLaneSpecs": [
+                            {
+                                "laneId": "lane:qoder",
+                                "label": "Qoder lane",
+                                "focus": "Do not run through MCP.",
+                                "workerRuntimeProvider": "qoder",
+                            }
+                        ],
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert "fake workerRuntimeProvider" in payload["error"]
+        assert "qoder" in payload["error"]
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+
+    asyncio.run(exercise_server())
+
+
+def test_mcp_scheduler_guide_worker_local_orchestration_explicit_instructions_ignore_planner_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "artifactIdPrefix": "mcp-explicit-wins",
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/explicit",
+                                "title": "Explicit fake worker",
+                                "instruction": "Run the explicit worker instruction.",
+                                "laneId": "lane:explicit",
+                                "workerRuntimeProvider": "fake",
+                            }
+                        ],
+                        "plannerLaneSpecs": [
+                            {
+                                "laneId": "lane:qoder",
+                                "label": "Ignored qoder lane",
+                                "focus": "Planner lane is ignored because explicit instructions win.",
+                                "workerRuntimeProvider": "qoder",
+                            }
+                        ],
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is True
+        assert payload["planning"]["source"] == "explicit_worker_instructions"
+        assert payload["submitted_task_ids"] == ["task/mcp/explicit"]
+        assert payload["planning"]["worker_count"] == 1
+        assert payload["authority_split"]["provider_executed"] is True
+        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 

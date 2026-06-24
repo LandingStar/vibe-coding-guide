@@ -137,6 +137,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerOperatorDogfoodClosure" in text
         assert "schedulerGuideWorkerLocalOrchestration" in text
         assert "workerInstructions" in text
+        assert "guideTask" in text
+        assert "plannerLaneSpecs" in text
+        assert "deterministic guide planner" in text
         assert "waveExecutionMode" in text
         assert "workerRuntimeProvider" in text
         assert "rejects non-fake" in text

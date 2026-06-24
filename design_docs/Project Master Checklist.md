@@ -29,13 +29,13 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / host-owned guide-worker provider wrapper completed`
-- Current Focus: `Select the next orchestration planning gate`
+- Current Phase: `Post-v1.0 - Agent orchestration / autonomous guide instruction planner completed`
+- Current Focus: `Continue guide-worker orchestration toward real policy/runtime execution`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-- Latest Completed Slice: `Host-Owned Guide Worker Provider Execution Wrapper`
+  `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+- Latest Completed Slice: `Autonomous Guide Instruction Planner`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+  `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,14 +44,15 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `review/agent-communication-product-closure-2026-06-22.md`
+2. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
 3. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
 4. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
 5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
 6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
 7. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-8. `design_docs/Global Phase Map and Current Position.md`
-9. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+8. `review/agent-communication-product-closure-2026-06-22.md`
+9. `design_docs/Global Phase Map and Current Position.md`
+10. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -230,6 +231,38 @@ Validation:
 - Focused wrapper/CLI/runtime tests passed: `6 passed, 433 deselected`.
 - Related MCP/CLI/runtime regression passed: `16 passed, 378 deselected`.
 
+### Autonomous Guide Instruction Planner
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+
+Goal:
+
+- Let a single guide/leader schedule multiple lane-bound worker tasks from a
+  high-level guide task plus lane specs, while preserving explicit
+  `workerInstructions` precedence.
+
+Current implementation surface:
+
+- Runtime request: `GuideWorkerPlanningRequest`
+- Lane spec: `GuideWorkerPlannerLaneSpec`
+- CLI flags: `--guide-task-title`, `--guide-task-summary`, repeatable
+  `--planner-lane`
+- MCP payload fields: `guideTask`, `plannerLaneSpecs`
+
+Validation:
+
+- `py_compile` for runtime/CLI/MCP/tests passed.
+- Focused runtime/CLI/MCP tests passed: `15 passed, 385 deselected`.
+- Scheduler prompt tests passed: `21 passed`.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+- `analyze_changes` returned no impact nodes; MCP registration coupling was
+  covered by server schema/routing and route tests.
+
 ### Evidence Publish To Consumer Closure
 
 Status: `completed`
@@ -296,10 +329,12 @@ Validation:
 - [x] Complete the fake/mock-validated lane wave executor contract.
 - [x] Complete provider runtime mapping for host-injected worker adapters.
 - [x] Complete host-owned guide-worker provider execution wrapper.
+- [x] Complete the deterministic guide instruction planner for high-level task
+  plus lane-spec decomposition.
 - [x] Complete `Evidence Publish To Consumer Closure` and remove its parked
   recovery branch from the current hot path.
-- [ ] Select the next narrow orchestration planning gate from the remaining
-  guide-policy / runtime-provider / UI-readback follow-up list.
+- [ ] Select the next narrow orchestration planning gate from guide policy,
+  host runtime execution, agent storage isolation, or UI/readback follow-up.
 
 ## Write Rules For This File
 

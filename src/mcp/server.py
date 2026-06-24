@@ -2053,8 +2053,9 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                             "type": "array",
                             "description": (
                                 "Structured worker instructions. If omitted, the "
-                                "runtime helper uses its deterministic two-lane "
-                                "client/server demo split."
+                                "runtime helper can derive instructions from "
+                                "guideTask/plannerLaneSpecs, or fall back to a "
+                                "deterministic two-lane split."
                             ),
                             "items": {
                                 "type": "object",
@@ -2111,6 +2112,70 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                     "outputArtifactId": {
                                         "type": "string",
                                         "description": "Optional expected worker result artifact id.",
+                                    },
+                                },
+                            },
+                        },
+                        "guideTask": {
+                            "type": "object",
+                            "description": (
+                                "High-level guide task used by the deterministic "
+                                "planner when workerInstructions are omitted."
+                            ),
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "description": "Short high-level task title.",
+                                },
+                                "summary": {
+                                    "type": "string",
+                                    "description": "Task context copied into worker instructions.",
+                                },
+                            },
+                        },
+                        "plannerLaneSpecs": {
+                            "type": "array",
+                            "description": (
+                                "Lane specs used by the deterministic guide planner "
+                                "to generate concrete workerInstructions."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "laneId": {
+                                        "type": "string",
+                                        "description": "Local trajectory lane id.",
+                                    },
+                                    "label": {
+                                        "type": "string",
+                                        "description": "Worker task title for this lane.",
+                                    },
+                                    "focus": {
+                                        "type": "string",
+                                        "description": "Concrete lane focus for the worker instruction.",
+                                    },
+                                    "allowedArtifacts": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Optional edit lease artifact/path hints.",
+                                    },
+                                    "acceptance": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Optional acceptance criteria for this lane.",
+                                    },
+                                    "dependsOnLaneIds": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Optional earlier lane ids this lane depends on.",
+                                    },
+                                    "workerAgentId": {
+                                        "type": "string",
+                                        "description": "Optional per-lane worker agent id.",
+                                    },
+                                    "workerRuntimeProvider": {
+                                        "type": "string",
+                                        "description": "Optional per-lane worker runtime provider.",
                                     },
                                 },
                             },
@@ -3074,6 +3139,8 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 worker_agent_id=arguments.get("workerAgentId", "agent:worker"),
                 artifact_id_prefix=arguments.get("artifactIdPrefix", ""),
                 worker_instructions=arguments.get("workerInstructions"),
+                guide_task=arguments.get("guideTask"),
+                planner_lane_specs=arguments.get("plannerLaneSpecs"),
                 max_parallel_lanes=arguments.get("maxParallelLanes", 2),
                 max_waves=arguments.get("maxWaves", 1),
                 replace_existing=arguments.get("replaceExisting", False),

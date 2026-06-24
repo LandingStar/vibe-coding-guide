@@ -829,6 +829,8 @@ _SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE = (
     "[--snapshot-path PATH] [--event-log-path PATH] [--trajectory-id ID] "
     "[--guide-agent-id ID] [--worker-agent-id ID] [--artifact-id-prefix ID] "
     "[--max-parallel-lanes N] [--max-waves N] [--timestamp TIMESTAMP] "
+    "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS] "
     "[--replace-existing] [--allow-duplicate-admission]"
 )
 
@@ -3380,6 +3382,32 @@ def cmd_scheduler_guide_worker_exchange_dogfood(args: list[str]) -> int:
     return 0 if payload.get("ok") else 1
 
 
+def _parse_guide_worker_planner_lane_spec(value: str, lane_spec_type):
+    """Parse CLI planner lane spec: LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]."""
+
+    if "=" not in value:
+        raise ValueError("--planner-lane must use LANE_ID=LABEL:FOCUS")
+    lane_id, rest = value.split("=", 1)
+    parts = rest.split(":", 2)
+    if len(parts) < 2:
+        raise ValueError("--planner-lane must include label and focus")
+    label = parts[0].strip()
+    focus = parts[1].strip()
+    artifacts = ()
+    if len(parts) == 3 and parts[2].strip():
+        artifacts = tuple(
+            item.strip()
+            for item in parts[2].split(",")
+            if item.strip()
+        )
+    return lane_spec_type(
+        lane_id=lane_id.strip(),
+        label=label,
+        focus=focus,
+        allowed_artifacts=artifacts,
+    )
+
+
 def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
     """Run guide-assigned worker tasks with lane-limited waves."""
 
@@ -3388,10 +3416,12 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
             _SCHEDULER_GUIDE_WORKER_LOCAL_ORCHESTRATION_USAGE + "\n\n"
             "This creates a guide instruction artifact, admits a scheduler batch "
             "of worker tasks, and runs a bounded fake-runtime wave with at most "
-            "one ready worker task per lane. It defines scheduling parallelism "
-            "for different lanes, but this first implementation still executes "
-            "the fake runtime sequentially. It does not refresh projections, "
-            "persist raw transcripts, or mutate agent-owned Local Work Trajectory.",
+            "one ready worker task per lane. When explicit worker instructions "
+            "are not supplied by lower-level callers, this command uses a narrow "
+            "deterministic guide planner from --guide-task-* and --planner-lane "
+            "inputs. It defines scheduling parallelism for different lanes, but "
+            "does not refresh projections, persist raw transcripts, or mutate "
+            "agent-owned Local Work Trajectory.",
         )
         return 0
 
@@ -3404,6 +3434,9 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
     worker_agent_id = "agent:worker"
     artifact_id_prefix = ""
     timestamp = "2026-06-23T00:00:00Z"
+    guide_task_title = ""
+    guide_task_summary = ""
+    planner_lane_specs: list[str] = []
     max_parallel_lanes = 2
     max_waves = 1
     replace_existing = False
@@ -3430,6 +3463,9 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
             "--worker-agent-id",
             "--artifact-id-prefix",
             "--timestamp",
+            "--guide-task-title",
+            "--guide-task-summary",
+            "--planner-lane",
             "--max-parallel-lanes",
             "--max-waves",
         }:
@@ -3456,6 +3492,12 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
                 artifact_id_prefix = value
             elif arg == "--timestamp":
                 timestamp = value
+            elif arg == "--guide-task-title":
+                guide_task_title = value
+            elif arg == "--guide-task-summary":
+                guide_task_summary = value
+            elif arg == "--planner-lane":
+                planner_lane_specs.append(value)
             elif arg == "--max-parallel-lanes":
                 try:
                     max_parallel_lanes = int(value)
@@ -3484,6 +3526,8 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
             DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
             DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH,
             GuideWorkerLocalOrchestrationRequest,
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
             default_exchange_artifact_admission_ledger_path,
             default_exchange_artifact_store_path,
             run_guide_worker_local_trajectory_orchestration,
@@ -3527,6 +3571,17 @@ def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
                 artifact_id_prefix=artifact_id_prefix
                 or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
                 timestamp=timestamp,
+                planning_request=GuideWorkerPlanningRequest(
+                    task_title=guide_task_title,
+                    task_summary=guide_task_summary,
+                    lane_specs=tuple(
+                        _parse_guide_worker_planner_lane_spec(
+                            item,
+                            GuideWorkerPlannerLaneSpec,
+                        )
+                        for item in planner_lane_specs
+                    ),
+                ),
                 max_parallel_lanes=max_parallel_lanes,
                 max_waves=max_waves,
                 replace_existing=replace_existing,

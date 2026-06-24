@@ -134,13 +134,15 @@ Keep the lifecycle split:
    scheduler-owned guide/worker local trajectory orchestration MVP. They create
    a structured guide instruction ExchangeArtifact, admit a scheduler worker
    task batch, and execute bounded fake-runtime worker waves with at most one
-   ready task per lane. The MCP tool accepts structured `workerInstructions`
-   for custom lane-bound worker tasks and `waveExecutionMode=serial|threaded`
-   for the fake/mock wave executor. This defines bounded lane-distinct wave
-   execution; `threaded` may invoke fake/mock runtime calls concurrently and
-   then merges scheduler state deterministically, but it does not make live
-   providers available. Runtime code can map host-injected worker adapters via
-   `workerRuntimeProvider`, but this MCP surface rejects non-fake
+    ready task per lane. The MCP tool accepts structured `workerInstructions`
+    for custom lane-bound worker tasks, or `guideTask` + `plannerLaneSpecs` for
+    the deterministic guide planner to generate concrete lane instructions.
+    It also accepts `waveExecutionMode=serial|threaded` for the fake/mock wave
+    executor. This defines bounded lane-distinct wave execution; `threaded` may
+    invoke fake/mock runtime calls concurrently and then merges scheduler state
+    deterministically, but it does not make live providers available. Runtime
+    code can map host-injected worker adapters via `workerRuntimeProvider`, but
+    this MCP surface rejects non-fake
    `workerRuntimeProvider` values. It does not run Qoder/opencode/Codex
    providers, refresh projection, persist raw transcripts, create agent
    home/scratch directories, or mutate agent-owned Local Work Trajectory.

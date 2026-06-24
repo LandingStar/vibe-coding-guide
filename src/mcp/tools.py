@@ -96,6 +96,104 @@ def _normalize_scheduler_submission_keys(value: Any) -> Any:
     return value
 
 
+def _guide_worker_planning_request_from_mcp(
+    *,
+    guide_task: dict[str, Any] | None,
+    planner_lane_specs: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None,
+    lane_spec_type,
+    planning_request_type,
+):
+    """Build a guide-worker planning request from MCP payload fields."""
+
+    task_title = ""
+    task_summary = ""
+    if guide_task not in (None, ""):
+        if not isinstance(guide_task, dict):
+            raise ValueError("guideTask must be an object when provided")
+        raw_title = guide_task.get("title", "")
+        raw_summary = guide_task.get("summary", "")
+        if raw_title not in (None, "") and not isinstance(raw_title, str):
+            raise ValueError("guideTask.title must be a string when provided")
+        if raw_summary not in (None, "") and not isinstance(raw_summary, str):
+            raise ValueError("guideTask.summary must be a string when provided")
+        task_title = (raw_title or "").strip()
+        task_summary = (raw_summary or "").strip()
+
+    lane_specs = ()
+    if planner_lane_specs not in (None, ""):
+        if not isinstance(planner_lane_specs, (list, tuple)):
+            raise ValueError("plannerLaneSpecs must be a list of objects")
+        lane_specs = tuple(
+            _guide_worker_planner_lane_spec_from_mcp(
+                item,
+                index=index,
+                lane_spec_type=lane_spec_type,
+            )
+            for index, item in enumerate(planner_lane_specs)
+        )
+
+    return planning_request_type(
+        task_title=task_title,
+        task_summary=task_summary,
+        lane_specs=lane_specs,
+    )
+
+
+def _guide_worker_planner_lane_spec_from_mcp(
+    value: dict[str, Any],
+    *,
+    index: int,
+    lane_spec_type,
+):
+    if not isinstance(value, dict):
+        raise ValueError(f"plannerLaneSpecs[{index}] must be an object")
+    prefix = f"plannerLaneSpecs[{index}]"
+
+    def require_string(field: str) -> str:
+        raw = value.get(field, "")
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError(f"{prefix}.{field} must be a non-empty string")
+        return raw.strip()
+
+    def optional_strings(field: str) -> tuple[str, ...]:
+        raw = value.get(field, ())
+        if raw in (None, ""):
+            return ()
+        if not isinstance(raw, (list, tuple)):
+            raise ValueError(f"{prefix}.{field} must be a list of strings")
+        items: list[str] = []
+        for item_index, item in enumerate(raw):
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(
+                    f"{prefix}.{field}[{item_index}] must be a non-empty string"
+                )
+            items.append(item.strip())
+        return tuple(items)
+
+    worker_agent_id = value.get("workerAgentId", "")
+    worker_runtime_provider = value.get("workerRuntimeProvider", "")
+    if worker_agent_id not in (None, "") and not isinstance(worker_agent_id, str):
+        raise ValueError(f"{prefix}.workerAgentId must be a string when provided")
+    if worker_runtime_provider not in (None, "") and not isinstance(
+        worker_runtime_provider,
+        str,
+    ):
+        raise ValueError(
+            f"{prefix}.workerRuntimeProvider must be a string when provided"
+        )
+
+    return lane_spec_type(
+        lane_id=require_string("laneId"),
+        label=require_string("label"),
+        focus=require_string("focus"),
+        allowed_artifacts=optional_strings("allowedArtifacts"),
+        acceptance=optional_strings("acceptance"),
+        depends_on_lane_ids=optional_strings("dependsOnLaneIds"),
+        worker_agent_id=(worker_agent_id or "").strip(),
+        worker_runtime_provider=(worker_runtime_provider or "").strip(),
+    )
+
+
 def _exchange_log_to_dict(log: Any) -> dict[str, Any]:
     if log is None:
         return {}
@@ -2908,6 +3006,8 @@ class GovernanceTools:
         worker_agent_id: str = "agent:worker",
         artifact_id_prefix: str = "",
         worker_instructions: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
+        guide_task: dict[str, Any] | None = None,
+        planner_lane_specs: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
         max_parallel_lanes: int = 2,
         max_waves: int = 1,
         replace_existing: bool = False,
@@ -2952,6 +3052,8 @@ class GovernanceTools:
             DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX,
             DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH,
             GuideWorkerLocalOrchestrationRequest,
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
             guide_worker_instructions_from_sequence,
             run_guide_worker_local_trajectory_orchestration,
         )
@@ -2964,6 +3066,12 @@ class GovernanceTools:
 
         try:
             instructions = guide_worker_instructions_from_sequence(worker_instructions)
+            planning_request = _guide_worker_planning_request_from_mcp(
+                guide_task=guide_task,
+                planner_lane_specs=planner_lane_specs,
+                lane_spec_type=GuideWorkerPlannerLaneSpec,
+                planning_request_type=GuideWorkerPlanningRequest,
+            )
         except ValueError as exc:
             return {
                 "ok": False,
@@ -2982,14 +3090,20 @@ class GovernanceTools:
                     "raw_transcript_persisted": False,
                 },
             }
-        live_worker_providers = sorted(
-            {
-                instruction.worker_runtime_provider
-                for instruction in instructions
-                if instruction.worker_runtime_provider
-                and instruction.worker_runtime_provider != "fake"
-            }
-        )
+        live_worker_providers = {
+            instruction.worker_runtime_provider
+            for instruction in instructions
+            if instruction.worker_runtime_provider
+            and instruction.worker_runtime_provider != "fake"
+        }
+        if not instructions:
+            live_worker_providers.update(
+                lane_spec.worker_runtime_provider
+                for lane_spec in planning_request.lane_specs
+                if lane_spec.worker_runtime_provider
+                and lane_spec.worker_runtime_provider != "fake"
+            )
+        live_worker_providers = sorted(live_worker_providers)
         if live_worker_providers:
             return {
                 "ok": False,
@@ -3045,6 +3159,7 @@ class GovernanceTools:
                     or DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX
                 ),
                 timestamp=timestamp or "2026-06-24T00:00:00Z",
+                planning_request=planning_request,
                 worker_instructions=instructions,
                 max_parallel_lanes=max_parallel_lanes,
                 max_waves=max_waves,
