@@ -1,5 +1,22 @@
 # Direction Candidates — After Phase 35
 
+## 2026-06-24 补充候选：Worker Patch Composition Preflight 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md` 已完成并在 `cd31275` 提交；当前 runtime/CLI 已能读取多个 exact `worker_patch_review_proposal` artifacts，在临时 workspace 中按调用者顺序执行非突变 composition preflight，并报告首个失败 patch 与 touched-path collisions。
+- 候选 1：`Host UX Worker Patch Review Binding`
+  - 做什么：在 Host UX 中展示 worker patch proposals、changed paths、lifecycle、single-patch check/reject/apply 与多选 composition preflight readback。
+  - 依据：`design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`、`docs/codex-cli-host-provisioning-check-guide.md`
+- 候选 2：`Cleanup-after-review Automation Policy`
+  - 做什么：定义 apply/reject 后何时可以显式清理 worker git-worktree sandbox，并连接 cleanup receipt evidence。
+  - 依据：`design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
+- 候选 3：`Multi-patch Apply Policy`
+  - 做什么：在 durable/stale-safe preflight evidence 和 accepted dispositions 之上，显式应用一个 ordered patch set。
+  - 依据：`design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
+- 候选 4：`Agent Storage Isolation`
+  - 做什么：推进真实 agent home / scratch lifecycle 与 scheduler/guide-worker lanes 的隔离绑定。
+  - 依据：`design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`、`design_docs/agent-home-and-scratch-space-design-record.md`
+- 当前倾向：默认进入候选 1。原因是 backend patch proposal、single-patch consume 与 multi-patch preflight 已具备，下一步最缺的是可审查、可操作的 Host UX；multi-patch apply 和 cleanup automation 都应建立在更清晰的 review loop 之后。
+
 ## 2026-06-22 补充候选：Supervisor storage binding artifact publish surface 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-22-supervisor-storage-binding-artifact-publish-surface.md` 已完成并关闭；当前 `publish_supervisor_storage_binding_artifact_from_evidence()`、CLI `doc-based-coding scheduler publish-storage-binding-artifact` 与 MCP tool `schedulerStorageBindingArtifactPublish` 已能从 durable `supervisor_storage_binding_evidence` summary 发布 compact exact-version `supervisor_storage_binding_artifact` 到本地 ExchangeArtifact store。

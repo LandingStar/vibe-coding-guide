@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T15:56:04.786952+00:00",
+  "recorded_at": "2026-06-24T16:12:14.827200+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 4,
-    "event_count": 21,
-    "relation_count": 20,
+    "event_count": 22,
+    "relation_count": 21,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -317,6 +317,20 @@
         "completed_at": "2026-06-24T06:03:37.841241+00:00"
       }
     },
+    "event:022": {
+      "id": "event:022",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Prepare post-composition preflight direction analysis",
+      "kind": "decision",
+      "status": "completed",
+      "order": 6,
+      "summary": "After committing the multi-worker patch composition preflight, prepare a narrow direction-analysis surface for the next orchestration slice rather than opening a broad implementation gate directly.",
+      "metadata": {
+        "created_at": "2026-06-24T16:05:46.130039+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T16:12:14.827200+00:00"
+      }
+    },
     "event:007": {
       "id": "event:007",
       "lane_id": "lane:main",
@@ -555,6 +569,15 @@
     {
       "source_event_id": "event:020",
       "target_event_id": "event:021",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:021",
+      "target_event_id": "event:022",
       "kind": "sequence",
       "summary": "",
       "metadata": {

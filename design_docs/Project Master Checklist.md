@@ -29,8 +29,8 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / worker patch composition preflight implemented`
-- Current Focus: `Continue guide-worker orchestration toward Host UX patch review binding, cleanup-after-review automation policy, or multi-patch apply policy`
+- Current Phase: `Post-v1.0 - Agent orchestration / post-composition direction selection`
+- Current Focus: `Select the next narrow orchestration gate after worker patch composition preflight`
 - Latest Completed Planning Gate:
   `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
 - Latest Completed Slice: `Worker Patch Composition Preflight`
@@ -44,21 +44,22 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
-3. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
-4. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
-5. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
-6. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-8. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-9. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-10. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-11. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-12. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-13. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-14. `review/agent-communication-product-closure-2026-06-22.md`
-15. `design_docs/Global Phase Map and Current Position.md`
-16. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
+3. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
+4. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
+5. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+6. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+7. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+9. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+10. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+11. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+12. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+13. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+14. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+15. `review/agent-communication-product-closure-2026-06-22.md`
+16. `design_docs/Global Phase Map and Current Position.md`
+17. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
