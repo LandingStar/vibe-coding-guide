@@ -20,6 +20,8 @@ from src.runtime.orchestration import (
     AgentScratchSpace,
     ArtifactDelta,
     CodexCliAgentRuntimeAdapter,
+    CodexCliClientConfig,
+    CodexCliProcessClient,
     CodexCliRequest,
     CodexCliResult,
     CodexCliRuntimeError,
@@ -499,6 +501,60 @@ def test_guide_worker_local_orchestration_explicit_instructions_override_planner
     assert payload["planning"]["source"] == "explicit_worker_instructions"
     assert payload["submitted_task_ids"] == ["task/explicit/only"]
     assert payload["lane_ids"] == ["lane:explicit"]
+
+
+def test_guide_worker_local_orchestration_preserves_instruction_sandbox_profile(
+    tmp_path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    sandbox_registry = SandboxProviderRegistry()
+    sandbox_registry.register(SharedProcessSandboxProvider())
+    sandbox_registry.register(GitWorktreeSandboxProvider(tmp_path / "sandboxes"))
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".codex/scheduler/state.json",
+            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            trajectory_id="local-work:sandbox-profile",
+            artifact_id_prefix="gw-sandbox-profile",
+            timestamp="2026-06-24T23:20:00Z",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/sandbox/client",
+                    title="Client sandbox worker",
+                    instruction="Run in a git worktree sandbox.",
+                    lane_id="lane:client",
+                    allowed_artifacts=("client/app.js",),
+                    sandbox_profile=SandboxProfile(
+                        profile_id="worktree-client",
+                        profile_kind="git-worktree",
+                    ),
+                ),
+            ),
+            max_parallel_lanes=1,
+            max_waves=1,
+            workspace_root=str(repo),
+        ),
+        sandbox_registry=sandbox_registry,
+    )
+
+    payload = result.to_json_dict()
+    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    task = state.tasks["task/sandbox/client"]
+
+    assert payload["planned_worker_instructions"][0]["sandbox_profile"] == {
+        "profile_id": "worktree-client",
+        "profile_kind": "git-worktree",
+        "network_policy": "disabled",
+        "secret_policy": "deny",
+        "mount_policy": "lease-scoped",
+    }
+    assert task.sandbox_profile.profile_kind == "git-worktree"
+    assert task.sandbox_profile.profile_id == "worktree-client"
+    allocation = result.run_results[0].preflight.sandbox_allocation
+    assert allocation.provider == "git-worktree"
+    GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
 
 
 def test_guide_worker_parallel_wave_selects_one_ready_task_per_lane(tmp_path) -> None:
@@ -2146,6 +2202,53 @@ def test_codex_cli_adapter_uses_mock_client_and_returns_runtime_result() -> None
     assert [event.event_kind for event in result.events] == ["task_started", "task_completed"]
     assert result.permission_requests[0].request_kind == "shell"
     assert result.permission_requests[0].target == "npm test"
+
+
+def test_codex_cli_process_client_prefers_task_runtime_workspace(tmp_path) -> None:
+    captured: dict[str, object] = {}
+    workspace = tmp_path / "worker-worktree"
+    workspace.mkdir()
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured["cwd"] = kwargs.get("cwd")
+        output_path = Path(command[command.index("--output-last-message") + 1])
+        output_path.write_text("done from worker workspace\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    client = CodexCliProcessClient(
+        CodexCliClientConfig(executable="codex", cwd=tmp_path / "source-root"),
+        runner=runner,
+        which=lambda executable: f"/bin/{executable}",
+    )
+    result = client.exec(
+        CodexCliRequest(
+            agent=AgentSpec(agent_id="agent:codex", runtime_provider="codex"),
+            session=SessionHandle(
+                session_id="codex-session-1",
+                provider="codex",
+                agent_id="agent:codex",
+            ),
+            task=TaskSpec(
+                task_id="task-c",
+                title="Codex sandbox task",
+                instruction="Run in the worker sandbox.",
+                runtime_workspace_root=str(workspace),
+                sandbox_provider="git-worktree",
+                sandbox_allocation_id="git-worktree:task-c:worktree",
+                visible_mounts=("src/app.py",),
+                scratch_path=".codex/scratch/task-c",
+            ),
+            instruction="Run in the worker sandbox.",
+        )
+    )
+
+    assert result.summary == "done from worker workspace"
+    assert captured["cwd"] == str(workspace)
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[command.index("--cd") + 1] == str(workspace)
+    assert result.metadata["cwd"] == str(workspace)
 
 
 def test_scheduler_runs_qoder_adapter_through_registry_with_mock_client(tmp_path) -> None:

@@ -269,9 +269,11 @@ _QODER_GUIDE_WORKER_SMOKE_USAGE = (
     "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
     "[--snapshot-path PATH] [--event-log-path PATH] "
     "[--evidence-id ID] [--evidence-path PATH] "
+    "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
+    "[--sandbox-allocation-evidence-path PATH] "
     "[--host-invocation-id ID] [--reason TEXT] "
     "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
-    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
     "[--max-parallel-lanes N] [--max-waves N] "
     "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
 )
@@ -288,9 +290,11 @@ _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
     "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
     "[--snapshot-path PATH] [--event-log-path PATH] "
     "[--evidence-id ID] [--evidence-path PATH] "
+    "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
+    "[--sandbox-allocation-evidence-path PATH] "
     "[--host-invocation-id ID] [--reason TEXT] "
     "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
-    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
     "[--max-parallel-lanes N] [--max-waves N] "
     "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
 )
@@ -388,6 +392,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
     event_log_path = ""
     evidence_id = ""
     evidence_path = ""
+    git_worktree_sandbox_root = ""
+    sandbox_allocation_evidence_id = ""
+    sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
     guide_task_title = ""
@@ -413,6 +420,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             "--event-log-path",
             "--evidence-id",
             "--evidence-path",
+            "--git-worktree-sandbox-root",
+            "--sandbox-allocation-evidence-id",
+            "--sandbox-allocation-evidence-path",
             "--host-invocation-id",
             "--reason",
             "--guide-task-title",
@@ -450,6 +460,12 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
                 evidence_id = value
             elif arg == "--evidence-path":
                 evidence_path = value
+            elif arg == "--git-worktree-sandbox-root":
+                git_worktree_sandbox_root = value
+            elif arg == "--sandbox-allocation-evidence-id":
+                sandbox_allocation_evidence_id = value
+            elif arg == "--sandbox-allocation-evidence-path":
+                sandbox_allocation_evidence_path = value
             elif arg == "--host-invocation-id":
                 host_invocation_id = value
             elif arg == "--reason":
@@ -556,6 +572,10 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
                 or ".codex/scheduler/codex-guide-worker-provider-execution-events.jsonl"
             ),
             "evidence_output_path": evidence_path or None,
+            "workspace_root": str(root),
+            "git_worktree_sandbox_root": git_worktree_sandbox_root or None,
+            "sandbox_allocation_evidence_id": sandbox_allocation_evidence_id,
+            "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path or None,
             "providers": ("codex",),
             "codex_cli_client_config": codex_config,
             "host_invocation_id": (
@@ -893,6 +913,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     event_log_path = ""
     evidence_id = ""
     evidence_path = ""
+    git_worktree_sandbox_root = ""
+    sandbox_allocation_evidence_id = ""
+    sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
     guide_task_title = ""
@@ -920,6 +943,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             "--event-log-path",
             "--evidence-id",
             "--evidence-path",
+            "--git-worktree-sandbox-root",
+            "--sandbox-allocation-evidence-id",
+            "--sandbox-allocation-evidence-path",
             "--host-invocation-id",
             "--reason",
             "--guide-task-title",
@@ -966,6 +992,12 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
                 evidence_id = value
             elif arg == "--evidence-path":
                 evidence_path = value
+            elif arg == "--git-worktree-sandbox-root":
+                git_worktree_sandbox_root = value
+            elif arg == "--sandbox-allocation-evidence-id":
+                sandbox_allocation_evidence_id = value
+            elif arg == "--sandbox-allocation-evidence-path":
+                sandbox_allocation_evidence_path = value
             elif arg == "--host-invocation-id":
                 host_invocation_id = value
             elif arg == "--reason":
@@ -1075,6 +1107,10 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
                 or ".codex/scheduler/guide-worker-provider-execution-events.jsonl"
             ),
             "evidence_output_path": evidence_path or None,
+            "workspace_root": str(root),
+            "git_worktree_sandbox_root": git_worktree_sandbox_root or None,
+            "sandbox_allocation_evidence_id": sandbox_allocation_evidence_id,
+            "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path or None,
             "qoder_client_config": qoder_config,
             "host_invocation_id": (
                 host_invocation_id
@@ -3731,28 +3767,46 @@ def cmd_scheduler_guide_worker_exchange_dogfood(args: list[str]) -> int:
 
 
 def _parse_guide_worker_planner_lane_spec(value: str, lane_spec_type):
-    """Parse CLI planner lane spec: LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]."""
+    """Parse CLI planner lane spec.
+
+    Format: ``LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]``.
+    The sandbox kind is optional and defaults to ``shared-process``.
+    """
 
     if "=" not in value:
         raise ValueError("--planner-lane must use LANE_ID=LABEL:FOCUS")
     lane_id, rest = value.split("=", 1)
-    parts = rest.split(":", 2)
+    parts = rest.split(":", 3)
     if len(parts) < 2:
         raise ValueError("--planner-lane must include label and focus")
     label = parts[0].strip()
     focus = parts[1].strip()
     artifacts = ()
-    if len(parts) == 3 and parts[2].strip():
+    if len(parts) >= 3 and parts[2].strip():
         artifacts = tuple(
             item.strip()
             for item in parts[2].split(",")
             if item.strip()
         )
+    sandbox_kind = "shared-process"
+    if len(parts) == 4 and parts[3].strip():
+        sandbox_kind = parts[3].strip()
+    if sandbox_kind not in {"none", "shared-process", "git-worktree", "docker", "remote-vm"}:
+        raise ValueError(
+            "--planner-lane SANDBOX_KIND must be one of none, shared-process, "
+            "git-worktree, docker, or remote-vm"
+        )
+    from .runtime.orchestration import SandboxProfile
+
     return lane_spec_type(
         lane_id=lane_id.strip(),
         label=label,
         focus=focus,
         allowed_artifacts=artifacts,
+        sandbox_profile=SandboxProfile(
+            profile_id=sandbox_kind,
+            profile_kind=sandbox_kind,  # type: ignore[arg-type]
+        ),
     )
 
 

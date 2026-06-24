@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T13:12:18.462576+00:00",
+  "recorded_at": "2026-06-24T14:04:10.658931+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -14,13 +14,24 @@
   "summary": {
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
-    "lane_count": 3,
-    "event_count": 16,
-    "relation_count": 15,
+    "lane_count": 4,
+    "event_count": 18,
+    "relation_count": 17,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
   "lanes": {
+    "lane:codex-worker-sandbox-writeback": {
+      "id": "lane:codex-worker-sandbox-writeback",
+      "label": "Codex Sandbox Writeback",
+      "status": "done",
+      "summary": "Additional local work lane.",
+      "metadata": {
+        "line_kind": "single",
+        "created_at": "2026-06-24T13:15:52.435465+00:00",
+        "source": "single-line-lifecycle"
+      }
+    },
     "lane:main": {
       "id": "lane:main",
       "label": "orchestration",
@@ -100,6 +111,21 @@
         "completed_at": "2026-06-24T04:44:35.911180+00:00"
       }
     },
+    "event:017": {
+      "id": "event:017",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Codex worker sandbox writeback policy",
+      "kind": "decision",
+      "status": "completed",
+      "order": 1,
+      "summary": "Open a distinct implementation lane for Codex worker sandbox/writeback/merge policy after the Codex CLI runtime provider seam.",
+      "metadata": {
+        "created_at": "2026-06-24T13:15:52.435465+00:00",
+        "activated_at": "2026-06-24T13:15:52.435465+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T13:19:34.763902+00:00"
+      }
+    },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
@@ -128,6 +154,20 @@
         "source": "single-line-lifecycle",
         "updated_at": "2026-06-24T06:02:20.371054+00:00",
         "completed_at": "2026-06-24T06:02:33.054532+00:00"
+      }
+    },
+    "event:018": {
+      "id": "event:018",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Implement Codex worker sandbox receipt bridge",
+      "kind": "task",
+      "status": "completed",
+      "order": 2,
+      "summary": "Add worker sandboxProfile intake/planning, host git-worktree sandbox registration, sandbox allocation evidence output, and compact writeback receipts for guide-worker provider execution.",
+      "metadata": {
+        "created_at": "2026-06-24T13:19:44.874294+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T14:04:10.658931+00:00"
       }
     },
     "event:003": {
@@ -428,6 +468,24 @@
     {
       "source_event_id": "event:015",
       "target_event_id": "event:016",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:016",
+      "target_event_id": "event:017",
+      "kind": "proposes_new_line",
+      "summary": "Created lane lane:codex-worker-sandbox-writeback",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:017",
+      "target_event_id": "event:018",
       "kind": "sequence",
       "summary": "",
       "metadata": {

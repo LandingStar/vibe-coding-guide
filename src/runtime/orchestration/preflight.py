@@ -108,7 +108,7 @@ def build_orchestration_preflight_bundle(
         )
     return OrchestrationPreflightBundle(
         task=task,
-        runtime_task=task_to_runtime_spec(task),
+        runtime_task=_runtime_task_for_preflight(task, allocation),
         scratch=scratch,
         sandbox_allocation=allocation,
     )
@@ -341,4 +341,29 @@ def _scratch_for_task(
         cleanup_policy="archive-or-delete-on-task-close",
         manifest_path=f"{path}/manifest.json",
         audit_state="active",
+    )
+
+
+def _runtime_task_for_preflight(
+    task: ScheduledTask,
+    allocation: SandboxAllocation,
+) -> TaskSpec:
+    runtime_workspace_root = allocation.workspace_root
+    receipt = allocation.git_worktree_receipt
+    if receipt is not None and receipt.worktree_path:
+        runtime_workspace_root = receipt.worktree_path
+    runtime_task = task_to_runtime_spec(task)
+    return TaskSpec(
+        task_id=runtime_task.task_id,
+        title=runtime_task.title,
+        instruction=runtime_task.instruction,
+        input_artifact_refs=runtime_task.input_artifact_refs,
+        scope=runtime_task.scope,
+        acceptance=runtime_task.acceptance,
+        output_artifact_id=runtime_task.output_artifact_id,
+        runtime_workspace_root=runtime_workspace_root,
+        scratch_path=allocation.scratch_path,
+        sandbox_allocation_id=allocation.allocation_id,
+        sandbox_provider=allocation.provider,
+        visible_mounts=allocation.visible_mounts,
     )

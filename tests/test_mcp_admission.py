@@ -745,6 +745,10 @@ def test_mcp_scheduler_guide_worker_local_orchestration_plans_lanes(
                                 "label": "Server API",
                                 "focus": "state API and port boundary",
                                 "allowedArtifacts": ["server", "api"],
+                                "sandboxProfile": {
+                                    "profileKind": "shared-process",
+                                    "profileId": "server-shared",
+                                },
                             },
                         ],
                         "maxParallelLanes": 2,
@@ -771,6 +775,9 @@ def test_mcp_scheduler_guide_worker_local_orchestration_plans_lanes(
             "server",
             "api",
         ]
+        assert payload["planned_worker_instructions"][1]["sandbox_profile"][
+            "profile_id"
+        ] == "server-shared"
         assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())

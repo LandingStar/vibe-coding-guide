@@ -137,8 +137,11 @@ Keep the lifecycle split:
     ready task per lane. The MCP tool accepts structured `workerInstructions`
     for custom lane-bound worker tasks, or `guideTask` + `plannerLaneSpecs` for
     the deterministic guide planner to generate concrete lane instructions.
-    It also accepts `waveExecutionMode=serial|threaded` for the fake/mock wave
-    executor. This defines bounded lane-distinct wave execution; `threaded` may
+    It also accepts `sandboxProfile` on worker instructions/planner lane specs
+    and `waveExecutionMode=serial|threaded` for the fake/mock wave executor.
+    `sandboxProfile` defaults to `shared-process`; host-owned wrappers may opt
+    into `git-worktree` and durable allocation receipt evidence. This defines
+    bounded lane-distinct wave execution; `threaded` may
     invoke fake/mock runtime calls concurrently and then merges scheduler state
     deterministically, but it does not make live providers available. Runtime
     code can map host-injected worker adapters via `workerRuntimeProvider`, but
@@ -156,10 +159,14 @@ Keep the lifecycle split:
    explicit host runtime wiring, a Codex process-spawn grant, and either an
    injected `CodexCliClient` or host-constructed `CodexCliProcessClient`. They
    write compact guide-worker provider execution evidence after readiness
-   succeeds. They are not MCP real-provider surfaces, do not accept raw token
-   values, do not refresh scheduler projection, do not create agent
-   home/scratch directories, do not persist raw transcripts, and do not mutate
-   agent-owned Local Work Trajectory.
+   succeeds. When configured with `git_worktree_sandbox_root` and
+   `sandbox_allocation_evidence_id`, they also write durable sandbox allocation
+   receipt evidence and review-only worker writeback receipts. They do not
+   auto-merge worker worktrees into the source workspace. They are not MCP
+   real-provider surfaces, do not accept raw token values, do not refresh
+   scheduler projection, do not create persistent agent home directories, do
+   not persist raw transcripts, and do not mutate agent-owned Local Work
+   Trajectory.
 12. `agentExchangeReply` and
    `doc-based-coding scheduler reply-exchange-artifact` create one
    exact-version reply ExchangeArtifact with `causality.replies_to`,

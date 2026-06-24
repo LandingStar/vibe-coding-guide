@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -55,7 +57,9 @@ from src.runtime.orchestration import (
     build_sandbox_allocation_receipt_evidence,
     build_supervisor_storage_binding_evidence,
     default_supervisor_storage_binding_evidence_path,
+    GitWorktreeSandboxProvider,
     run_persisted_scheduler_once,
+    read_sandbox_allocation_receipt_evidence_summary,
     read_scheduler_state_snapshot,
     scheduler_task_batch_submission_to_artifact,
     submit_scheduler_task_batch_with_persistence,
@@ -2497,6 +2501,71 @@ def test_host_owned_guide_worker_provider_execution_runs_planned_codex_workers(
     assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
 
 
+def test_host_owned_guide_worker_provider_execution_writes_codex_sandbox_receipts(
+    tmp_path: Path,
+) -> None:
+    repo = _git_repo(tmp_path)
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="codex worktree worker complete", output_text="ok")
+    )
+    allocation_path = tmp_path / ".codex/scheduler/evidence/codex-sandbox-allocation.json"
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-codex-sandbox",
+            timestamp="2026-06-24T23:35:00+08:00",
+            providers=("codex",),
+            worker_agent_id="agent:codex-worker",
+            workspace_root=str(repo),
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            sandbox_allocation_evidence_id="codex-worker-sandbox-allocation",
+            sandbox_allocation_evidence_path=allocation_path,
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/codex/worktree",
+                    title="Codex worktree worker",
+                    instruction="Run the worker in a git-worktree sandbox.",
+                    lane_id="lane:client",
+                    worker_runtime_provider="codex",
+                    allowed_artifacts=("client/app.js",),
+                    sandbox_profile=SandboxProfile(
+                        profile_id="codex-worktree",
+                        profile_kind="git-worktree",
+                    ),
+                    output_artifact_id="task/codex/worktree:result",
+                ),
+            ),
+        ),
+        codex_cli_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert allocation_path.exists()
+    assert payload["metadata"]["sandbox_allocation_evidence_path"] == str(allocation_path)
+    assert payload["authority_split"]["sandbox_allocation_evidence_written"] is True
+    receipt = payload["worker_writeback_receipts"][0]
+    assert receipt["task_id"] == "task/codex/worktree"
+    assert receipt["runtime_provider"] == "codex"
+    assert receipt["sandbox_provider"] == "git-worktree"
+    assert receipt["sandbox_allocation_id"] == "git-worktree:task/codex/worktree:codex-worktree"
+    assert receipt["cleanup_required"] is True
+    assert receipt["merge_review_state"] == "review_required"
+    assert receipt["auto_merge_performed"] is False
+    assert client.requests[0].task.runtime_workspace_root
+    assert "sandboxes" in client.requests[0].task.runtime_workspace_root
+    summary = read_sandbox_allocation_receipt_evidence_summary(allocation_path)
+    assert summary.evidence_id == "codex-worker-sandbox-allocation"
+    assert summary.allocation_count == 1
+    allocation = summary.allocations[0]
+    assert allocation.provider == "git-worktree"
+    assert allocation.git_worktree_receipt is not None
+    assert Path(allocation.git_worktree_receipt.worktree_path).exists()
+
+    GitWorktreeSandboxProvider(tmp_path / "sandboxes").cleanup(allocation)
+
+
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:
     bundle = read_trajectory_artifacts_bundle(tmp_path)
 
@@ -3938,6 +4007,38 @@ def _scheduler_projection_task(
         output_artifact_id=output_artifact_id,
         output_artifact_ref=output_ref,
     )
+
+
+def _git_repo(tmp_path: Path) -> Path:
+    if shutil.which("git") is None:
+        pytest.skip("git executable is required for git-worktree sandbox provider tests")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
+    (repo / "client").mkdir()
+    (repo / "client" / "app.js").write_text("console.log('ok');\n", encoding="utf-8")
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.email", "tests@example.invalid")
+    _run_git(repo, "config", "user.name", "Doc Based Coding Tests")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-m", "initial")
+    return repo
+
+
+def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        ("git", "-C", str(repo), *args),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(args)} failed with {completed.returncode}: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    return completed
 
 
 def _host_evidence_summary_fixture(

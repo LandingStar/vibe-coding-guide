@@ -40,7 +40,6 @@ from .scheduler import (
     TaskRunRecord,
     TaskDependency,
     mark_ready_tasks,
-    task_to_runtime_spec,
     wake_dependent_tasks,
 )
 from .scheduler_store import (
@@ -80,6 +79,15 @@ class GuideWorkerInstruction:
     acceptance: tuple[str, ...] = ()
     depends_on_task_ids: tuple[str, ...] = ()
     output_artifact_id: str = ""
+    sandbox_profile: SandboxProfile = field(
+        default_factory=lambda: SandboxProfile(
+            profile_id="shared-process",
+            profile_kind="shared-process",
+            network_policy="disabled",
+            secret_policy="deny",
+            mount_policy="lease-scoped",
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +102,15 @@ class GuideWorkerPlannerLaneSpec:
     depends_on_lane_ids: tuple[str, ...] = ()
     worker_agent_id: str = ""
     worker_runtime_provider: str = ""
+    sandbox_profile: SandboxProfile = field(
+        default_factory=lambda: SandboxProfile(
+            profile_id="shared-process",
+            profile_kind="shared-process",
+            network_policy="disabled",
+            secret_policy="deny",
+            mount_policy="lease-scoped",
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,6 +340,7 @@ _GUIDE_WORKER_INSTRUCTION_KEY_ALIASES = {
     "allowedArtifacts": "allowed_artifacts",
     "dependsOnTaskIds": "depends_on_task_ids",
     "outputArtifactId": "output_artifact_id",
+    "sandboxProfile": "sandbox_profile",
 }
 
 
@@ -375,6 +393,12 @@ def guide_worker_instruction_from_mapping(
             items.append(item.strip())
         return tuple(items)
 
+    sandbox_profile = _sandbox_profile_from_mapping(
+        normalized.get("sandbox_profile"),
+        path=f"{prefix}.sandbox_profile",
+        default_profile_id="shared-process",
+    )
+
     return GuideWorkerInstruction(
         task_id=require_string("task_id"),
         title=require_string("title"),
@@ -387,6 +411,7 @@ def guide_worker_instruction_from_mapping(
         acceptance=string_tuple("acceptance"),
         depends_on_task_ids=string_tuple("depends_on_task_ids"),
         output_artifact_id=optional_string("output_artifact_id"),
+        sandbox_profile=sandbox_profile,
     )
 
 
@@ -791,7 +816,7 @@ def _invoke_wave_runtime_task(
     try:
         runtime = runtime_registry.get(task.agent.runtime_provider)
         session = runtime.start_session(task.agent)
-        result = runtime.run_task(session, task_to_runtime_spec(replace(task, state="running")))
+        result = runtime.run_task(session, preflight.runtime_task)
         return GuideWorkerWaveTaskRun(
             task_id=task.task_id,
             lane_id=task.context_scope.lane_id,
@@ -1039,11 +1064,15 @@ def _instruction_to_submission(
         ),
         edit_lease=_edit_lease_for_instruction(instruction),
         sandbox_profile=SandboxProfile(
-            profile_id=f"sandbox/{instruction.task_id}",
-            profile_kind="shared-process",
-            network_policy="disabled",
-            secret_policy="deny",
-            mount_policy="lease-scoped",
+            profile_id=(
+                f"sandbox/{instruction.task_id}"
+                if instruction.sandbox_profile.profile_id == "shared-process"
+                else instruction.sandbox_profile.profile_id
+            ),
+            profile_kind=instruction.sandbox_profile.profile_kind,
+            network_policy=instruction.sandbox_profile.network_policy,
+            secret_policy=instruction.sandbox_profile.secret_policy,
+            mount_policy=instruction.sandbox_profile.mount_policy,
         ),
         input_artifact_refs=(
             ExchangeReference(
@@ -1101,7 +1130,59 @@ def _instruction_to_payload(
         "acceptance": list(instruction.acceptance),
         "depends_on_task_ids": list(instruction.depends_on_task_ids),
         "output_artifact_id": instruction.output_artifact_id or f"{instruction.task_id}:result",
+        "sandbox_profile": _sandbox_profile_to_payload(instruction.sandbox_profile),
     }
+
+
+def _sandbox_profile_to_payload(profile: SandboxProfile) -> dict[str, object]:
+    return {
+        "profile_id": profile.profile_id,
+        "profile_kind": profile.profile_kind,
+        "network_policy": profile.network_policy,
+        "secret_policy": profile.secret_policy,
+        "mount_policy": profile.mount_policy,
+    }
+
+
+def _sandbox_profile_from_mapping(
+    value: object,
+    *,
+    path: str,
+    default_profile_id: str,
+) -> SandboxProfile:
+    if value in (None, ""):
+        return SandboxProfile(
+            profile_id=default_profile_id,
+            profile_kind="shared-process",
+            network_policy="disabled",
+            secret_policy="deny",
+            mount_policy="lease-scoped",
+        )
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must be an object when provided")
+    normalized = {
+        {
+            "profileId": "profile_id",
+            "profileKind": "profile_kind",
+            "networkPolicy": "network_policy",
+            "secretPolicy": "secret_policy",
+            "mountPolicy": "mount_policy",
+        }.get(str(key), str(key)): item
+        for key, item in value.items()
+    }
+    profile_kind = str(normalized.get("profile_kind", "shared-process") or "shared-process")
+    if profile_kind not in {"none", "shared-process", "git-worktree", "docker", "remote-vm"}:
+        raise ValueError(
+            f"{path}.profile_kind must be one of none, shared-process, "
+            f"git-worktree, docker, or remote-vm; got {profile_kind!r}"
+        )
+    return SandboxProfile(
+        profile_id=str(normalized.get("profile_id", "") or default_profile_id),
+        profile_kind=profile_kind,  # type: ignore[arg-type]
+        network_policy=str(normalized.get("network_policy", "disabled") or "disabled"),
+        secret_policy=str(normalized.get("secret_policy", "deny") or "deny"),
+        mount_policy=str(normalized.get("mount_policy", "lease-scoped") or "lease-scoped"),
+    )
 
 
 def _default_worker_instructions(
@@ -1201,6 +1282,7 @@ def _planned_worker_instructions(
                 ),
                 depends_on_task_ids=depends_on_task_ids,
                 output_artifact_id=f"{task_id}:result",
+                sandbox_profile=spec.sandbox_profile,
             )
         )
     return tuple(instructions)

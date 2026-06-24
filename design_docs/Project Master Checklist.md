@@ -29,13 +29,13 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / Codex CLI worker runtime provider completed`
-- Current Focus: `Continue guide-worker orchestration toward sandbox/writeback/merge policy for real worker edits`
+- Current Phase: `Post-v1.0 - Agent orchestration / Codex worker sandbox writeback policy completed`
+- Current Focus: `Continue guide-worker orchestration toward explicit merge review / patch integration policy for real worker edits`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-- Latest Completed Slice: `Codex CLI Worker Runtime Provider`
+  `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+- Latest Completed Slice: `Codex Worker Sandbox Writeback Policy`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+  `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,17 +44,18 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-3. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-4. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-5. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-9. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-10. `review/agent-communication-product-closure-2026-06-22.md`
-11. `design_docs/Global Phase Map and Current Position.md`
-12. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+3. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+4. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+5. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+6. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+9. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+10. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+11. `review/agent-communication-product-closure-2026-06-22.md`
+12. `design_docs/Global Phase Map and Current Position.md`
+13. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -294,6 +295,35 @@ Validation:
 - Doc-loop validator passed.
 - `git diff --check` passed with Windows line-ending warnings only.
 - `analyze_changes` returned no impact nodes and no coupling alerts.
+
+### Codex Worker Sandbox Writeback Policy
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+
+Goal:
+
+- Add the first host-owned sandbox/writeback bridge for Codex workers:
+  explicit worker sandbox profiles, git-worktree allocation evidence, and
+  review-only worker writeback receipts.
+
+Current implementation surface:
+
+- Instruction fields: `sandbox_profile` / JSON-MCP `sandboxProfile`
+- Preflight runtime task fields: `runtime_workspace_root`,
+  `sandbox_allocation_id`, `sandbox_provider`, `visible_mounts`
+- Host wrapper config: `git_worktree_sandbox_root`,
+  `sandbox_allocation_evidence_id`, `sandbox_allocation_evidence_path`
+- Evidence field: `worker_writeback_receipts`
+
+Validation:
+
+- `py_compile` for runtime/wrapper/CLI/MCP/tests passed.
+- Focused runtime/wrapper/CLI/MCP tests passed: `29 passed, 461 deselected`.
+- Doc-loop validator passed.
 
 ### Codex CLI Worker Runtime Provider
 

@@ -31,11 +31,18 @@ from src.runtime.orchestration import (
     RuntimeProviderKind,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
+    SandboxAllocation,
+    SandboxProviderRegistry,
+    SharedProcessSandboxProvider,
+    GitWorktreeSandboxProvider,
+    build_sandbox_allocation_receipt_evidence,
+    default_sandbox_allocation_receipt_evidence_path,
     build_runtime_registry_from_config,
     default_exchange_artifact_admission_ledger_path,
     default_exchange_artifact_store_path,
     resolve_guide_worker_instructions,
     run_guide_worker_local_trajectory_orchestration,
+    write_sandbox_allocation_receipt_evidence,
 )
 
 GUIDE_WORKER_PROVIDER_EXECUTION_EVIDENCE_PRODUCT_TYPE = (
@@ -83,6 +90,10 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     allow_duplicate_admission: bool = True
     workspace_root: str = ""
     scratch_root: str = ".codex/scratch"
+    git_worktree_sandbox_root: str | Path | None = None
+    sandbox_allocation_evidence_id: str = ""
+    sandbox_allocation_evidence_path: str | Path | None = None
+    git_executable: str = "git"
     evidence_metadata: Mapping[str, object] = field(default_factory=dict)
 
 
@@ -110,6 +121,10 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
                 "mcp_live_provider_surface": False,
                 "local_work_trajectory_mutated": False,
                 "raw_transcript_persisted": False,
+                "sandbox_allocation_evidence_written": bool(
+                    self.metadata.get("sandbox_allocation_evidence_path")
+                ),
+                "auto_merge_performed": False,
             }
         )
         return {
@@ -140,6 +155,7 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
             "task_states": result_payload["task_states"],
             "output_artifact_refs": _output_artifact_refs(self.result),
             "worker_execution_receipts": _worker_execution_receipts(self.result),
+            "worker_writeback_receipts": _worker_writeback_receipts(self.result),
             "authority_split": authority_split,
             "metadata": dict(self.metadata),
         }
@@ -225,6 +241,7 @@ def run_host_owned_guide_worker_provider_execution(
         qoder_query_client=qoder_client,
         codex_cli_client=codex_client,
     )
+    sandbox_registry = _sandbox_registry(project_root, active_config)
     request = GuideWorkerLocalOrchestrationRequest(
         artifact_store_path=_project_path(project_root, active_config.artifact_store_path),
         admission_ledger_path=_project_path(project_root, active_config.admission_ledger_path),
@@ -250,7 +267,13 @@ def run_host_owned_guide_worker_provider_execution(
     orchestration = run_guide_worker_local_trajectory_orchestration(
         request,
         runtime_registry=wiring.registry,
+        sandbox_registry=sandbox_registry,
         artifact_store=store,
+    )
+    sandbox_write = _write_sandbox_allocation_evidence(
+        project_root,
+        active_config,
+        orchestration,
     )
     evidence = HostOwnedGuideWorkerProviderExecutionEvidence(
         evidence_id=active_config.evidence_id,
@@ -258,7 +281,7 @@ def run_host_owned_guide_worker_provider_execution(
         result=orchestration,
         registered_providers=wiring.registered_providers,
         host_invocation=host_invocation,
-        metadata=_evidence_metadata(active_config),
+        metadata=_evidence_metadata(active_config, sandbox_write_path=sandbox_write),
     )
     evidence_path = (
         None
@@ -582,8 +605,128 @@ def _worker_execution_receipts(
     return receipts
 
 
+def _worker_writeback_receipts(
+    result: GuideWorkerLocalOrchestrationResult,
+) -> list[dict[str, object]]:
+    """Return review-only writeback receipts for worker runtime outputs."""
+
+    instruction_by_task_id = {
+        instruction.task_id: instruction
+        for instruction in result.planned_worker_instructions
+    }
+    receipts: list[dict[str, object]] = []
+    for run in result.run_results:
+        task_id = run.preflight.task.task_id
+        instruction = instruction_by_task_id.get(task_id)
+        allocation = run.preflight.sandbox_allocation
+        delta = run.runtime_result.artifact_delta
+        output_ref = run.runtime_result.output_artifact
+        receipts.append(
+            {
+                "task_id": task_id,
+                "lane_id": run.preflight.task.context_scope.lane_id,
+                "worker_agent_id": run.preflight.task.agent.agent_id,
+                "runtime_provider": run.preflight.task.agent.runtime_provider,
+                "sandbox_provider": allocation.provider,
+                "sandbox_allocation_id": allocation.allocation_id,
+                "sandbox_state": allocation.state,
+                "sandbox_workspace_root": allocation.workspace_root,
+                "sandbox_scratch_path": allocation.scratch_path,
+                "cleanup_required": allocation.cleanup_required,
+                "output_artifact_ref": {
+                    "ref_kind": "exchange_artifact",
+                    "ref_id": output_ref.artifact_id,
+                    "version": output_ref.version,
+                },
+                "artifact_delta": {
+                    "artifact_id": delta.artifact_id,
+                    "version": delta.version,
+                    "summary": delta.summary,
+                    "changed_refs": [
+                        {
+                            "ref_kind": ref.ref_kind,
+                            "ref_id": ref.ref_id,
+                            "version": ref.version,
+                            "path": ref.path,
+                            "label": ref.label,
+                        }
+                        for ref in delta.changed_refs
+                    ],
+                },
+                "allowed_artifacts": (
+                    [] if instruction is None else list(instruction.allowed_artifacts)
+                ),
+                "merge_review_state": "review_required",
+                "auto_merge_performed": False,
+            }
+        )
+    return receipts
+
+
+def _sandbox_allocations(
+    result: GuideWorkerLocalOrchestrationResult,
+) -> tuple[SandboxAllocation, ...]:
+    return tuple(run.preflight.sandbox_allocation for run in result.run_results)
+
+
+def _sandbox_registry(
+    project_root: str | Path,
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+) -> SandboxProviderRegistry:
+    registry = SandboxProviderRegistry()
+    registry.register(SharedProcessSandboxProvider())
+    if config.git_worktree_sandbox_root is not None:
+        registry.register(
+            GitWorktreeSandboxProvider(
+                _project_path(project_root, config.git_worktree_sandbox_root),
+                git_executable=config.git_executable,
+            )
+        )
+    return registry
+
+
+def _write_sandbox_allocation_evidence(
+    project_root: str | Path,
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+    result: GuideWorkerLocalOrchestrationResult,
+) -> Path | None:
+    allocations = _sandbox_allocations(result)
+    if not allocations or not config.sandbox_allocation_evidence_id:
+        return None
+    target = (
+        _project_path(project_root, config.sandbox_allocation_evidence_path)
+        if config.sandbox_allocation_evidence_path is not None
+        else default_sandbox_allocation_receipt_evidence_path(
+            project_root,
+            config.sandbox_allocation_evidence_id,
+        )
+    )
+    write = write_sandbox_allocation_receipt_evidence(
+        build_sandbox_allocation_receipt_evidence(
+            allocations,
+            evidence_id=config.sandbox_allocation_evidence_id,
+            timestamp=config.timestamp,
+            evidence_path=target,
+            metadata={
+                "surface": "host-owned-guide-worker-provider-execution",
+                "host_invocation_id": config.host_invocation_id,
+                "git_worktree_sandbox_opt_in": config.git_worktree_sandbox_root is not None,
+                "git_worktree_sandbox_root": (
+                    ""
+                    if config.git_worktree_sandbox_root is None
+                    else str(config.git_worktree_sandbox_root)
+                ),
+            },
+        ),
+        target,
+    )
+    return write.evidence_path
+
+
 def _evidence_metadata(
     config: HostOwnedGuideWorkerProviderExecutionConfig,
+    *,
+    sandbox_write_path: Path | None = None,
 ) -> dict[str, object]:
     metadata = {
         "runner": "host-owned-guide-worker-provider-execution",
@@ -593,6 +736,12 @@ def _evidence_metadata(
         "codex_cli_sandbox": config.codex_cli_client_config.sandbox,
         "codex_cli_ask_for_approval": config.codex_cli_client_config.ask_for_approval,
         "planner_worker_runtime_provider": config.planner_worker_runtime_provider,
+        "git_worktree_sandbox_opt_in": config.git_worktree_sandbox_root is not None,
+        "git_worktree_sandbox_root": (
+            "" if config.git_worktree_sandbox_root is None else str(config.git_worktree_sandbox_root)
+        ),
+        "sandbox_allocation_evidence_id": config.sandbox_allocation_evidence_id,
+        "sandbox_allocation_evidence_path": "" if sandbox_write_path is None else str(sandbox_write_path),
     }
     metadata.update(dict(config.evidence_metadata))
     return metadata

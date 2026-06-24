@@ -191,6 +191,47 @@ def _guide_worker_planner_lane_spec_from_mcp(
         depends_on_lane_ids=optional_strings("dependsOnLaneIds"),
         worker_agent_id=(worker_agent_id or "").strip(),
         worker_runtime_provider=(worker_runtime_provider or "").strip(),
+        sandbox_profile=_guide_worker_sandbox_profile_from_mcp(
+            value.get("sandboxProfile"),
+            prefix=f"{prefix}.sandboxProfile",
+        ),
+    )
+
+
+def _guide_worker_sandbox_profile_from_mcp(value: Any, *, prefix: str):
+    from ..runtime.orchestration import SandboxProfile
+
+    if value in (None, ""):
+        return SandboxProfile(profile_id="shared-process", profile_kind="shared-process")
+    if not isinstance(value, dict):
+        raise ValueError(f"{prefix} must be an object when provided")
+    profile_kind = value.get("profileKind", value.get("profile_kind", "shared-process"))
+    if not isinstance(profile_kind, str) or not profile_kind.strip():
+        raise ValueError(f"{prefix}.profileKind must be a non-empty string")
+    normalized_kind = profile_kind.strip()
+    if normalized_kind not in {"none", "shared-process", "git-worktree", "docker", "remote-vm"}:
+        raise ValueError(
+            f"{prefix}.profileKind must be one of none, shared-process, git-worktree, "
+            f"docker, or remote-vm"
+        )
+    profile_id = value.get("profileId", value.get("profile_id", ""))
+    network_policy = value.get("networkPolicy", value.get("network_policy", "disabled"))
+    secret_policy = value.get("secretPolicy", value.get("secret_policy", "deny"))
+    mount_policy = value.get("mountPolicy", value.get("mount_policy", "lease-scoped"))
+    for field, raw in (
+        ("profileId", profile_id),
+        ("networkPolicy", network_policy),
+        ("secretPolicy", secret_policy),
+        ("mountPolicy", mount_policy),
+    ):
+        if raw not in (None, "") and not isinstance(raw, str):
+            raise ValueError(f"{prefix}.{field} must be a string when provided")
+    return SandboxProfile(
+        profile_id=(profile_id or normalized_kind).strip(),
+        profile_kind=normalized_kind,  # type: ignore[arg-type]
+        network_policy=(network_policy or "disabled").strip(),
+        secret_policy=(secret_policy or "deny").strip(),
+        mount_policy=(mount_policy or "lease-scoped").strip(),
     )
 
 

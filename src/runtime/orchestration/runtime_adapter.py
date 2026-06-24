@@ -87,6 +87,11 @@ class TaskSpec:
     scope: ExchangeScope = field(default_factory=ExchangeScope)
     acceptance: tuple[str, ...] = ()
     output_artifact_id: str = ""
+    runtime_workspace_root: str = ""
+    scratch_path: str = ""
+    sandbox_allocation_id: str = ""
+    sandbox_provider: str = ""
+    visible_mounts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

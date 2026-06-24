@@ -90,12 +90,13 @@ class CodexCliProcessClient:
             output_path = Path(temp_dir) / "last-message.txt"
             command = self._build_command(request, output_path)
             try:
+                cwd = self._execution_cwd(request)
                 completed = self._runner(
                     command,
                     input=prompt,
                     text=True,
                     capture_output=True,
-                    cwd=str(self.config.cwd or "") or None,
+                    cwd=cwd,
                     timeout=self.config.timeout_seconds,
                     check=False,
                 )
@@ -141,7 +142,7 @@ class CodexCliProcessClient:
             return CodexCliResult(
                 summary=_compact_summary(output_text),
                 output_text=output_text,
-                metadata=self._result_metadata(completed),
+                metadata=self._result_metadata(completed, request),
             )
 
     def validate_host_ready(self) -> None:
@@ -195,6 +196,8 @@ class CodexCliProcessClient:
             self.config.ask_for_approval,
         ]
         cwd = str(self.config.cwd or "")
+        if request.task.runtime_workspace_root:
+            cwd = request.task.runtime_workspace_root
         if cwd:
             command.extend(["--cd", cwd])
         model = self.config.model or request.agent.model
@@ -226,6 +229,20 @@ class CodexCliProcessClient:
                 f"- {ref.ref_kind}:{ref.ref_id}@{ref.version or 'latest'}"
                 for ref in request.input_artifact_refs
             )
+        if request.task.runtime_workspace_root:
+            sections.extend(
+                [
+                    "",
+                    f"Runtime workspace root: {request.task.runtime_workspace_root}",
+                    f"Sandbox provider: {request.task.sandbox_provider}",
+                    f"Sandbox allocation id: {request.task.sandbox_allocation_id}",
+                ]
+            )
+        if request.task.visible_mounts:
+            sections.extend(["", "Visible or writable mounts:"])
+            sections.extend(f"- {mount}" for mount in request.task.visible_mounts)
+        if request.task.scratch_path:
+            sections.extend(["", f"Scratch path: {request.task.scratch_path}"])
         if request.output_artifact_id:
             sections.extend(["", f"Expected output artifact id: {request.output_artifact_id}"])
         sections.extend(
@@ -240,6 +257,7 @@ class CodexCliProcessClient:
     def _result_metadata(
         self,
         completed: subprocess.CompletedProcess[str],
+        request: CodexCliRequest,
     ) -> dict[str, object]:
         metadata = {
             "cli": "codex",
@@ -253,8 +271,19 @@ class CodexCliProcessClient:
         }
         if self.config.model:
             metadata["model"] = self.config.model
+        metadata["cwd"] = self._execution_cwd(request) or ""
         metadata.update(dict(self.config.metadata))
         return metadata
+
+    def _execution_cwd(self, request: CodexCliRequest) -> str | None:
+        return self._execution_cwd_from_value(
+            request.task.runtime_workspace_root or self.config.cwd
+        )
+
+    @staticmethod
+    def _execution_cwd_from_value(value: str | Path) -> str | None:
+        cwd = str(value or "")
+        return cwd or None
 
     def _redact(self, value: str) -> str:
         redacted = value

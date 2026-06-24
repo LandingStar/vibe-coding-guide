@@ -71,12 +71,15 @@ Useful bounded options:
 --event-log-path .codex/scheduler/codex-guide-worker-provider-execution-events.jsonl
 --evidence-id codex-guide-worker-provider-execution
 --evidence-path .codex/scheduler/evidence/codex-guide-worker-provider-execution.json
+--git-worktree-sandbox-root .codex/sandboxes/codex-workers
+--sandbox-allocation-evidence-id codex-worker-sandbox-allocation
+--sandbox-allocation-evidence-path .codex/scheduler/evidence/codex-worker-sandbox-allocation.json
 --host-invocation-id host-owned-codex-guide-worker-provider-execution-cli
 --reason "bounded host-owned Codex CLI guide-worker execution"
 --guide-task-title "Build maze game"
 --guide-task-summary "Split browser client and server API work."
---planner-lane lane:client=Client UI:browser controls and test hooks:client,web
---planner-lane lane:server=Server API:state API and port boundary:server,api
+--planner-lane lane:client=Client UI:browser controls and test hooks:client,web:git-worktree
+--planner-lane lane:server=Server API:state API and port boundary:server,api:git-worktree
 --max-parallel-lanes 2
 --max-waves 1
 --wave-execution-mode serial|threaded
@@ -88,10 +91,12 @@ allow_process_spawn=True)` inside a host-owned wrapper. It is not an MCP
 real-provider surface. On success it writes compact
 `host_guide_worker_provider_execution_evidence` with planner metadata,
 generated instructions, per-worker execution receipts, provider, lane, wave,
-task state, output artifact, and authority facts.
+task state, output artifact, worker writeback receipts, optional sandbox
+allocation receipt evidence path, and authority facts.
 
 It does not persist raw transcripts, create persistent agent home directories,
-refresh scheduler projection, or mutate agent-owned Local Work Trajectory.
+refresh scheduler projection, auto-merge worker worktrees into the source
+workspace, or mutate agent-owned Local Work Trajectory.
 
 ## Output Contract
 

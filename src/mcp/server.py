@@ -2113,6 +2113,24 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                         "type": "string",
                                         "description": "Optional expected worker result artifact id.",
                                     },
+                                    "sandboxProfile": {
+                                        "type": "object",
+                                        "description": (
+                                            "Optional sandbox profile for the worker task. "
+                                            "Defaults to shared-process; host-owned wrappers "
+                                            "can opt into git-worktree."
+                                        ),
+                                        "properties": {
+                                            "profileId": {"type": "string"},
+                                            "profileKind": {
+                                                "type": "string",
+                                                "description": "none, shared-process, git-worktree, docker, or remote-vm.",
+                                            },
+                                            "networkPolicy": {"type": "string"},
+                                            "secretPolicy": {"type": "string"},
+                                            "mountPolicy": {"type": "string"},
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -2176,6 +2194,23 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                     "workerRuntimeProvider": {
                                         "type": "string",
                                         "description": "Optional per-lane worker runtime provider.",
+                                    },
+                                    "sandboxProfile": {
+                                        "type": "object",
+                                        "description": (
+                                            "Optional sandbox profile copied into generated "
+                                            "workerInstructions. Defaults to shared-process."
+                                        ),
+                                        "properties": {
+                                            "profileId": {"type": "string"},
+                                            "profileKind": {
+                                                "type": "string",
+                                                "description": "none, shared-process, git-worktree, docker, or remote-vm.",
+                                            },
+                                            "networkPolicy": {"type": "string"},
+                                            "secretPolicy": {"type": "string"},
+                                            "mountPolicy": {"type": "string"},
+                                        },
                                     },
                                 },
                             },
