@@ -254,6 +254,12 @@ from .worker_patch_review import (
     build_worker_patch_review_artifact,
     build_worker_patch_review_artifacts,
 )
+from .worker_patch_review_consumer import (
+    WORKER_PATCH_REVIEW_DECISION_TARGET_SURFACES,
+    WorkerPatchReviewConsumerResult,
+    WorkerPatchReviewDecisionAction,
+    consume_worker_patch_review_decision,
+)
 from .sandbox import (
     GitWorktreeCleanupState,
     GitWorktreeCommandReceipt,
@@ -657,7 +663,10 @@ __all__ = [
     "RuntimeRegistryWiringResult",
     "WORKER_PATCH_REVIEW_PRODUCT_TYPE",
     "WORKER_PATCH_REVIEW_SCHEMA_VERSION",
+    "WORKER_PATCH_REVIEW_DECISION_TARGET_SURFACES",
     "WorkerPatchReviewArtifact",
+    "WorkerPatchReviewConsumerResult",
+    "WorkerPatchReviewDecisionAction",
     "GitWorktreeCleanupState",
     "GitWorktreeCommandReceipt",
     "GitWorktreeSandboxProvider",
@@ -828,6 +837,7 @@ __all__ = [
     "detect_exchange_artifact_admission_candidates",
     "decide_agent_exchange_action_candidate",
     "consume_accepted_scheduler_action_candidate",
+    "consume_worker_patch_review_decision",
     "default_sandbox_allocation_receipt_evidence_path",
     "default_supervisor_storage_binding_evidence_path",
     "drain_preflighted_ready_tasks",

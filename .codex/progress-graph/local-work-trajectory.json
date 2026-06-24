@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T14:49:04.737307+00:00",
+  "recorded_at": "2026-06-24T15:23:25.989750+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 4,
-    "event_count": 19,
-    "relation_count": 18,
+    "event_count": 20,
+    "relation_count": 19,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -243,6 +243,20 @@
         "resumed_at": "2026-06-24T12:32:46.558674+00:00",
         "activated_at": "2026-06-24T12:32:46.558674+00:00",
         "completed_at": "2026-06-24T13:06:27.599943+00:00"
+      }
+    },
+    "event:020": {
+      "id": "event:020",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Open worker patch apply/reject policy gate",
+      "kind": "decision",
+      "status": "completed",
+      "order": 4,
+      "summary": "Continue after worker patch review artifacts: define explicit patch proposal accept/reject semantics, conflict-check behavior, and cleanup-after-review boundaries without automatic merge or MCP live-provider expansion.",
+      "metadata": {
+        "created_at": "2026-06-24T14:55:29.929738+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T15:23:25.989750+00:00"
       }
     },
     "event:005": {
@@ -509,6 +523,15 @@
     {
       "source_event_id": "event:018",
       "target_event_id": "event:019",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:019",
+      "target_event_id": "event:020",
       "kind": "sequence",
       "summary": "",
       "metadata": {

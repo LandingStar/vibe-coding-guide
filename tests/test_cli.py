@@ -118,6 +118,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "supervisor-dogfood-workflow" in proc.stdout
     assert "cleanup-receipts" in proc.stdout
     assert "sandbox-receipt-workflow" in proc.stdout
+    assert "consume-worker-patch-review" in proc.stdout
 
 
 def test_scheduler_sandbox_receipt_workflow_help_describes_explicit_cleanup() -> None:
@@ -1616,6 +1617,126 @@ def test_scheduler_consume_accepted_merge_candidate_cli_resolves_gate(tmp_path) 
     assert state.merge_gates[0].state == "complete"
     assert events[-1].event_kind == "merge_gate_completed"
     assert not (project / ".codex" / "handoffs").exists()
+
+
+def test_scheduler_consume_worker_patch_review_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "consume-worker-patch-review", "--help"])
+
+    assert proc.returncode == 0
+    assert "check, apply, or reject the patch explicitly" in proc.stdout
+    assert "cleanup-receipts" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_consume_worker_patch_review_cli_applies_patch(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    worker_repo = _git_repo(project / "worker")
+    target_repo = _git_repo(project / "target")
+    (worker_repo / "src" / "app.py").write_text("print('worker patch')\n", encoding="utf-8")
+    patch = _run_git(worker_repo, "diff", "--binary").stdout
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="task-cli:patch-review",
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer="agent:codex-worker",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(part_type="text", text="Worker patch review proposal."),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "worker_patch_review_proposal",
+                        "task_id": "task-cli",
+                        "lane_id": "lane:cli",
+                        "worker_agent_id": "agent:codex-worker",
+                        "runtime_provider": "codex",
+                        "sandbox_provider": "git-worktree",
+                        "sandbox_allocation_id": "allocation-cli",
+                        "changed_paths": ["src/app.py"],
+                        "patch_state": "has_patch",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="evidence",
+                    data={"git_diff": patch},
+                ),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-patch-review",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(
+                            ref_kind="exchange_artifact",
+                            ref_id="task-cli:patch-review",
+                            version="v1",
+                        ),
+                        target=ExchangeReference(ref_kind="scheduler_task", ref_id="task-cli"),
+                    ),
+                ),
+            ),
+        )
+    )
+    decide = _run_cli(
+        [
+            "scheduler",
+            "decide-agent-action-candidate",
+            "--candidate-id",
+            "task-cli:patch-review@v1:merge",
+            "--disposition-artifact-id",
+            "task-cli:patch-review-decision",
+            "--actor",
+            "agent:guide",
+            "--disposition",
+            "accept",
+            "--target-surface",
+            "workerPatchReview",
+        ],
+        cwd=project,
+    )
+    consume = _run_cli(
+        [
+            "scheduler",
+            "consume-worker-patch-review",
+            "--disposition-artifact-id",
+            "task-cli:patch-review-decision",
+            "--disposition-version",
+            "v1",
+            "--action",
+            "apply",
+            "--source-workspace-root",
+            str(target_repo),
+            "--actor",
+            "agent:guide",
+        ],
+        cwd=project,
+    )
+
+    assert decide.returncode == 0, decide.stderr
+    assert consume.returncode == 0, consume.stderr
+    payload = json.loads(consume.stdout)
+    stored = JsonArtifactVersionStore(store_path).get("task-cli:patch-review", "v1").artifact
+    assert payload["ok"] is True
+    assert payload["action"] == "apply"
+    assert payload["changed_paths"] == ["src/app.py"]
+    assert payload["authority_split"]["source_workspace_mutated"] is True
+    assert payload["cleanup_surface"] == "scheduler cleanup-receipts"
+    assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == (
+        "print('worker patch')\n"
+    )
+    assert stored.lifecycle_state == "consumed"
 
 
 def test_scheduler_consume_accepted_blocker_candidate_cli_blocks_task(tmp_path) -> None:
@@ -3992,6 +4113,7 @@ def _git_repo(project: Path) -> Path:
     if shutil.which("git") is None:
         pytest.skip("git executable is required for git-worktree cleanup tests")
     repo = project / "repo"
+    repo.parent.mkdir(parents=True, exist_ok=True)
     repo.mkdir()
     (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
     (repo / "src").mkdir()

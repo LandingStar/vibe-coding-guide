@@ -2647,6 +2647,7 @@ def test_host_owned_guide_worker_provider_execution_publishes_patch_review_candi
     assert "worker patch" in patch_record.artifact.parts[3].data["git_diff"]
     assert candidates.candidate_type_counts == {"merge_candidate": 1}
     assert candidates.candidates[0].artifact_id == patch_ref["ref_id"]
+    assert candidates.candidates[0].suggested_next_surface == "workerPatchReview"
     assert (repo / "client" / "app.js").read_text(encoding="utf-8") == (
         "console.log('ok');\n"
     )

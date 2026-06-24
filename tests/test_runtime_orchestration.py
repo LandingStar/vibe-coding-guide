@@ -129,6 +129,8 @@ from src.runtime.orchestration import (
     build_scheduler_loop_evidence,
     build_supervisor_storage_binding_evidence,
     build_worker_patch_review_artifact,
+    consume_worker_patch_review_decision,
+    decide_agent_exchange_action_candidate,
     default_supervisor_storage_binding_evidence_path,
     default_sandbox_allocation_receipt_evidence_path,
     seed_scheduler_operator_binding_consumer_dogfood_fixture,
@@ -4247,6 +4249,93 @@ def test_worker_patch_review_artifact_collects_git_worktree_diff(tmp_path) -> No
     assert review.artifact.parts[1].data["sandbox_workspace_root"] == receipt.worktree_path
 
     provider.cleanup(bundle.sandbox_allocation)
+
+
+def test_worker_patch_review_consumer_checks_without_mutating_workspace(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    target_repo = _git_repo(tmp_path / "target")
+    store_path, disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="workerPatchReview",
+    )
+
+    result = consume_worker_patch_review_decision(
+        artifact_store_path=store_path,
+        disposition_artifact_id=disposition_id,
+        disposition_version="v1",
+        action="check",
+        source_workspace_root=target_repo,
+        actor="agent:guide",
+        timestamp="2026-06-24T23:59:00+08:00",
+    )
+    stored = JsonArtifactVersionStore(store_path).get("task-1:patch-review", "v1").artifact
+
+    assert result.ok is True
+    assert result.git_check_returncode == 0
+    assert result.git_apply_returncode is None
+    assert result.changed_paths == ("src/app.py",)
+    assert result.to_json_dict()["authority_split"]["source_workspace_mutated"] is False
+    assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert stored.lifecycle_state == "accepted"
+
+
+def test_worker_patch_review_consumer_applies_patch_and_marks_consumed(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    target_repo = _git_repo(tmp_path / "target")
+    store_path, disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="cli:scheduler consume-worker-patch-review",
+    )
+
+    result = consume_worker_patch_review_decision(
+        artifact_store_path=store_path,
+        disposition_artifact_id=disposition_id,
+        disposition_version="v1",
+        action="apply",
+        source_workspace_root=target_repo,
+        actor="agent:guide",
+        timestamp="2026-06-25T00:00:00+08:00",
+    )
+    stored = JsonArtifactVersionStore(store_path).get("task-1:patch-review", "v1").artifact
+
+    assert result.ok is True
+    assert result.git_check_returncode == 0
+    assert result.git_apply_returncode == 0
+    assert result.cleanup_recommended is True
+    assert result.to_json_dict()["authority_split"]["patch_apply_executed"] is True
+    assert result.to_json_dict()["authority_split"]["source_workspace_mutated"] is True
+    assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == (
+        "print('worker patch')\n"
+    )
+    assert stored.lifecycle_state == "consumed"
+
+
+def test_worker_patch_review_consumer_rejects_without_git_apply(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    store_path, disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="workerPatchReview",
+    )
+
+    result = consume_worker_patch_review_decision(
+        artifact_store_path=store_path,
+        disposition_artifact_id=disposition_id,
+        disposition_version="v1",
+        action="reject",
+        actor="agent:guide",
+        reason="not needed",
+    )
+    stored = JsonArtifactVersionStore(store_path).get("task-1:patch-review", "v1").artifact
+
+    assert result.ok is True
+    assert result.git_check_returncode is None
+    assert result.git_apply_returncode is None
+    assert result.cleanup_recommended is True
+    assert result.to_json_dict()["authority_split"]["patch_apply_executed"] is False
+    assert stored.lifecycle_state == "rejected"
 
 
 def test_sandbox_provider_registry_resolves_provider_by_capability() -> None:
@@ -12017,6 +12106,7 @@ def _git_repo(tmp_path: Path) -> Path:
     if shutil.which("git") is None:
         pytest.skip("git executable is required for git-worktree sandbox provider tests")
     repo = tmp_path / "repo"
+    repo.parent.mkdir(parents=True, exist_ok=True)
     repo.mkdir()
     (repo / "README.md").write_text("# test repo\n", encoding="utf-8")
     (repo / "src").mkdir()
@@ -12027,6 +12117,106 @@ def _git_repo(tmp_path: Path) -> Path:
     _run_git(repo, "add", ".")
     _run_git(repo, "commit", "-m", "initial")
     return repo
+
+
+def _worker_patch_review_store(
+    tmp_path: Path,
+    *,
+    source_repo: Path,
+    target_surface: str,
+) -> tuple[Path, str]:
+    registry = SandboxProviderRegistry()
+    provider = GitWorktreeSandboxProvider(tmp_path / "sandboxes")
+    registry.register(provider)
+    task = _scheduled_task(
+        "task-1",
+        state="ready",
+        agent=AgentSpec(agent_id="agent:codex-worker", runtime_provider="codex"),
+        edit_lease=EditScopeLease(
+            lease_id="lease-1",
+            task_id="task-1",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        output_artifact_id="task-1:result",
+    )
+    state = SchedulerState(
+        tasks={"task-1": task},
+        edit_lease_lifecycle={
+            "lease-1": EditLeaseLifecycleRecord(
+                lease_id="lease-1",
+                task_id="task-1",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/app.py",),
+            )
+        },
+    )
+    bundle = build_orchestration_preflight_bundle(
+        task,
+        sandbox_registry=registry,
+        scheduler_state=state,
+        workspace_root=str(source_repo),
+    )
+    receipt = bundle.sandbox_allocation.git_worktree_receipt
+    assert receipt is not None
+    app = Path(receipt.worktree_path) / "src" / "app.py"
+    app.write_text("print('worker patch')\n", encoding="utf-8")
+    run = PreflightedTaskRunResult(
+        preflight=bundle,
+        state=state,
+        runtime_result=RuntimeRunResult(
+            run_handle=RunHandle(
+                run_id="codex-run-1",
+                session_id="codex-session-1",
+                task_id="task-1",
+            ),
+            output_artifact=ExchangeArtifact(
+                artifact_id="task-1:result",
+                kind="result",
+                intent="inform",
+                producer="agent:codex-worker",
+                version="v1",
+            ),
+            artifact_delta=ArtifactDelta(
+                artifact_id="task-1:result",
+                version="v1",
+                summary="worker changed src/app.py",
+                changed_refs=(
+                    ExchangeReference(
+                        ref_kind="file",
+                        ref_id="src/app.py",
+                        path="src/app.py",
+                    ),
+                ),
+            ),
+        ),
+    )
+    review = build_worker_patch_review_artifact(
+        run,
+        timestamp="2026-06-24T23:58:00+08:00",
+        guide_agent_id="agent:guide",
+        target_task_id="task:merge-target",
+    )
+    store_path = tmp_path / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(review.artifact)
+    disposition_id = "task-1:patch-review-decision"
+    decide_agent_exchange_action_candidate(
+        store_path=store_path,
+        candidate_id="task-1:patch-review@v1:merge",
+        disposition_artifact_id=disposition_id,
+        actor="agent:guide",
+        disposition="accept",
+        target_surface=target_surface,
+        timestamp="2026-06-24T23:58:30+08:00",
+    )
+    provider.cleanup(bundle.sandbox_allocation)
+    return store_path, disposition_id
 
 
 def _run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

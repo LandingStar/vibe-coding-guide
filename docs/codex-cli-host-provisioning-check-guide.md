@@ -102,8 +102,23 @@ workspace, or mutate agent-owned Local Work Trajectory.
 For git-worktree workers, the host wrapper reads the allocated worktree and
 publishes `worker_patch_review_proposal` ExchangeArtifacts. These artifacts are
 visible to the existing action-candidate readback as `merge_candidate` entries,
-but accepting such a candidate still only resolves an explicit merge gate; it
-does not apply the patch to the source workspace.
+but acceptance is still a coordination product. To evaluate or use the patch,
+run the explicit operator surface:
+
+```text
+doc-based-coding scheduler consume-worker-patch-review \
+  --disposition-artifact-id ID \
+  --disposition-version VERSION \
+  --action check|apply|reject \
+  --source-workspace-root PATH
+```
+
+`check` runs `git apply --check` without changing the source workspace.
+`apply` runs `git apply --check` and then `git apply` against the explicitly
+supplied source workspace. `reject` only marks the patch proposal rejected. The
+command does not resolve scheduler merge gates or clean worker sandboxes;
+sandbox cleanup remains the separate explicit `scheduler cleanup-receipts`
+flow.
 
 ## Output Contract
 

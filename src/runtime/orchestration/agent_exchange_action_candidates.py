@@ -311,7 +311,9 @@ def _artifact_action_candidates(
                 suffix="merge",
                 confidence="high" if _active_lifecycle(artifact) else "medium",
                 reasons=merge_reasons,
-                suggested_next_surface="mergeIntake",
+                suggested_next_surface=(
+                    "workerPatchReview" if _is_worker_patch_review_artifact(artifact) else "mergeIntake"
+                ),
             )
         )
 
@@ -398,6 +400,14 @@ def _merge_reasons(artifact: ExchangeArtifact) -> tuple[str, ...]:
         if relation_kind == "merges_into":
             reasons.append("relation:merges_into")
     return tuple(reasons)
+
+
+def _is_worker_patch_review_artifact(artifact: ExchangeArtifact) -> bool:
+    return any(
+        part.part_type == "structured"
+        and part.data.get("product_type") == "worker_patch_review_proposal"
+        for part in artifact.parts
+    )
 
 
 def _relation_kinds(artifact: ExchangeArtifact) -> tuple[str, ...]:

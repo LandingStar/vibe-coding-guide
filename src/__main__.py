@@ -1242,6 +1242,14 @@ _SCHEDULER_CONSUME_ACCEPTED_MERGE_CANDIDATE_USAGE = (
     "[--reason TEXT] [--actor ACTOR] [--resolved-at TIMESTAMP] [--timestamp TIMESTAMP]"
 )
 
+_SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE = (
+    "Usage: doc-based-coding scheduler consume-worker-patch-review "
+    "--disposition-artifact-id ID --disposition-version VERSION "
+    "--action check|apply|reject [--source-workspace-root PATH] "
+    "[--artifact-store-path PATH] [--reason TEXT] [--actor ACTOR] "
+    "[--timestamp TIMESTAMP] [--git-executable PATH]"
+)
+
 _SCHEDULER_CONSUME_ACCEPTED_BLOCKER_CANDIDATE_USAGE = (
     "Usage: doc-based-coding scheduler consume-accepted-blocker-candidate "
     "--disposition-artifact-id ID --disposition-version VERSION "
@@ -1420,6 +1428,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  consume-accepted-review-candidate Consume accepted review candidate disposition via review intake\n"
             "  consume-accepted-handoff-candidate Consume accepted handoff candidate disposition via handoff delivery\n"
             "  consume-accepted-merge-candidate Consume accepted merge candidate disposition via explicit merge gate resolution\n"
+            "  consume-worker-patch-review Consume accepted worker patch proposal with explicit check/apply/reject\n"
             "  consume-accepted-blocker-candidate Consume accepted blocker candidate disposition via explicit task blocking\n"
             "  guide-worker-exchange-dogfood Run deterministic guide/worker exchange product dogfood\n"
             "  guide-worker-local-orchestration Run guide-assigned worker tasks with lane-limited waves\n"
@@ -1464,6 +1473,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_consume_accepted_handoff_candidate(args[1:])
     if sub == "consume-accepted-merge-candidate":
         return cmd_scheduler_consume_accepted_merge_candidate(args[1:])
+    if sub == "consume-worker-patch-review":
+        return cmd_scheduler_consume_worker_patch_review(args[1:])
     if sub == "consume-accepted-blocker-candidate":
         return cmd_scheduler_consume_accepted_blocker_candidate(args[1:])
     if sub == "guide-worker-exchange-dogfood":
@@ -1503,7 +1514,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -4335,6 +4346,130 @@ def cmd_scheduler_consume_accepted_merge_candidate(args: list[str]) -> int:
             "Error consuming accepted merge action candidate",
             e,
             category="scheduler_accepted_merge_candidate_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def cmd_scheduler_consume_worker_patch_review(args: list[str]) -> int:
+    """Consume an accepted worker patch review proposal disposition."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE + "\n\n"
+            "This consumes one accepted merge_candidate disposition only when "
+            "its source artifact is a worker_patch_review_proposal. The command "
+            "can check, apply, or reject the patch explicitly. It does not resolve "
+            "scheduler merge gates, run providers, clean sandboxes, refresh "
+            "projections, or mutate Local Work Trajectory. Sandbox cleanup remains "
+            "a separate explicit cleanup-receipts step.",
+        )
+        return 0
+
+    artifact_store_path = ""
+    disposition_artifact_id = ""
+    disposition_version = ""
+    action = ""
+    source_workspace_root = ""
+    reason = ""
+    actor = "operator-cli"
+    timestamp = ""
+    git_executable = "git"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--artifact-store-path",
+            "--disposition-artifact-id",
+            "--disposition-version",
+            "--action",
+            "--source-workspace-root",
+            "--reason",
+            "--actor",
+            "--timestamp",
+            "--git-executable",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--disposition-artifact-id":
+                disposition_artifact_id = value
+            elif arg == "--disposition-version":
+                disposition_version = value
+            elif arg == "--action":
+                action = value
+            elif arg == "--source-workspace-root":
+                source_workspace_root = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            elif arg == "--git-executable":
+                git_executable = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-worker-patch-review option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE, file=sys.stderr)
+        return 1
+
+    missing = [
+        name
+        for name, value in (
+            ("--disposition-artifact-id", disposition_artifact_id),
+            ("--disposition-version", disposition_version),
+            ("--action", action),
+        )
+        if not value
+    ]
+    if action in {"check", "apply"} and not source_workspace_root:
+        missing.append("--source-workspace-root")
+    if missing:
+        print(_SCHEDULER_CONSUME_WORKER_PATCH_REVIEW_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            consume_worker_patch_review_decision,
+            default_exchange_artifact_store_path,
+        )
+
+        store = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        result = consume_worker_patch_review_decision(
+            artifact_store_path=store,
+            disposition_artifact_id=disposition_artifact_id,
+            disposition_version=disposition_version,
+            action=action,  # type: ignore[arg-type]
+            source_workspace_root=(
+                _resolve_project_path(root, source_workspace_root)
+                if source_workspace_root
+                else None
+            ),
+            actor=actor,
+            reason=reason,
+            timestamp=timestamp,
+            git_executable=git_executable,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming worker patch review proposal",
+            e,
+            category="scheduler_worker_patch_review_consume_failed",
         )
 
     payload = result.to_json_dict()
