@@ -1,0 +1,124 @@
+# Codex CLI Host Provisioning Check Guide
+
+## Purpose
+
+This guide defines the project-owned, credential-safe check for preparing a
+host runtime to run worker tasks through Codex CLI.
+
+It does not install Codex CLI, create credentials, persist tokens, or execute a
+worker task. It only checks whether the current host can construct a later
+host-owned `codex guide-worker-smoke` attempt.
+
+## Authority Boundary
+
+The real Codex CLI path is host-owned:
+
+```text
+CodexCliProcessClient
+CodexCliClientConfig
+CodexCliAgentRuntimeAdapter
+run_host_owned_guide_worker_provider_execution()
+doc-based-coding codex readiness
+doc-based-coding codex guide-worker-smoke
+```
+
+MCP scheduler execution remains fake-only. Do not expose live Codex CLI
+execution through `schedulerGuideWorkerLocalOrchestration` or generic scheduler
+MCP tools.
+
+## Readiness Command
+
+Run:
+
+```text
+doc-based-coding codex readiness
+```
+
+Equivalent module form:
+
+```text
+python -m src codex readiness
+```
+
+Optional flag:
+
+```text
+--executable PATH
+```
+
+The readiness output reports only executable availability and resolved path. It
+does not run `codex exec` and does not print or store credentials.
+
+## Guide-Worker Smoke Command
+
+Run only after reading readiness:
+
+```text
+doc-based-coding codex guide-worker-smoke
+```
+
+Useful bounded options:
+
+```text
+--executable codex
+--cwd PATH
+--model NAME
+--sandbox read-only|workspace-write|danger-full-access
+--ask-for-approval untrusted|on-request|never
+--artifact-store-path .codex/orchestration/exchange-artifacts.json
+--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
+--snapshot-path .codex/scheduler/codex-guide-worker-provider-execution-state.json
+--event-log-path .codex/scheduler/codex-guide-worker-provider-execution-events.jsonl
+--evidence-id codex-guide-worker-provider-execution
+--evidence-path .codex/scheduler/evidence/codex-guide-worker-provider-execution.json
+--host-invocation-id host-owned-codex-guide-worker-provider-execution-cli
+--reason "bounded host-owned Codex CLI guide-worker execution"
+--guide-task-title "Build maze game"
+--guide-task-summary "Split browser client and server API work."
+--planner-lane lane:client=Client UI:browser controls and test hooks:client,web
+--planner-lane lane:server=Server API:state API and port boundary:server,api
+--max-parallel-lanes 2
+--max-waves 1
+--wave-execution-mode serial|threaded
+--timestamp 2026-06-24T00:00:00+08:00
+```
+
+The command uses `RuntimeProviderPermissionGrant(provider="codex",
+allow_process_spawn=True)` inside a host-owned wrapper. It is not an MCP
+real-provider surface. On success it writes compact
+`host_guide_worker_provider_execution_evidence` with planner metadata,
+generated instructions, per-worker execution receipts, provider, lane, wave,
+task state, output artifact, and authority facts.
+
+It does not persist raw transcripts, create persistent agent home directories,
+refresh scheduler projection, or mutate agent-owned Local Work Trajectory.
+
+## Output Contract
+
+Readiness returns JSON:
+
+```json
+{
+  "executable": "codex",
+  "executable_resolved": "...",
+  "cli_available": true,
+  "ready": true,
+  "error_kind": "",
+  "raw_error_type": "",
+  "summary": ""
+}
+```
+
+Missing CLI returns:
+
+```json
+{
+  "executable": "codex",
+  "executable_resolved": "",
+  "cli_available": false,
+  "ready": false,
+  "error_kind": "cli_unavailable",
+  "raw_error_type": "MissingExecutable",
+  "summary": "Codex CLI executable is unavailable: codex"
+}
+```

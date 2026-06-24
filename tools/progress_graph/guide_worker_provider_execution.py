@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from src.runtime.orchestration import (
+    CodexCliClient,
+    CodexCliClientConfig,
+    CodexCliProcessClient,
     GuideWorkerInstruction,
     GuideWorkerLocalOrchestrationRequest,
     GuideWorkerLocalOrchestrationResult,
@@ -63,6 +66,7 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     planner_worker_runtime_provider: str = ""
     providers: tuple[RuntimeProviderKind, ...] = ("qoder",)
     qoder_client_config: QoderSDKQueryClientConfig = field(default_factory=QoderSDKQueryClientConfig)
+    codex_cli_client_config: CodexCliClientConfig = field(default_factory=CodexCliClientConfig)
     host_invocation_id: str = "host-owned-guide-worker-provider-execution"
     requested_by: str = "host:guide-worker-provider-execution"
     reason: str = "host-owned guide-worker provider execution"
@@ -71,6 +75,7 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     approved_at: str = ""
     grant_scope: str = "guide-worker-provider-execution"
     allow_network: bool = True
+    allow_process_spawn: bool = True
     max_parallel_lanes: int = 2
     max_waves: int = 1
     wave_execution_mode: str = "threaded"
@@ -183,6 +188,7 @@ def run_host_owned_guide_worker_provider_execution(
     *,
     config: HostOwnedGuideWorkerProviderExecutionConfig | None = None,
     qoder_query_client: QoderQueryClient | None = None,
+    codex_cli_client: CodexCliClient | None = None,
     sdk_importer: Callable[[str], Any] | None = None,
     environment: Mapping[str, str] | None = None,
     artifact_store: InMemoryArtifactVersionStore | None = None,
@@ -192,14 +198,17 @@ def run_host_owned_guide_worker_provider_execution(
     active_config = config or HostOwnedGuideWorkerProviderExecutionConfig()
     providers = _normalize_providers(active_config.providers)
     _validate_requested_worker_providers(active_config, providers)
-    client = qoder_query_client
-    if "qoder" in providers and client is None:
-        client = QoderSDKQueryClient(
+    qoder_client = qoder_query_client
+    if "qoder" in providers and qoder_client is None:
+        qoder_client = QoderSDKQueryClient(
             active_config.qoder_client_config,
             sdk_importer=sdk_importer,
             environment=environment if environment is not None else os.environ,
         )
-    _validate_real_runtime_client_ready(providers, client)
+    codex_client = codex_cli_client
+    if "codex" in providers and codex_client is None:
+        codex_client = CodexCliProcessClient(active_config.codex_cli_client_config)
+    _validate_real_runtime_client_ready(providers, qoder_client, codex_client)
 
     host_invocation = _host_invocation(active_config, providers)
     runtime_config = _runtime_config(active_config, providers, host_invocation)
@@ -213,7 +222,8 @@ def run_host_owned_guide_worker_provider_execution(
     wiring = build_runtime_registry_from_config(
         runtime_config,
         artifact_store=store,
-        qoder_query_client=client,
+        qoder_query_client=qoder_client,
+        codex_cli_client=codex_client,
     )
     request = GuideWorkerLocalOrchestrationRequest(
         artifact_store_path=_project_path(project_root, active_config.artifact_store_path),
@@ -301,9 +311,9 @@ def _runtime_config(
     host_invocation: RuntimeHostInvocation,
 ) -> RuntimeRegistryWiringConfig:
     approved_at = config.approved_at or config.timestamp
-    grant = None
+    qoder_grant = None
     if "qoder" in providers:
-        grant = RuntimeProviderPermissionGrant(
+        qoder_grant = RuntimeProviderPermissionGrant(
             grant_id=config.grant_id,
             provider="qoder",
             approved_by=config.approved_by,
@@ -312,11 +322,23 @@ def _runtime_config(
             allow_sdk_client=True,
             allow_network=config.allow_network,
         )
+    codex_grant = None
+    if "codex" in providers:
+        codex_grant = RuntimeProviderPermissionGrant(
+            grant_id=config.grant_id,
+            provider="codex",
+            approved_by=config.approved_by,
+            approved_at=approved_at,
+            scope=config.grant_scope,
+            allow_process_spawn=config.allow_process_spawn,
+            allow_network=config.allow_network,
+        )
     return RuntimeRegistryWiringConfig(
         providers=providers,
         timestamp=config.timestamp,
         host_invocation=host_invocation,
-        qoder_permission_grant=grant,
+        qoder_permission_grant=qoder_grant,
+        codex_permission_grant=codex_grant,
     )
 
 
@@ -338,7 +360,7 @@ def _normalize_providers(
 ) -> tuple[RuntimeProviderKind, ...]:
     normalized: list[RuntimeProviderKind] = []
     for provider in providers:
-        if provider not in {"fake", "qoder"}:
+        if provider not in {"fake", "qoder", "codex"}:
             raise ValueError(f"unsupported guide-worker provider: {provider!r}")
         if provider not in normalized:
             normalized.append(provider)
@@ -428,21 +450,26 @@ def _effective_worker_instructions(
         return config.worker_instructions
     if config.planning_request.lane_specs:
         return ()
-    return _default_worker_instructions()
+    default_provider = config.providers[0] if len(config.providers) == 1 else "qoder"
+    return _default_worker_instructions(default_provider)
 
 
-def _default_worker_instructions() -> tuple[GuideWorkerInstruction, ...]:
+def _default_worker_instructions(
+    provider: RuntimeProviderKind = "qoder",
+) -> tuple[GuideWorkerInstruction, ...]:
+    label = "Codex CLI" if provider == "codex" else "Qoder"
+    provider_slug = "codex" if provider == "codex" else "qoder"
     return (
         GuideWorkerInstruction(
             task_id="task/guide-worker-provider/client",
-            title="Qoder client worker",
+            title=f"{label} client worker",
             instruction=(
                 "Act as the client-lane worker. Complete the bounded "
                 "guide-assigned client task and return compact result evidence."
             ),
             lane_id="lane:client",
-            worker_agent_id="agent:qoder-client-worker",
-            worker_runtime_provider="qoder",
+            worker_agent_id=f"agent:{provider_slug}-client-worker",
+            worker_runtime_provider=provider,
             acceptance=(
                 "Return a compact result summary.",
                 "Do not include secrets or raw credential material.",
@@ -451,14 +478,14 @@ def _default_worker_instructions() -> tuple[GuideWorkerInstruction, ...]:
         ),
         GuideWorkerInstruction(
             task_id="task/guide-worker-provider/server",
-            title="Qoder server worker",
+            title=f"{label} server worker",
             instruction=(
                 "Act as the server-lane worker. Complete the bounded "
                 "guide-assigned server task and return compact result evidence."
             ),
             lane_id="lane:server",
-            worker_agent_id="agent:qoder-server-worker",
-            worker_runtime_provider="qoder",
+            worker_agent_id=f"agent:{provider_slug}-server-worker",
+            worker_runtime_provider=provider,
             acceptance=(
                 "Return a compact result summary.",
                 "Do not include secrets or raw credential material.",
@@ -471,12 +498,16 @@ def _default_worker_instructions() -> tuple[GuideWorkerInstruction, ...]:
 def _validate_real_runtime_client_ready(
     providers: tuple[RuntimeProviderKind, ...],
     qoder_query_client: QoderQueryClient | None,
+    codex_cli_client: CodexCliClient | None,
 ) -> None:
-    if "qoder" not in providers or qoder_query_client is None:
-        return
-    validator = getattr(qoder_query_client, "validate_host_ready", None)
-    if callable(validator):
-        validator()
+    if "qoder" in providers and qoder_query_client is not None:
+        validator = getattr(qoder_query_client, "validate_host_ready", None)
+        if callable(validator):
+            validator()
+    if "codex" in providers and codex_cli_client is not None:
+        validator = getattr(codex_cli_client, "validate_host_ready", None)
+        if callable(validator):
+            validator()
 
 
 def _seed_in_memory_store_from_json(
@@ -558,6 +589,9 @@ def _evidence_metadata(
         "runner": "host-owned-guide-worker-provider-execution",
         "sdk_module_name": config.qoder_client_config.sdk_module_name,
         "permission_request_policy": config.qoder_client_config.permission_request_policy,
+        "codex_cli_executable": config.codex_cli_client_config.executable,
+        "codex_cli_sandbox": config.codex_cli_client_config.sandbox,
+        "codex_cli_ask_for_approval": config.codex_cli_client_config.ask_for_approval,
         "planner_worker_runtime_provider": config.planner_worker_runtime_provider,
     }
     metadata.update(dict(config.evidence_metadata))

@@ -19,6 +19,10 @@ from src.runtime.orchestration import (
     AgentHomeRegistration,
     AgentScratchSpace,
     ArtifactDelta,
+    CodexCliAgentRuntimeAdapter,
+    CodexCliRequest,
+    CodexCliResult,
+    CodexCliRuntimeError,
     CleanupReceipt,
     ContextScope,
     EditLeaseLifecycleRecord,
@@ -144,6 +148,7 @@ from src.runtime.orchestration import (
     part_types,
     publish_supervisor_storage_binding_artifact_from_evidence,
     qoder_runtime_capabilities,
+    codex_cli_runtime_capabilities,
     qoder_query_result_from_response,
     project_group_item_delivery_signal,
     project_group_item_surface,
@@ -1757,6 +1762,18 @@ def test_qoder_capability_mapping_is_runtime_not_scheduler() -> None:
     assert capabilities.supports_transcript_inspection is True
 
 
+def test_codex_cli_capability_mapping_is_runtime_not_scheduler() -> None:
+    capabilities = codex_cli_runtime_capabilities()
+
+    assert capabilities.provider == "codex"
+    assert capabilities.supports_sessions is True
+    assert capabilities.supports_streaming_events is True
+    assert capabilities.supports_subagents is False
+    assert capabilities.supports_mcp is True
+    assert capabilities.supports_permission_callback is True
+    assert capabilities.supports_transcript_inspection is False
+
+
 def test_runtime_adapter_registry_registers_and_resolves_by_provider() -> None:
     runtime = FakeAgentRuntimeAdapter(artifact_store=InMemoryArtifactVersionStore())
     registry = AgentRuntimeAdapterRegistry()
@@ -1931,6 +1948,77 @@ def test_runtime_registry_wiring_can_register_authorized_mock_qoder_client() -> 
     assert result.config.qoder_permission_grant.grant_id == "grant-qoder"
 
 
+def test_runtime_registry_wiring_requires_explicit_codex_permission() -> None:
+    with pytest.raises(ValueError, match="RuntimeProviderPermissionGrant"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(providers=("codex",))
+        )
+
+
+def test_runtime_registry_wiring_validates_codex_permission_grant() -> None:
+    with pytest.raises(ValueError, match="allow_process_spawn=True"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(
+                providers=("codex",),
+                codex_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-codex",
+                    provider="codex",
+                    approved_by="host:test",
+                    approved_at="2026-06-24T22:10:00+08:00",
+                ),
+            )
+        )
+
+
+def test_runtime_registry_wiring_requires_injected_codex_client() -> None:
+    with pytest.raises(ValueError, match="injected CodexCliClient"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(
+                providers=("codex",),
+                codex_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-codex",
+                    provider="codex",
+                    approved_by="host:test",
+                    approved_at="2026-06-24T22:10:00+08:00",
+                    allow_process_spawn=True,
+                ),
+            )
+        )
+
+
+def test_runtime_registry_wiring_can_register_authorized_mock_codex_client() -> None:
+    client = _RecordingCodexCliClient(CodexCliResult(summary="configured codex"))
+    result = build_runtime_registry_from_config(
+        RuntimeRegistryWiringConfig(
+            providers=("fake", "codex", "fake"),
+            timestamp="2026-06-24T22:12:00+08:00",
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id="host-run-codex",
+                requested_providers=("fake", "codex"),
+                requested_by="host:test",
+                reason="mock codex registry wiring test",
+            ),
+            codex_permission_grant=RuntimeProviderPermissionGrant(
+                grant_id="grant-codex",
+                provider="codex",
+                approved_by="host:test",
+                approved_at="2026-06-24T22:10:00+08:00",
+                scope="scheduler-smoke",
+                allow_process_spawn=True,
+                allow_network=False,
+            ),
+        ),
+        codex_cli_client=client,
+    )
+
+    assert result.registered_providers == ("codex", "fake")
+    assert result.registry.has("fake") is True
+    assert result.registry.has("codex") is True
+    assert result.config.codex_permission_grant is not None
+    assert result.config.codex_permission_grant.grant_id == "grant-codex"
+
+
 def test_runtime_registry_wiring_rejects_empty_provider_set() -> None:
     with pytest.raises(ValueError, match="requires at least one provider"):
         build_runtime_registry_from_config(RuntimeRegistryWiringConfig(providers=()))
@@ -1996,6 +2084,68 @@ def test_qoder_adapter_uses_mock_query_client_and_returns_runtime_result() -> No
     assert [event.event_kind for event in result.events] == ["task_started", "task_completed"]
     assert result.permission_requests[0].request_kind == "artifact_write"
     assert result.permission_requests[0].target == "src/app.py"
+
+
+def test_codex_cli_adapter_uses_mock_client_and_returns_runtime_result() -> None:
+    client = _RecordingCodexCliClient(
+        CodexCliResult(
+            summary="Codex completed bounded task.",
+            output_text="Codex result body.",
+            artifact_delta=ArtifactDelta(
+                artifact_id="task-c:artifact",
+                version="v2",
+                summary="changed generated files",
+                changed_refs=(
+                    ExchangeReference(ref_kind="file", ref_id="src/app.py", path="src/app.py"),
+                ),
+            ),
+            permission_requests=(
+                PermissionRequest(
+                    request_id="perm-1",
+                    request_kind="shell",
+                    run_id="pending",
+                    summary="Codex wants to run npm test",
+                    target="npm test",
+                ),
+            ),
+            metadata={"turns": 2},
+        )
+    )
+    adapter = CodexCliAgentRuntimeAdapter(
+        cli_client=client,
+        timestamp="2026-06-24T22:20:00+08:00",
+    )
+    agent = AgentSpec(
+        agent_id="agent:codex",
+        runtime_provider="codex",
+        model="gpt-5-codex",
+        tools=("read", "edit"),
+    )
+    session = adapter.start_session(agent)
+    task = TaskSpec(
+        task_id="task-c",
+        title="Codex task",
+        instruction="Run through mock codex client.",
+        output_artifact_id="task-c:result",
+    )
+
+    result = adapter.run_task(session, task)
+
+    assert adapter.capabilities().provider == "codex"
+    assert client.requests[0].agent == agent
+    assert client.requests[0].task == task
+    assert client.requests[0].session == session
+    assert client.requests[0].instruction == "Run through mock codex client."
+    assert client.requests[0].output_artifact_id == "task-c:result"
+    assert result.run_handle.run_id == "codex-run-1"
+    assert result.output_artifact.artifact_id == "task-c:artifact"
+    assert result.output_artifact.version == "v2"
+    assert result.artifact_delta.summary == "changed generated files"
+    assert part_types(result.output_artifact) == ("text", "structured", "artifact_delta")
+    assert result.output_artifact.parts[1].data["metadata"] == {"turns": 2}
+    assert [event.event_kind for event in result.events] == ["task_started", "task_completed"]
+    assert result.permission_requests[0].request_kind == "shell"
+    assert result.permission_requests[0].target == "npm test"
 
 
 def test_scheduler_runs_qoder_adapter_through_registry_with_mock_client(tmp_path) -> None:
@@ -11771,6 +11921,16 @@ class _RecordingQoderClient:
         self.requests: tuple[QoderQueryRequest, ...] = ()
 
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
+        self.requests = self.requests + (request,)
+        return self.result
+
+
+class _RecordingCodexCliClient:
+    def __init__(self, result: CodexCliResult) -> None:
+        self.result = result
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
         self.requests = self.requests + (request,)
         return self.result
 

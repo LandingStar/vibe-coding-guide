@@ -17,13 +17,23 @@ from .exchange_store import (
     JsonlCoordinationEventLog,
 )
 
-RuntimeProviderKind = Literal["fake", "qoder"]
+RuntimeProviderKind = Literal["fake", "qoder", "codex"]
 QoderRuntimeErrorKind = Literal[
     "sdk_unavailable",
     "authentication_failed",
     "permission_denied",
     "timeout",
     "tool_execution_failed",
+    "invalid_response",
+    "policy_cancelled",
+    "unknown",
+]
+CodexCliRuntimeErrorKind = Literal[
+    "cli_unavailable",
+    "authentication_failed",
+    "permission_denied",
+    "timeout",
+    "process_failed",
     "invalid_response",
     "policy_cancelled",
     "unknown",
@@ -168,6 +178,30 @@ class QoderQueryResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CodexCliRequest:
+    """Stable request object passed to a Codex CLI client."""
+
+    agent: AgentSpec
+    task: TaskSpec
+    session: SessionHandle
+    instruction: str
+    acceptance: tuple[str, ...] = ()
+    input_artifact_refs: tuple[ExchangeReference, ...] = ()
+    output_artifact_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CodexCliResult:
+    """Minimal normalized result returned by a Codex CLI client seam."""
+
+    summary: str
+    output_text: str = ""
+    artifact_delta: ArtifactDelta | None = None
+    permission_requests: tuple[PermissionRequest, ...] = ()
+    metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class QoderRuntimeError(Exception):
     """Stable qoder runtime error normalized before scheduler handling."""
 
@@ -203,6 +237,60 @@ class QoderRuntimeError(Exception):
     def __str__(self) -> str:
         parts = [
             f"qoder runtime error [{self.error_kind}]",
+            self.summary,
+        ]
+        context = []
+        if self.task_id:
+            context.append(f"task_id={self.task_id}")
+        if self.session_id:
+            context.append(f"session_id={self.session_id}")
+        if self.run_id:
+            context.append(f"run_id={self.run_id}")
+        if self.raw_error_type:
+            context.append(f"raw_error_type={self.raw_error_type}")
+        if context:
+            parts.append(f"({', '.join(context)})")
+        if self.retryable:
+            parts.append("retryable=true")
+        return ": ".join(parts)
+
+
+@dataclass(frozen=True, slots=True)
+class CodexCliRuntimeError(Exception):
+    """Stable Codex CLI runtime error normalized before scheduler handling."""
+
+    error_kind: CodexCliRuntimeErrorKind
+    summary: str
+    provider: RuntimeProviderKind = "codex"
+    task_id: str = ""
+    session_id: str = ""
+    run_id: str = ""
+    retryable: bool = False
+    raw_error_type: str = ""
+
+    def with_context(
+        self,
+        *,
+        task_id: str = "",
+        session_id: str = "",
+        run_id: str = "",
+    ) -> "CodexCliRuntimeError":
+        """Return this error with missing runtime context filled in."""
+
+        return CodexCliRuntimeError(
+            error_kind=self.error_kind,
+            summary=self.summary,
+            provider=self.provider,
+            task_id=self.task_id or task_id,
+            session_id=self.session_id or session_id,
+            run_id=self.run_id or run_id,
+            retryable=self.retryable,
+            raw_error_type=self.raw_error_type,
+        )
+
+    def __str__(self) -> str:
+        parts = [
+            f"codex cli runtime error [{self.error_kind}]",
             self.summary,
         ]
         context = []
@@ -269,6 +357,18 @@ class QoderQueryClient(Protocol):
 
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
         """Run one bounded Qoder query and return a normalized result."""
+        ...
+
+
+class CodexCliClient(Protocol):
+    """Mockable seam for Codex CLI execution.
+
+    A process-backed wrapper should live behind this protocol. The adapter must
+    not spawn Codex directly; host wiring owns process construction authority.
+    """
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        """Run one bounded Codex CLI task and return a normalized result."""
         ...
 
 
@@ -661,6 +761,152 @@ class QoderAgentRuntimeAdapter:
         )
 
 
+class CodexCliAgentRuntimeAdapter:
+    """Codex CLI runtime adapter skeleton backed by a mockable CLI client."""
+
+    def __init__(
+        self,
+        *,
+        cli_client: CodexCliClient,
+        timestamp: str = "1970-01-01T00:00:00+00:00",
+    ) -> None:
+        self.cli_client = cli_client
+        self.timestamp = timestamp
+        self._session_counter = 0
+        self._run_counter = 0
+        self._sessions: dict[str, AgentSpec] = {}
+
+    def capabilities(self) -> RuntimeCapabilities:
+        return codex_cli_runtime_capabilities()
+
+    def start_session(self, agent: AgentSpec) -> SessionHandle:
+        if agent.runtime_provider != "codex":
+            raise ValueError("CodexCliAgentRuntimeAdapter requires agent.runtime_provider='codex'")
+        self._session_counter += 1
+        session = SessionHandle(
+            session_id=f"codex-session-{self._session_counter}",
+            provider="codex",
+            agent_id=agent.agent_id,
+        )
+        self._sessions[session.session_id] = agent
+        return session
+
+    def run_task(self, session: SessionHandle, task: TaskSpec) -> RuntimeRunResult:
+        if session.provider != "codex":
+            raise ValueError("CodexCliAgentRuntimeAdapter can only run codex sessions")
+        agent = self._sessions.get(session.session_id)
+        if agent is None:
+            raise ValueError(f"unknown Codex CLI runtime session: {session.session_id!r}")
+
+        self._run_counter += 1
+        run = RunHandle(
+            run_id=f"codex-run-{self._run_counter}",
+            session_id=session.session_id,
+            task_id=task.task_id,
+        )
+        started = RunEvent(
+            event_id=f"{run.run_id}:started",
+            event_kind="task_started",
+            run_id=run.run_id,
+            task_id=task.task_id,
+            timestamp=self.timestamp,
+            summary=f"Started Codex CLI task {task.task_id}.",
+        )
+        request = CodexCliRequest(
+            agent=agent,
+            task=task,
+            session=session,
+            instruction=task.instruction,
+            acceptance=task.acceptance,
+            input_artifact_refs=task.input_artifact_refs,
+            output_artifact_id=task.output_artifact_id,
+        )
+        try:
+            cli_result = self.cli_client.exec(request)
+        except CodexCliRuntimeError as exc:
+            raise exc.with_context(
+                task_id=task.task_id,
+                session_id=session.session_id,
+                run_id=run.run_id,
+            ) from exc
+        except Exception as exc:
+            raise CodexCliRuntimeError(
+                error_kind="unknown",
+                summary=str(exc) or "Codex CLI client failed with an unknown error.",
+                task_id=task.task_id,
+                session_id=session.session_id,
+                run_id=run.run_id,
+                raw_error_type=type(exc).__name__,
+            ) from exc
+        output_id = task.output_artifact_id or f"{task.task_id}:codex-result"
+        output_version = "v1"
+        cli_summary = cli_result.summary or f"Codex CLI completed task {task.task_id}."
+        raw_delta = cli_result.artifact_delta
+        delta = ArtifactDelta(
+            artifact_id=(raw_delta.artifact_id if raw_delta and raw_delta.artifact_id else output_id),
+            version=(raw_delta.version if raw_delta and raw_delta.version else output_version),
+            summary=(raw_delta.summary if raw_delta and raw_delta.summary else cli_summary),
+            changed_refs=raw_delta.changed_refs if raw_delta else (),
+        )
+        output = ExchangeArtifact(
+            artifact_id=delta.artifact_id,
+            kind="result",
+            intent="inform",
+            producer=session.agent_id,
+            scope=task.scope,
+            created_at=self.timestamp,
+            version=delta.version,
+            parts=(
+                ExchangePayloadPart(
+                    part_type="text",
+                    text=cli_result.output_text or cli_summary,
+                ),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "task_id": task.task_id,
+                        "runtime_provider": "codex",
+                        "summary": cli_summary,
+                        "metadata": cli_result.metadata,
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="artifact_delta",
+                    data={
+                        "summary": delta.summary,
+                        "changed_refs": [
+                            {
+                                "ref_kind": ref.ref_kind,
+                                "ref_id": ref.ref_id,
+                                "version": ref.version,
+                                "path": ref.path,
+                                "label": ref.label,
+                            }
+                            for ref in delta.changed_refs
+                        ],
+                    },
+                ),
+            ),
+        )
+        completed = RunEvent(
+            event_id=f"{run.run_id}:completed",
+            event_kind="task_completed",
+            run_id=run.run_id,
+            task_id=task.task_id,
+            timestamp=self.timestamp,
+            artifact_id=output.artifact_id,
+            artifact_version=output.version,
+            summary=cli_summary,
+        )
+        return RuntimeRunResult(
+            run_handle=run,
+            output_artifact=output,
+            artifact_delta=delta,
+            events=(started, completed),
+            permission_requests=cli_result.permission_requests,
+        )
+
+
 def qoder_runtime_capabilities() -> RuntimeCapabilities:
     """Return the currently expected Qoder runtime capability mapping."""
 
@@ -672,6 +918,20 @@ def qoder_runtime_capabilities() -> RuntimeCapabilities:
         supports_mcp=True,
         supports_permission_callback=True,
         supports_transcript_inspection=True,
+    )
+
+
+def codex_cli_runtime_capabilities() -> RuntimeCapabilities:
+    """Return the currently expected Codex CLI runtime capability mapping."""
+
+    return RuntimeCapabilities(
+        provider="codex",
+        supports_sessions=True,
+        supports_streaming_events=True,
+        supports_subagents=False,
+        supports_mcp=True,
+        supports_permission_callback=True,
+        supports_transcript_inspection=False,
     )
 
 

@@ -197,6 +197,12 @@ from .runtime_adapter import (
     AgentRuntimeAdapterRegistry,
     AgentSpec,
     ArtifactDelta,
+    CodexCliAgentRuntimeAdapter,
+    CodexCliClient,
+    CodexCliRequest,
+    CodexCliResult,
+    CodexCliRuntimeError,
+    CodexCliRuntimeErrorKind,
     FakeAgentRuntimeAdapter,
     PermissionRequest,
     PermissionRequestKind,
@@ -214,8 +220,16 @@ from .runtime_adapter import (
     RunHandle,
     SessionHandle,
     TaskSpec,
+    codex_cli_runtime_capabilities,
     qoder_runtime_capabilities,
     qoder_query_result_from_response,
+)
+from .codex_cli_client import (
+    CodexCliApprovalPolicy,
+    CodexCliClientConfig,
+    CodexCliHostReadinessReport,
+    CodexCliProcessClient,
+    CodexCliSandboxMode,
 )
 from .qoder_sdk_client import (
     DEFAULT_QODER_TOKEN_ENV,

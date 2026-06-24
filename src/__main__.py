@@ -6,6 +6,7 @@ Installed entry point:
     doc-based-coding validate                  — Check project constraints
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
+    doc-based-coding codex readiness           — Check Codex CLI host readiness
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
     doc-based-coding qoder smoke               — Run host-owned Qoder smoke helper
     doc-based-coding scheduler <subcommand>    — Scheduler operator helpers
@@ -274,6 +275,321 @@ _QODER_GUIDE_WORKER_SMOKE_USAGE = (
     "[--max-parallel-lanes N] [--max-waves N] "
     "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
 )
+
+_CODEX_READINESS_USAGE = (
+    "Usage: doc-based-coding codex readiness [--executable PATH]"
+)
+
+_CODEX_GUIDE_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding codex guide-worker-smoke "
+    "[--executable PATH] [--cwd PATH] [--model NAME] "
+    "[--sandbox read-only|workspace-write|danger-full-access] "
+    "[--ask-for-approval untrusted|on-request|never] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--evidence-id ID] [--evidence-path PATH] "
+    "[--host-invocation-id ID] [--reason TEXT] "
+    "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT]] "
+    "[--max-parallel-lanes N] [--max-waves N] "
+    "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
+)
+
+
+def cmd_codex(args: list[str]) -> int:
+    """Codex CLI host-runtime helper subcommands."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding codex <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  readiness [--executable PATH]\n"
+            "      Check Codex CLI host readiness without running a task\n"
+            "  guide-worker-smoke [--executable PATH] [--cwd PATH] [--model NAME]\n"
+            "      Run host-owned Codex CLI guide-worker lane-wave execution\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "readiness":
+        return cmd_codex_readiness(args[1:])
+    if sub == "guide-worker-smoke":
+        return cmd_codex_guide_worker_smoke(args[1:])
+
+    print(f"Unknown codex subcommand: {sub}", file=sys.stderr)
+    print("Usage: doc-based-coding codex <readiness|guide-worker-smoke> [args]", file=sys.stderr)
+    return 1
+
+
+def cmd_codex_readiness(args: list[str]) -> int:
+    """Check Codex CLI host readiness without executing a task."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _CODEX_READINESS_USAGE + "\n\n"
+            "This command checks whether Codex CLI is available to the host "
+            "runtime. It prints only credential-safe executable information; "
+            "it does not run providers, write scheduler state, write evidence, "
+            "or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    executable = "codex"
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--executable":
+            if i + 1 >= len(args):
+                print(_CODEX_READINESS_USAGE, file=sys.stderr)
+                return 1
+            executable = args[i + 1]
+            i += 2
+            continue
+        print(f"Unknown codex readiness option: {arg}", file=sys.stderr)
+        print(_CODEX_READINESS_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import CodexCliClientConfig, CodexCliProcessClient
+
+        report = CodexCliProcessClient(
+            CodexCliClientConfig(executable=executable)
+        ).host_readiness_report()
+    except Exception as e:
+        return _handle_error("Error checking Codex CLI readiness", e, category="codex_readiness_failed")
+
+    _print_json(report.to_json_dict())
+    return 0
+
+
+def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
+    """Run host-owned Codex CLI guide-worker provider execution through CLI."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _CODEX_GUIDE_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned live-provider guide-worker smoke "
+            "surface for Codex CLI. It delegates to "
+            "run_host_owned_guide_worker_provider_execution(), uses explicit "
+            "host-authorized adapter wiring and a Codex process-spawn grant. "
+            "It is not an MCP real-provider execution surface, does not persist "
+            "raw transcripts, and does not mutate agent-owned Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    executable = "codex"
+    cwd = ""
+    model = ""
+    sandbox = "workspace-write"
+    ask_for_approval = "never"
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    host_invocation_id = ""
+    reason = ""
+    guide_task_title = ""
+    guide_task_summary = ""
+    planner_lane_specs: list[str] = []
+    max_parallel_lanes = 2
+    max_waves = 1
+    wave_execution_mode = "threaded"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--executable",
+            "--cwd",
+            "--model",
+            "--sandbox",
+            "--ask-for-approval",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--host-invocation-id",
+            "--reason",
+            "--guide-task-title",
+            "--guide-task-summary",
+            "--planner-lane",
+            "--max-parallel-lanes",
+            "--max-waves",
+            "--wave-execution-mode",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--executable":
+                executable = value
+            elif arg == "--cwd":
+                cwd = value
+            elif arg == "--model":
+                model = value
+            elif arg == "--sandbox":
+                sandbox = value
+            elif arg == "--ask-for-approval":
+                ask_for_approval = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--host-invocation-id":
+                host_invocation_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--guide-task-title":
+                guide_task_title = value
+            elif arg == "--guide-task-summary":
+                guide_task_summary = value
+            elif arg == "--planner-lane":
+                planner_lane_specs.append(value)
+            elif arg == "--max-parallel-lanes":
+                try:
+                    max_parallel_lanes = int(value)
+                except ValueError:
+                    print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-parallel-lanes must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-waves":
+                try:
+                    max_waves = int(value)
+                except ValueError:
+                    print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-waves must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--wave-execution-mode":
+                wave_execution_mode = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown codex guide-worker-smoke option: {arg}", file=sys.stderr)
+        print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+        return 1
+
+    if sandbox not in {"read-only", "workspace-write", "danger-full-access"}:
+        print(
+            "codex guide-worker-smoke --sandbox must be read-only, workspace-write, or danger-full-access",
+            file=sys.stderr,
+        )
+        return 1
+    if ask_for_approval not in {"untrusted", "on-request", "never"}:
+        print(
+            "codex guide-worker-smoke --ask-for-approval must be untrusted, on-request, or never",
+            file=sys.stderr,
+        )
+        return 1
+    if max_parallel_lanes < 1:
+        print("codex guide-worker-smoke --max-parallel-lanes must be positive", file=sys.stderr)
+        return 1
+    if max_waves < 1:
+        print("codex guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if wave_execution_mode not in {"serial", "threaded"}:
+        print(
+            "codex guide-worker-smoke --wave-execution-mode must be serial or threaded",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            CodexCliClientConfig,
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
+        )
+        from tools.progress_graph import (
+            HostOwnedGuideWorkerProviderExecutionConfig,
+            run_host_owned_guide_worker_provider_execution,
+        )
+
+        codex_config = CodexCliClientConfig(
+            executable=executable,
+            cwd=cwd,
+            model=model,
+            sandbox=sandbox,  # type: ignore[arg-type]
+            ask_for_approval=ask_for_approval,  # type: ignore[arg-type]
+        )
+        planning_request = GuideWorkerPlanningRequest(
+            task_title=guide_task_title,
+            task_summary=guide_task_summary,
+            lane_specs=tuple(
+                _parse_guide_worker_planner_lane_spec(
+                    item,
+                    GuideWorkerPlannerLaneSpec,
+                )
+                for item in planner_lane_specs
+            ),
+        )
+        config_kwargs = {
+            "evidence_id": evidence_id or "codex-guide-worker-provider-execution",
+            "timestamp": timestamp,
+            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "admission_ledger_path": (
+                admission_ledger_path
+                or ".codex/orchestration/exchange-artifact-admissions.json"
+            ),
+            "snapshot_path": (
+                snapshot_path
+                or ".codex/scheduler/codex-guide-worker-provider-execution-state.json"
+            ),
+            "event_log_path": (
+                event_log_path
+                or ".codex/scheduler/codex-guide-worker-provider-execution-events.jsonl"
+            ),
+            "evidence_output_path": evidence_path or None,
+            "providers": ("codex",),
+            "codex_cli_client_config": codex_config,
+            "host_invocation_id": (
+                host_invocation_id
+                or "host-owned-codex-guide-worker-provider-execution-cli"
+            ),
+            "requested_by": "cli:codex-guide-worker-smoke",
+            "reason": reason or "host-owned Codex CLI guide-worker smoke run from CLI",
+            "grant_id": (
+                f"grant-{host_invocation_id}"
+                if host_invocation_id
+                else "grant-host-owned-codex-guide-worker-provider-execution-cli"
+            ),
+            "approved_by": "cli:codex-guide-worker-smoke",
+            "approved_at": timestamp,
+            "planning_request": planning_request,
+            "planner_worker_runtime_provider": "codex",
+            "max_parallel_lanes": max_parallel_lanes,
+            "max_waves": max_waves,
+            "wave_execution_mode": wave_execution_mode,
+        }
+        if planner_lane_specs:
+            config_kwargs["worker_instructions"] = ()
+        config = HostOwnedGuideWorkerProviderExecutionConfig(**config_kwargs)
+        result = run_host_owned_guide_worker_provider_execution(root, config=config)
+    except Exception as e:
+        return _handle_error(
+            "Error running Codex guide-worker smoke",
+            e,
+            category="codex_guide_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.orchestration.ok else 1
 
 
 def cmd_qoder(args: list[str]) -> int:
@@ -5430,6 +5746,7 @@ _COMMANDS = {
     "validate": cmd_validate,
     "check": cmd_check,
     "resources": cmd_resources,
+    "codex": cmd_codex,
     "qoder": cmd_qoder,
     "scheduler": cmd_scheduler,
     "generate-instructions": cmd_generate_instructions,
@@ -5456,6 +5773,7 @@ def main() -> int:
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
             "  resources <sub>         Inspect MCP resources (list/read)\n"
+            "  codex <sub>             Codex CLI host readiness helpers\n"
             "  qoder <sub>             Qoder host readiness helpers\n"
             "  scheduler <sub>         Scheduler operator helpers\n"
             "  generate-instructions   Generate agent instructions segment\n"

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T12:26:52.447894+00:00",
+  "recorded_at": "2026-06-24T13:12:18.462576+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 3,
-    "event_count": 14,
-    "relation_count": 13,
+    "event_count": 16,
+    "relation_count": 15,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -175,6 +175,22 @@
         "completed_at": "2026-06-24T06:03:14.972582+00:00"
       }
     },
+    "event:015": {
+      "id": "event:015",
+      "lane_id": "lane:provider-worker-mapping",
+      "title": "Open Codex CLI worker runtime planning gate",
+      "kind": "decision",
+      "status": "completed",
+      "order": 4,
+      "summary": "Begin Codex CLI worker runtime provider planning and implementation audit.",
+      "metadata": {
+        "created_at": "2026-06-24T12:32:36.508432+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-24T12:32:46.558674+00:00",
+        "activated_at": "2026-06-24T12:32:46.558674+00:00",
+        "completed_at": "2026-06-24T13:06:27.599943+00:00"
+      }
+    },
     "event:005": {
       "id": "event:005",
       "lane_id": "lane:main",
@@ -188,6 +204,20 @@
         "source": "single-line-lifecycle",
         "activated_at": "2026-06-24T06:03:14.972582+00:00",
         "completed_at": "2026-06-24T06:03:26.357209+00:00"
+      }
+    },
+    "event:016": {
+      "id": "event:016",
+      "lane_id": "lane:provider-worker-mapping",
+      "title": "Commit Codex CLI worker runtime provider slice",
+      "kind": "writeback",
+      "status": "completed",
+      "order": 5,
+      "summary": "Stage only the Codex CLI worker runtime provider files, commit the completed provider seam, and leave sandbox/writeback/merge policy as the next gate.",
+      "metadata": {
+        "created_at": "2026-06-24T13:11:21.278363+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T13:12:18.462576+00:00"
       }
     },
     "event:006": {
@@ -380,6 +410,24 @@
     {
       "source_event_id": "event:013",
       "target_event_id": "event:014",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:011",
+      "target_event_id": "event:015",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:015",
+      "target_event_id": "event:016",
       "kind": "sequence",
       "summary": "",
       "metadata": {

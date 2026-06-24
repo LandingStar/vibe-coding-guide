@@ -8,6 +8,8 @@ from typing import Literal
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from .runtime_adapter import (
     AgentRuntimeAdapterRegistry,
+    CodexCliAgentRuntimeAdapter,
+    CodexCliClient,
     FakeAgentRuntimeAdapter,
     QoderAgentRuntimeAdapter,
     QoderQueryClient,
@@ -68,6 +70,7 @@ class RuntimeRegistryWiringConfig:
     providers: tuple[RuntimeProviderKind, ...] = ("fake",)
     timestamp: str = ""
     qoder_permission_grant: RuntimeProviderPermissionGrant | None = None
+    codex_permission_grant: RuntimeProviderPermissionGrant | None = None
     host_invocation: RuntimeHostInvocation | None = None
 
 
@@ -86,6 +89,7 @@ def build_runtime_registry_from_config(
     artifact_store: InMemoryArtifactVersionStore | None = None,
     coordination_event_log: JsonlCoordinationEventLog | None = None,
     qoder_query_client: QoderQueryClient | None = None,
+    codex_cli_client: CodexCliClient | None = None,
 ) -> RuntimeRegistryWiringResult:
     """Build an instance-scoped runtime registry from explicit host config.
 
@@ -126,6 +130,20 @@ def build_runtime_registry_from_config(
                 )
             )
             continue
+        if provider == "codex":
+            _validate_codex_permission_grant(active_config.codex_permission_grant)
+            if codex_cli_client is None:
+                raise ValueError(
+                    "runtime provider 'codex' requires an injected CodexCliClient; "
+                    "the orchestration layer must not spawn Codex CLI directly"
+                )
+            registry.register(
+                CodexCliAgentRuntimeAdapter(
+                    cli_client=codex_cli_client,
+                    timestamp=active_config.timestamp,
+                )
+            )
+            continue
         raise ValueError(f"unsupported runtime provider in registry wiring: {provider!r}")
 
     return RuntimeRegistryWiringResult(
@@ -140,7 +158,7 @@ def _normalize_providers(
 ) -> tuple[RuntimeProviderKind, ...]:
     normalized: list[RuntimeProviderKind] = []
     for provider in providers:
-        if provider not in ("fake", "qoder"):
+        if provider not in ("fake", "qoder", "codex"):
             raise ValueError(f"unsupported runtime provider in registry wiring: {provider!r}")
         if provider not in normalized:
             normalized.append(provider)
@@ -198,5 +216,31 @@ def _validate_qoder_permission_grant(
         raise ValueError(
             "qoder permission grant must set allow_sdk_client=True before "
             "a QoderQueryClient can be registered"
+        )
+    return grant
+
+
+def _validate_codex_permission_grant(
+    grant: RuntimeProviderPermissionGrant | None,
+) -> RuntimeProviderPermissionGrant:
+    if grant is None:
+        raise ValueError(
+            "runtime provider 'codex' requires a RuntimeProviderPermissionGrant; "
+            "process-spawning runtime providers must be host-authorized before registry construction"
+        )
+    if grant.provider != "codex":
+        raise ValueError(
+            f"runtime provider 'codex' requires a codex permission grant; got {grant.provider!r}"
+        )
+    if not grant.grant_id:
+        raise ValueError("codex permission grant requires grant_id")
+    if not grant.approved_by:
+        raise ValueError("codex permission grant requires approved_by")
+    if not grant.approved_at:
+        raise ValueError("codex permission grant requires approved_at")
+    if not grant.allow_process_spawn:
+        raise ValueError(
+            "codex permission grant must set allow_process_spawn=True before "
+            "a CodexCliClient can be registered"
         )
     return grant

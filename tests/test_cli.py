@@ -93,6 +93,7 @@ def test_help_text_describes_check_as_constraints_only() -> None:
     assert proc.returncode == 0
     assert "check [text]" in proc.stdout
     assert "Constraint/state check only" in proc.stdout
+    assert "codex <sub>" in proc.stdout
     assert "qoder <sub>" in proc.stdout
     assert "scheduler <sub>" in proc.stdout
 
@@ -318,6 +319,74 @@ def test_qoder_readiness_accepts_qodercli_auth_mode() -> None:
     payload = json.loads(proc.stdout)
     assert payload["auth_mode"] == "qodercli"
     assert payload["token_present"] is False
+
+
+def test_codex_readiness_outputs_secret_safe_report() -> None:
+    proc = _run_cli(["codex", "readiness", "--executable", "definitely-missing-dbc-codex"])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["executable"] == "definitely-missing-dbc-codex"
+    assert payload["executable_resolved"] == ""
+    assert payload["cli_available"] is False
+    assert payload["ready"] is False
+    assert payload["error_kind"] == "cli_unavailable"
+    assert "token" not in json.dumps(payload).lower()
+
+
+def test_codex_help_includes_host_owned_guide_worker_smoke() -> None:
+    proc = _run_cli(["codex", "--help"])
+
+    assert proc.returncode == 0
+    assert "readiness" in proc.stdout
+    assert "guide-worker-smoke" in proc.stdout
+    assert "Codex CLI host readiness helpers" in proc.stdout
+
+
+def test_codex_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["codex", "guide-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--sandbox read-only|workspace-write|danger-full-access" in proc.stdout
+    assert "--ask-for-approval untrusted|on-request|never" in proc.stdout
+    assert "--guide-task-title" in proc.stdout
+    assert "--planner-lane" in proc.stdout
+    assert "host-owned live-provider guide-worker smoke surface for Codex CLI" in proc.stdout
+    assert "not an MCP real-provider execution surface" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_codex_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "codex",
+            "guide-worker-smoke",
+            "--executable",
+            "definitely-missing-dbc-codex",
+            "--snapshot-path",
+            ".codex/scheduler/codex-guide-worker-provider-execution-state.json",
+            "--event-log-path",
+            ".codex/scheduler/codex-guide-worker-provider-execution-events.jsonl",
+            "--evidence-path",
+            ".codex/scheduler/evidence/codex-guide-worker-provider.json",
+            "--timestamp",
+            "2026-06-24T22:40:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stdout == ""
+    assert "cli_unavailable" in proc.stderr
+    assert (
+        project / ".codex/scheduler/codex-guide-worker-provider-execution-state.json"
+    ).exists() is False
+    assert (
+        project / ".codex/scheduler/evidence/codex-guide-worker-provider.json"
+    ).exists() is False
 
 
 def test_qoder_help_includes_host_owned_smoke() -> None:

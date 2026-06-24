@@ -2089,7 +2089,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                                         "description": (
                                             "Optional per-task runtime provider. "
                                             "Runtime helper supports host-injected "
-                                            "fake or qoder adapters, but this MCP "
+                                            "fake, qoder, or codex adapters, but this MCP "
                                             "surface still registers only fake unless "
                                             "a separate host-authorized wrapper is used."
                                         ),

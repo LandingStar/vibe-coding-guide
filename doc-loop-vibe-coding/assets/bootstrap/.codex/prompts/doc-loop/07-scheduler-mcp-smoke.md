@@ -146,16 +146,20 @@ Keep the lifecycle split:
    `workerRuntimeProvider` values. It does not run Qoder/opencode/Codex
    providers, refresh projection, persist raw transcripts, create agent
    home/scratch directories, or mutate agent-owned Local Work Trajectory.
-21. `doc-based-coding qoder guide-worker-smoke` and
+21. `doc-based-coding qoder guide-worker-smoke`,
+   `doc-based-coding codex guide-worker-smoke`, and
    `run_host_owned_guide_worker_provider_execution()` are the host-owned
    provider execution wrapper for guide-worker lane waves. They may run Qoder
    worker tasks only through explicit host runtime wiring, a Qoder permission
    grant, and either an injected `QoderQueryClient` or host-constructed
-   `QoderSDKQueryClient`. They write compact guide-worker provider execution
-   evidence after readiness succeeds. They are not MCP real-provider surfaces,
-   do not accept raw token values, do not refresh scheduler projection, do not
-   create agent home/scratch directories, do not persist raw transcripts, and
-   do not mutate agent-owned Local Work Trajectory.
+   `QoderSDKQueryClient`; they may run Codex CLI worker tasks only through
+   explicit host runtime wiring, a Codex process-spawn grant, and either an
+   injected `CodexCliClient` or host-constructed `CodexCliProcessClient`. They
+   write compact guide-worker provider execution evidence after readiness
+   succeeds. They are not MCP real-provider surfaces, do not accept raw token
+   values, do not refresh scheduler projection, do not create agent
+   home/scratch directories, do not persist raw transcripts, and do not mutate
+   agent-owned Local Work Trajectory.
 12. `agentExchangeReply` and
    `doc-based-coding scheduler reply-exchange-artifact` create one
    exact-version reply ExchangeArtifact with `causality.replies_to`,

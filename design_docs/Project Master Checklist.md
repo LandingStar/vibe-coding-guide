@@ -29,13 +29,13 @@ If repository documents disagree, use this order:
 - Snapshot Date: `2026-06-24`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / planned guide-worker execution closure completed`
-- Current Focus: `Continue guide-worker orchestration toward real sandbox/writeback policy`
+- Current Phase: `Post-v1.0 - Agent orchestration / Codex CLI worker runtime provider completed`
+- Current Focus: `Continue guide-worker orchestration toward sandbox/writeback/merge policy for real worker edits`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-- Latest Completed Slice: `Guide Worker Planned Execution Closure`
+  `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+- Latest Completed Slice: `Codex CLI Worker Runtime Provider`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+  `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,16 +44,17 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-3. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-4. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-5. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-8. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-9. `review/agent-communication-product-closure-2026-06-22.md`
-10. `design_docs/Global Phase Map and Current Position.md`
-11. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+3. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+4. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+5. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+6. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+7. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+9. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+10. `review/agent-communication-product-closure-2026-06-22.md`
+11. `design_docs/Global Phase Map and Current Position.md`
+12. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -293,6 +294,38 @@ Validation:
 - Doc-loop validator passed.
 - `git diff --check` passed with Windows line-ending warnings only.
 - `analyze_changes` returned no impact nodes and no coupling alerts.
+
+### Codex CLI Worker Runtime Provider
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+
+Goal:
+
+- Add Codex CLI as a host-owned worker runtime provider for guide-worker lane
+  waves while keeping MCP live-provider execution fake-only.
+
+Current implementation surface:
+
+- Runtime provider key: `codex`
+- Adapter seam: `CodexCliClient`, `CodexCliAgentRuntimeAdapter`
+- Process wrapper: `CodexCliProcessClient`
+- Host-owned CLI: `doc-based-coding codex readiness`,
+  `doc-based-coding codex guide-worker-smoke`
+
+Validation:
+
+- `py_compile` for runtime/wrapper/CLI/MCP/tests passed.
+- Focused runtime/wrapper/CLI tests passed: `24 passed, 432 deselected`.
+- Focused MCP fake-only/CLI regression passed: `13 passed, 102 deselected`.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+- `analyze_changes` returned no impact nodes; the MCP registration coupling
+  alert was reviewed as non-actionable because only schema wording changed and
+  focused MCP route tests passed.
 
 ### Evidence Publish To Consumer Closure
 

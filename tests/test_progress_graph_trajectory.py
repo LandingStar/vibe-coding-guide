@@ -9,6 +9,8 @@ import pytest
 
 from src.runtime.orchestration import (
     AgentSpec,
+    CodexCliRequest,
+    CodexCliResult,
     AgentRuntimeAdapterRegistry,
     ContextScope,
     GuideWorkerInstruction,
@@ -2433,6 +2435,68 @@ def test_host_owned_guide_worker_provider_execution_rejects_unconfigured_planner
     ).exists() is False
 
 
+def test_host_owned_guide_worker_provider_execution_runs_planned_codex_workers(
+    tmp_path: Path,
+) -> None:
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="planned codex worker complete", output_text="ok")
+    )
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-planned-codex-provider",
+            timestamp="2026-06-24T22:30:00+08:00",
+            providers=("codex",),
+            worker_agent_id="agent:codex-worker",
+            worker_instructions=(),
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="Build maze game",
+                task_summary="Split browser client and server API work.",
+                lane_specs=(
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:client",
+                        label="Client UI",
+                        focus="browser maze controls and CLI-like test hooks",
+                    ),
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:server",
+                        label="Server API",
+                        focus="state API and port boundary",
+                    ),
+                ),
+            ),
+            planner_worker_runtime_provider="codex",
+        ),
+        codex_cli_client=client,
+    )
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["planning"]["source"] == "planning_request"
+    assert payload["runtime_providers"] == ["codex"]
+    assert payload["worker_runtime_providers"] == ["codex"]
+    assert payload["submitted_task_ids"] == [
+        "task/guide-worker-provider-execution/client",
+        "task/guide-worker-provider-execution/server",
+    ]
+    assert [receipt["runtime_provider"] for receipt in payload["worker_execution_receipts"]] == [
+        "codex",
+        "codex",
+    ]
+    assert [receipt["run_id"] for receipt in payload["worker_execution_receipts"]] == [
+        "codex-run-1",
+        "codex-run-2",
+    ]
+    assert len(client.requests) == 2
+    assert [request.task.title for request in client.requests] == [
+        "Client UI",
+        "Server API",
+    ]
+    assert client.requests[0].agent.runtime_provider == "codex"
+    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+
+
 def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Path) -> None:
     bundle = read_trajectory_artifacts_bundle(tmp_path)
 
@@ -3996,6 +4060,16 @@ class _RecordingQoderClient:
         self.requests: tuple[QoderQueryRequest, ...] = ()
 
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
+        self.requests = self.requests + (request,)
+        return self.result
+
+
+class _RecordingCodexCliClient:
+    def __init__(self, result: CodexCliResult) -> None:
+        self.result = result
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
         self.requests = self.requests + (request,)
         return self.result
 

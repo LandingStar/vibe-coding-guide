@@ -940,6 +940,44 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_planner_qoder_pr
     asyncio.run(exercise_server())
 
 
+def test_mcp_scheduler_guide_worker_local_orchestration_rejects_worker_codex_provider(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="schedulerGuideWorkerLocalOrchestration",
+                    arguments={
+                        **_guide_worker_mcp_paths(tmp_path),
+                        "workerInstructions": [
+                            {
+                                "taskId": "task/mcp/codex",
+                                "title": "Codex worker",
+                                "instruction": "Do not run through MCP.",
+                                "laneId": "lane:codex",
+                                "workerRuntimeProvider": "codex",
+                            }
+                        ],
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+
+        assert payload["ok"] is False
+        assert "fake workerRuntimeProvider" in payload["error"]
+        assert "codex" in payload["error"]
+        assert payload["authority_split"]["exchange_store_mutated"] is False
+        assert payload["authority_split"]["scheduler_state_mutated"] is False
+        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+
+    asyncio.run(exercise_server())
+
+
 def test_mcp_scheduler_guide_worker_local_orchestration_explicit_instructions_ignore_planner_provider(
     tmp_path: Path,
 ) -> None:
