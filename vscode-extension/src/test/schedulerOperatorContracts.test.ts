@@ -17,6 +17,12 @@ function assertOnlyExplicitActionFlag(args: string[], expectedFlag: string | nul
   }
 }
 
+function assertNoSharedOperatorWorkflowFlags(args: string[]): void {
+  assert.equal(flagCount(args, '--admit'), 0);
+  assert.equal(flagCount(args, '--run-loop'), 0);
+  assert.equal(flagCount(args, '--refresh-projection'), 0);
+}
+
 function assertSharedWorkflowBase(args: string[]): void {
   assert.deepEqual(args.slice(0, 2), ['scheduler', 'operator-workflow']);
   assert.ok(args.includes('--artifact-store-path'));
@@ -476,4 +482,88 @@ test('scheduler operator daemon-loop sandbox receipt workflow maps bounded flags
   );
   assert.equal(flagCount(args, '--max-runs'), 0);
   assertOnlyExplicitActionFlag(args, null);
+});
+
+test('scheduler operator worker patch review actions map to narrow patch CLI surfaces', () => {
+  const checkAction = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchCheck',
+    candidateId: 'task-a:patch-review@v1:merge',
+    sourceWorkspaceRoot: ' repo ',
+  });
+  const rejectAction = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchReject',
+    candidateId: ' task-a:patch-review@v1:merge ',
+  });
+  const preflightAction = coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchPreflight',
+    patchRefs: [' task-a:patch-review@v1 ', 'task-b:patch-review@v1'],
+    sourceWorkspaceRoot: ' repo ',
+    scratchRoot: ' scratch ',
+  });
+
+  assert.deepEqual(checkAction, {
+    kind: 'workerPatchCheck',
+    candidateId: 'task-a:patch-review@v1:merge',
+    sourceWorkspaceRoot: 'repo',
+  } satisfies SchedulerOperatorAction);
+  assert.deepEqual(rejectAction, {
+    kind: 'workerPatchReject',
+    candidateId: 'task-a:patch-review@v1:merge',
+  } satisfies SchedulerOperatorAction);
+  assert.deepEqual(preflightAction, {
+    kind: 'workerPatchPreflight',
+    patchRefs: ['task-a:patch-review@v1', 'task-b:patch-review@v1'],
+    sourceWorkspaceRoot: 'repo',
+    scratchRoot: 'scratch',
+  } satisfies SchedulerOperatorAction);
+
+  const checkArgs = buildSchedulerOperatorWorkflowArgs(checkAction!);
+  assert.deepEqual(checkArgs.slice(0, 2), ['scheduler', 'review-worker-patch']);
+  assert.ok(checkArgs.includes('--candidate-id'));
+  assert.ok(checkArgs.includes('task-a:patch-review@v1:merge'));
+  assert.ok(checkArgs.includes('--action'));
+  assert.ok(checkArgs.includes('check'));
+  assert.ok(checkArgs.includes('--source-workspace-root'));
+  assert.ok(checkArgs.includes('repo'));
+  assertNoSharedOperatorWorkflowFlags(checkArgs);
+
+  const rejectArgs = buildSchedulerOperatorWorkflowArgs(rejectAction!);
+  assert.deepEqual(rejectArgs.slice(0, 2), ['scheduler', 'review-worker-patch']);
+  assert.ok(rejectArgs.includes('--candidate-id'));
+  assert.ok(rejectArgs.includes('task-a:patch-review@v1:merge'));
+  assert.ok(rejectArgs.includes('--action'));
+  assert.ok(rejectArgs.includes('reject'));
+  assert.equal(flagCount(rejectArgs, '--source-workspace-root'), 0);
+  assertNoSharedOperatorWorkflowFlags(rejectArgs);
+
+  const preflightArgs = buildSchedulerOperatorWorkflowArgs(preflightAction!);
+  assert.deepEqual(preflightArgs.slice(0, 2), ['scheduler', 'preflight-worker-patch-composition']);
+  assert.equal(flagCount(preflightArgs, '--patch-ref'), 2);
+  assert.ok(preflightArgs.includes('task-a:patch-review@v1'));
+  assert.ok(preflightArgs.includes('task-b:patch-review@v1'));
+  assert.ok(preflightArgs.includes('--scratch-root'));
+  assert.ok(preflightArgs.includes('scratch'));
+  assertNoSharedOperatorWorkflowFlags(preflightArgs);
+});
+
+test('scheduler operator worker patch actions reject incomplete messages', () => {
+  assert.equal(coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchCheck',
+    candidateId: 'candidate',
+  }), null);
+  assert.equal(coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchReject',
+    candidateId: '',
+  }), null);
+  assert.equal(coerceSchedulerOperatorActionMessage({
+    command: 'schedulerOperatorAction',
+    action: 'workerPatchPreflight',
+    patchRefs: ['only-one@v1'],
+    sourceWorkspaceRoot: 'repo',
+  }), null);
 });

@@ -204,6 +204,7 @@ from src.runtime.orchestration import (
     read_supervisor_storage_binding_evidence_summary,
     run_sandbox_allocation_cleanup_over_receipts,
     preflight_worker_patch_composition,
+    review_worker_patch_action_candidate,
     worker_patch_composition_refs_from_tokens,
     write_scheduler_state_snapshot,
     write_sandbox_allocation_receipt_evidence,
@@ -4338,6 +4339,80 @@ def test_worker_patch_review_consumer_rejects_without_git_apply(tmp_path) -> Non
     assert result.cleanup_recommended is True
     assert result.to_json_dict()["authority_split"]["patch_apply_executed"] is False
     assert stored.lifecycle_state == "rejected"
+
+
+def test_worker_patch_review_operator_checks_candidate_without_apply(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    target_repo = _git_repo(tmp_path / "target")
+    store_path, _disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="workerPatchReview",
+    )
+
+    result = review_worker_patch_action_candidate(
+        artifact_store_path=store_path,
+        candidate_id="task-1:patch-review@v1:merge",
+        action="check",
+        source_workspace_root=target_repo,
+        actor="agent:guide",
+        disposition_artifact_id="task-1:operator-check-decision",
+        timestamp="2026-06-25T00:05:00+08:00",
+    )
+    stored = JsonArtifactVersionStore(store_path).get("task-1:patch-review", "v1").artifact
+
+    assert result.ok is True
+    assert result.disposition.disposition == "accept"
+    assert result.consumer.git_check_returncode == 0
+    assert result.consumer.git_apply_returncode is None
+    assert result.to_json_dict()["authority_split"]["source_workspace_mutated"] is False
+    assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert stored.lifecycle_state == "accepted"
+
+
+def test_worker_patch_review_operator_rejects_candidate_without_git(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    store_path, _disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="workerPatchReview",
+    )
+
+    result = review_worker_patch_action_candidate(
+        artifact_store_path=store_path,
+        candidate_id="task-1:patch-review@v1:merge",
+        action="reject",
+        actor="agent:guide",
+        disposition_artifact_id="task-1:operator-reject-decision",
+        reason="defer patch",
+    )
+    stored = JsonArtifactVersionStore(store_path).get("task-1:patch-review", "v1").artifact
+
+    assert result.ok is True
+    assert result.consumer.git_check_returncode is None
+    assert result.consumer.git_apply_returncode is None
+    assert result.consumer.cleanup_recommended is True
+    assert result.to_json_dict()["authority_split"]["patch_apply_executed"] is False
+    assert stored.lifecycle_state == "rejected"
+
+
+def test_worker_patch_review_operator_rejects_apply_boundary(tmp_path) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    target_repo = _git_repo(tmp_path / "target")
+    store_path, _disposition_id = _worker_patch_review_store(
+        tmp_path,
+        source_repo=source_repo,
+        target_surface="workerPatchReview",
+    )
+
+    with pytest.raises(ValueError, match="check, reject"):
+        review_worker_patch_action_candidate(
+            artifact_store_path=store_path,
+            candidate_id="task-1:patch-review@v1:merge",
+            action="apply",  # type: ignore[arg-type]
+            source_workspace_root=target_repo,
+            actor="agent:guide",
+        )
 
 
 def test_worker_patch_composition_preflight_passes_without_mutating_source(tmp_path) -> None:

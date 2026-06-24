@@ -9,6 +9,21 @@ export type SchedulerOperatorAction =
   | { kind: 'runLoop' }
   | { kind: 'project' }
   | { kind: 'operatorDogfoodClosure' }
+  | {
+      kind: 'workerPatchCheck';
+      candidateId: string;
+      sourceWorkspaceRoot: string;
+    }
+  | {
+      kind: 'workerPatchReject';
+      candidateId: string;
+    }
+  | {
+      kind: 'workerPatchPreflight';
+      patchRefs: string[];
+      sourceWorkspaceRoot: string;
+      scratchRoot: string;
+    }
   | { kind: 'cleanupReceipts'; evidencePath: string; confirmed: boolean }
   | {
       kind: 'runSandboxReceiptWorkflow';
@@ -45,6 +60,10 @@ export type SchedulerOperatorWebviewMessage = {
   cleanup?: unknown;
   cleanupEvidenceId?: unknown;
   cleanupEvidencePath?: unknown;
+  candidateId?: unknown;
+  sourceWorkspaceRoot?: unknown;
+  patchRefs?: unknown;
+  scratchRoot?: unknown;
 };
 
 export type SchedulerOperatorWorkflowArgsOptions = {
@@ -84,6 +103,53 @@ export function coerceSchedulerOperatorActionMessage(
   }
   if (message.action === 'operatorDogfoodClosure') {
     return { kind: 'operatorDogfoodClosure' };
+  }
+  if (message.action === 'workerPatchCheck') {
+    if (typeof message.candidateId !== 'string' || !message.candidateId.trim()) {
+      return null;
+    }
+    if (
+      typeof message.sourceWorkspaceRoot !== 'string'
+      || !message.sourceWorkspaceRoot.trim()
+    ) {
+      return null;
+    }
+    return {
+      kind: 'workerPatchCheck',
+      candidateId: message.candidateId.trim(),
+      sourceWorkspaceRoot: message.sourceWorkspaceRoot.trim(),
+    };
+  }
+  if (message.action === 'workerPatchReject') {
+    if (typeof message.candidateId !== 'string' || !message.candidateId.trim()) {
+      return null;
+    }
+    return {
+      kind: 'workerPatchReject',
+      candidateId: message.candidateId.trim(),
+    };
+  }
+  if (message.action === 'workerPatchPreflight') {
+    const patchRefs = Array.isArray(message.patchRefs)
+      ? message.patchRefs.filter((item): item is string => (
+        typeof item === 'string' && Boolean(item.trim())
+      ))
+      : [];
+    if (patchRefs.length < 2) {
+      return null;
+    }
+    if (
+      typeof message.sourceWorkspaceRoot !== 'string'
+      || !message.sourceWorkspaceRoot.trim()
+    ) {
+      return null;
+    }
+    return {
+      kind: 'workerPatchPreflight',
+      patchRefs: patchRefs.map((item) => item.trim()),
+      sourceWorkspaceRoot: message.sourceWorkspaceRoot.trim(),
+      scratchRoot: typeof message.scratchRoot === 'string' ? message.scratchRoot.trim() : '',
+    };
   }
   if (message.action === 'cleanupReceipts') {
     if (typeof message.evidencePath !== 'string' || !message.evidencePath.trim()) {
@@ -264,6 +330,53 @@ export function buildSchedulerOperatorWorkflowArgs(
       'vscode-scheduler-operator',
       '--replace-existing',
     ];
+  }
+  if (action.kind === 'workerPatchCheck') {
+    return [
+      'scheduler',
+      'review-worker-patch',
+      '--artifact-store-path',
+      '.codex/orchestration/exchange-artifacts.json',
+      '--candidate-id',
+      action.candidateId,
+      '--action',
+      'check',
+      '--source-workspace-root',
+      action.sourceWorkspaceRoot,
+      '--actor',
+      options.actor ?? DEFAULT_OPERATOR_ACTOR,
+    ];
+  }
+  if (action.kind === 'workerPatchReject') {
+    return [
+      'scheduler',
+      'review-worker-patch',
+      '--artifact-store-path',
+      '.codex/orchestration/exchange-artifacts.json',
+      '--candidate-id',
+      action.candidateId,
+      '--action',
+      'reject',
+      '--actor',
+      options.actor ?? DEFAULT_OPERATOR_ACTOR,
+    ];
+  }
+  if (action.kind === 'workerPatchPreflight') {
+    const args = [
+      'scheduler',
+      'preflight-worker-patch-composition',
+      '--artifact-store-path',
+      '.codex/orchestration/exchange-artifacts.json',
+      '--source-workspace-root',
+      action.sourceWorkspaceRoot,
+    ];
+    for (const patchRef of action.patchRefs) {
+      args.push('--patch-ref', patchRef);
+    }
+    if (action.scratchRoot) {
+      args.push('--scratch-root', action.scratchRoot);
+    }
+    return args;
   }
   if (action.kind === 'cleanupReceipts') {
     const evidenceId = options.evidenceId ?? `vscode-cleanup-${(options.now ?? Date.now)()}`;

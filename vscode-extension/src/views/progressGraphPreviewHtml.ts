@@ -5,6 +5,7 @@ import type {
   SchedulerOperatorBindingReferenceSummary,
   SchedulerOperatorBindingReferenceTaskSummary,
   SchedulerOperatorExchangeCandidate,
+  SchedulerOperatorWorkerPatchCandidate,
   SchedulerOperatorWorkflowState,
 } from './schedulerOperatorWorkflow';
 
@@ -2667,6 +2668,31 @@ function buildParallelPreviewHtml(
         return;
       }
       const action = target.dataset.pgSchedulerAction || '';
+      const workerPatchSourceRoot = readTextInput('pgHostWorkerPatchSourceRoot');
+      const workerPatchScratchRoot = readTextInput('pgHostWorkerPatchScratchRoot');
+      const selectedPatchRefs = Array.from(document.querySelectorAll('[data-pg-worker-patch-select]'))
+        .filter((input) => input instanceof HTMLInputElement && input.checked)
+        .map((input) => input instanceof HTMLInputElement ? input.dataset.pgPatchRef || '' : '')
+        .filter(Boolean);
+      if (action === 'workerPatchCheck' && !workerPatchSourceRoot) {
+        const sourceRootInput = document.getElementById('pgHostWorkerPatchSourceRoot');
+        if (sourceRootInput instanceof HTMLInputElement) {
+          sourceRootInput.focus();
+        }
+        return;
+      }
+      if (action === 'workerPatchPreflight') {
+        if (!workerPatchSourceRoot) {
+          const sourceRootInput = document.getElementById('pgHostWorkerPatchSourceRoot');
+          if (sourceRootInput instanceof HTMLInputElement) {
+            sourceRootInput.focus();
+          }
+          return;
+        }
+        if (selectedPatchRefs.length < 2) {
+          return;
+        }
+      }
       const evidencePathInput = document.getElementById('pgHostCleanupEvidencePath');
       const cleanupConfirmInput = document.getElementById('pgHostCleanupConfirm');
       const evidencePath = evidencePathInput instanceof HTMLInputElement ? evidencePathInput.value.trim() : '';
@@ -2731,17 +2757,17 @@ function buildParallelPreviewHtml(
       }
       target.disabled = true;
       const markConsumedOnSuccess = target.dataset.pgMarkConsumedOnSuccess === 'true';
-      target.textContent = action === 'admit'
-        ? (markConsumedOnSuccess ? 'Admitting + consuming...' : 'Admitting...')
-        : action === 'runLoop'
-          ? 'Running...'
-          : action === 'cleanupReceipts'
-            ? 'Cleaning...'
-            : action === 'runSandboxReceiptWorkflow'
-              ? 'Running workflow...'
-              : action === 'operatorDogfoodClosure'
-                ? 'Closing dogfood...'
-                : 'Refreshing...';
+      const runningLabelByAction = {
+        admit: markConsumedOnSuccess ? 'Admitting + consuming...' : 'Admitting...',
+        runLoop: 'Running...',
+        workerPatchCheck: 'Checking...',
+        workerPatchReject: 'Rejecting...',
+        workerPatchPreflight: 'Preflighting...',
+        cleanupReceipts: 'Cleaning...',
+        runSandboxReceiptWorkflow: 'Running workflow...',
+        operatorDogfoodClosure: 'Closing dogfood...',
+      };
+      target.textContent = runningLabelByAction[action] || 'Refreshing...';
       vscode.postMessage({
         command: 'schedulerOperatorAction',
         action,
@@ -2749,6 +2775,10 @@ function buildParallelPreviewHtml(
         version: target.dataset.pgVersion || '',
         inspectBindingRefs: target.dataset.pgInspectBindingRefs === 'true',
         markConsumedOnSuccess,
+        candidateId: target.dataset.pgCandidateId || '',
+        sourceWorkspaceRoot: workerPatchSourceRoot,
+        patchRefs: selectedPatchRefs,
+        scratchRoot: workerPatchScratchRoot,
         evidencePath,
         confirmed: cleanupConfirmed,
         ...workflowPayload,
@@ -3442,6 +3472,11 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
       ${exchange.candidates.map((candidate) => buildSchedulerOperatorCandidate(candidate, lastAction.status === 'running')).join('')}
     </div>`
     : `<p class="pg-host-control-card-subtitle">No scheduler-admission candidates are currently present in the ExchangeArtifact store.</p>`;
+  const workerPatchReview = buildWorkerPatchReviewSection(
+    workflow.workerPatchReview,
+    workflow.workerPatchReviewReadError,
+    lastAction.status === 'running',
+  );
   const readError = workflow.exchangeReadError
     ? `<div class="pg-host-scheduler-action-result" data-pg-action-status="failed">
       <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">exchange read failed</span>
@@ -3493,6 +3528,7 @@ function buildSchedulerOperatorSection(state: ProgressGraphPreviewState): string
   ${authorizationReadback}
   ${sandboxWorkflowAction}
   ${cleanupAction}
+  ${workerPatchReview}
   ${readError}
   ${candidateList}
   ${errors}
@@ -3548,6 +3584,139 @@ function buildSchedulerOperatorClosureSummary(payload: Record<string, unknown> |
     <div class="pg-host-scheduler-operator-grid">${summaryFacts.map(buildSchedulerFact).join('')}</div>
     <div class="pg-host-scheduler-operator-grid">${authorityFacts.map(buildSchedulerFact).join('')}</div>
   </section>`;
+}
+
+function buildWorkerPatchReviewSection(
+  summary: SchedulerOperatorWorkflowState['workerPatchReview'],
+  readError: string | null,
+  actionRunning: boolean,
+): string {
+  if (readError) {
+    return `<section id="pgHostWorkerPatchReview" class="pg-host-scheduler-cleanup-form" data-pg-worker-patch-status="failed">
+  <div class="pg-host-evidence-chip-row">
+    <span class="pg-host-evidence-badge" data-pg-evidence-status="failed">worker patch read failed</span>
+  </div>
+  <p class="pg-host-control-card-subtitle">${escapeHtml(readError)}</p>
+</section>`;
+  }
+  const candidates = summary?.candidates ?? [];
+  const candidateCards = candidates.length
+    ? `<div class="pg-host-scheduler-candidates">
+      ${candidates.map((candidate) => buildWorkerPatchCandidateCard(candidate, actionRunning)).join('')}
+    </div>`
+    : `<p class="pg-host-control-card-subtitle">No worker patch review candidates are currently present.</p>`;
+  const errors = summary?.errors.length
+    ? buildHostEvidenceChipGroup('Worker patch read errors', summary.errors)
+    : '';
+  return `<section id="pgHostWorkerPatchReview" class="pg-host-scheduler-cleanup-form" data-pg-worker-patch-status="${candidates.length ? 'available' : 'empty'}">
+  <div class="pg-host-evidence-title-wrap">
+    <h3 class="pg-host-scheduler-candidate-title">Worker Patch Review</h3>
+    <p class="pg-host-control-card-subtitle">resource=${escapeHtml(summary?.resourceUri ?? 'dbc://agent-exchange/action-candidates')} · check/reject through accepted disposition · composition preflight is non-mutating</p>
+  </div>
+  <div class="pg-host-scheduler-workflow-grid">
+    <div class="pg-host-scheduler-field" data-pg-wide-field="true">
+      <label for="pgHostWorkerPatchSourceRoot">source workspace root</label>
+      <input
+        id="pgHostWorkerPatchSourceRoot"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="source git repository root"
+        ${actionRunning ? 'disabled' : ''}
+      >
+      <span class="pg-host-scheduler-field-hint">Required for check and composition preflight. Check runs git apply --check only.</span>
+    </div>
+    <div class="pg-host-scheduler-field" data-pg-wide-field="true">
+      <label for="pgHostWorkerPatchScratchRoot">scratch root for preflight</label>
+      <input
+        id="pgHostWorkerPatchScratchRoot"
+        class="pg-host-scheduler-cleanup-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder=".codex/scheduler/patch-preflight"
+        ${actionRunning ? 'disabled' : ''}
+      >
+      <span class="pg-host-scheduler-field-hint">Optional temporary parent for composition preflight.</span>
+    </div>
+  </div>
+  <div class="pg-host-scheduler-candidate-actions">
+    <button
+      class="pg-host-scheduler-operator-button"
+      type="button"
+      data-pg-scheduler-action="workerPatchPreflight"
+      ${actionRunning || candidates.length < 2 ? 'disabled' : ''}
+    >Preflight selected patches</button>
+  </div>
+  ${candidateCards}
+  ${errors}
+</section>`;
+}
+
+function buildWorkerPatchCandidateCard(
+  candidate: SchedulerOperatorWorkerPatchCandidate,
+  actionRunning: boolean,
+): string {
+  const source = candidate.source || `${candidate.artifactId}@${candidate.version}`;
+  const changedPaths = candidate.changedPaths.length
+    ? candidate.changedPaths.join(', ')
+    : 'changed paths unavailable';
+  const relationTargets = candidate.relationTargets.length
+    ? candidate.relationTargets.join(', ')
+    : 'target relation unavailable';
+  const details = [
+    `task=${candidate.taskId || 'unknown'}`,
+    `lane=${candidate.laneId || 'unknown'}`,
+    `worker=${candidate.workerAgentId || candidate.producer || 'unknown'}`,
+    candidate.runtimeProvider ? `runtime=${candidate.runtimeProvider}` : '',
+    candidate.sandboxProvider ? `sandbox=${candidate.sandboxProvider}` : '',
+  ].filter(Boolean).join(' · ');
+  const disabled = actionRunning || candidate.redactionRequired;
+  return `<article class="pg-host-scheduler-candidate" data-pg-worker-patch-candidate="${escapeHtml(candidate.candidateId)}" data-pg-lifecycle-state="${escapeHtml(candidate.lifecycleState || 'unknown')}">
+    <div class="pg-host-scheduler-candidate-head">
+      <div>
+        <h4 class="pg-host-scheduler-candidate-title">${escapeHtml(source)}</h4>
+        <p class="pg-host-scheduler-candidate-meta">${escapeHtml(details)}</p>
+        <p class="pg-host-scheduler-candidate-meta">patch=${escapeHtml(candidate.patchState || 'unknown')} · lifecycle=${escapeHtml(candidate.lifecycleState || 'unknown')} · confidence=${escapeHtml(candidate.confidence || 'unknown')}</p>
+      </div>
+      <div class="pg-host-scheduler-candidate-actions">
+        <label class="pg-host-scheduler-cleanup-confirm" for="pgHostWorkerPatchSelect${escapeHtml(domIdToken(candidate.candidateId))}">
+          <input
+            id="pgHostWorkerPatchSelect${escapeHtml(domIdToken(candidate.candidateId))}"
+            type="checkbox"
+            data-pg-worker-patch-select="true"
+            data-pg-patch-ref="${escapeHtml(source)}"
+            ${disabled ? 'disabled' : ''}
+          >
+          <span>Select</span>
+        </label>
+        <button
+          class="pg-host-scheduler-operator-button"
+          type="button"
+          data-pg-scheduler-action="workerPatchCheck"
+          data-pg-candidate-id="${escapeHtml(candidate.candidateId)}"
+          ${disabled ? 'disabled' : ''}
+        >Check</button>
+        <button
+          class="pg-host-scheduler-operator-button secondary"
+          type="button"
+          data-pg-scheduler-action="workerPatchReject"
+          data-pg-candidate-id="${escapeHtml(candidate.candidateId)}"
+          ${disabled ? 'disabled' : ''}
+        >Reject</button>
+      </div>
+    </div>
+    <div class="pg-host-scheduler-binding-visibility">
+      ${buildHostEvidenceChipGroup('Changed paths', [changedPaths])}
+      ${buildHostEvidenceChipGroup('Merge targets', [relationTargets])}
+      ${candidate.reasons.length ? buildHostEvidenceChipGroup('Candidate reasons', candidate.reasons) : ''}
+    </div>
+  </article>`;
+}
+
+function domIdToken(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-');
 }
 
 function buildSchedulerFact([label, value]: [string, string]): string {

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
+import { readFile } from 'fs/promises';
 import { promisify } from 'util';
 import {
   buildSchedulerOperatorWorkflowArgs,
@@ -9,6 +10,7 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI = 'dbc://exchange-artifacts/bundle';
+export const AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI = 'dbc://agent-exchange/action-candidates';
 
 export type SchedulerOperatorRuntimeOptions = {
   projectRoot: string;
@@ -29,6 +31,38 @@ export type SchedulerOperatorExchangeCandidate = {
   latestAdmissionStatus: string;
   bindingReferenceReadiness: SchedulerOperatorBindingReferenceSummary | null;
   latestBindingReferenceSummary: SchedulerOperatorBindingReferenceSummary | null;
+};
+
+export type SchedulerOperatorWorkerPatchCandidate = {
+  candidateId: string;
+  artifactId: string;
+  version: string;
+  source: string;
+  lifecycleState: string;
+  confidence: string;
+  kind: string;
+  intent: string;
+  producer: string;
+  audience: string[];
+  taskId: string;
+  laneId: string;
+  workerAgentId: string;
+  runtimeProvider: string;
+  sandboxProvider: string;
+  sandboxAllocationId: string;
+  patchState: string;
+  changedPaths: string[];
+  relationTargets: string[];
+  reasons: string[];
+  redactionRequired: boolean;
+};
+
+export type SchedulerOperatorWorkerPatchSummary = {
+  resourceUri: string;
+  exists: boolean;
+  candidateCount: number;
+  candidates: SchedulerOperatorWorkerPatchCandidate[];
+  errors: string[];
 };
 
 export type SchedulerOperatorBindingReference = {
@@ -181,6 +215,8 @@ export type SchedulerOperatorWorkflowState = {
   exchangeResourceUri: string;
   exchange: SchedulerOperatorExchangeSummary | null;
   exchangeReadError: string | null;
+  workerPatchReview: SchedulerOperatorWorkerPatchSummary | null;
+  workerPatchReviewReadError: string | null;
   scheduler: SchedulerOperatorSchedulerSummary | null;
   schedulerReadError: string | null;
   authorizationReadback: SchedulerAuthorizationReadback | null;
@@ -220,12 +256,15 @@ export async function readSchedulerOperatorWorkflowState(
   const paths = buildSchedulerOperatorPaths(options.projectRoot);
   const schedulerReadback = await readSchedulerSummary(options);
   const authorizationReadback = await readSchedulerAuthorizationReadback(options, paths);
+  const workerPatchReadback = await readWorkerPatchReviewSummary(options, paths);
   try {
     const raw = await readResourceJson(options, EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI);
     return {
       exchangeResourceUri: EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI,
       exchange: coerceExchangeSummary(raw),
       exchangeReadError: null,
+      workerPatchReview: workerPatchReadback.summary,
+      workerPatchReviewReadError: workerPatchReadback.readError,
       scheduler: schedulerReadback.scheduler,
       schedulerReadError: schedulerReadback.schedulerReadError,
       authorizationReadback: authorizationReadback.readback,
@@ -238,6 +277,8 @@ export async function readSchedulerOperatorWorkflowState(
       exchangeResourceUri: EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI,
       exchange: null,
       exchangeReadError: error instanceof Error ? error.message : String(error),
+      workerPatchReview: workerPatchReadback.summary,
+      workerPatchReviewReadError: workerPatchReadback.readError,
       scheduler: schedulerReadback.scheduler,
       schedulerReadError: schedulerReadback.schedulerReadError,
       authorizationReadback: authorizationReadback.readback,
@@ -246,6 +287,125 @@ export async function readSchedulerOperatorWorkflowState(
       lastAction: options.lastAction,
     };
   }
+}
+
+async function readWorkerPatchReviewSummary(
+  options: SchedulerOperatorRuntimeOptions,
+  paths: SchedulerOperatorPaths,
+): Promise<{
+  summary: SchedulerOperatorWorkerPatchSummary | null;
+  readError: string | null;
+}> {
+  try {
+    const raw = await readResourceJson(options, AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI);
+    const patchesBySource = await readWorkerPatchPayloadsBySource(paths.artifactStorePath);
+    return {
+      summary: coerceWorkerPatchSummary(raw, patchesBySource),
+      readError: null,
+    };
+  } catch (error) {
+    return {
+      summary: null,
+      readError: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function readWorkerPatchPayloadsBySource(
+  artifactStorePath: string,
+): Promise<Map<string, Record<string, unknown>>> {
+  const bySource = new Map<string, Record<string, unknown>>();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await readFile(artifactStorePath, 'utf8'));
+  } catch {
+    return bySource;
+  }
+  const records = readObjectArray(readRecord(payload).records);
+  for (const record of records) {
+    const artifact = readRecord(record.artifact);
+    const artifactId = readString(artifact.artifact_id, readString(record.artifact_id, ''));
+    const version = readString(artifact.version, readString(record.version, ''));
+    if (!artifactId || !version) {
+      continue;
+    }
+    for (const part of readObjectArray(artifact.parts)) {
+      if (readString(part.part_type, '') !== 'structured') {
+        continue;
+      }
+      const data = readRecord(part.data);
+      if (readString(data.product_type, '') === 'worker_patch_review_proposal') {
+        bySource.set(`${artifactId}@${version}`, data);
+      }
+    }
+  }
+  return bySource;
+}
+
+function coerceWorkerPatchSummary(
+  value: Record<string, unknown>,
+  patchesBySource: Map<string, Record<string, unknown>>,
+): SchedulerOperatorWorkerPatchSummary {
+  const candidates = readObjectArray(value.candidates)
+    .map((candidate) => coerceWorkerPatchCandidate(candidate, patchesBySource))
+    .filter((candidate): candidate is SchedulerOperatorWorkerPatchCandidate => candidate !== null);
+  return {
+    resourceUri: AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI,
+    exists: readBoolean(value.exists),
+    candidateCount: candidates.length,
+    candidates,
+    errors: readStringArray(value.errors),
+  };
+}
+
+function coerceWorkerPatchCandidate(
+  value: Record<string, unknown>,
+  patchesBySource: Map<string, Record<string, unknown>>,
+): SchedulerOperatorWorkerPatchCandidate | null {
+  if (
+    readString(value.candidate_type, '') !== 'merge_candidate'
+    || readString(value.suggested_next_surface, '') !== 'workerPatchReview'
+  ) {
+    return null;
+  }
+  const artifactId = readString(value.artifact_id, '');
+  const version = readString(value.version, '');
+  const source = readString(value.source, artifactId && version ? `${artifactId}@${version}` : '');
+  const payload = patchesBySource.get(source) ?? {};
+  const relationTargets = readObjectArray(value.relation_clues).map((clue) => {
+    const target = readRecord(clue.target);
+    const targetVersion = readString(target.version, '');
+    const targetKind = readString(target.ref_kind, 'target');
+    const targetId = readString(target.ref_id, '');
+    const targetPath = readString(target.path, '');
+    return [
+      `${targetKind}:${targetId}${targetVersion ? `@${targetVersion}` : ''}`,
+      targetPath,
+    ].filter(Boolean).join(' · ');
+  }).filter((item) => item.trim());
+  return {
+    candidateId: readString(value.candidate_id, ''),
+    artifactId,
+    version,
+    source,
+    lifecycleState: readString(value.lifecycle_state, 'unknown'),
+    confidence: readString(value.confidence, 'unknown'),
+    kind: readString(value.kind, ''),
+    intent: readString(value.intent, ''),
+    producer: readString(value.producer, ''),
+    audience: readStringArray(value.audience),
+    taskId: readString(payload.task_id, readString(readRecord(value.scope).task_id, '')),
+    laneId: readString(payload.lane_id, readString(readRecord(value.scope).lane_id, '')),
+    workerAgentId: readString(payload.worker_agent_id, readString(value.producer, '')),
+    runtimeProvider: readString(payload.runtime_provider, ''),
+    sandboxProvider: readString(payload.sandbox_provider, ''),
+    sandboxAllocationId: readString(payload.sandbox_allocation_id, ''),
+    patchState: readString(payload.patch_state, 'unknown'),
+    changedPaths: readStringArray(payload.changed_paths),
+    relationTargets,
+    reasons: readStringArray(value.reasons),
+    redactionRequired: readBoolean(value.redaction_required),
+  };
 }
 
 export async function runSchedulerOperatorAction(
@@ -675,6 +835,36 @@ function summarizeActionPayload(action: string, payload: Record<string, unknown>
     const skippedCount = readStringArray(payload.skipped_allocation_ids).length;
     const evidenceId = readString(payload.output_evidence_id, '');
     return `cleanup receipts · cleaned=${cleanedCount} · failed=${failedCount} · skipped=${skippedCount}${evidenceId ? ` · evidence=${evidenceId}` : ''}`;
+  }
+  if (action === 'workerPatchCheck' || action === 'workerPatchReject') {
+    const ok = readBoolean(payload.ok);
+    const consumer = readRecord(payload.consumer);
+    const gitCheck = readRecord(consumer.git_check);
+    const source = readString(consumer.source, '');
+    const changedCount = readStringArray(consumer.changed_paths).length;
+    const gitCheckReturncode = typeof gitCheck.returncode === 'number'
+      ? String(gitCheck.returncode)
+      : '';
+    return [
+      action === 'workerPatchCheck' ? 'worker patch check' : 'worker patch reject',
+      ok ? 'ok' : 'not ok',
+      source,
+      `changed=${changedCount}`,
+      action === 'workerPatchCheck' && gitCheckReturncode ? `git-check=${gitCheckReturncode}` : '',
+    ].filter(Boolean).join(' · ');
+  }
+  if (action === 'workerPatchPreflight') {
+    const ok = readBoolean(payload.ok);
+    const stepCount = readNumber(payload.step_count);
+    const failedRef = readRecord(payload.failed_ref);
+    const collisionCount = Object.keys(readRecord(payload.touched_path_collisions)).length;
+    const failed = readString(failedRef.source, '');
+    return [
+      `worker patch composition preflight ${ok ? 'ok' : 'not ok'}`,
+      `steps=${stepCount}`,
+      failed ? `failed=${failed}` : '',
+      `collisions=${collisionCount}`,
+    ].filter(Boolean).join(' · ');
   }
   if (action === 'runSandboxReceiptWorkflow') {
     const mode = readString(payload.workflow_mode, 'unknown');

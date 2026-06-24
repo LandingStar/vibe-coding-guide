@@ -260,6 +260,11 @@ from .worker_patch_review_consumer import (
     WorkerPatchReviewDecisionAction,
     consume_worker_patch_review_decision,
 )
+from .worker_patch_review_operator import (
+    WorkerPatchReviewOperatorAction,
+    WorkerPatchReviewOperatorResult,
+    review_worker_patch_action_candidate,
+)
 from .worker_patch_composition import (
     WorkerPatchCompositionPreflightResult,
     WorkerPatchCompositionRef,
@@ -674,6 +679,8 @@ __all__ = [
     "WorkerPatchReviewArtifact",
     "WorkerPatchReviewConsumerResult",
     "WorkerPatchReviewDecisionAction",
+    "WorkerPatchReviewOperatorAction",
+    "WorkerPatchReviewOperatorResult",
     "WorkerPatchCompositionPreflightResult",
     "WorkerPatchCompositionRef",
     "WorkerPatchCompositionStep",
@@ -848,6 +855,7 @@ __all__ = [
     "decide_agent_exchange_action_candidate",
     "consume_accepted_scheduler_action_candidate",
     "consume_worker_patch_review_decision",
+    "review_worker_patch_action_candidate",
     "default_sandbox_allocation_receipt_evidence_path",
     "default_supervisor_storage_binding_evidence_path",
     "drain_preflighted_ready_tasks",

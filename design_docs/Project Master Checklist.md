@@ -26,16 +26,16 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-06-24`
+- Snapshot Date: `2026-06-25`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / post-composition direction selection`
-- Current Focus: `Select the next narrow orchestration gate after worker patch composition preflight`
+- Current Phase: `Post-v1.0 - Agent orchestration / worker patch review operation`
+- Current Focus: `Select the next narrow orchestration gate after Host UX worker patch review binding`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
-- Latest Completed Slice: `Worker Patch Composition Preflight`
+  `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
+- Latest Completed Slice: `Host UX Worker Patch Review Binding`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
+  `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
 
@@ -44,22 +44,23 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
-3. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
-4. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
-5. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
-6. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
-7. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-8. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-9. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-10. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-11. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-12. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-13. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-14. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-15. `review/agent-communication-product-closure-2026-06-22.md`
-16. `design_docs/Global Phase Map and Current Position.md`
-17. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+2. `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
+3. `design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
+4. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
+5. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
+6. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+7. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+8. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+9. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+10. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+11. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+12. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+13. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+14. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+15. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+16. `review/agent-communication-product-closure-2026-06-22.md`
+17. `design_docs/Global Phase Map and Current Position.md`
+18. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
@@ -418,6 +419,41 @@ Validation:
 - `git diff --check` passed with Windows line-ending warnings only.
 - `analyze_changes` returned no impact nodes and no coupling alerts.
 
+### Host UX Worker Patch Review Binding
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
+
+Goal:
+
+- Make worker patch review proposals operable from Scheduler Operator Host UX
+  with explicit check/reject and non-mutating multi-patch preflight.
+
+Current implementation surface:
+
+- Runtime helper: `review_worker_patch_action_candidate()`
+- CLI: `doc-based-coding scheduler review-worker-patch`
+- Host UX panel: `Worker Patch Review`
+- Actions: single-patch `Check`, single-patch `Reject`, and selected patch
+  composition preflight.
+
+Validation:
+
+- `py_compile` for runtime/CLI touched files passed.
+- Focused runtime tests passed: `8 passed, 299 deselected`.
+- Focused CLI tests passed: `7 passed, 83 deselected`.
+- Extension build passed.
+- Focused Scheduler Operator contract tests passed: `14 passed`.
+- Focused Progress Graph Preview render tests passed: `21 passed`.
+- Screenshot verification recorded at
+  `output/playwright/host-ux-worker-patch-review-binding/worker-patch-review-fixture.png`.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+- `analyze_changes` returned no impact nodes and no coupling alerts.
+
 ### Codex CLI Worker Runtime Provider
 
 Status: `completed`
@@ -525,9 +561,10 @@ Validation:
 - [x] Complete worker patch review artifact integration.
 - [x] Complete worker patch check/apply/reject consumer.
 - [x] Complete multi-worker patch composition preflight.
-- [ ] Select the next narrow orchestration planning gate for Host UX patch
-  review binding, cleanup-after-review automation policy, multi-patch apply
-  policy, or agent storage isolation.
+- [x] Complete Host UX worker patch review binding.
+- [ ] Select the next narrow orchestration planning gate for
+  cleanup-after-review automation policy, multi-patch apply policy, or agent
+  storage isolation.
 
 ## Write Rules For This File
 

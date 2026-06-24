@@ -59,6 +59,14 @@ function buildBaseState(overrides: Partial<ProgressGraphPreviewState> = {}): Pro
         errors: [],
       },
       exchangeReadError: null,
+      workerPatchReview: {
+        resourceUri: 'dbc://agent-exchange/action-candidates',
+        exists: false,
+        candidateCount: 0,
+        candidates: [],
+        errors: [],
+      },
+      workerPatchReviewReadError: null,
       scheduler: null,
       schedulerReadError: 'scheduler snapshot is not available',
       authorizationReadback: null,
@@ -207,6 +215,10 @@ test('buildProgressGraphPreviewHtml renders empty host evidence presentation sta
   assert.match(html, /dbc:\/\/exchange-artifacts\/bundle/);
   assert.match(html, /id="pgHostSchedulerAuthorizationReadback"/);
   assert.match(html, /authorization unavailable/);
+  assert.match(html, /id="pgHostWorkerPatchReview"/);
+  assert.match(html, /Worker Patch Review/);
+  assert.match(html, /dbc:\/\/agent-exchange\/action-candidates/);
+  assert.match(html, /No worker patch review candidates are currently present/);
   assert.match(html, /id="pgHostSandboxReceiptWorkflow"/);
   assert.match(html, /Sandbox Receipt Workflow/);
   assert.match(html, /scheduler sandbox-receipt-workflow/);
@@ -326,7 +338,7 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /cleanupDetails\.open = true/);
   assert.match(html, /workflowMode === 'daemon-loop'/);
   assert.match(html, /isPositiveIntegerText\(input\.value\.trim\(\)\)/);
-  assert.match(html, /action === 'operatorDogfoodClosure'/);
+  assert.match(html, /operatorDogfoodClosure: 'Closing dogfood\.\.\.'/);
   assert.match(html, /Closing dogfood\.\.\./);
   assert.match(html, /focusFirstMissingInput\(missing\)/);
   assert.match(html, /querySelectorAll\('\[data-pg-cleanup-evidence-select\]'\)/);
@@ -353,6 +365,94 @@ test('buildProgressGraphPreviewHtml renders scheduler operator candidates and ex
   assert.match(html, /vscode\.postMessage\(\{[\s\S]*command: 'schedulerOperatorAction'/);
   assert.match(html, /inspectBindingRefs: target\.dataset\.pgInspectBindingRefs === 'true'/);
   assert.match(html, /markConsumedOnSuccess,/);
+});
+
+test('buildProgressGraphPreviewHtml renders worker patch review candidates and actions', () => {
+  const html = buildProgressGraphPreviewHtml(buildBaseState({
+    schedulerOperatorWorkflow: {
+      ...buildBaseState().schedulerOperatorWorkflow,
+      workerPatchReview: {
+        resourceUri: 'dbc://agent-exchange/action-candidates',
+        exists: true,
+        candidateCount: 2,
+        candidates: [
+          {
+            candidateId: 'task-client:patch-review@v1:merge',
+            artifactId: 'task-client:patch-review',
+            version: 'v1',
+            source: 'task-client:patch-review@v1',
+            lifecycleState: 'proposed',
+            confidence: 'high',
+            kind: 'proposal',
+            intent: 'request_merge',
+            producer: 'agent:client-worker',
+            audience: ['agent:guide'],
+            taskId: 'task-client',
+            laneId: 'lane:client',
+            workerAgentId: 'agent:client-worker',
+            runtimeProvider: 'codex',
+            sandboxProvider: 'git-worktree',
+            sandboxAllocationId: 'allocation-client',
+            patchState: 'has_patch',
+            changedPaths: ['client/app.js'],
+            relationTargets: ['scheduler_tasktask-client'],
+            reasons: ['intent:request_merge', 'relation:merges_into'],
+            redactionRequired: false,
+          },
+          {
+            candidateId: 'task-server:patch-review@v1:merge',
+            artifactId: 'task-server:patch-review',
+            version: 'v1',
+            source: 'task-server:patch-review@v1',
+            lifecycleState: 'proposed',
+            confidence: 'high',
+            kind: 'proposal',
+            intent: 'request_merge',
+            producer: 'agent:server-worker',
+            audience: ['agent:guide'],
+            taskId: 'task-server',
+            laneId: 'lane:server',
+            workerAgentId: 'agent:server-worker',
+            runtimeProvider: 'codex',
+            sandboxProvider: 'git-worktree',
+            sandboxAllocationId: 'allocation-server',
+            patchState: 'has_patch',
+            changedPaths: ['server/app.py'],
+            relationTargets: ['scheduler_tasktask-server'],
+            reasons: ['intent:request_merge', 'relation:merges_into'],
+            redactionRequired: false,
+          },
+        ],
+        errors: [],
+      },
+      workerPatchReviewReadError: null,
+    },
+  }));
+
+  assert.match(html, /id="pgHostWorkerPatchReview"/);
+  assert.match(html, /Worker Patch Review/);
+  assert.match(html, /id="pgHostWorkerPatchSourceRoot"/);
+  assert.match(html, /id="pgHostWorkerPatchScratchRoot"/);
+  assert.match(html, /data-pg-scheduler-action="workerPatchPreflight"/);
+  assert.match(html, /task-client:patch-review@v1/);
+  assert.match(html, /task-server:patch-review@v1/);
+  assert.match(html, /client\/app\.js/);
+  assert.match(html, /server\/app\.py/);
+  assert.match(html, /data-pg-worker-patch-select="true"/);
+  assert.match(html, /data-pg-patch-ref="task-client:patch-review@v1"/);
+  assert.match(html, /data-pg-scheduler-action="workerPatchCheck"/);
+  assert.match(html, /data-pg-scheduler-action="workerPatchReject"/);
+  assert.match(html, /data-pg-candidate-id="task-client:patch-review@v1:merge"/);
+  assert.match(html, /sourceWorkspaceRoot: workerPatchSourceRoot/);
+  assert.match(html, /patchRefs: selectedPatchRefs/);
+  assert.match(html, /scratchRoot: workerPatchScratchRoot/);
+  assert.match(html, /action === 'workerPatchCheck' && !workerPatchSourceRoot/);
+  assert.match(html, /action === 'workerPatchPreflight'/);
+  assert.match(html, /selectedPatchRefs\.length < 2/);
+  assert.match(html, /Checking\.\.\./);
+  assert.match(html, /Rejecting\.\.\./);
+  assert.match(html, /Preflighting\.\.\./);
+  assert.doesNotMatch(html, /data-pg-scheduler-action="workerPatchApply"/);
 });
 
 test('buildProgressGraphPreviewHtml renders operator dogfood closure last-action summary', () => {

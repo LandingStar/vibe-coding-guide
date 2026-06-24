@@ -119,6 +119,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     assert "cleanup-receipts" in proc.stdout
     assert "sandbox-receipt-workflow" in proc.stdout
     assert "consume-worker-patch-review" in proc.stdout
+    assert "review-worker-patch" in proc.stdout
     assert "preflight-worker-patch-composition" in proc.stdout
 
 
@@ -1629,6 +1630,15 @@ def test_scheduler_consume_worker_patch_review_help_describes_boundary() -> None
     assert "Local Work Trajectory" in proc.stdout
 
 
+def test_scheduler_review_worker_patch_help_describes_host_ux_boundary() -> None:
+    proc = _run_cli(["scheduler", "review-worker-patch", "--help"])
+
+    assert proc.returncode == 0
+    assert "--candidate-id ID --action check|reject" in proc.stdout
+    assert "source-workspace apply remains available only" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
 def test_scheduler_consume_worker_patch_review_cli_applies_patch(tmp_path) -> None:
     from src.runtime.orchestration import (
         ExchangeArtifact,
@@ -1738,6 +1748,99 @@ def test_scheduler_consume_worker_patch_review_cli_applies_patch(tmp_path) -> No
         "print('worker patch')\n"
     )
     assert stored.lifecycle_state == "consumed"
+
+
+def test_scheduler_review_worker_patch_cli_checks_without_apply(tmp_path) -> None:
+    from src.runtime.orchestration import (
+        ExchangeArtifact,
+        ExchangePayloadPart,
+        ExchangeReference,
+        ExchangeRelation,
+        JsonArtifactVersionStore,
+    )
+
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    worker_repo = _git_repo(project / "worker")
+    target_repo = _git_repo(project / "target")
+    (worker_repo / "src" / "app.py").write_text("print('worker patch')\n", encoding="utf-8")
+    patch = _run_git(worker_repo, "diff", "--binary").stdout
+    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="task-cli:patch-review",
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer="agent:codex-worker",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(part_type="text", text="Worker patch review proposal."),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "worker_patch_review_proposal",
+                        "task_id": "task-cli",
+                        "lane_id": "lane:cli",
+                        "worker_agent_id": "agent:codex-worker",
+                        "runtime_provider": "codex",
+                        "sandbox_provider": "git-worktree",
+                        "sandbox_allocation_id": "allocation-cli",
+                        "changed_paths": ["src/app.py"],
+                        "patch_state": "has_patch",
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="evidence",
+                    data={"git_diff": patch},
+                ),
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-cli-patch-review",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(
+                            ref_kind="exchange_artifact",
+                            ref_id="task-cli:patch-review",
+                            version="v1",
+                        ),
+                        target=ExchangeReference(ref_kind="scheduler_task", ref_id="task-cli"),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "review-worker-patch",
+            "--candidate-id",
+            "task-cli:patch-review@v1:merge",
+            "--action",
+            "check",
+            "--source-workspace-root",
+            str(target_repo),
+            "--actor",
+            "agent:guide",
+            "--disposition-artifact-id",
+            "task-cli:patch-review-check",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    stored = JsonArtifactVersionStore(store_path).get("task-cli:patch-review", "v1").artifact
+    assert payload["ok"] is True
+    assert payload["action"] == "check"
+    assert payload["disposition"]["disposition"] == "accept"
+    assert payload["consumer"]["changed_paths"] == ["src/app.py"]
+    assert payload["authority_split"]["source_workspace_mutated"] is False
+    assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert stored.lifecycle_state == "accepted"
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_preflight_worker_patch_composition_help_describes_boundary() -> None:

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T16:12:14.827200+00:00",
+  "recorded_at": "2026-06-24T21:32:52.431399+00:00",
   "source_graph_id": "local-work",
   "source_node_id": "",
   "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Guide-worker local trajectory orchestration MVP",
     "lane_count": 4,
-    "event_count": 22,
-    "relation_count": 21,
+    "event_count": 24,
+    "relation_count": 23,
     "source_graph_id": "local-work",
     "source_node_id": ""
   },
@@ -346,6 +346,22 @@
         "completed_at": "2026-06-24T06:03:46.293401+00:00"
       }
     },
+    "event:023": {
+      "id": "event:023",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Open Host UX worker patch review binding gate",
+      "kind": "decision",
+      "status": "completed",
+      "order": 7,
+      "summary": "Resume the Host UX worker patch review binding slice: contract gate first, then backend/UI/test binding for readback, check/reject, and composition preflight without source apply.",
+      "metadata": {
+        "created_at": "2026-06-24T16:16:55.538325+00:00",
+        "source": "single-line-lifecycle",
+        "resumed_at": "2026-06-24T16:24:21.502437+00:00",
+        "activated_at": "2026-06-24T16:24:21.502437+00:00",
+        "completed_at": "2026-06-24T21:18:33.096447+00:00"
+      }
+    },
     "event:012": {
       "id": "event:012",
       "lane_id": "lane:main",
@@ -359,6 +375,20 @@
         "source": "single-line-lifecycle",
         "activated_at": "2026-06-24T08:15:46.641223+00:00",
         "completed_at": "2026-06-24T08:17:08.901956+00:00"
+      }
+    },
+    "event:024": {
+      "id": "event:024",
+      "lane_id": "lane:codex-worker-sandbox-writeback",
+      "title": "Bind Host UX worker patch review actions",
+      "kind": "task",
+      "status": "completed",
+      "order": 8,
+      "summary": "Implement the Host UX worker patch review binding: worker patch proposal readback, check/reject actions through accepted disposition plus consumer, and multi-select non-mutating composition preflight, followed by focused tests and screenshot validation.",
+      "metadata": {
+        "created_at": "2026-06-24T21:18:47.501840+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-06-24T21:32:52.430877+00:00"
       }
     },
     "event:013": {
@@ -578,6 +608,24 @@
     {
       "source_event_id": "event:021",
       "target_event_id": "event:022",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:022",
+      "target_event_id": "event:023",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:023",
+      "target_event_id": "event:024",
       "kind": "sequence",
       "summary": "",
       "metadata": {
