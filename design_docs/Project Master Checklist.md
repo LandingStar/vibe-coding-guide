@@ -1086,6 +1086,10 @@ Validation:
   `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`.
 - [x] Complete Codex concurrent delivery gate for opt-in process-level
   lane-distinct runtime invocation parallelism.
+- [ ] Later design configurable continuous-worker lane memory: keep current
+  lane-node execution stateless with explicit artifact/dependency context for
+  now, but design a future option where one worker can continuously own one
+  lane or a tightly coupled lane group with auditable memory/checkpoint policy.
 - [ ] For later gates, consider persistent monitoring UI, distributed worker
   leases, live Codex process resume, live-provider throughput validation, or
   automatic log compaction as separate product slices.
