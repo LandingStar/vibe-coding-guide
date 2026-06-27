@@ -20,7 +20,6 @@ REQUIRED_FILES = [
     "design_docs/tooling/Document-Driven Workflow Standard.md",
     "design_docs/tooling/Session Handoff Standard.md",
     "design_docs/tooling/Subagent Delegation Standard.md",
-    ".codex/handoffs/CURRENT.md",
     ".codex/packs/project-local.pack.json",
     ".codex/contracts/subagent-contract.template.json",
     ".codex/contracts/subagent-report.template.json",
@@ -31,6 +30,10 @@ REQUIRED_FILES = [
     ".codex/prompts/doc-loop/04-subagent-contract.md",
     ".codex/prompts/doc-loop/05-dependency-baseline.md",
     ".codex/prompts/doc-loop/06-dependency-baseline-maintenance.md",
+]
+
+OPTIONAL_RUNTIME_FILES = [
+    ".codex/handoffs/CURRENT.md",
 ]
 
 
@@ -198,6 +201,14 @@ def check_file(root: Path, relative_path: str) -> bool:
     return True
 
 
+def check_optional_runtime_file(root: Path, relative_path: str) -> None:
+    file_path = root / relative_path
+    if file_path.exists():
+        print(f"[OK] Optional runtime mirror present: {relative_path}")
+    else:
+        print(f"[INFO] Optional runtime mirror absent: {relative_path}")
+
+
 def check_headings(root: Path, relative_path: str, headings: list[str]) -> bool:
     file_path = root / relative_path
     if not file_path.exists():
@@ -352,6 +363,9 @@ def main() -> int:
 
     for relative_path in REQUIRED_FILES:
         passed = check_file(target_root, relative_path) and passed
+
+    for relative_path in OPTIONAL_RUNTIME_FILES:
+        check_optional_runtime_file(target_root, relative_path)
 
     for relative_path, headings in REQUIRED_HEADINGS.items():
         passed = check_headings(target_root, relative_path, headings) and passed

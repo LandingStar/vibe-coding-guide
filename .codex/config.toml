@@ -1,4 +1,0 @@
-[mcp_servers.doc-based-coding]
-command = 'e:\workspace\tool develop\vibe coding facilities\doc based coding\.venv-mcp\Scripts\doc-based-coding-mcp.exe'
-args = ["--project", 'e:\workspace\tool develop\vibe coding facilities\doc based coding']
-cwd = 'e:\workspace\tool develop\vibe coding facilities\doc based coding'

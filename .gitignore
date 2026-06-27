@@ -55,4 +55,12 @@ Thumbs.db
 node_modules/
 output/
 debug.log
+
+# Codex local/runtime state. Keep project rules, prompts, packs, contracts,
+# handoff-system, and .codex/progress-graph tracked unless explicitly changed.
+.codex/config.toml
+.codex/checkpoints/latest.md
 .codex/decision-logs/
+.codex/handoffs/CURRENT.md
+.codex/handoffs/history/
+.codex/temporary-overrides.json
