@@ -260,6 +260,7 @@ class CodexDeliveryBoundedLoopRequest:
     max_deliveries: int = 3
     max_runtime_failures: int = 1
     max_delivery_attempts_per_record: int = 2
+    max_concurrent_deliveries: int = 1
     target_task_ids: tuple[str, ...] = ()
 
 
@@ -352,6 +353,13 @@ class CodexDeliveryBoundedLoopResult:
         delivery_state = read_leader_worker_delivery_state(
             self.request.smoke_request.delivery_state_path
         )
+        iteration_payloads = [item.to_json_dict() for item in self.iterations]
+        iteration_concurrency = [
+            item["codex_delivery"]["concurrency"] for item in iteration_payloads
+        ]
+        process_parallel_execution = any(
+            item["process_parallel_execution"] for item in iteration_concurrency
+        )
         return {
             "ok": self.ok,
             "stop_reason": self.stop_reason,
@@ -360,6 +368,7 @@ class CodexDeliveryBoundedLoopResult:
             "max_deliveries": self.request.max_deliveries,
             "max_runtime_failures": self.request.max_runtime_failures,
             "max_delivery_attempts_per_record": self.request.max_delivery_attempts_per_record,
+            "max_concurrent_deliveries": self.request.max_concurrent_deliveries,
             "tick_count": self.tick_count,
             "attempted_count": self.attempted_count,
             "acknowledged_count": self.acknowledged_count,
@@ -371,10 +380,24 @@ class CodexDeliveryBoundedLoopResult:
             "target_task_states": target_states,
             "fixture": self.fixture.to_json_dict(),
             "readiness": None if self.readiness is None else self.readiness.to_json_dict(),
-            "iterations": [item.to_json_dict() for item in self.iterations],
+            "iterations": iteration_payloads,
+            "concurrency": {
+                "requested_max_concurrent_deliveries": self.request.max_concurrent_deliveries,
+                "process_parallel_execution": process_parallel_execution,
+                "max_observed_concurrent_batch_size": max(
+                    (
+                        item["max_observed_concurrent_batch_size"]
+                        for item in iteration_concurrency
+                    ),
+                    default=0,
+                ),
+                "serialized_writeback": True,
+            },
             "authority_split": {
                 "workflow_surface": "host-owned-bounded-codex-supervisor-loop",
                 "provider_executed": self.attempted_count > 0,
+                "process_parallel_execution": process_parallel_execution,
+                "serialized_writeback": True,
                 "scheduler_snapshot_mutated": self.fixture.initialized,
                 "scheduler_event_log_mutated": self.acknowledged_count > 0,
                 "dispatcher_state_mutated": bool(self.iterations),
@@ -547,6 +570,10 @@ def run_bounded_codex_delivery_supervisor_loop(
         raise ValueError(
             "bounded Codex supervisor loop max_delivery_attempts_per_record must be positive"
         )
+    if request.max_concurrent_deliveries < 1:
+        raise ValueError(
+            "bounded Codex supervisor loop max_concurrent_deliveries must be positive"
+        )
 
     smoke = request.smoke_request
     fixture = CodexDeliveryE2ESmokeFixtureResult(
@@ -661,6 +688,7 @@ def run_bounded_codex_delivery_supervisor_loop(
                 consume_success_results=True,
                 replace_existing_result_artifact=smoke.replace_existing_result_artifact,
                 max_deliveries=remaining_deliveries,
+                max_concurrent_deliveries=request.max_concurrent_deliveries,
                 retry_failed_delivery=True,
                 max_delivery_attempts_per_record=request.max_delivery_attempts_per_record,
                 timestamp=smoke.timestamp,

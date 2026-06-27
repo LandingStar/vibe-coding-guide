@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -38,6 +39,7 @@ from .runtime_adapter import (
     CodexCliResult,
     PermissionRequest,
     RuntimeRunResult,
+    TaskSpec,
 )
 from .runtime_invocation_audit import (
     DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
@@ -74,6 +76,30 @@ CodexDeliverySupervisorRecordStatus = Literal[
 
 
 @dataclass(frozen=True, slots=True)
+class _PreparedCodexDelivery:
+    record: LeaderWorkerDeliveryRecord
+    task: ScheduledTask
+    retry_attempt: bool
+    runtime_task: TaskSpec
+    preflight: OrchestrationPreflightBundle | None = None
+    batch_id: str = ""
+    batch_size: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class _RuntimeDeliveryOutcome:
+    prepared: _PreparedCodexDelivery
+    session_id: str = ""
+    run_id: str = ""
+    invocation_id: str = ""
+    run_result: RuntimeRunResult | None = None
+    failure_kind: str = ""
+    failure_detail: str = ""
+    raw_error_type: str = ""
+    retryable: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class CodexDeliverySupervisorRequest:
     """Request for one bounded host-owned Codex delivery supervisor pass."""
 
@@ -86,6 +112,7 @@ class CodexDeliverySupervisorRequest:
     consume_success_results: bool = False
     replace_existing_result_artifact: bool = False
     max_deliveries: int = 1
+    max_concurrent_deliveries: int = 1
     retry_failed_delivery: bool = False
     retryable_failure_kinds: tuple[str, ...] = (
         "timeout",
@@ -165,6 +192,10 @@ class CodexDeliverySupervisorRecord:
     result_consumption: CodexResultConsumerResult | None = None
     worker_patch_review: CodexDeliveryWorkerPatchReviewPublication | None = None
     delivery_acknowledgement: LeaderWorkerDeliveryAckResult | None = None
+    concurrent_batch_id: str = ""
+    concurrent_batch_size: int = 0
+    process_parallel_execution: bool = False
+    serialized_writeback: bool = True
 
     def to_json_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -181,6 +212,10 @@ class CodexDeliverySupervisorRecord:
             "runtime_session_id": self.runtime_session_id,
             "runtime_run_id": self.runtime_run_id,
             "invocation_id": self.invocation_id,
+            "concurrent_batch_id": self.concurrent_batch_id,
+            "concurrent_batch_size": self.concurrent_batch_size,
+            "process_parallel_execution": self.process_parallel_execution,
+            "serialized_writeback": self.serialized_writeback,
             "output_artifact_ref": {
                 "ref_kind": "exchange_artifact" if self.output_artifact_id else "",
                 "ref_id": self.output_artifact_id,
@@ -261,6 +296,7 @@ class CodexDeliverySupervisorResult:
             "host_invocation_id": self.request.host_invocation_id,
             "host_id": self.request.host_id,
             "max_deliveries": self.request.max_deliveries,
+            "max_concurrent_deliveries": self.request.max_concurrent_deliveries,
             "retry_failed_delivery": self.request.retry_failed_delivery,
             "retryable_failure_kinds": list(self.request.retryable_failure_kinds),
             "max_delivery_attempts_per_record": self.request.max_delivery_attempts_per_record,
@@ -275,10 +311,27 @@ class CodexDeliverySupervisorResult:
             "skipped_count": self.skipped_count,
             "recovered_scheduler_event_count": self.recovered_scheduler_event_count,
             "records": [record.to_json_dict() for record in self.records],
+            "concurrency": {
+                "requested_max_concurrent_deliveries": self.request.max_concurrent_deliveries,
+                "effective_max_concurrent_deliveries": max(1, self.request.max_concurrent_deliveries),
+                "max_observed_concurrent_batch_size": max(
+                    (record.concurrent_batch_size for record in self.records),
+                    default=0,
+                ),
+                "process_parallel_execution": any(
+                    record.process_parallel_execution for record in self.records
+                ),
+                "serialized_writeback": True,
+                "lane_distinct_batches": True,
+            },
             "authority_split": {
                 "workflow_surface": "host-owned-codex-delivery-supervisor-once",
                 "runtime_registry_authority": "host_runtime_wiring",
                 "provider_executed": self.attempted_count > 0,
+                "process_parallel_execution": any(
+                    record.process_parallel_execution for record in self.records
+                ),
+                "serialized_writeback": True,
                 "delivery_state_mutated": self.attempted_count > 0,
                 "delivery_log_mutated": self.attempted_count > 0,
                 "runtime_invocation_log_mutated": (
@@ -322,6 +375,10 @@ def run_codex_delivery_supervisor_once(
 
     if request.max_deliveries < 0:
         raise ValueError("codex delivery supervisor max_deliveries must be non-negative")
+    if request.max_concurrent_deliveries < 1:
+        raise ValueError(
+            "codex delivery supervisor max_concurrent_deliveries must be positive"
+        )
     if request.max_delivery_attempts_per_record < 1:
         raise ValueError(
             "codex delivery supervisor max_delivery_attempts_per_record must be positive"
@@ -400,9 +457,14 @@ def run_codex_delivery_supervisor_once(
         if _record_is_delivery_candidate(record, request)
     )
     result_records: list[CodexDeliverySupervisorRecord] = []
-    attempted = 0
+    prepared: list[_PreparedCodexDelivery] = []
+    selected_lane_ids: set[str] = set()
+    batch_limit = min(request.max_deliveries, request.max_concurrent_deliveries)
+    batch_id = f"{request.host_invocation_id}:batch-0001"
     for record in candidate_records:
-        if attempted >= request.max_deliveries:
+        if len(prepared) >= request.max_deliveries:
+            break
+        if len(prepared) >= batch_limit:
             break
         task = recovery.recovered_state.tasks.get(record.task_id)
         skip_reason = _skip_reason_for_record(
@@ -420,8 +482,6 @@ def run_codex_delivery_supervisor_once(
             task=task,
         )
         if precondition_failure:
-            if attempted >= request.max_deliveries:
-                break
             result_records.append(
                 _fail_delivery_record(
                     request=request,
@@ -439,30 +499,24 @@ def run_codex_delivery_supervisor_once(
             continue
 
         assert task is not None
-        attempted += 1
-        retry_attempt = record.delivery_state == "failed"
-        session = None
-        invocation_id = ""
-        preflight: OrchestrationPreflightBundle | None = None
+        lane_id = record.lane_id or task.context_scope.lane_id
+        if request.max_concurrent_deliveries > 1:
+            if lane_id in selected_lane_ids:
+                continue
         try:
-            runtime_task = task_to_runtime_spec(task)
-            if sandbox_registry is not None:
-                preflight = build_orchestration_preflight_bundle(
-                    _ready_task_for_preflight(task),
-                    sandbox_registry=sandbox_registry,
+            prepared.append(
+                _prepare_codex_delivery(
+                    request=request,
+                    record=record,
+                    task=task,
                     scheduler_state=recovery.recovered_state,
-                    workspace_root=str(request.workspace_root),
-                    scratch_root=str(request.scratch_root),
-                    created_at=request.timestamp,
+                    sandbox_registry=sandbox_registry,
+                    batch_id=batch_id,
+                    batch_size=1,
                 )
-                runtime_task = preflight.runtime_task
-            session = runtime.start_session(task.agent)
-            invocation_id = _runtime_invocation_id(
-                request.host_invocation_id,
-                session.session_id,
-                task.task_id,
             )
-            run_result = runtime.run_task(session, runtime_task)
+            if request.max_concurrent_deliveries > 1:
+                selected_lane_ids.add(lane_id)
         except Exception as exc:
             result_records.append(
                 _fail_delivery_record(
@@ -470,235 +524,38 @@ def run_codex_delivery_supervisor_once(
                     record=record,
                     state_path=state_path,
                     delivery_log_path=delivery_log_path,
-                    failure_kind=str(getattr(exc, "error_kind", "") or type(exc).__name__),
+                    failure_kind="delivery_preparation_failed",
                     failure_detail=str(getattr(exc, "summary", "") or exc),
-                    runtime_session_id=str(
-                        getattr(exc, "session_id", "")
-                        or (session.session_id if session is not None else "")
-                    ),
+                    runtime_session_id=str(getattr(exc, "session_id", "")),
                     runtime_run_id=str(getattr(exc, "run_id", "")),
-                    invocation_id=invocation_id,
-                    attempted=True,
-                    retry_attempt=retry_attempt,
+                    invocation_id="",
+                    attempted=False,
+                    retry_attempt=record.delivery_state == "failed",
                 )
             )
-            continue
-
-        result_consumption: CodexResultConsumerResult | None = None
-        permission_review: CodexPermissionReviewConsumerResult | None = None
-        if run_result.permission_requests:
-            if artifact_store_path is None:
-                result_records.append(
-                    _fail_delivery_record(
-                        request=request,
-                        record=record,
-                        state_path=state_path,
-                        delivery_log_path=delivery_log_path,
-                        failure_kind="permission_review_consumer_failed",
-                        failure_detail=(
-                            "Codex permission review requires artifact_store_path "
-                            "so the review output artifact can be stored durably"
-                        ),
-                        runtime_session_id=run_result.run_handle.session_id,
-                        runtime_run_id=run_result.run_handle.run_id,
-                        invocation_id=invocation_id,
-                        attempted=True,
-                        retry_attempt=retry_attempt,
-                    )
-                )
-                continue
-            try:
-                permission_review = consume_codex_permission_review_result(
-                    CodexPermissionReviewConsumerRequest(
-                        artifact_store_path=artifact_store_path,
-                        scheduler_event_log_path=scheduler_log_path,
-                        timestamp=request.timestamp,
-                        event_id_prefix=request.host_invocation_id,
-                        actor=request.host_id,
-                        replace_existing_artifact=request.replace_existing_result_artifact,
-                    ),
-                    task=task,
-                    run_result=run_result,
-                )
-            except Exception as exc:
-                result_records.append(
-                    _fail_delivery_record(
-                        request=request,
-                        record=record,
-                        state_path=state_path,
-                        delivery_log_path=delivery_log_path,
-                        failure_kind="permission_review_consumer_failed",
-                        failure_detail=str(exc),
-                        runtime_session_id=run_result.run_handle.session_id,
-                        runtime_run_id=run_result.run_handle.run_id,
-                        invocation_id=invocation_id,
-                        attempted=True,
-                        retry_attempt=retry_attempt,
-                    )
-                )
-                continue
-            review_ack = acknowledge_leader_worker_delivery(
-                LeaderWorkerDeliveryAckRequest(
-                    delivery_state_path=state_path,
-                    delivery_event_log_path=delivery_log_path,
-                    source_key=record.source_key,
-                    target_state="review_required",
-                    timestamp=request.timestamp,
-                    host_id=request.host_id,
-                    runtime_provider="codex",
-                    runtime_session_id=run_result.run_handle.session_id,
-                    runtime_run_id=run_result.run_handle.run_id,
-                    invocation_id=invocation_id,
-                    metadata=_ack_metadata(
-                        request,
-                        record,
-                        run_result=run_result,
-                        permission_review=permission_review,
-                    ),
-                )
-            )
+    if prepared:
+        observed_batch_size = len(prepared)
+        prepared = [
+            replace(item, batch_size=observed_batch_size)
+            for item in prepared
+        ]
+        outcomes = _run_codex_runtime_delivery_batch(
+            prepared,
+            runtime=runtime,
+            concurrent=request.max_concurrent_deliveries > 1 and observed_batch_size > 1,
+        )
+        for outcome in outcomes:
             result_records.append(
-                CodexDeliverySupervisorRecord(
-                    source_key=record.source_key,
-                    delivery_record_id=record.delivery_id,
-                    task_id=record.task_id,
-                    agent_id=record.agent_id,
-                    status="review_required",
-                    attempted=True,
-                    runtime_session_id=run_result.run_handle.session_id,
-                    runtime_run_id=run_result.run_handle.run_id,
-                    invocation_id=invocation_id,
-                    output_artifact_id=run_result.output_artifact.artifact_id,
-                    output_artifact_version=run_result.output_artifact.version,
-                    permission_review=permission_review,
-                    permission_requests=tuple(run_result.permission_requests),
-                    delivery_acknowledgement=review_ack,
-                    retry_attempt=retry_attempt,
-                )
-            )
-            continue
-
-        worker_patch_review: CodexDeliveryWorkerPatchReviewPublication | None = None
-        try:
-            worker_patch_review = _publish_worker_patch_review_artifact(
-                request=request,
-                artifact_store_path=artifact_store_path,
-                task=task,
-                scheduler_state=recovery.recovered_state,
-                preflight=preflight,
-                run_result=run_result,
-            )
-        except Exception as exc:
-            result_records.append(
-                _fail_delivery_record(
+                _consume_codex_runtime_delivery_outcome(
                     request=request,
-                    record=record,
+                    outcome=outcome,
                     state_path=state_path,
                     delivery_log_path=delivery_log_path,
-                    failure_kind="worker_patch_review_publish_failed",
-                    failure_detail=str(exc),
-                    runtime_session_id=run_result.run_handle.session_id,
-                    runtime_run_id=run_result.run_handle.run_id,
-                    invocation_id=invocation_id,
-                    attempted=True,
-                    retry_attempt=retry_attempt,
+                    scheduler_log_path=scheduler_log_path,
+                    artifact_store_path=artifact_store_path,
+                    scheduler_state=recovery.recovered_state,
                 )
             )
-            continue
-
-        if request.consume_success_results:
-            if artifact_store_path is None:
-                result_records.append(
-                    _fail_delivery_record(
-                        request=request,
-                        record=record,
-                        state_path=state_path,
-                        delivery_log_path=delivery_log_path,
-                        failure_kind="result_consumer_failed",
-                        failure_detail=(
-                            "consume_success_results requires artifact_store_path "
-                            "so the Codex output artifact can be stored durably"
-                        ),
-                        runtime_session_id=run_result.run_handle.session_id,
-                        runtime_run_id=run_result.run_handle.run_id,
-                        invocation_id=invocation_id,
-                        attempted=True,
-                        retry_attempt=retry_attempt,
-                    )
-                )
-                continue
-            try:
-                result_consumption = consume_successful_codex_result(
-                    CodexResultConsumerRequest(
-                        artifact_store_path=artifact_store_path,
-                        scheduler_event_log_path=scheduler_log_path,
-                        timestamp=request.timestamp,
-                        event_id_prefix=request.host_invocation_id,
-                        actor=request.host_id,
-                        replace_existing_artifact=request.replace_existing_result_artifact,
-                    ),
-                    task=task,
-                    run_result=run_result,
-                )
-            except Exception as exc:
-                result_records.append(
-                    _fail_delivery_record(
-                        request=request,
-                        record=record,
-                        state_path=state_path,
-                        delivery_log_path=delivery_log_path,
-                        failure_kind="result_consumer_failed",
-                        failure_detail=str(exc),
-                        runtime_session_id=run_result.run_handle.session_id,
-                        runtime_run_id=run_result.run_handle.run_id,
-                        invocation_id=invocation_id,
-                        attempted=True,
-                        retry_attempt=retry_attempt,
-                    )
-                )
-                continue
-
-        success_ack = acknowledge_leader_worker_delivery(
-            LeaderWorkerDeliveryAckRequest(
-                delivery_state_path=state_path,
-                delivery_event_log_path=delivery_log_path,
-                source_key=record.source_key,
-                target_state="acknowledged",
-                timestamp=request.timestamp,
-                host_id=request.host_id,
-                runtime_provider="codex",
-                runtime_session_id=run_result.run_handle.session_id,
-                runtime_run_id=run_result.run_handle.run_id,
-                invocation_id=invocation_id,
-                metadata=_ack_metadata(
-                    request,
-                    record,
-                    run_result=run_result,
-                    result_consumption=result_consumption,
-                    worker_patch_review=worker_patch_review,
-                ),
-            )
-        )
-        result_records.append(
-            CodexDeliverySupervisorRecord(
-                source_key=record.source_key,
-                delivery_record_id=record.delivery_id,
-                task_id=record.task_id,
-                agent_id=record.agent_id,
-                status="acknowledged",
-                attempted=True,
-                runtime_session_id=run_result.run_handle.session_id,
-                runtime_run_id=run_result.run_handle.run_id,
-                invocation_id=invocation_id,
-                output_artifact_id=run_result.output_artifact.artifact_id,
-                output_artifact_version=run_result.output_artifact.version,
-                result_consumption=result_consumption,
-                worker_patch_review=worker_patch_review,
-                permission_requests=tuple(run_result.permission_requests),
-                delivery_acknowledgement=success_ack,
-                retry_attempt=retry_attempt,
-            )
-        )
 
     return CodexDeliverySupervisorResult(
         request=request,
@@ -712,6 +569,357 @@ def run_codex_delivery_supervisor_once(
         recovered_scheduler_event_count=recovery.event_count,
         pending_delivery_count=len(candidate_records),
         inspected_delivery_count=len(result_records),
+    )
+
+
+def _prepare_codex_delivery(
+    *,
+    request: CodexDeliverySupervisorRequest,
+    record: LeaderWorkerDeliveryRecord,
+    task: ScheduledTask,
+    scheduler_state: SchedulerState,
+    sandbox_registry: SandboxProviderRegistry | None,
+    batch_id: str,
+    batch_size: int,
+) -> _PreparedCodexDelivery:
+    runtime_task = task_to_runtime_spec(task)
+    preflight: OrchestrationPreflightBundle | None = None
+    if sandbox_registry is not None:
+        preflight = build_orchestration_preflight_bundle(
+            _ready_task_for_preflight(task),
+            sandbox_registry=sandbox_registry,
+            scheduler_state=scheduler_state,
+            workspace_root=str(request.workspace_root),
+            scratch_root=str(request.scratch_root),
+            created_at=request.timestamp,
+        )
+        runtime_task = preflight.runtime_task
+    return _PreparedCodexDelivery(
+        record=record,
+        task=task,
+        runtime_task=runtime_task,
+        preflight=preflight,
+        retry_attempt=record.delivery_state == "failed",
+        batch_id=batch_id,
+        batch_size=batch_size,
+    )
+
+
+def _run_codex_runtime_delivery_batch(
+    prepared: list[_PreparedCodexDelivery],
+    *,
+    runtime,
+    concurrent: bool,
+) -> tuple[_RuntimeDeliveryOutcome, ...]:
+    if not concurrent:
+        return tuple(_run_codex_runtime_delivery(item, runtime=runtime) for item in prepared)
+    with ThreadPoolExecutor(max_workers=len(prepared)) as executor:
+        futures = [
+            executor.submit(_run_codex_runtime_delivery, item, runtime=runtime)
+            for item in prepared
+        ]
+        return tuple(future.result() for future in futures)
+
+
+def _run_codex_runtime_delivery(
+    prepared: _PreparedCodexDelivery,
+    *,
+    runtime,
+) -> _RuntimeDeliveryOutcome:
+    session = None
+    invocation_id = ""
+    try:
+        session = runtime.start_session(prepared.task.agent)
+        invocation_id = _runtime_invocation_id(
+            prepared.batch_id.rsplit(":batch-", 1)[0],
+            session.session_id,
+            prepared.task.task_id,
+        )
+        run_result = runtime.run_task(session, prepared.runtime_task)
+    except Exception as exc:
+        return _RuntimeDeliveryOutcome(
+            prepared=prepared,
+            session_id=str(
+                getattr(exc, "session_id", "")
+                or (session.session_id if session is not None else "")
+            ),
+            run_id=str(getattr(exc, "run_id", "")),
+            invocation_id=invocation_id,
+            failure_kind=str(getattr(exc, "error_kind", "") or type(exc).__name__),
+            failure_detail=str(getattr(exc, "summary", "") or exc),
+            raw_error_type=str(getattr(exc, "raw_error_type", "") or type(exc).__name__),
+            retryable=bool(getattr(exc, "retryable", False)),
+        )
+    return _RuntimeDeliveryOutcome(
+        prepared=prepared,
+        session_id=run_result.run_handle.session_id,
+        run_id=run_result.run_handle.run_id,
+        invocation_id=invocation_id,
+        run_result=run_result,
+    )
+
+
+def _consume_codex_runtime_delivery_outcome(
+    *,
+    request: CodexDeliverySupervisorRequest,
+    outcome: _RuntimeDeliveryOutcome,
+    state_path: Path,
+    delivery_log_path: Path,
+    scheduler_log_path: Path,
+    artifact_store_path: Path | None,
+    scheduler_state: SchedulerState,
+) -> CodexDeliverySupervisorRecord:
+    prepared = outcome.prepared
+    record = prepared.record
+    task = prepared.task
+    retry_attempt = prepared.retry_attempt
+    run_result = outcome.run_result
+    process_parallel = prepared.batch_size > 1
+    if run_result is None:
+        return replace(
+            _fail_delivery_record(
+                request=request,
+                record=record,
+                state_path=state_path,
+                delivery_log_path=delivery_log_path,
+                failure_kind=outcome.failure_kind,
+                failure_detail=outcome.failure_detail,
+                runtime_session_id=outcome.session_id,
+                runtime_run_id=outcome.run_id,
+                invocation_id=outcome.invocation_id,
+                attempted=True,
+                retry_attempt=retry_attempt,
+            ),
+            concurrent_batch_id=prepared.batch_id,
+            concurrent_batch_size=prepared.batch_size,
+            process_parallel_execution=process_parallel,
+        )
+
+    result_consumption: CodexResultConsumerResult | None = None
+    permission_review: CodexPermissionReviewConsumerResult | None = None
+    if run_result.permission_requests:
+        if artifact_store_path is None:
+            return replace(
+                _fail_delivery_record(
+                    request=request,
+                    record=record,
+                    state_path=state_path,
+                    delivery_log_path=delivery_log_path,
+                    failure_kind="permission_review_consumer_failed",
+                    failure_detail=(
+                        "Codex permission review requires artifact_store_path "
+                        "so the review output artifact can be stored durably"
+                    ),
+                    runtime_session_id=run_result.run_handle.session_id,
+                    runtime_run_id=run_result.run_handle.run_id,
+                    invocation_id=outcome.invocation_id,
+                    attempted=True,
+                    retry_attempt=retry_attempt,
+                ),
+                concurrent_batch_id=prepared.batch_id,
+                concurrent_batch_size=prepared.batch_size,
+                process_parallel_execution=process_parallel,
+            )
+        try:
+            permission_review = consume_codex_permission_review_result(
+                CodexPermissionReviewConsumerRequest(
+                    artifact_store_path=artifact_store_path,
+                    scheduler_event_log_path=scheduler_log_path,
+                    timestamp=request.timestamp,
+                    event_id_prefix=request.host_invocation_id,
+                    actor=request.host_id,
+                    replace_existing_artifact=request.replace_existing_result_artifact,
+                ),
+                task=task,
+                run_result=run_result,
+            )
+        except Exception as exc:
+            return replace(
+                _fail_delivery_record(
+                    request=request,
+                    record=record,
+                    state_path=state_path,
+                    delivery_log_path=delivery_log_path,
+                    failure_kind="permission_review_consumer_failed",
+                    failure_detail=str(exc),
+                    runtime_session_id=run_result.run_handle.session_id,
+                    runtime_run_id=run_result.run_handle.run_id,
+                    invocation_id=outcome.invocation_id,
+                    attempted=True,
+                    retry_attempt=retry_attempt,
+                ),
+                concurrent_batch_id=prepared.batch_id,
+                concurrent_batch_size=prepared.batch_size,
+                process_parallel_execution=process_parallel,
+            )
+        review_ack = acknowledge_leader_worker_delivery(
+            LeaderWorkerDeliveryAckRequest(
+                delivery_state_path=state_path,
+                delivery_event_log_path=delivery_log_path,
+                source_key=record.source_key,
+                target_state="review_required",
+                timestamp=request.timestamp,
+                host_id=request.host_id,
+                runtime_provider="codex",
+                runtime_session_id=run_result.run_handle.session_id,
+                runtime_run_id=run_result.run_handle.run_id,
+                invocation_id=outcome.invocation_id,
+                metadata=_ack_metadata(
+                    request,
+                    record,
+                    run_result=run_result,
+                    permission_review=permission_review,
+                ),
+            )
+        )
+        return CodexDeliverySupervisorRecord(
+            source_key=record.source_key,
+            delivery_record_id=record.delivery_id,
+            task_id=record.task_id,
+            agent_id=record.agent_id,
+            status="review_required",
+            attempted=True,
+            runtime_session_id=run_result.run_handle.session_id,
+            runtime_run_id=run_result.run_handle.run_id,
+            invocation_id=outcome.invocation_id,
+            output_artifact_id=run_result.output_artifact.artifact_id,
+            output_artifact_version=run_result.output_artifact.version,
+            permission_review=permission_review,
+            permission_requests=tuple(run_result.permission_requests),
+            delivery_acknowledgement=review_ack,
+            retry_attempt=retry_attempt,
+            concurrent_batch_id=prepared.batch_id,
+            concurrent_batch_size=prepared.batch_size,
+            process_parallel_execution=process_parallel,
+        )
+
+    worker_patch_review: CodexDeliveryWorkerPatchReviewPublication | None = None
+    try:
+        worker_patch_review = _publish_worker_patch_review_artifact(
+            request=request,
+            artifact_store_path=artifact_store_path,
+            task=task,
+            scheduler_state=scheduler_state,
+            preflight=prepared.preflight,
+            run_result=run_result,
+        )
+    except Exception as exc:
+        return replace(
+            _fail_delivery_record(
+                request=request,
+                record=record,
+                state_path=state_path,
+                delivery_log_path=delivery_log_path,
+                failure_kind="worker_patch_review_publish_failed",
+                failure_detail=str(exc),
+                runtime_session_id=run_result.run_handle.session_id,
+                runtime_run_id=run_result.run_handle.run_id,
+                invocation_id=outcome.invocation_id,
+                attempted=True,
+                retry_attempt=retry_attempt,
+            ),
+            concurrent_batch_id=prepared.batch_id,
+            concurrent_batch_size=prepared.batch_size,
+            process_parallel_execution=process_parallel,
+        )
+
+    if request.consume_success_results:
+        if artifact_store_path is None:
+            return replace(
+                _fail_delivery_record(
+                    request=request,
+                    record=record,
+                    state_path=state_path,
+                    delivery_log_path=delivery_log_path,
+                    failure_kind="result_consumer_failed",
+                    failure_detail=(
+                        "consume_success_results requires artifact_store_path "
+                        "so the Codex output artifact can be stored durably"
+                    ),
+                    runtime_session_id=run_result.run_handle.session_id,
+                    runtime_run_id=run_result.run_handle.run_id,
+                    invocation_id=outcome.invocation_id,
+                    attempted=True,
+                    retry_attempt=retry_attempt,
+                ),
+                concurrent_batch_id=prepared.batch_id,
+                concurrent_batch_size=prepared.batch_size,
+                process_parallel_execution=process_parallel,
+            )
+        try:
+            result_consumption = consume_successful_codex_result(
+                CodexResultConsumerRequest(
+                    artifact_store_path=artifact_store_path,
+                    scheduler_event_log_path=scheduler_log_path,
+                    timestamp=request.timestamp,
+                    event_id_prefix=request.host_invocation_id,
+                    actor=request.host_id,
+                    replace_existing_artifact=request.replace_existing_result_artifact,
+                ),
+                task=task,
+                run_result=run_result,
+            )
+        except Exception as exc:
+            return replace(
+                _fail_delivery_record(
+                    request=request,
+                    record=record,
+                    state_path=state_path,
+                    delivery_log_path=delivery_log_path,
+                    failure_kind="result_consumer_failed",
+                    failure_detail=str(exc),
+                    runtime_session_id=run_result.run_handle.session_id,
+                    runtime_run_id=run_result.run_handle.run_id,
+                    invocation_id=outcome.invocation_id,
+                    attempted=True,
+                    retry_attempt=retry_attempt,
+                ),
+                concurrent_batch_id=prepared.batch_id,
+                concurrent_batch_size=prepared.batch_size,
+                process_parallel_execution=process_parallel,
+            )
+
+    success_ack = acknowledge_leader_worker_delivery(
+        LeaderWorkerDeliveryAckRequest(
+            delivery_state_path=state_path,
+            delivery_event_log_path=delivery_log_path,
+            source_key=record.source_key,
+            target_state="acknowledged",
+            timestamp=request.timestamp,
+            host_id=request.host_id,
+            runtime_provider="codex",
+            runtime_session_id=run_result.run_handle.session_id,
+            runtime_run_id=run_result.run_handle.run_id,
+            invocation_id=outcome.invocation_id,
+            metadata=_ack_metadata(
+                request,
+                record,
+                run_result=run_result,
+                result_consumption=result_consumption,
+                worker_patch_review=worker_patch_review,
+            ),
+        )
+    )
+    return CodexDeliverySupervisorRecord(
+        source_key=record.source_key,
+        delivery_record_id=record.delivery_id,
+        task_id=record.task_id,
+        agent_id=record.agent_id,
+        status="acknowledged",
+        attempted=True,
+        runtime_session_id=run_result.run_handle.session_id,
+        runtime_run_id=run_result.run_handle.run_id,
+        invocation_id=outcome.invocation_id,
+        output_artifact_id=run_result.output_artifact.artifact_id,
+        output_artifact_version=run_result.output_artifact.version,
+        result_consumption=result_consumption,
+        worker_patch_review=worker_patch_review,
+        permission_requests=tuple(run_result.permission_requests),
+        delivery_acknowledgement=success_ack,
+        retry_attempt=retry_attempt,
+        concurrent_batch_id=prepared.batch_id,
+        concurrent_batch_size=prepared.batch_size,
+        process_parallel_execution=process_parallel,
     )
 
 
@@ -966,6 +1174,7 @@ def _ack_metadata(
         "retry_failed_delivery": request.retry_failed_delivery,
         "retryable_failure_kinds": list(request.retryable_failure_kinds),
         "max_delivery_attempts_per_record": request.max_delivery_attempts_per_record,
+        "max_concurrent_deliveries": request.max_concurrent_deliveries,
         "sandbox_preflight_enabled": request.enable_sandbox_preflight,
         "publish_worker_patch_artifacts": request.publish_worker_patch_artifacts,
         "retry_attempt": record.delivery_state == "failed",

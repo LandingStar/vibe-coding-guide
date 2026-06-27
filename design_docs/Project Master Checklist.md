@@ -26,15 +26,16 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-06-27`
+- Snapshot Date: `2026-06-28`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `C7 Codex runtime status readback completed`
+- Current Focus: `C8 Codex concurrent delivery gate completed`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
-- Latest Completed Slice: `Codex Runtime Status Readback`
+  `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
+- Latest Completed Slice: `Codex Concurrent Delivery Gate`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`,
   `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`,
   `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`,
   `design_docs/stages/planning-gate/2026-06-27-codex-multilane-continuous-progress-fixture.md`,
@@ -59,6 +60,7 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
 1. `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
 1. `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`
 1. `design_docs/stages/planning-gate/2026-06-27-codex-multilane-continuous-progress-fixture.md`
@@ -96,6 +98,44 @@ Historical recovery beyond this list should use:
 - `design_docs/history/Project Master Checklist Archive 2026-06-22.md`
 
 ## Active Work
+
+### Codex Concurrent Delivery Gate
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`
+- Bounded loop binding:
+  `src/runtime/orchestration/codex_delivery_smoke.py`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-supervisor-loop --max-concurrent-deliveries N`
+
+Behavior:
+
+- Adds explicit opt-in process-level concurrency for independent
+  lane-distinct Codex delivery records.
+- Keeps the default serial and leaves same-lane ready records pending for
+  later ticks rather than placing them in the same concurrent runtime batch.
+- Keeps result consumption, permission review, worker patch review, delivery
+  acknowledgement, scheduler event-log writes, and exchange-store writes
+  serialized after runtime completion.
+- Exposes requested concurrency, observed batch size, process-level
+  parallelism, and serialized writeback in supervisor / bounded-loop JSON.
+
+Validation:
+
+- `py_compile` passed for touched runtime/CLI/tests.
+- Focused concurrent runtime tests passed: `2 passed, 338 deselected`.
+- Focused Codex delivery supervisor runtime tests passed:
+  `16 passed, 324 deselected`.
+- Focused Codex delivery supervisor CLI tests passed:
+  `6 passed, 99 deselected`.
 
 ### Codex Runtime Status Readback
 
@@ -1042,8 +1082,10 @@ Validation:
 - [x] Complete Codex runtime status readback and close the first stable
   continuous-use target in
   `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`.
-- [ ] For later gates, consider persistent monitoring UI, true process-level
-  parallelism, distributed worker leases, live Codex process resume, or
+- [x] Complete Codex concurrent delivery gate for opt-in process-level
+  lane-distinct runtime invocation parallelism.
+- [ ] For later gates, consider persistent monitoring UI, distributed worker
+  leases, live Codex process resume, live-provider throughput validation, or
   automatic log compaction as separate product slices.
 
 ## Write Rules For This File

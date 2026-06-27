@@ -6,6 +6,7 @@ import asyncio
 import json
 import shutil
 import subprocess
+import threading
 from dataclasses import replace
 from pathlib import Path
 
@@ -12718,6 +12719,39 @@ class _SequenceCodexCliClientWithFailures:
         return outcome  # type: ignore[return-value]
 
 
+class _BarrierCodexCliClient:
+    def __init__(self, *, expected_concurrent_calls: int) -> None:
+        self.expected_concurrent_calls = expected_concurrent_calls
+        self.requests: tuple[CodexCliRequest, ...] = ()
+        self.first_batch_task_ids: tuple[str, ...] = ()
+        self.active_calls = 0
+        self.max_active_calls = 0
+        self._lock = threading.Lock()
+        self._barrier = threading.Barrier(expected_concurrent_calls, timeout=5.0)
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        wait_for_batch = False
+        with self._lock:
+            self.requests = self.requests + (request,)
+            self.active_calls += 1
+            self.max_active_calls = max(self.max_active_calls, self.active_calls)
+            if len(self.requests) <= self.expected_concurrent_calls:
+                self.first_batch_task_ids = self.first_batch_task_ids + (
+                    request.task.task_id,
+                )
+                wait_for_batch = True
+        try:
+            if wait_for_batch:
+                self._barrier.wait()
+            return CodexCliResult(
+                summary=f"{request.task.task_id} complete",
+                output_text=f"{request.task.task_id} complete",
+            )
+        finally:
+            with self._lock:
+                self.active_calls -= 1
+
+
 def _state_counts_from_delivery_records(state) -> dict[str, int]:
     counts: dict[str, int] = {}
     for record in state.records.values():
@@ -14352,6 +14386,185 @@ def test_bounded_codex_delivery_supervisor_loop_multilane_fixture(
     assert payload["task_state_counts"]["complete"] == 3
     assert delivery_state is not None
     assert _state_counts_from_delivery_records(delivery_state)["acknowledged"] == 3
+    assert payload["concurrency"]["requested_max_concurrent_deliveries"] == 1
+    assert payload["concurrency"]["process_parallel_execution"] is False
+    assert payload["concurrency"]["max_observed_concurrent_batch_size"] == 1
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_codex_delivery_supervisor_keeps_same_lane_records_out_of_concurrent_batch(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / ".codex/scheduler/state.json"
+    event_log = tmp_path / ".codex/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".codex/scheduler/dispatcher-state.json"
+    dispatch_log = tmp_path / ".codex/scheduler/dispatcher-events.jsonl"
+    delivery_state_path = tmp_path / ".codex/scheduler/delivery-state.json"
+    delivery_log = tmp_path / ".codex/scheduler/delivery-events.jsonl"
+    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    event_log.parent.mkdir(parents=True, exist_ok=True)
+    event_log.write_text("", encoding="utf-8")
+    JsonArtifactVersionStore(artifact_store)
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-same-lane-a": ScheduledTask(
+                    task_id="task-same-lane-a",
+                    title="Same lane A",
+                    instruction="Run first same-lane Codex task",
+                    agent=AgentSpec(agent_id="agent:same-lane-a", runtime_provider="codex"),
+                    state="ready",
+                    context_scope=ContextScope(context_id="ctx:same-lane", lane_id="lane:same"),
+                    output_artifact_id="task-same-lane-a:result",
+                ),
+                "task-same-lane-b": ScheduledTask(
+                    task_id="task-same-lane-b",
+                    title="Same lane B",
+                    instruction="Run second same-lane Codex task",
+                    agent=AgentSpec(agent_id="agent:same-lane-b", runtime_provider="codex"),
+                    state="ready",
+                    context_scope=ContextScope(context_id="ctx:same-lane", lane_id="lane:same"),
+                    output_artifact_id="task-same-lane-b:result",
+                ),
+            }
+        ),
+        snapshot,
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=dispatcher_state,
+            dispatch_event_log_path=dispatch_log,
+            scheduler_snapshot_path=snapshot,
+            scheduler_event_log_path=event_log,
+            artifact_store_path=artifact_store,
+            worker_agent_ids=("agent:same-lane-a", "agent:same-lane-b"),
+            timestamp="2026-06-28T10:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=delivery_state_path,
+            delivery_event_log_path=delivery_log,
+            dispatch_event_log_path=dispatch_log,
+            timestamp="2026-06-28T10:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="same lane A complete", output_text="same lane A complete")
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=delivery_state_path,
+            delivery_event_log_path=delivery_log,
+            scheduler_snapshot_path=snapshot,
+            scheduler_event_log_path=event_log,
+            runtime_invocation_log_path=runtime_log,
+            artifact_store_path=artifact_store,
+            consume_success_results=True,
+            max_deliveries=2,
+            max_concurrent_deliveries=2,
+            timestamp="2026-06-28T10:00:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:same-lane-batch",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(delivery_state_path)
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.attempted_count == 1
+    assert tuple(request.task.task_id for request in client.requests) == (
+        "task-same-lane-a",
+    )
+    assert payload["concurrency"]["process_parallel_execution"] is False
+    assert payload["concurrency"]["max_observed_concurrent_batch_size"] == 1
+    assert state is not None
+    by_task_id = {
+        record.task_id: record
+        for record in state.records.values()
+        if record.task_id
+    }
+    assert by_task_id["task-same-lane-a"].delivery_state == "acknowledged"
+    assert by_task_id["task-same-lane-b"].delivery_state == "pending"
+
+
+def test_bounded_codex_delivery_supervisor_loop_runs_lane_distinct_codex_concurrently(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c8-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c8-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T09:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _BarrierCodexCliClient(expected_concurrent_calls=2)
+
+    result = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+            max_concurrent_deliveries=2,
+        ),
+        codex_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(
+        smoke_request.runtime_invocation_log_path
+    ).read_all()
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "all_targets_complete"
+    assert client.max_active_calls >= 2
+    assert tuple(sorted(client.first_batch_task_ids)) == tuple(
+        sorted((smoke_request.target_task_id, smoke_request.parallel_task_id))
+    )
+    assert tuple(request.task.task_id for request in client.requests[:2]) == (
+        smoke_request.target_task_id,
+        smoke_request.parallel_task_id,
+    )
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.parallel_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert len(runtime_records) == 3
+    assert tuple(sorted(record.task_id for record in runtime_records[:2])) == tuple(
+        sorted((smoke_request.target_task_id, smoke_request.parallel_task_id))
+    )
+    assert all(record.provider == "codex" for record in runtime_records)
+    assert all(record.status == "succeeded" for record in runtime_records)
+    assert all(
+        record.to_json_dict()["authority_split"]["raw_transcript_persisted"] is False
+        for record in runtime_records
+    )
+    assert payload["concurrency"]["requested_max_concurrent_deliveries"] == 2
+    assert payload["concurrency"]["process_parallel_execution"] is True
+    assert payload["concurrency"]["max_observed_concurrent_batch_size"] == 2
+    assert payload["concurrency"]["serialized_writeback"] is True
+    first_iteration = payload["iterations"][0]["codex_delivery"]
+    assert first_iteration["concurrency"]["process_parallel_execution"] is True
+    assert first_iteration["concurrency"]["max_observed_concurrent_batch_size"] == 2
+    assert payload["authority_split"]["process_parallel_execution"] is True
+    assert payload["authority_split"]["serialized_writeback"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
 

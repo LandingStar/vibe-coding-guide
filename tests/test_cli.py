@@ -604,11 +604,13 @@ def test_scheduler_codex_delivery_supervisor_loop_help_describes_c2_boundary() -
     assert "--max-deliveries N" in proc.stdout
     assert "--max-runtime-failures N" in proc.stdout
     assert "--max-delivery-attempts-per-record N" in proc.stdout
+    assert "--max-concurrent-deliveries N" in proc.stdout
     assert "--fixture simple|multilane" in proc.stdout
     assert "--enable-sandbox-preflight" in proc.stdout
     assert "--publish-worker-patch-artifacts" in proc.stdout
     assert "marks newly admissible tasks ready" in proc.stdout
     assert "retry eligible failed Codex delivery records after restart" in proc.stdout
+    assert "independent lane-distinct Codex invocations concurrently" in proc.stdout
     assert "multi-lane fixture" in proc.stdout
     assert "review-only patch" in proc.stdout
     assert "not a background daemon" in proc.stdout
@@ -652,6 +654,26 @@ def test_scheduler_codex_delivery_supervisor_loop_cli_fails_closed_when_cli_miss
     assert not (project / ".codex/scheduler/leader-worker-dispatcher-state.json").exists()
     assert not (project / ".codex/scheduler/leader-worker-delivery-state.json").exists()
     assert not (project / ".codex/runtime/invocations.jsonl").exists()
+
+
+def test_scheduler_codex_delivery_supervisor_loop_cli_rejects_invalid_concurrency(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "codex-delivery-supervisor-loop",
+            "--max-concurrent-deliveries",
+            "0",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--max-concurrent-deliveries must be positive" in proc.stderr
 
 
 def test_scheduler_codex_runtime_status_help_describes_read_only_boundary() -> None:

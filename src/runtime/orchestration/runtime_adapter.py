@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -780,6 +781,7 @@ class CodexCliAgentRuntimeAdapter:
         self._session_counter = 0
         self._run_counter = 0
         self._sessions: dict[str, AgentSpec] = {}
+        self._lock = threading.Lock()
 
     def capabilities(self) -> RuntimeCapabilities:
         return codex_cli_runtime_capabilities()
@@ -787,28 +789,31 @@ class CodexCliAgentRuntimeAdapter:
     def start_session(self, agent: AgentSpec) -> SessionHandle:
         if agent.runtime_provider != "codex":
             raise ValueError("CodexCliAgentRuntimeAdapter requires agent.runtime_provider='codex'")
-        self._session_counter += 1
-        session = SessionHandle(
-            session_id=f"codex-session-{self._session_counter}",
-            provider="codex",
-            agent_id=agent.agent_id,
-        )
-        self._sessions[session.session_id] = agent
+        with self._lock:
+            self._session_counter += 1
+            session = SessionHandle(
+                session_id=f"codex-session-{self._session_counter}",
+                provider="codex",
+                agent_id=agent.agent_id,
+            )
+            self._sessions[session.session_id] = agent
         return session
 
     def run_task(self, session: SessionHandle, task: TaskSpec) -> RuntimeRunResult:
         if session.provider != "codex":
             raise ValueError("CodexCliAgentRuntimeAdapter can only run codex sessions")
-        agent = self._sessions.get(session.session_id)
+        with self._lock:
+            agent = self._sessions.get(session.session_id)
         if agent is None:
             raise ValueError(f"unknown Codex CLI runtime session: {session.session_id!r}")
 
-        self._run_counter += 1
-        run = RunHandle(
-            run_id=f"codex-run-{self._run_counter}",
-            session_id=session.session_id,
-            task_id=task.task_id,
-        )
+        with self._lock:
+            self._run_counter += 1
+            run = RunHandle(
+                run_id=f"codex-run-{self._run_counter}",
+                session_id=session.session_id,
+                task_id=task.task_id,
+            )
         started = RunEvent(
             event_id=f"{run.run_id}:started",
             event_kind="task_started",

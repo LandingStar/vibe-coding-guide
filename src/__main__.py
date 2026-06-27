@@ -1357,7 +1357,7 @@ _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE = (
     "[--fixture simple|multilane] "
     "[--replace-existing-result-artifact] "
     "[--max-ticks N] [--max-deliveries N] [--max-runtime-failures N] "
-    "[--max-delivery-attempts-per-record N] "
+    "[--max-delivery-attempts-per-record N] [--max-concurrent-deliveries N] "
     "[--enable-sandbox-preflight] [--workspace-root PATH] "
     "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
     "[--git-executable PATH] [--publish-worker-patch-artifacts] "
@@ -4539,9 +4539,10 @@ def cmd_scheduler_codex_delivery_supervisor_loop(args: list[str]) -> int:
             "consumption, and recovers again. It has explicit max ticks, "
             "deliveries, and runtime failures. It is not a background daemon, "
             "and --fixture multilane seeds a repeatable multi-lane fixture "
-            "for lane-aware continuous progress validation. The loop still "
-            "runs deliveries serially and does not claim true process "
-            "parallelism. It "
+            "for lane-aware continuous progress validation. By default the "
+            "loop runs deliveries serially; pass --max-concurrent-deliveries "
+            "above 1 to run independent lane-distinct Codex invocations "
+            "concurrently while keeping writeback serialized. It "
             "can retry eligible failed Codex delivery records after restart, "
             "can publish git-worktree worker edits as review-only patch "
             "artifacts when sandbox preflight is explicitly enabled, "
@@ -4583,6 +4584,10 @@ def cmd_scheduler_codex_delivery_supervisor_loop(args: list[str]) -> int:
         print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
         print("--max-delivery-attempts-per-record must be positive", file=sys.stderr)
         return 1
+    if int(parsed["max_concurrent_deliveries"]) < 1:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print("--max-concurrent-deliveries must be positive", file=sys.stderr)
+        return 1
 
     try:
         from .runtime.orchestration import (
@@ -4600,6 +4605,7 @@ def cmd_scheduler_codex_delivery_supervisor_loop(args: list[str]) -> int:
                 max_delivery_attempts_per_record=int(
                     parsed["max_delivery_attempts_per_record"]
                 ),
+                max_concurrent_deliveries=int(parsed["max_concurrent_deliveries"]),
             ),
             codex_cli_client=_codex_process_client_from_config(codex_config),
         )
@@ -4659,6 +4665,7 @@ def _parse_codex_delivery_e2e_smoke_args(
         "max_deliveries": 3,
         "max_runtime_failures": 1,
         "max_delivery_attempts_per_record": 2,
+        "max_concurrent_deliveries": 1,
     }
     if not include_loop_options:
         parsed.pop("max_ticks")
@@ -4703,6 +4710,7 @@ def _parse_codex_delivery_e2e_smoke_args(
                 "--max-deliveries": "max_deliveries",
                 "--max-runtime-failures": "max_runtime_failures",
                 "--max-delivery-attempts-per-record": "max_delivery_attempts_per_record",
+                "--max-concurrent-deliveries": "max_concurrent_deliveries",
             }
         )
     i = 0
@@ -4744,6 +4752,7 @@ def _parse_codex_delivery_e2e_smoke_args(
             "max_deliveries",
             "max_runtime_failures",
             "max_delivery_attempts_per_record",
+            "max_concurrent_deliveries",
         }:
             try:
                 parsed[key] = int(value)

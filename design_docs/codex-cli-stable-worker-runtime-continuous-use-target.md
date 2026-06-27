@@ -182,7 +182,10 @@ For at least two lane-distinct worker contexts:
 2. The loop can make progress across lanes without conflating context scopes.
 3. Lane dependencies and merge/review gates block only the appropriate work.
 4. The first stable target may run tasks serially while preserving scheduling
-   parallelism metadata; true process-level parallelism can be a later gate.
+   parallelism metadata.
+5. Process-level concurrent runtime execution for lane-distinct Codex delivery
+   is implemented as the follow-up C8 gate:
+   `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`.
 
 ### I. Operator / Guide-Agent Readback
 
@@ -355,6 +358,35 @@ Non-goals:
 1. No full web UI unless separately scoped.
 2. No long transcript viewer.
 
+### Gate C8 — Codex Concurrent Delivery Gate
+
+Status: implemented in
+`design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`.
+
+Purpose: add explicit bounded process-level concurrency for independent
+lane-distinct Codex worker delivery while retaining serialized writeback.
+
+Acceptance:
+
+1. `CodexDeliverySupervisorRequest` and bounded loop request expose an
+   explicit concurrency limit with serial defaults.
+2. One supervisor pass can run at least two lane-distinct Codex runtime
+   invocations concurrently when the limit is greater than one.
+3. A concurrent runtime batch never includes two records from the same lane.
+4. Runtime invocation audit remains durable and redacted.
+5. Result consumption, permission review, worker patch review, delivery
+   acknowledgement, scheduler event-log writes, and exchange-store writes
+   remain serialized after runtime completion.
+6. Loop / CLI JSON reports requested concurrency, observed batch size,
+   process-level parallelism, and serialized writeback.
+
+Non-goals:
+
+1. No daemon or long-lived worker pool.
+2. No distributed leases.
+3. No live Codex process resume.
+4. No automatic patch application or conflict resolution.
+
 ## Recommended Order
 
 Recommended immediate order:
@@ -366,6 +398,7 @@ Recommended immediate order:
 5. C5: Sandbox / Patch Review Integration Closure.
 6. C6: Multi-Lane Continuous Progress Fixture.
 7. C7: Operator / Guide-Agent Runtime Status Readback.
+8. C8: Codex Concurrent Delivery Gate.
 
 Reasoning:
 
@@ -376,6 +409,8 @@ Reasoning:
 - C5 keeps real code edits behind review-only writeback.
 - C6 proves lane-aware continuous use after the single-provider loop is stable.
 - C7 turns the machinery into an inspectable operator product.
+- C8 upgrades lane-aware scheduling into opt-in true process-level Codex
+  runtime concurrency while keeping writeback serialized.
 
 ## Completion Audit
 
@@ -416,6 +451,11 @@ Acceptance evidence is recorded in:
 - `design_docs/stages/planning-gate/2026-06-26-codex-result-consumer-contract.md`
 - `design_docs/stages/planning-gate/2026-06-26-codex-delivery-supervisor-loop.md`
 
+As of 2026-06-28, the follow-up C8 gate also closes the previously deferred
+process-level concurrency gap for independent lane-distinct Codex delivery:
+
+- `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
+
 ## Current Distance Estimate
 
 From the current repository state:
@@ -425,12 +465,15 @@ From the current repository state:
 3. Review-safe real coding worker use: C1 through C5.
 4. Multi-lane usable worker runtime: C1 through C6.
 5. Operator-friendly routine use: C1 through C7.
+6. Opt-in process-concurrent lane-distinct Codex delivery: C1 through C8.
 
-The project now has the C1 through C7 foundation for review-safe, recoverable,
+The project now has the C1 through C8 foundation for review-safe, recoverable,
 multi-lane Codex worker delivery with compact operator / guide-agent status
-readback. It satisfies this document's first stable continuous-use target while
-leaving daemonization, persistent monitoring UI, true process-level parallelism,
-distributed worker leases, live Codex process resume, and automatic patch
+readback and explicit opt-in process-level runtime concurrency for independent
+lane-distinct delivery records. It satisfies this document's first stable
+continuous-use target and the follow-up C8 concurrency gate while leaving
+daemonization, persistent monitoring UI, distributed worker leases, live Codex
+process resume, live-provider throughput validation, and automatic patch
 application as explicit later product work.
 
 ## Explicit Non-Goals For The Target
@@ -442,7 +485,7 @@ This target does not require:
 3. Runtime code mutating agent-owned Local Work Trajectory.
 4. Automatic patch application to the source workspace.
 5. True distributed workers.
-6. True process-level parallelism in the first acceptance pass.
+6. True process-level parallelism in the first C1-C7 acceptance pass.
 7. Raw transcript retention as the primary audit mechanism.
 
 ## Readiness Checklist For Future `/goal`
