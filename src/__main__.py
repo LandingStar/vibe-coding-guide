@@ -272,6 +272,8 @@ _QODER_GUIDE_WORKER_SMOKE_USAGE = (
     "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
     "[--sandbox-allocation-evidence-path PATH] "
     "[--host-invocation-id ID] [--reason TEXT] "
+    "[--runtime-invocation-log-path PATH] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N] "
     "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
     "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
     "[--max-parallel-lanes N] [--max-waves N] "
@@ -293,6 +295,8 @@ _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
     "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
     "[--sandbox-allocation-evidence-path PATH] "
     "[--host-invocation-id ID] [--reason TEXT] "
+    "[--runtime-invocation-log-path PATH] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N] "
     "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
     "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
     "[--max-parallel-lanes N] [--max-waves N] "
@@ -377,9 +381,10 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             "host-authorized adapter wiring and a Codex process-spawn grant. "
             "It is not an MCP real-provider execution surface, does not persist "
             "raw transcripts, and does not mutate agent-owned Local Work "
-            "Trajectory. Git-worktree worker changes are exported as review-only "
-            "worker patch artifacts and merge candidates; they are not applied "
-            "automatically.",
+            "Trajectory. Runtime invocations are audited to compact JSONL by "
+            "default and retry retryable provider failures. Git-worktree "
+            "worker changes are exported as review-only worker patch artifacts "
+            "and merge candidates; they are not applied automatically.",
         )
         return 0
 
@@ -399,6 +404,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
+    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_max_attempts = 2
+    runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
     guide_task_summary = ""
     planner_lane_specs: list[str] = []
@@ -427,6 +435,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             "--sandbox-allocation-evidence-path",
             "--host-invocation-id",
             "--reason",
+            "--runtime-invocation-log-path",
+            "--runtime-invocation-max-attempts",
+            "--runtime-invocation-backoff-seconds",
             "--guide-task-title",
             "--guide-task-summary",
             "--planner-lane",
@@ -472,6 +483,22 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
                 host_invocation_id = value
             elif arg == "--reason":
                 reason = value
+            elif arg == "--runtime-invocation-log-path":
+                runtime_invocation_log_path = value
+            elif arg == "--runtime-invocation-max-attempts":
+                try:
+                    runtime_invocation_max_attempts = int(value)
+                except ValueError:
+                    print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-max-attempts must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--runtime-invocation-backoff-seconds":
+                try:
+                    runtime_invocation_backoff_seconds = float(value)
+                except ValueError:
+                    print(_CODEX_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-backoff-seconds must be a number", file=sys.stderr)
+                    return 1
             elif arg == "--guide-task-title":
                 guide_task_title = value
             elif arg == "--guide-task-summary":
@@ -519,6 +546,15 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
         return 1
     if max_waves < 1:
         print("codex guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_max_attempts < 1:
+        print("codex guide-worker-smoke --runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_backoff_seconds < 0:
+        print(
+            "codex guide-worker-smoke --runtime-invocation-backoff-seconds must be non-negative",
+            file=sys.stderr,
+        )
         return 1
     if wave_execution_mode not in {"serial", "threaded"}:
         print(
@@ -586,6 +622,9 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             ),
             "requested_by": "cli:codex-guide-worker-smoke",
             "reason": reason or "host-owned Codex CLI guide-worker smoke run from CLI",
+            "runtime_invocation_log_path": runtime_invocation_log_path or None,
+            "runtime_invocation_max_attempts": runtime_invocation_max_attempts,
+            "runtime_invocation_backoff_seconds": runtime_invocation_backoff_seconds,
             "grant_id": (
                 f"grant-{host_invocation_id}"
                 if host_invocation_id
@@ -898,9 +937,10 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             "never accepts a raw token value. If SDK/auth readiness is missing, "
             "it fails before evidence writes. It is not an MCP real-provider "
             "execution surface and does not mutate agent-owned Local Work "
-            "Trajectory. Git-worktree worker changes are exported as review-only "
-            "worker patch artifacts and merge candidates; they are not applied "
-            "automatically.",
+            "Trajectory. Runtime invocations are audited to compact JSONL by "
+            "default and retry retryable provider failures. Git-worktree "
+            "worker changes are exported as review-only worker patch artifacts "
+            "and merge candidates; they are not applied automatically.",
         )
         return 0
 
@@ -922,6 +962,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
+    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_max_attempts = 2
+    runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
     guide_task_summary = ""
     planner_lane_specs: list[str] = []
@@ -952,6 +995,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             "--sandbox-allocation-evidence-path",
             "--host-invocation-id",
             "--reason",
+            "--runtime-invocation-log-path",
+            "--runtime-invocation-max-attempts",
+            "--runtime-invocation-backoff-seconds",
             "--guide-task-title",
             "--guide-task-summary",
             "--planner-lane",
@@ -1006,6 +1052,22 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
                 host_invocation_id = value
             elif arg == "--reason":
                 reason = value
+            elif arg == "--runtime-invocation-log-path":
+                runtime_invocation_log_path = value
+            elif arg == "--runtime-invocation-max-attempts":
+                try:
+                    runtime_invocation_max_attempts = int(value)
+                except ValueError:
+                    print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-max-attempts must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--runtime-invocation-backoff-seconds":
+                try:
+                    runtime_invocation_backoff_seconds = float(value)
+                except ValueError:
+                    print(_QODER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-backoff-seconds must be a number", file=sys.stderr)
+                    return 1
             elif arg == "--guide-task-title":
                 guide_task_title = value
             elif arg == "--guide-task-summary":
@@ -1053,6 +1115,15 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
         return 1
     if max_waves < 1:
         print("qoder guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_max_attempts < 1:
+        print("qoder guide-worker-smoke --runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_backoff_seconds < 0:
+        print(
+            "qoder guide-worker-smoke --runtime-invocation-backoff-seconds must be non-negative",
+            file=sys.stderr,
+        )
         return 1
     if wave_execution_mode not in {"serial", "threaded"}:
         print(
@@ -1122,6 +1193,9 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
             ),
             "requested_by": "cli:qoder-guide-worker-smoke",
             "reason": reason or "host-owned Qoder guide-worker smoke run from CLI",
+            "runtime_invocation_log_path": runtime_invocation_log_path or None,
+            "runtime_invocation_max_attempts": runtime_invocation_max_attempts,
+            "runtime_invocation_backoff_seconds": runtime_invocation_backoff_seconds,
             "grant_id": (
                 f"grant-{host_invocation_id}"
                 if host_invocation_id
@@ -1177,6 +1251,124 @@ _SCHEDULER_INSPECT_AGENT_HISTORY_USAGE = (
     "Usage: doc-based-coding scheduler inspect-agent-history "
     "[--agent-id ID] [--correlation-id ID] [--artifact-store-path PATH] "
     "[--include-archived]"
+)
+
+_SCHEDULER_INSPECT_RUNTIME_INVOCATIONS_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-runtime-invocations "
+    "[--path PATH] [--latest-limit N]"
+)
+
+_SCHEDULER_INSPECT_LEADER_WORKER_ACTIVATION_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-leader-worker-activation "
+    "--snapshot-path PATH [--artifact-store-path PATH] [--leader-agent-id AGENT] "
+    "[--worker-agent-id AGENT]..."
+)
+
+_SCHEDULER_LEADER_WORKER_DISPATCHER_TICK_USAGE = (
+    "Usage: doc-based-coding scheduler leader-worker-dispatcher-tick "
+    "--snapshot-path PATH --event-log-path PATH [--artifact-store-path PATH] "
+    "[--dispatcher-state-path PATH] [--dispatch-event-log-path PATH] "
+    "[--dispatcher-id ID] [--trajectory-id ID] [--leader-agent-id AGENT] "
+    "[--worker-agent-id AGENT]... [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_LEADER_WORKER_DISPATCHER_LOOP_USAGE = (
+    "Usage: doc-based-coding scheduler leader-worker-dispatcher-loop "
+    "--snapshot-path PATH --event-log-path PATH [--artifact-store-path PATH] "
+    "[--dispatcher-state-path PATH] [--dispatch-event-log-path PATH] "
+    "[--dispatcher-id ID] [--trajectory-id ID] [--leader-agent-id AGENT] "
+    "[--worker-agent-id AGENT]... [--max-ticks N] [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_LEADER_WORKER_DELIVERY_SYNC_USAGE = (
+    "Usage: doc-based-coding scheduler leader-worker-delivery-sync "
+    "--dispatch-event-log-path PATH [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--delivery-id ID] [--dispatcher-id ID] "
+    "[--host-id ID] [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE = (
+    "Usage: doc-based-coding scheduler leader-worker-delivery-ack "
+    "--target-state delivered|acknowledged|failed "
+    "(--source-key KEY | --delivery-record-id ID) "
+    "[--delivery-state-path PATH] [--delivery-event-log-path PATH] "
+    "[--host-id ID] [--runtime-provider PROVIDER] "
+    "[--runtime-session-id ID] [--runtime-run-id ID] [--invocation-id ID] "
+    "[--failure-kind KIND] [--failure-detail TEXT] [--timestamp TIMESTAMP]"
+)
+
+_SCHEDULER_INSPECT_LEADER_WORKER_DELIVERY_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-leader-worker-delivery "
+    "[--delivery-state-path PATH] [--latest-limit N]"
+)
+
+_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-codex-runtime-status "
+    "--snapshot-path PATH --event-log-path PATH "
+    "[--delivery-state-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--artifact-store-path PATH] [--target-task-id ID]... [--latest-limit N]"
+)
+
+_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE = (
+    "Usage: doc-based-coding scheduler codex-delivery-supervisor-once "
+    "--snapshot-path PATH --event-log-path PATH "
+    "[--delivery-state-path PATH] [--delivery-event-log-path PATH] "
+    "[--runtime-invocation-log-path PATH] [--artifact-store-path PATH] "
+    "[--consume-success-results] [--replace-existing-result-artifact] "
+    "[--max-deliveries N] [--retry-failed-delivery] "
+    "[--max-delivery-attempts-per-record N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--sandbox read-only|workspace-write|danger-full-access] "
+    "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--reason TEXT] "
+    "[--timestamp TIMESTAMP] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE = (
+    "Usage: doc-based-coding scheduler codex-delivery-e2e-smoke "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture simple|multilane] "
+    "[--replace-existing-result-artifact] "
+    "[--target-task-id ID] [--waiting-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--sandbox read-only|workspace-write|danger-full-access] "
+    "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE = (
+    "Usage: doc-based-coding scheduler codex-delivery-supervisor-loop "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture simple|multilane] "
+    "[--replace-existing-result-artifact] "
+    "[--max-ticks N] [--max-deliveries N] [--max-runtime-failures N] "
+    "[--max-delivery-attempts-per-record N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--target-task-id ID] [--waiting-task-id ID] [--followup-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--sandbox read-only|workspace-write|danger-full-access] "
+    "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
 )
 
 _SCHEDULER_INSPECT_AGENT_ACTION_CANDIDATES_USAGE = (
@@ -1437,6 +1629,17 @@ def cmd_scheduler(args: list[str]) -> int:
             "  inspect-binding-refs     Read supervisor storage binding refs in one stored scheduler submission\n"
             "  inspect-agent-mailbox    Read per-agent ExchangeArtifact inbox/outbox without mutation\n"
             "  inspect-agent-history    Read compact ExchangeArtifact communication history without mutation\n"
+            "  inspect-runtime-invocations Read compact runtime invocation audit records without mutation\n"
+            "  inspect-leader-worker-activation Project leader/worker activation state without mutation\n"
+            "  leader-worker-dispatcher-tick Persist one activation dispatcher tick without running providers\n"
+            "  leader-worker-dispatcher-loop Run bounded activation dispatcher ticks without running providers\n"
+            "  leader-worker-delivery-sync Sync dispatcher decisions into host-owned delivery state\n"
+            "  leader-worker-delivery-ack Record host/runtime delivery acknowledgement for one decision\n"
+            "  inspect-leader-worker-delivery Read host-owned delivery acknowledgement state without mutation\n"
+            "  inspect-codex-runtime-status Read compact Codex scheduler/delivery/runtime status without mutation\n"
+            "  codex-delivery-supervisor-once Run one host-owned Codex pass over pending delivery records\n"
+            "  codex-delivery-e2e-smoke Run C1 Codex delivery/result-consumer smoke\n"
+            "  codex-delivery-supervisor-loop Run bounded C2 Codex supervisor loop\n"
             "  inspect-agent-action-candidates Read communication artifacts as action candidates without mutation\n"
             "  decide-agent-action-candidate Record an action-candidate disposition ExchangeArtifact\n"
             "  consume-accepted-scheduler-candidate Consume accepted scheduler candidate disposition via exact admission\n"
@@ -1478,6 +1681,28 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_agent_mailbox(args[1:])
     if sub == "inspect-agent-history":
         return cmd_scheduler_inspect_agent_history(args[1:])
+    if sub == "inspect-runtime-invocations":
+        return cmd_scheduler_inspect_runtime_invocations(args[1:])
+    if sub == "inspect-leader-worker-activation":
+        return cmd_scheduler_inspect_leader_worker_activation(args[1:])
+    if sub == "leader-worker-dispatcher-tick":
+        return cmd_scheduler_leader_worker_dispatcher_tick(args[1:])
+    if sub == "leader-worker-dispatcher-loop":
+        return cmd_scheduler_leader_worker_dispatcher_loop(args[1:])
+    if sub == "leader-worker-delivery-sync":
+        return cmd_scheduler_leader_worker_delivery_sync(args[1:])
+    if sub == "leader-worker-delivery-ack":
+        return cmd_scheduler_leader_worker_delivery_ack(args[1:])
+    if sub == "inspect-leader-worker-delivery":
+        return cmd_scheduler_inspect_leader_worker_delivery(args[1:])
+    if sub == "inspect-codex-runtime-status":
+        return cmd_scheduler_inspect_codex_runtime_status(args[1:])
+    if sub == "codex-delivery-supervisor-once":
+        return cmd_scheduler_codex_delivery_supervisor_once(args[1:])
+    if sub == "codex-delivery-e2e-smoke":
+        return cmd_scheduler_codex_delivery_e2e_smoke(args[1:])
+    if sub == "codex-delivery-supervisor-loop":
+        return cmd_scheduler_codex_delivery_supervisor_loop(args[1:])
     if sub == "inspect-agent-action-candidates":
         return cmd_scheduler_inspect_agent_action_candidates(args[1:])
     if sub == "decide-agent-action-candidate":
@@ -1535,7 +1760,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-runtime-invocations|inspect-leader-worker-activation|leader-worker-dispatcher-tick|leader-worker-dispatcher-loop|leader-worker-delivery-sync|leader-worker-delivery-ack|inspect-leader-worker-delivery|inspect-codex-runtime-status|codex-delivery-supervisor-once|codex-delivery-e2e-smoke|codex-delivery-supervisor-loop|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -3292,6 +3517,1520 @@ def cmd_scheduler_inspect_agent_history(args: list[str]) -> int:
     payload.update(summary.to_json_dict())
     _print_json(payload)
     return 1 if summary.errors else 0
+
+
+def cmd_scheduler_inspect_runtime_invocations(args: list[str]) -> int:
+    """Read compact runtime invocation audit records without mutation."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_RUNTIME_INVOCATIONS_USAGE + "\n\n"
+            "This is a readback command. It summarizes compact runtime "
+            "invocation audit records and does not expose raw transcripts, "
+            "scheduler state, exchange artifacts, providers, or Local Work "
+            "Trajectory.",
+        )
+        return 0
+
+    path = ""
+    latest_limit = 20
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--path", "--latest-limit"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_RUNTIME_INVOCATIONS_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--path":
+                path = value
+            else:
+                try:
+                    latest_limit = int(value)
+                except ValueError:
+                    print("--latest-limit must be an integer", file=sys.stderr)
+                    return 1
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-runtime-invocations option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_RUNTIME_INVOCATIONS_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            inspect_runtime_invocation_log,
+        )
+
+        log_path = (
+            _resolve_project_path(root, path)
+            if path
+            else _resolve_project_path(root, DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH)
+        )
+        summary = inspect_runtime_invocation_log(log_path, latest_limit=latest_limit)
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting runtime invocations",
+            e,
+            category="runtime_invocation_inspect_failed",
+        )
+
+    payload = {"ok": not summary.errors}
+    payload.update(summary.to_json_dict())
+    _print_json(payload)
+    return 1 if summary.errors else 0
+
+
+def cmd_scheduler_inspect_leader_worker_activation(args: list[str]) -> int:
+    """Project leader/worker activation state without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_LEADER_WORKER_ACTIVATION_USAGE + "\n\n"
+            "This is a readback command. It projects leader/worker activation "
+            "state from scheduler snapshot and ExchangeArtifact messages. It "
+            "does not run providers or mutate scheduler, exchange, projection, "
+            "or Local Work Trajectory state.",
+        )
+        return 0
+
+    snapshot_path = ""
+    artifact_store_path = ""
+    leader_agent_id = "agent:guide"
+    worker_agent_ids: list[str] = []
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--snapshot-path", "--artifact-store-path", "--leader-agent-id", "--worker-agent-id"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_LEADER_WORKER_ACTIVATION_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--leader-agent-id":
+                leader_agent_id = value
+            else:
+                worker_agent_ids.append(value)
+            i += 2
+            continue
+        print(f"Unknown scheduler inspect-leader-worker-activation option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_INSPECT_LEADER_WORKER_ACTIVATION_USAGE, file=sys.stderr)
+        return 1
+
+    if not snapshot_path:
+        print(_SCHEDULER_INSPECT_LEADER_WORKER_ACTIVATION_USAGE, file=sys.stderr)
+        print("inspect-leader-worker-activation requires --snapshot-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+
+    try:
+        from .runtime.orchestration import (
+            JsonArtifactVersionStore,
+            default_exchange_artifact_store_path,
+            read_scheduler_state_snapshot,
+            run_leader_worker_activation_pass,
+        )
+
+        resolved_snapshot = _resolve_project_path(root, snapshot_path)
+        store_path = (
+            _resolve_project_path(root, artifact_store_path)
+            if artifact_store_path
+            else default_exchange_artifact_store_path(root)
+        )
+        exchange_records = (
+            JsonArtifactVersionStore(store_path).list_records()
+            if store_path.exists()
+            else ()
+        )
+        result = run_leader_worker_activation_pass(
+            scheduler_state=read_scheduler_state_snapshot(resolved_snapshot),
+            exchange_records=exchange_records,
+            leader_agent_id=leader_agent_id,
+            worker_agent_ids=tuple(worker_agent_ids),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting leader-worker activation",
+            e,
+            category="leader_worker_activation_inspect_failed",
+        )
+
+    payload = {"ok": True}
+    payload.update(result.to_json_dict())
+    _print_json(payload)
+    return 0
+
+
+def cmd_scheduler_leader_worker_dispatcher_tick(args: list[str]) -> int:
+    """Persist one leader/worker dispatcher tick without running providers."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LEADER_WORKER_DISPATCHER_TICK_USAGE + "\n\n"
+            "This command persists activation dispatcher state and a compact "
+            "dispatch event log. It derives decisions from scheduler recovery "
+            "and ExchangeArtifact messages, but does not run providers or mutate "
+            "scheduler, exchange, projection, or Local Work Trajectory state.",
+        )
+        return 0
+
+    parsed = _parse_leader_worker_dispatcher_args(
+        args,
+        usage=_SCHEDULER_LEADER_WORKER_DISPATCHER_TICK_USAGE,
+        allow_max_ticks=False,
+    )
+    if parsed is None:
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            LeaderWorkerDispatcherTickRequest,
+            run_leader_worker_dispatcher_tick,
+        )
+
+        request = LeaderWorkerDispatcherTickRequest(
+            **_leader_worker_dispatcher_request_kwargs(root, parsed),
+        )
+        result = run_leader_worker_dispatcher_tick(request)
+    except Exception as e:
+        return _handle_error(
+            "Error running leader-worker dispatcher tick",
+            e,
+            category="leader_worker_dispatcher_tick_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_leader_worker_dispatcher_loop(args: list[str]) -> int:
+    """Run bounded leader/worker dispatcher ticks without running providers."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LEADER_WORKER_DISPATCHER_LOOP_USAGE + "\n\n"
+            "This command runs bounded activation dispatcher ticks until "
+            "max-ticks or no new dispatch decisions. It persists dispatcher "
+            "state/logs and does not run providers or mutate scheduler, "
+            "exchange, projection, or Local Work Trajectory state.",
+        )
+        return 0
+
+    parsed = _parse_leader_worker_dispatcher_args(
+        args,
+        usage=_SCHEDULER_LEADER_WORKER_DISPATCHER_LOOP_USAGE,
+        allow_max_ticks=True,
+    )
+    if parsed is None:
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            LeaderWorkerDispatcherLoopRequest,
+            LeaderWorkerDispatcherTickRequest,
+            run_leader_worker_dispatcher_loop,
+        )
+
+        tick_request = LeaderWorkerDispatcherTickRequest(
+            **_leader_worker_dispatcher_request_kwargs(root, parsed),
+        )
+        result = run_leader_worker_dispatcher_loop(
+            LeaderWorkerDispatcherLoopRequest(
+                tick_request=tick_request,
+                max_ticks=int(parsed["max_ticks"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running leader-worker dispatcher loop",
+            e,
+            category="leader_worker_dispatcher_loop_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def _parse_leader_worker_dispatcher_args(
+    args: list[str],
+    *,
+    usage: str,
+    allow_max_ticks: bool,
+) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "artifact_store_path": "",
+        "dispatcher_state_path": "",
+        "dispatch_event_log_path": "",
+        "dispatcher_id": "leader-worker-dispatcher",
+        "trajectory_id": "",
+        "leader_agent_id": "agent:guide",
+        "worker_agent_ids": [],
+        "timestamp": "",
+        "max_ticks": 1,
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--snapshot-path",
+            "--event-log-path",
+            "--artifact-store-path",
+            "--dispatcher-state-path",
+            "--dispatch-event-log-path",
+            "--dispatcher-id",
+            "--trajectory-id",
+            "--leader-agent-id",
+            "--worker-agent-id",
+            "--timestamp",
+            "--max-ticks",
+        }:
+            if arg == "--max-ticks" and not allow_max_ticks:
+                print(f"Unknown scheduler leader-worker dispatcher option: {arg}", file=sys.stderr)
+                print(usage, file=sys.stderr)
+                return None
+            if i + 1 >= len(args):
+                print(usage, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return None
+            value = args[i + 1]
+            if arg == "--snapshot-path":
+                parsed["snapshot_path"] = value
+            elif arg == "--event-log-path":
+                parsed["event_log_path"] = value
+            elif arg == "--artifact-store-path":
+                parsed["artifact_store_path"] = value
+            elif arg == "--dispatcher-state-path":
+                parsed["dispatcher_state_path"] = value
+            elif arg == "--dispatch-event-log-path":
+                parsed["dispatch_event_log_path"] = value
+            elif arg == "--dispatcher-id":
+                parsed["dispatcher_id"] = value
+            elif arg == "--trajectory-id":
+                parsed["trajectory_id"] = value
+            elif arg == "--leader-agent-id":
+                parsed["leader_agent_id"] = value
+            elif arg == "--worker-agent-id":
+                parsed["worker_agent_ids"] = [*parsed["worker_agent_ids"], value]  # type: ignore[index]
+            elif arg == "--timestamp":
+                parsed["timestamp"] = value
+            elif arg == "--max-ticks":
+                try:
+                    parsed["max_ticks"] = int(value)
+                except ValueError:
+                    print(usage, file=sys.stderr)
+                    print("--max-ticks must be an integer", file=sys.stderr)
+                    return None
+            i += 2
+            continue
+        print(f"Unknown scheduler leader-worker dispatcher option: {arg}", file=sys.stderr)
+        print(usage, file=sys.stderr)
+        return None
+
+    if not parsed["snapshot_path"] or not parsed["event_log_path"]:
+        print(usage, file=sys.stderr)
+        print("leader-worker dispatcher requires --snapshot-path and --event-log-path", file=sys.stderr)
+        return None
+    if int(parsed["max_ticks"]) < 0:
+        print("--max-ticks must be non-negative", file=sys.stderr)
+        return None
+    return parsed
+
+
+def _leader_worker_dispatcher_request_kwargs(
+    root: Path,
+    parsed: dict[str, object],
+) -> dict[str, object]:
+    from .runtime.orchestration import (
+        DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH,
+        default_exchange_artifact_store_path,
+    )
+
+    return {
+        "dispatcher_state_path": (
+            _resolve_project_path(root, str(parsed["dispatcher_state_path"]))
+            if parsed["dispatcher_state_path"]
+            else _resolve_project_path(root, DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH)
+        ),
+        "dispatch_event_log_path": (
+            _resolve_project_path(root, str(parsed["dispatch_event_log_path"]))
+            if parsed["dispatch_event_log_path"]
+            else _resolve_project_path(root, DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH)
+        ),
+        "scheduler_snapshot_path": _resolve_project_path(root, str(parsed["snapshot_path"])),
+        "scheduler_event_log_path": _resolve_project_path(root, str(parsed["event_log_path"])),
+        "artifact_store_path": (
+            _resolve_project_path(root, str(parsed["artifact_store_path"]))
+            if parsed["artifact_store_path"]
+            else default_exchange_artifact_store_path(root)
+        ),
+        "dispatcher_id": str(parsed["dispatcher_id"]),
+        "trajectory_id": str(parsed["trajectory_id"]),
+        "leader_agent_id": str(parsed["leader_agent_id"]),
+        "worker_agent_ids": tuple(str(item) for item in parsed["worker_agent_ids"]),  # type: ignore[arg-type]
+        "timestamp": str(parsed["timestamp"]),
+    }
+
+
+def cmd_scheduler_leader_worker_delivery_sync(args: list[str]) -> int:
+    """Sync dispatcher decisions into host-owned delivery acknowledgement state."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LEADER_WORKER_DELIVERY_SYNC_USAGE + "\n\n"
+            "This command reads the leader-worker dispatcher event log and "
+            "creates missing pending delivery records. It writes only the "
+            "host-owned delivery state/log and does not run providers, mutate "
+            "scheduler or exchange state, mutate dispatcher state, or mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_leader_worker_delivery_common_args(
+        args,
+        usage=_SCHEDULER_LEADER_WORKER_DELIVERY_SYNC_USAGE,
+        mode="sync",
+    )
+    if parsed is None:
+        return 1
+    if not parsed["dispatch_event_log_path"]:
+        print(_SCHEDULER_LEADER_WORKER_DELIVERY_SYNC_USAGE, file=sys.stderr)
+        print("leader-worker delivery sync requires --dispatch-event-log-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            LeaderWorkerDeliverySyncRequest,
+            sync_leader_worker_delivery_from_dispatch_log,
+        )
+
+        result = sync_leader_worker_delivery_from_dispatch_log(
+            LeaderWorkerDeliverySyncRequest(
+                delivery_state_path=_leader_worker_delivery_state_path(root, parsed),
+                delivery_event_log_path=_leader_worker_delivery_log_path(root, parsed),
+                dispatch_event_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["dispatch_event_log_path"]),
+                ),
+                delivery_id=str(parsed["delivery_id"]),
+                dispatcher_id=str(parsed["dispatcher_id"]),
+                timestamp=str(parsed["timestamp"]),
+                host_id=str(parsed["host_id"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error syncing leader-worker delivery state",
+            e,
+            category="leader_worker_delivery_sync_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_leader_worker_delivery_ack(args: list[str]) -> int:
+    """Record one host/runtime delivery acknowledgement."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE + "\n\n"
+            "This command updates one existing delivery record to delivered, "
+            "acknowledged, or failed. It writes only the host-owned delivery "
+            "state/log. It does not run providers or mutate scheduler, "
+            "exchange, dispatcher, projection, or Local Work Trajectory state.",
+        )
+        return 0
+
+    parsed = _parse_leader_worker_delivery_common_args(
+        args,
+        usage=_SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE,
+        mode="ack",
+    )
+    if parsed is None:
+        return 1
+    if not parsed["target_state"]:
+        print(_SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE, file=sys.stderr)
+        print("leader-worker delivery ack requires --target-state", file=sys.stderr)
+        return 1
+    if parsed["target_state"] not in {"delivered", "acknowledged", "failed"}:
+        print(_SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE, file=sys.stderr)
+        print("--target-state must be delivered, acknowledged, or failed", file=sys.stderr)
+        return 1
+    if not parsed["source_key"] and not parsed["delivery_record_id"]:
+        print(_SCHEDULER_LEADER_WORKER_DELIVERY_ACK_USAGE, file=sys.stderr)
+        print("leader-worker delivery ack requires --source-key or --delivery-record-id", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            LeaderWorkerDeliveryAckRequest,
+            acknowledge_leader_worker_delivery,
+        )
+
+        result = acknowledge_leader_worker_delivery(
+            LeaderWorkerDeliveryAckRequest(
+                delivery_state_path=_leader_worker_delivery_state_path(root, parsed),
+                delivery_event_log_path=_leader_worker_delivery_log_path(root, parsed),
+                target_state=str(parsed["target_state"]),  # type: ignore[arg-type]
+                source_key=str(parsed["source_key"]),
+                delivery_record_id=str(parsed["delivery_record_id"]),
+                timestamp=str(parsed["timestamp"]),
+                host_id=str(parsed["host_id"]),
+                runtime_provider=str(parsed["runtime_provider"]),
+                runtime_session_id=str(parsed["runtime_session_id"]),
+                runtime_run_id=str(parsed["runtime_run_id"]),
+                invocation_id=str(parsed["invocation_id"]),
+                failure_kind=str(parsed["failure_kind"]),
+                failure_detail=str(parsed["failure_detail"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error acknowledging leader-worker delivery",
+            e,
+            category="leader_worker_delivery_ack_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0
+
+
+def cmd_scheduler_inspect_leader_worker_delivery(args: list[str]) -> int:
+    """Read host-owned delivery acknowledgement state without mutation."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_LEADER_WORKER_DELIVERY_USAGE + "\n\n"
+            "This is a readback command. It summarizes host-owned "
+            "leader-worker delivery acknowledgement state and does not run "
+            "providers or mutate scheduler, exchange, dispatcher, projection, "
+            "or Local Work Trajectory state.",
+        )
+        return 0
+
+    parsed = _parse_leader_worker_delivery_common_args(
+        args,
+        usage=_SCHEDULER_INSPECT_LEADER_WORKER_DELIVERY_USAGE,
+        mode="inspect",
+    )
+    if parsed is None:
+        return 1
+
+    latest_limit = int(parsed["latest_limit"])
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import inspect_leader_worker_delivery_state
+
+        summary = inspect_leader_worker_delivery_state(
+            _leader_worker_delivery_state_path(root, parsed),
+            latest_limit=latest_limit,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting leader-worker delivery",
+            e,
+            category="leader_worker_delivery_inspect_failed",
+        )
+
+    payload = {"ok": not summary.errors}
+    payload.update(summary.to_json_dict())
+    _print_json(payload)
+    return 1 if summary.errors else 0
+
+
+def cmd_scheduler_inspect_codex_runtime_status(args: list[str]) -> int:
+    """Read compact Codex scheduler/delivery/runtime status without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE + "\n\n"
+            "This is a read-only operator / guide-agent status surface. It "
+            "recovers scheduler state, inspects leader-worker delivery, reads "
+            "compact runtime invocation audit records, summarizes ExchangeArtifact "
+            "refs, and reports a safe next_action clue. It does not run Codex, "
+            "does not apply patches, does not mutate scheduler/delivery/artifact "
+            "state, does not expose raw transcripts, and does not mutate Local "
+            "Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_codex_runtime_status_args(args)
+    if parsed is None:
+        return 1
+    if not parsed["snapshot_path"] or not parsed["event_log_path"]:
+        print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+        print("--snapshot-path and --event-log-path are required", file=sys.stderr)
+        return 1
+    if int(parsed["latest_limit"]) < 0:
+        print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+        print("--latest-limit must be non-negative", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            CodexRuntimeStatusRequest,
+            DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+            DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            inspect_codex_runtime_status,
+        )
+
+        result = inspect_codex_runtime_status(
+            CodexRuntimeStatusRequest(
+                scheduler_snapshot_path=_resolve_project_path(
+                    root,
+                    str(parsed["snapshot_path"]),
+                ),
+                scheduler_event_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["event_log_path"]),
+                ),
+                delivery_state_path=_resolve_project_path(
+                    root,
+                    str(parsed["delivery_state_path"])
+                    or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+                ),
+                runtime_invocation_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["runtime_invocation_log_path"])
+                    or DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+                ),
+                artifact_store_path=_resolve_project_path(
+                    root,
+                    str(parsed["artifact_store_path"])
+                    or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+                ),
+                target_task_ids=tuple(parsed["target_task_ids"]),  # type: ignore[arg-type]
+                latest_limit=int(parsed["latest_limit"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting Codex runtime status",
+            e,
+            category="scheduler_codex_runtime_status_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "delivery_state_path": "",
+        "runtime_invocation_log_path": "",
+        "artifact_store_path": "",
+        "target_task_ids": [],
+        "latest_limit": 10,
+    }
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--latest-limit": "latest_limit",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--target-task-id":
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+                print("Missing value for --target-task-id", file=sys.stderr)
+                return None
+            target_ids = parsed["target_task_ids"]
+            assert isinstance(target_ids, list)
+            target_ids.append(args[i + 1])
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler inspect-codex-runtime-status option: {arg}", file=sys.stderr)
+            print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "latest_limit":
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+                print("--latest-limit must be an integer", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    return parsed
+
+
+def cmd_scheduler_codex_delivery_supervisor_once(args: list[str]) -> int:
+    """Run one bounded host-owned Codex pass over pending delivery records."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE + "\n\n"
+            "This command is a host-owned live Codex delivery supervisor pass. "
+            "It consumes pending leader-worker delivery records for ready Codex "
+            "scheduler tasks, invokes Codex through explicit host-authorized "
+            "runtime wiring, and writes delivery acknowledgement plus compact "
+            "runtime invocation audit. With --consume-success-results it first "
+            "stores the successful output ExchangeArtifact and appends a "
+            "task_completed scheduler event, then acknowledges delivery. If Codex "
+            "surfaces permission requests, it instead stores review evidence, "
+            "appends task_review_required, and marks delivery review_required. "
+            "With explicit sandbox preflight and worker patch publication, "
+            "git-worktree worker edits are exported as review-only "
+            "worker_patch_review_proposal artifacts and are not applied. "
+            "It does not mutate scheduler snapshots, expose MCP live-provider "
+            "execution, persist raw transcripts, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_codex_delivery_supervisor_args(args)
+    if parsed is None:
+        return 1
+    if not parsed["snapshot_path"] or not parsed["event_log_path"]:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--snapshot-path and --event-log-path are required", file=sys.stderr)
+        return 1
+    if parsed["sandbox"] not in {"read-only", "workspace-write", "danger-full-access"}:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--sandbox must be read-only, workspace-write, or danger-full-access", file=sys.stderr)
+        return 1
+    if parsed["ask_for_approval"] not in {"untrusted", "on-request", "never"}:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--ask-for-approval must be untrusted, on-request, or never", file=sys.stderr)
+        return 1
+    if int(parsed["max_deliveries"]) < 0:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--max-deliveries must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["runtime_invocation_max_attempts"]) < 1:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if int(parsed["max_delivery_attempts_per_record"]) < 1:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--max-delivery-attempts-per-record must be positive", file=sys.stderr)
+        return 1
+    if float(parsed["runtime_invocation_backoff_seconds"]) < 0:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--runtime-invocation-backoff-seconds must be non-negative", file=sys.stderr)
+        return 1
+    if bool(parsed["publish_worker_patch_artifacts"]) and not bool(
+        parsed["enable_sandbox_preflight"]
+    ):
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print(
+            "--publish-worker-patch-artifacts requires --enable-sandbox-preflight",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            CodexCliClientConfig,
+            CodexCliProcessClient,
+            CodexDeliverySupervisorRequest,
+            DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+            DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            run_codex_delivery_supervisor_once,
+        )
+
+        delivery_state_path = _resolve_project_path(
+            root,
+            str(parsed["delivery_state_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        )
+        delivery_log_path = _resolve_project_path(
+            root,
+            str(parsed["delivery_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        )
+        runtime_log_path = (
+            None
+            if parsed["runtime_invocation_log_path"] is None
+            else _resolve_project_path(
+                root,
+                str(parsed["runtime_invocation_log_path"])
+                or DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            )
+        )
+        artifact_store_path = _resolve_project_path(
+            root,
+            str(parsed["artifact_store_path"])
+            or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        )
+        codex_config = CodexCliClientConfig(
+            executable=str(parsed["executable"]),
+            cwd=str(parsed["cwd"]),
+            model=str(parsed["model"]),
+            sandbox=str(parsed["sandbox"]),  # type: ignore[arg-type]
+            ask_for_approval=str(parsed["ask_for_approval"]),  # type: ignore[arg-type]
+        )
+        result = run_codex_delivery_supervisor_once(
+            CodexDeliverySupervisorRequest(
+                delivery_state_path=delivery_state_path,
+                delivery_event_log_path=delivery_log_path,
+                scheduler_snapshot_path=_resolve_project_path(root, str(parsed["snapshot_path"])),
+                scheduler_event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                runtime_invocation_log_path=runtime_log_path,
+                artifact_store_path=artifact_store_path,
+                consume_success_results=bool(parsed["consume_success_results"]),
+                replace_existing_result_artifact=bool(
+                    parsed["replace_existing_result_artifact"]
+                ),
+                max_deliveries=int(parsed["max_deliveries"]),
+                retry_failed_delivery=bool(parsed["retry_failed_delivery"]),
+                max_delivery_attempts_per_record=int(
+                    parsed["max_delivery_attempts_per_record"]
+                ),
+                timestamp=str(parsed["timestamp"]),
+                host_id=str(parsed["host_id"]),
+                host_invocation_id=str(parsed["host_invocation_id"]),
+                requested_by="cli:codex-delivery-supervisor-once",
+                reason=str(parsed["reason"]),
+                grant_id=f"grant-{parsed['host_invocation_id']}",
+                approved_by="cli:codex-delivery-supervisor-once",
+                approved_at=str(parsed["timestamp"]),
+                runtime_invocation_max_attempts=int(parsed["runtime_invocation_max_attempts"]),
+                runtime_invocation_backoff_seconds=float(
+                    parsed["runtime_invocation_backoff_seconds"]
+                ),
+                enable_sandbox_preflight=bool(parsed["enable_sandbox_preflight"]),
+                workspace_root=(
+                    _resolve_project_path(root, str(parsed["workspace_root"]))
+                    if str(parsed["workspace_root"])
+                    else root
+                ),
+                scratch_root=str(parsed["scratch_root"]),
+                git_worktree_sandbox_root=(
+                    None
+                    if not str(parsed["git_worktree_sandbox_root"])
+                    else _resolve_project_path(root, str(parsed["git_worktree_sandbox_root"]))
+                ),
+                git_executable=str(parsed["git_executable"]),
+                publish_worker_patch_artifacts=bool(parsed["publish_worker_patch_artifacts"]),
+                worker_patch_guide_agent_id=str(parsed["worker_patch_guide_agent_id"]),
+                worker_patch_target_task_id=str(parsed["worker_patch_target_task_id"]),
+            ),
+            codex_cli_client=CodexCliProcessClient(codex_config),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running Codex delivery supervisor",
+            e,
+            category="scheduler_codex_delivery_supervisor_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def _parse_codex_delivery_supervisor_args(args: list[str]) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "delivery_state_path": "",
+        "delivery_event_log_path": "",
+        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+        "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+        "consume_success_results": False,
+        "replace_existing_result_artifact": False,
+        "max_deliveries": 1,
+        "retry_failed_delivery": False,
+        "max_delivery_attempts_per_record": 2,
+        "executable": "codex",
+        "cwd": "",
+        "model": "",
+        "sandbox": "workspace-write",
+        "ask_for_approval": "never",
+        "host_id": "host:codex-delivery-supervisor",
+        "host_invocation_id": "host-owned-codex-delivery-supervisor-once",
+        "reason": "host-owned Codex delivery supervisor pass from CLI",
+        "timestamp": "",
+        "runtime_invocation_max_attempts": 2,
+        "runtime_invocation_backoff_seconds": 0.0,
+        "enable_sandbox_preflight": False,
+        "workspace_root": "",
+        "scratch_root": ".codex/scratch",
+        "git_worktree_sandbox_root": "",
+        "git_executable": "git",
+        "publish_worker_patch_artifacts": False,
+        "worker_patch_guide_agent_id": "agent:guide",
+        "worker_patch_target_task_id": "",
+    }
+    options = set(parsed)
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--delivery-event-log-path": "delivery_event_log_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--max-deliveries": "max_deliveries",
+        "--max-delivery-attempts-per-record": "max_delivery_attempts_per_record",
+        "--executable": "executable",
+        "--cwd": "cwd",
+        "--model": "model",
+        "--sandbox": "sandbox",
+        "--ask-for-approval": "ask_for_approval",
+        "--host-id": "host_id",
+        "--host-invocation-id": "host_invocation_id",
+        "--reason": "reason",
+        "--timestamp": "timestamp",
+        "--runtime-invocation-max-attempts": "runtime_invocation_max_attempts",
+        "--runtime-invocation-backoff-seconds": "runtime_invocation_backoff_seconds",
+        "--workspace-root": "workspace_root",
+        "--scratch-root": "scratch_root",
+        "--git-worktree-sandbox-root": "git_worktree_sandbox_root",
+        "--git-executable": "git_executable",
+        "--worker-patch-guide-agent-id": "worker_patch_guide_agent_id",
+        "--worker-patch-target-task-id": "worker_patch_target_task_id",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--consume-success-results":
+            parsed["consume_success_results"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-result-artifact":
+            parsed["replace_existing_result_artifact"] = True
+            i += 1
+            continue
+        if arg == "--retry-failed-delivery":
+            parsed["retry_failed_delivery"] = True
+            i += 1
+            continue
+        if arg == "--enable-sandbox-preflight":
+            parsed["enable_sandbox_preflight"] = True
+            i += 1
+            continue
+        if arg == "--publish-worker-patch-artifacts":
+            parsed["publish_worker_patch_artifacts"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler codex-delivery-supervisor-once option: {arg}", file=sys.stderr)
+            print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key in {
+            "max_deliveries",
+            "max_delivery_attempts_per_record",
+            "runtime_invocation_max_attempts",
+        }:
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+                print(f"{arg} must be an integer", file=sys.stderr)
+                return None
+        elif key == "runtime_invocation_backoff_seconds":
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+                print(f"{arg} must be a number", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    unknown_internal = set(parsed) - options
+    if unknown_internal:
+        raise AssertionError(f"unexpected codex delivery parser keys: {unknown_internal}")
+    return parsed
+
+
+def cmd_scheduler_codex_delivery_e2e_smoke(args: list[str]) -> int:
+    """Run the C1 Codex delivery/result-consumer E2E smoke."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned C1 smoke for Codex CLI as a "
+            "scheduler-owned worker runtime. It can initialize one narrow "
+            "scheduler fixture, then runs dispatcher tick, delivery sync, "
+            "Codex delivery with result consumption, and scheduler recovery. "
+            "It fails closed before mutation when Codex readiness is negative. "
+            "It is not the continuous supervisor loop, does not resume "
+            "interrupted sessions, does not expose MCP live-provider execution, "
+            "does not apply source-workspace patches, and does not mutate "
+            "Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_codex_delivery_e2e_smoke_args(args)
+    if parsed is None:
+        return 1
+    validation_error = _validate_codex_delivery_smoke_parsed_args(
+        parsed,
+        usage=_SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            run_codex_delivery_e2e_smoke,
+        )
+
+        request, codex_config = _codex_delivery_smoke_cli_objects(parsed)
+        result = run_codex_delivery_e2e_smoke(
+            request,
+            codex_cli_client=_codex_process_client_from_config(codex_config),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running Codex delivery E2E smoke",
+            e,
+            category="scheduler_codex_delivery_e2e_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_scheduler_codex_delivery_supervisor_loop(args: list[str]) -> int:
+    """Run the bounded C2 Codex supervisor loop."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE + "\n\n"
+            "This command is a bounded host-owned C2 loop for Codex CLI as a "
+            "scheduler-owned worker runtime. Each iteration recovers scheduler "
+            "state, marks newly admissible tasks ready, persists dispatcher "
+            "decisions, syncs delivery records, runs Codex delivery with result "
+            "consumption, and recovers again. It has explicit max ticks, "
+            "deliveries, and runtime failures. It is not a background daemon, "
+            "and --fixture multilane seeds a repeatable multi-lane fixture "
+            "for lane-aware continuous progress validation. The loop still "
+            "runs deliveries serially and does not claim true process "
+            "parallelism. It "
+            "can retry eligible failed Codex delivery records after restart, "
+            "can publish git-worktree worker edits as review-only patch "
+            "artifacts when sandbox preflight is explicitly enabled, "
+            "does not resume a live process mid-turn, does not expose MCP "
+            "live-provider execution, does not apply source-workspace patches, "
+            "and does not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_codex_delivery_e2e_smoke_args(
+        args,
+        usage=_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE,
+        command_name="codex-delivery-supervisor-loop",
+        include_loop_options=True,
+    )
+    if parsed is None:
+        return 1
+    validation_error = _validate_codex_delivery_smoke_parsed_args(
+        parsed,
+        usage=_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+    if int(parsed["max_ticks"]) < 0:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print("--max-ticks must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_deliveries"]) < 0:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print("--max-deliveries must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_runtime_failures"]) < 0:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print("--max-runtime-failures must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_delivery_attempts_per_record"]) < 1:
+        print(_SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print("--max-delivery-attempts-per-record must be positive", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            CodexDeliveryBoundedLoopRequest,
+            run_bounded_codex_delivery_supervisor_loop,
+        )
+
+        smoke_request, codex_config = _codex_delivery_smoke_cli_objects(parsed)
+        result = run_bounded_codex_delivery_supervisor_loop(
+            CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=int(parsed["max_ticks"]),
+                max_deliveries=int(parsed["max_deliveries"]),
+                max_runtime_failures=int(parsed["max_runtime_failures"]),
+                max_delivery_attempts_per_record=int(
+                    parsed["max_delivery_attempts_per_record"]
+                ),
+            ),
+            codex_cli_client=_codex_process_client_from_config(codex_config),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running bounded Codex delivery supervisor loop",
+            e,
+            category="scheduler_codex_delivery_supervisor_loop_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def _parse_codex_delivery_e2e_smoke_args(
+    args: list[str],
+    *,
+    usage: str = _SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE,
+    command_name: str = "codex-delivery-e2e-smoke",
+    include_loop_options: bool = False,
+) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "artifact_store_path": "",
+        "dispatcher_state_path": "",
+        "dispatch_event_log_path": "",
+        "delivery_state_path": "",
+        "delivery_event_log_path": "",
+        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+        "initialize_fixture": False,
+        "replace_existing_fixture": False,
+        "fixture": "simple",
+        "replace_existing_result_artifact": False,
+        "target_task_id": "codex-smoke:worker",
+        "waiting_task_id": "codex-smoke:waiting-non-codex",
+        "followup_task_id": "codex-smoke:followup",
+        "executable": "codex",
+        "cwd": "",
+        "model": "",
+        "sandbox": "workspace-write",
+        "ask_for_approval": "never",
+        "host_id": "host:codex-delivery-e2e-smoke",
+        "host_invocation_id": "host-owned-codex-delivery-e2e-smoke",
+        "timestamp": "",
+        "runtime_invocation_max_attempts": 2,
+        "runtime_invocation_backoff_seconds": 0.0,
+        "enable_sandbox_preflight": False,
+        "workspace_root": "",
+        "scratch_root": ".codex/scratch",
+        "git_worktree_sandbox_root": "",
+        "git_executable": "git",
+        "publish_worker_patch_artifacts": False,
+        "worker_patch_guide_agent_id": "agent:guide",
+        "worker_patch_target_task_id": "",
+        "max_ticks": 3,
+        "max_deliveries": 3,
+        "max_runtime_failures": 1,
+        "max_delivery_attempts_per_record": 2,
+    }
+    if not include_loop_options:
+        parsed.pop("max_ticks")
+        parsed.pop("max_deliveries")
+        parsed.pop("max_runtime_failures")
+        parsed.pop("max_delivery_attempts_per_record")
+    options = set(parsed)
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--dispatcher-state-path": "dispatcher_state_path",
+        "--dispatch-event-log-path": "dispatch_event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--delivery-event-log-path": "delivery_event_log_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--fixture": "fixture",
+        "--target-task-id": "target_task_id",
+        "--waiting-task-id": "waiting_task_id",
+        "--followup-task-id": "followup_task_id",
+        "--executable": "executable",
+        "--cwd": "cwd",
+        "--model": "model",
+        "--sandbox": "sandbox",
+        "--ask-for-approval": "ask_for_approval",
+        "--host-id": "host_id",
+        "--host-invocation-id": "host_invocation_id",
+        "--timestamp": "timestamp",
+        "--runtime-invocation-max-attempts": "runtime_invocation_max_attempts",
+        "--runtime-invocation-backoff-seconds": "runtime_invocation_backoff_seconds",
+        "--workspace-root": "workspace_root",
+        "--scratch-root": "scratch_root",
+        "--git-worktree-sandbox-root": "git_worktree_sandbox_root",
+        "--git-executable": "git_executable",
+        "--worker-patch-guide-agent-id": "worker_patch_guide_agent_id",
+        "--worker-patch-target-task-id": "worker_patch_target_task_id",
+    }
+    if include_loop_options:
+        cli_to_key.update(
+            {
+                "--max-ticks": "max_ticks",
+                "--max-deliveries": "max_deliveries",
+                "--max-runtime-failures": "max_runtime_failures",
+                "--max-delivery-attempts-per-record": "max_delivery_attempts_per_record",
+            }
+        )
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--initialize-fixture":
+            parsed["initialize_fixture"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-fixture":
+            parsed["replace_existing_fixture"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-result-artifact":
+            parsed["replace_existing_result_artifact"] = True
+            i += 1
+            continue
+        if arg == "--enable-sandbox-preflight":
+            parsed["enable_sandbox_preflight"] = True
+            i += 1
+            continue
+        if arg == "--publish-worker-patch-artifacts":
+            parsed["publish_worker_patch_artifacts"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler {command_name} option: {arg}", file=sys.stderr)
+            print(usage, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(usage, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key in {
+            "runtime_invocation_max_attempts",
+            "max_ticks",
+            "max_deliveries",
+            "max_runtime_failures",
+            "max_delivery_attempts_per_record",
+        }:
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(usage, file=sys.stderr)
+                print(f"{arg} must be an integer", file=sys.stderr)
+                return None
+        elif key == "runtime_invocation_backoff_seconds":
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(usage, file=sys.stderr)
+                print(f"{arg} must be a number", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    unknown_internal = set(parsed) - options
+    if unknown_internal:
+        raise AssertionError(f"unexpected codex delivery smoke parser keys: {unknown_internal}")
+    return parsed
+
+
+def _validate_codex_delivery_smoke_parsed_args(
+    parsed: dict[str, object],
+    *,
+    usage: str,
+) -> str:
+    if parsed["sandbox"] not in {"read-only", "workspace-write", "danger-full-access"}:
+        return "--sandbox must be read-only, workspace-write, or danger-full-access"
+    if parsed["ask_for_approval"] not in {"untrusted", "on-request", "never"}:
+        return "--ask-for-approval must be untrusted, on-request, or never"
+    if parsed["fixture"] not in {"simple", "multilane"}:
+        return "--fixture must be simple or multilane"
+    if int(parsed["runtime_invocation_max_attempts"]) < 1:
+        return "--runtime-invocation-max-attempts must be positive"
+    if float(parsed["runtime_invocation_backoff_seconds"]) < 0:
+        return "--runtime-invocation-backoff-seconds must be non-negative"
+    if bool(parsed["publish_worker_patch_artifacts"]) and not bool(
+        parsed["enable_sandbox_preflight"]
+    ):
+        return "--publish-worker-patch-artifacts requires --enable-sandbox-preflight"
+    return ""
+
+
+def _codex_process_client_from_config(config) -> object:
+    from .runtime.orchestration import CodexCliProcessClient
+
+    return CodexCliProcessClient(config)
+
+
+def _codex_delivery_smoke_cli_objects(parsed: dict[str, object]):
+    root = _find_project_root()
+    from .runtime.orchestration import (
+        CodexCliClientConfig,
+        CodexDeliveryE2ESmokeRequest,
+        DEFAULT_CODEX_DELIVERY_E2E_SMOKE_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_CODEX_DELIVERY_E2E_SMOKE_SNAPSHOT_RELATIVE_PATH,
+        DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH,
+        DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+    )
+
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=_resolve_project_path(
+            root,
+            str(parsed["snapshot_path"])
+            or DEFAULT_CODEX_DELIVERY_E2E_SMOKE_SNAPSHOT_RELATIVE_PATH,
+        ),
+        scheduler_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["event_log_path"])
+            or DEFAULT_CODEX_DELIVERY_E2E_SMOKE_EVENT_LOG_RELATIVE_PATH,
+        ),
+        artifact_store_path=_resolve_project_path(
+            root,
+            str(parsed["artifact_store_path"])
+            or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        ),
+        dispatcher_state_path=_resolve_project_path(
+            root,
+            str(parsed["dispatcher_state_path"])
+            or DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH,
+        ),
+        dispatch_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["dispatch_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH,
+        ),
+        delivery_state_path=_resolve_project_path(
+            root,
+            str(parsed["delivery_state_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        ),
+        delivery_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["delivery_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        ),
+        runtime_invocation_log_path=(
+            None
+            if parsed["runtime_invocation_log_path"] is None
+            else _resolve_project_path(
+                root,
+                str(parsed["runtime_invocation_log_path"])
+                or DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            )
+        ),
+        initialize_fixture=bool(parsed["initialize_fixture"]),
+        replace_existing_fixture=bool(parsed["replace_existing_fixture"]),
+        fixture=str(parsed["fixture"]),
+        replace_existing_result_artifact=bool(parsed["replace_existing_result_artifact"]),
+        target_task_id=str(parsed["target_task_id"]),
+        waiting_task_id=str(parsed["waiting_task_id"]),
+        followup_task_id=str(parsed["followup_task_id"]),
+        timestamp=str(parsed["timestamp"]),
+        host_id=str(parsed["host_id"]),
+        host_invocation_id=str(parsed["host_invocation_id"]),
+        runtime_invocation_max_attempts=int(parsed["runtime_invocation_max_attempts"]),
+        runtime_invocation_backoff_seconds=float(parsed["runtime_invocation_backoff_seconds"]),
+        enable_sandbox_preflight=bool(parsed["enable_sandbox_preflight"]),
+        workspace_root=(
+            _resolve_project_path(root, str(parsed["workspace_root"]))
+            if str(parsed["workspace_root"])
+            else root
+        ),
+        scratch_root=str(parsed["scratch_root"]),
+        git_worktree_sandbox_root=(
+            None
+            if not str(parsed["git_worktree_sandbox_root"])
+            else _resolve_project_path(root, str(parsed["git_worktree_sandbox_root"]))
+        ),
+        git_executable=str(parsed["git_executable"]),
+        publish_worker_patch_artifacts=bool(parsed["publish_worker_patch_artifacts"]),
+        worker_patch_guide_agent_id=str(parsed["worker_patch_guide_agent_id"]),
+        worker_patch_target_task_id=str(parsed["worker_patch_target_task_id"]),
+    )
+    codex_config = CodexCliClientConfig(
+        executable=str(parsed["executable"]),
+        cwd=str(parsed["cwd"]),
+        model=str(parsed["model"]),
+        sandbox=str(parsed["sandbox"]),  # type: ignore[arg-type]
+        ask_for_approval=str(parsed["ask_for_approval"]),  # type: ignore[arg-type]
+    )
+    return request, codex_config
+
+
+def _parse_leader_worker_delivery_common_args(
+    args: list[str],
+    *,
+    usage: str,
+    mode: str,
+) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "delivery_state_path": "",
+        "delivery_event_log_path": "",
+        "dispatch_event_log_path": "",
+        "delivery_id": "leader-worker-delivery",
+        "dispatcher_id": "leader-worker-dispatcher",
+        "host_id": "",
+        "timestamp": "",
+        "target_state": "",
+        "source_key": "",
+        "delivery_record_id": "",
+        "runtime_provider": "",
+        "runtime_session_id": "",
+        "runtime_run_id": "",
+        "invocation_id": "",
+        "failure_kind": "",
+        "failure_detail": "",
+        "latest_limit": 20,
+    }
+    common_options = {
+        "--delivery-state-path",
+        "--delivery-event-log-path",
+        "--host-id",
+        "--timestamp",
+    }
+    sync_options = {
+        "--dispatch-event-log-path",
+        "--delivery-id",
+        "--dispatcher-id",
+    }
+    ack_options = {
+        "--target-state",
+        "--source-key",
+        "--delivery-record-id",
+        "--runtime-provider",
+        "--runtime-session-id",
+        "--runtime-run-id",
+        "--invocation-id",
+        "--failure-kind",
+        "--failure-detail",
+    }
+    inspect_options = {"--latest-limit"}
+    allowed = set(common_options)
+    if mode == "sync":
+        allowed |= sync_options
+    elif mode == "ack":
+        allowed |= ack_options
+    elif mode == "inspect":
+        allowed |= inspect_options
+    else:
+        raise ValueError(f"unsupported leader-worker delivery CLI parse mode: {mode!r}")
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg not in allowed:
+            print(f"Unknown scheduler leader-worker delivery option: {arg}", file=sys.stderr)
+            print(usage, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(usage, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        value = args[i + 1]
+        if arg == "--delivery-state-path":
+            parsed["delivery_state_path"] = value
+        elif arg == "--delivery-event-log-path":
+            parsed["delivery_event_log_path"] = value
+        elif arg == "--dispatch-event-log-path":
+            parsed["dispatch_event_log_path"] = value
+        elif arg == "--delivery-id":
+            parsed["delivery_id"] = value
+        elif arg == "--dispatcher-id":
+            parsed["dispatcher_id"] = value
+        elif arg == "--host-id":
+            parsed["host_id"] = value
+        elif arg == "--timestamp":
+            parsed["timestamp"] = value
+        elif arg == "--target-state":
+            parsed["target_state"] = value
+        elif arg == "--source-key":
+            parsed["source_key"] = value
+        elif arg == "--delivery-record-id":
+            parsed["delivery_record_id"] = value
+        elif arg == "--runtime-provider":
+            parsed["runtime_provider"] = value
+        elif arg == "--runtime-session-id":
+            parsed["runtime_session_id"] = value
+        elif arg == "--runtime-run-id":
+            parsed["runtime_run_id"] = value
+        elif arg == "--invocation-id":
+            parsed["invocation_id"] = value
+        elif arg == "--failure-kind":
+            parsed["failure_kind"] = value
+        elif arg == "--failure-detail":
+            parsed["failure_detail"] = value
+        elif arg == "--latest-limit":
+            try:
+                parsed["latest_limit"] = int(value)
+            except ValueError:
+                print(usage, file=sys.stderr)
+                print("--latest-limit must be an integer", file=sys.stderr)
+                return None
+        i += 2
+    return parsed
+
+
+def _leader_worker_delivery_state_path(
+    root: Path,
+    parsed: dict[str, object],
+) -> Path:
+    from .runtime.orchestration import DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH
+
+    value = str(parsed["delivery_state_path"])
+    return _resolve_project_path(
+        root,
+        value or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+    )
+
+
+def _leader_worker_delivery_log_path(
+    root: Path,
+    parsed: dict[str, object],
+) -> Path:
+    from .runtime.orchestration import DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH
+
+    value = str(parsed["delivery_event_log_path"])
+    return _resolve_project_path(
+        root,
+        value or DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+    )
 
 
 def cmd_scheduler_inspect_agent_action_candidates(args: list[str]) -> int:

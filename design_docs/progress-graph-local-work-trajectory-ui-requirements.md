@@ -492,3 +492,159 @@ UI 绑定：
 1. `python -m pytest tests/test_progress_graph_trajectory.py tests/test_mcp_tools.py -q` 通过，`66 passed, 1 skipped`。
 2. `npm run build` 通过。
 3. `node --test dist/test/localWorkTrajectory.test.js dist/test/aiChatToolLoop.test.js dist/test/aiChatViewIntegration.test.js` 通过，`9 passed`。
+
+## 2026-06-10 compound / pack UI 绑定
+
+用户确认采用“compound 节点 + 详情面板 + 进入 child trajectory + breadcrumb”的第一版 UI 方案。本轮只完成只读展示绑定，不把 Local Work Trajectory 预览扩展为人工编辑器。
+
+UI 绑定结论：
+
+1. 父层 lane-first 图中，`kind=compound` 的事件仍显示为单个事件节点，不默认 inline 展开内部轨迹。
+2. compound 节点增加轻量摘要，显示 `compound_mode`，并在存在 `packed_event_ids` 时显示被打包事件数量。
+3. 点击事件节点后，右侧详情面板显示事件状态、所属 lane、顺序、summary 与关键 metadata。
+4. 如果 compound 节点绑定了 `metadata.child_trajectory_id` 且 payload 中存在匹配 child trajectory，详情面板显示 child trajectory 的 lanes/events/relations 统计与 `Enter child` 入口。
+5. `Enter child` 会在同一个 Local Work Trajectory 视图内切换到 child trajectory，而不是另开编辑界面。
+6. 进入 child trajectory 后显示 breadcrumb，可返回父层；child 内部如果还有 compound 节点，按同一机制递归进入。
+7. 点击空白处清除当前选择；UI 仍然只读，`addCompound`、`packRange`、`appendChild`、`advanceChild`、`closeChild` 等 mutation 继续由 agent / MCP / runtime 驱动。
+
+当前非目标：
+
+1. 不做 parent 图上的 inline expand。
+2. 不在 UI 侧新增人工打包、拆包、追加 child 节点按钮。
+3. 不改变 Local Work Trajectory JSON schema。
+4. 不改变多线 lane-first 对齐与 relation 绘制策略。
+5. 不把 compound 解释为真实 subagent 或调度单元；它只是轨迹中的递归阶段/包节点。
+
+当前 focused validation：
+
+1. `npm run build` 通过。
+2. `node --test dist/test/localWorkTrajectory.test.js` 通过，`2 passed`。
+
+## 2026-06-11 MiniMap 可折叠选项
+
+用户在 MiniMap 位置调整通过后要求增加可折叠选项。本轮只调整 Local Work Trajectory 只读 UI，不改变 trajectory 数据、schema 或 agent/MCP mutation 语义。
+
+UI 绑定结论：
+
+1. MiniMap 默认保持展开，延续此前父层与 child 层右下角显示位置。
+2. 图面右下角增加轻量 `Hide map` / `Show map` 按钮，用本地 React state 控制 MiniMap 显隐。
+3. 折叠状态不写入 `local-work-trajectory.json`，也不参与 refresh / child trajectory navigation 的持久化。
+4. 展开和折叠状态共用 MiniMap 区域右下锚点；`Hide map` 位于 `Show map` 折叠入口的同一位置，保证操作目标稳定。
+5. 父层和 child trajectory 使用同一套折叠交互；进入 child 后仍默认展开。
+
+当前 focused validation：
+
+1. `npm test` 通过，`24 passed`。
+2. `npm run build` 通过。
+3. Playwright/Chromium harness 已截取 `parent-expanded.png`、`parent-collapsed.png`、`child-expanded.png`、`child-collapsed.png`，父层与 child 层展开态 MiniMap 均保持右侧 `16px`、底部 `92px` 间距，展开/折叠态按钮均保持底部 `92px` 间距。
+
+## 2026-06-11 compound subgraph 后端语义后续
+
+UI 工作暂时收口后，用户进一步指出：当前 `packRange` 只覆盖单线连续区间，而后续需要考虑多线 pack 以及跨 pack 的 reliance。
+
+已创建后端语义 planning-gate：
+
+- `design_docs/stages/planning-gate/2026-06-11-local-work-trajectory-compound-subgraph-semantics.md`
+
+当前 contract-first 草稿：
+
+- `design_docs/local-work-trajectory-compound-subgraph-contract-draft.md`
+
+该 gate 只定义多线 pack、child trajectory lane preservation、parent-level / child-local / cross-compound reliance endpoint 的语义边界，不在 UI 侧继续扩展，也不立即进入 agent 集群或调度系统设计。
+
+## 2026-06-11 compound subgraph 后端实现结果
+
+后端第一切片已按 contract-first 方式完成：
+
+1. 新增 `packSubgraph` 后端语义，用于将多条 lane 上各自连续的事件区间打包为一个 compound child trajectory。
+2. 父层使用 anchor compound + proxy compound 保留多线拓扑，child trajectory 内保留原 lane。
+3. `relate` 支持 source/target precise endpoint metadata，可表达跨 pack reliance，同时父层仍保留可读的投影边。
+4. 当前没有改变 Local Work Trajectory React Flow 布局；UI 暂时按现有 compound/proxy metadata 展示。
+
+验证：
+
+1. `python -m pytest tests/test_progress_graph_trajectory.py tests/test_mcp_tools.py::TestLocalTrajectory -q` 通过，`36 passed, 1 skipped`。
+2. `npm run build` 通过。
+3. `node --test dist/test/aiChatTools.test.js dist/test/aiChatToolLoop.test.js` 通过，`7 passed`。
+
+## 2026-06-11 child external reliance indicator UI
+
+用户在真实测试中确认：父层 projected `depends` 能表达跨 compound
+reliance，但进入 child trajectory 后无法看到该 child 内部精确端点参与了外部
+reliance。该行为符合 relation ownership contract，但 UI 可读性不足。
+
+本轮新增窄 UI gate：
+
+- `design_docs/stages/planning-gate/2026-06-11-local-work-trajectory-child-external-reliance-indicators.md`
+
+实现结论：
+
+1. Child view 不复制父层 relation，也不绘制穿透 hidden child/parent 的跨层边。
+2. UI 从 root payload 派生 external reliance indicators：匹配
+   `source_endpoint_trajectory_id` / `target_endpoint_trajectory_id` 指向当前 child
+   trajectory 的 projected relations。
+3. 精确 child endpoint 节点显示 `depends external` 等轻量 badge，并带有细微外部
+   reliance marker。
+4. 选中该 endpoint 后，右侧详情显示 `External reliance` 卡片，包含 kind、
+   projection、endpoint role、owner trajectory、summary。
+5. `Open parent relation` 会回到 relation owner trajectory 并选中父层 projected
+   relation，使 child endpoint 与父层投影关系形成可导航闭环。
+
+验证：
+
+1. `npm test` 通过，`24 passed`。
+2. `npm run build` 通过。
+3. Screenshot harness 更新并通过：
+   `output/playwright/local-work-trajectory-compound/capture.cjs`。
+4. 关键截图：
+   - `output/playwright/local-work-trajectory-compound/child-endpoint.png`
+   - `output/playwright/local-work-trajectory-compound/parent-relation-return.png`
+
+## 2026-06-14 lane 关系加权排序与手动重排
+
+用户指出：多条 trajectory lane 之间的上下位置如果只按 lane id 或开线顺序固定，会导致跨线关系交叠较多，整体信息不易阅读；同时希望用户可以手动更换 lane 的上下关系。
+
+当前 UI 绑定结论：
+
+1. lane 的实际 y 坐标仍由 lane-first layout 中的 `orderedLanes` 决定：第 N 条 lane 放在 `laneStartY + N * laneStrideY`。
+2. 自动排序不再只是 id fallback，而是保留 `lane:main` 优先和开线 parent/child 分组，同时用跨 lane 关系权重调整同级 lane 的顺序。
+3. 参与权重的关系包括：`depends_on`、`waits_for`、`unblocks`、`hands_off`、`syncs_from`、`merges_into`、`proposes_new_line`、`approves_new_line`。
+4. 对同一 parent 下的 child lane，优先把与 parent 关系数更多的 lane 放得更靠近；无 parent 比较时使用总跨线关系数作为次级排序依据。
+5. lane 头部新增上移/下移按钮，用户可在当前视图内临时覆盖自动顺序。
+6. 手动顺序只保存在 React state 中，不写入 `local-work-trajectory.json`，refresh 或切换 trajectory 后回到自动关系加权排序。
+7. 这不是 trajectory mutation，也不是 agent/runtime 调度语义；它只是当前 React Flow 视图层的可读性控制。
+
+当前非目标：
+
+1. 不引入持久化的用户布局偏好。
+2. 不改变 trajectory schema 或 MCP `localTrajectory` action。
+3. 不替换 lane-first 模型为全局图布局器；未来若要更强的 crossing minimization，应作为可替换 layout policy 继续演进。
+
+验证：
+
+1. `npm run build` 通过。
+2. `node --test dist/test/localWorkTrajectory.test.js` 通过，`2 passed`。
+3. Playwright/Chromium harness 已验证自动权重排序和手动重排：
+   - `output/playwright/lwt-lane-order/weighted-order.png`
+   - `output/playwright/lwt-lane-order/manual-order.png`
+
+## 2026-06-14 start-line 关系展示降噪
+
+用户指出：一次性开出多条新线时，多条 `starts lane` 边会从同一节点出发并严重交叠，影响整体阅读。
+
+当前 UI 绑定结论：
+
+1. `proposes_new_line` / `approves_new_line` 仍然保留为 trajectory relation。
+2. 它们仍参与 lane 起点对齐、事件列约束与 lane 自动排序。
+3. 它们不再默认渲染为普通跨线 edge。
+4. 开线源节点显示 `starts lane` / `approves lane` badge。
+5. 新线首节点显示 `lane start` / `lane approved` badge。
+6. badge 的 title 继续承载 relation summary 或相关节点标题，保留可解释线索。
+7. 这是一项展示层降噪策略，不改变后端 schema、MCP action 或开线语义。
+
+验证：
+
+1. `npm run build` 通过。
+2. `node --test dist/test/localWorkTrajectory.test.js` 通过，`2 passed`。
+3. Playwright/Chromium harness 已验证多线 fanout 场景中开线边不再渲染，badge 数量正确：
+   - `output/playwright/lwt-start-line-overlap/start-line-badges.png`

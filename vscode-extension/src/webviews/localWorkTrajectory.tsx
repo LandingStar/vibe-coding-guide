@@ -164,6 +164,7 @@ type LaneOpeningFanout = {
   targetColumns: number[];
   sourceLaneIndex: number;
   targetLaneIndexes: number[];
+  targetLaneIds: string[];
 };
 
 type NavigationSnapshot = {

@@ -26,47 +26,513 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-06-25`
+- Snapshot Date: `2026-06-27`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
-- Current Phase: `Post-v1.0 - Agent orchestration / worker patch review operation`
-- Current Focus: `Select the next narrow orchestration gate after Host UX worker patch review binding`
+- Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
+- Current Focus: `C7 Codex runtime status readback completed`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
-- Latest Completed Slice: `Host UX Worker Patch Review Binding`
+  `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
+- Latest Completed Slice: `Codex Runtime Status Readback`
 - Latest Completion Evidence:
-  `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
+  `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`,
+  `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`,
+  `design_docs/stages/planning-gate/2026-06-27-codex-multilane-continuous-progress-fixture.md`,
+  `design_docs/stages/planning-gate/2026-06-27-codex-delivery-sandbox-patch-review-closure.md`,
+  `design_docs/stages/planning-gate/2026-06-27-codex-interruption-recovery-and-retry-policy.md`,
+  `design_docs/stages/planning-gate/2026-06-27-codex-permission-review-outcome-consumer.md`,
+  `design_docs/stages/planning-gate/2026-06-26-bounded-codex-supervisor-loop-binding.md`,
+  `design_docs/stages/planning-gate/2026-06-26-credentialed-codex-cli-e2e-smoke.md`,
+  `design_docs/stages/planning-gate/2026-06-26-codex-result-consumer-contract.md`,
+  `design_docs/stages/planning-gate/2026-06-26-codex-delivery-supervisor-loop.md`,
+  `design_docs/stages/planning-gate/2026-06-25-host-owned-worker-delivery-acknowledgement.md`,
+  `design_docs/stages/planning-gate/2026-06-25-recoverable-leader-worker-dispatcher-tick.md`,
+  `design_docs/stages/planning-gate/2026-06-25-runtime-invocation-recovery-and-audit-trail.md`
+  and `design_docs/stages/planning-gate/2026-06-25-leader-worker-activation-loop-contract.md`
 - Last Checkpoint: `.codex/checkpoints/latest.md`
   (may point to parked work; do not treat it as newer than this checklist)
+- Current Target Definition:
+  `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`
 
 ## Current Recovery Read Order
 
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
-3. `design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
-4. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
-5. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
-6. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
-7. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
-8. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
-9. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
-10. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
-11. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
-12. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
-13. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
-14. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
-15. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
-16. `review/agent-communication-product-closure-2026-06-22.md`
-17. `design_docs/Global Phase Map and Current Position.md`
-18. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
+1. `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
+1. `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`
+1. `design_docs/stages/planning-gate/2026-06-27-codex-multilane-continuous-progress-fixture.md`
+1. `design_docs/stages/planning-gate/2026-06-27-codex-delivery-sandbox-patch-review-closure.md`
+1. `design_docs/stages/planning-gate/2026-06-27-codex-interruption-recovery-and-retry-policy.md`
+1. `design_docs/stages/planning-gate/2026-06-27-codex-permission-review-outcome-consumer.md`
+1. `design_docs/stages/planning-gate/2026-06-26-bounded-codex-supervisor-loop-binding.md`
+1. `design_docs/stages/planning-gate/2026-06-26-credentialed-codex-cli-e2e-smoke.md`
+1. `design_docs/stages/planning-gate/2026-06-26-codex-result-consumer-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-26-codex-delivery-supervisor-loop.md`
+1. `design_docs/stages/planning-gate/2026-06-25-host-owned-worker-delivery-acknowledgement.md`
+1. `design_docs/stages/planning-gate/2026-06-25-recoverable-leader-worker-dispatcher-tick.md`
+1. `design_docs/stages/planning-gate/2026-06-25-runtime-invocation-recovery-and-audit-trail.md`
+1. `design_docs/stages/planning-gate/2026-06-25-leader-worker-activation-loop-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-25-host-ux-worker-patch-review-binding.md`
+1. `design_docs/worker-patch-composition-preflight-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md`
+1. `design_docs/stages/planning-gate/2026-06-24-worker-patch-apply-reject-policy.md`
+1. `design_docs/stages/planning-gate/2026-06-24-worker-patch-review-integration.md`
+1. `design_docs/stages/planning-gate/2026-06-24-codex-worker-sandbox-writeback-policy.md`
+1. `design_docs/stages/planning-gate/2026-06-24-codex-cli-worker-runtime-provider.md`
+1. `design_docs/stages/planning-gate/2026-06-24-guide-worker-planned-execution-closure.md`
+1. `design_docs/stages/planning-gate/2026-06-24-autonomous-guide-instruction-planner.md`
+1. `design_docs/stages/planning-gate/2026-06-24-host-owned-guide-worker-provider-execution-wrapper.md`
+1. `design_docs/stages/planning-gate/2026-06-24-guide-worker-provider-runtime-mapping.md`
+1. `design_docs/stages/planning-gate/2026-06-24-guide-worker-lane-wave-executor-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-24-guide-worker-local-orchestration-mcp-surface.md`
+1. `design_docs/stages/planning-gate/2026-06-23-guide-worker-local-trajectory-orchestration-mvp.md`
+1. `review/agent-communication-product-closure-2026-06-22.md`
+1. `design_docs/Global Phase Map and Current Position.md`
+1. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
 Historical recovery beyond this list should use:
 
 - `design_docs/history/Project Master Checklist Archive 2026-06-22.md`
 
 ## Active Work
+
+### Codex Runtime Status Readback
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/codex_runtime_status.py`
+- CLI:
+  `doc-based-coding scheduler inspect-codex-runtime-status`
+
+Behavior:
+
+- Provides compact read-only status for scheduler state, delivery records,
+  runtime invocation audit, output/review/worker-patch artifact refs, and safe
+  `next_action` clues.
+- Does not run Codex, mutate scheduler/delivery/artifact/runtime logs, mutate
+  Local Work Trajectory, or expose raw transcripts.
+
+Validation:
+
+- `py_compile` passed for touched runtime/CLI/tests.
+- Focused C7 runtime and CLI tests passed.
+- Adjacent Codex delivery supervisor runtime and CLI tests passed.
+- Doc-loop validator passed.
+
+### Codex Multi-Lane Continuous Progress Fixture
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-27-codex-multilane-continuous-progress-fixture.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/codex_delivery_smoke.py`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-e2e-smoke --fixture multilane`,
+  `doc-based-coding scheduler codex-delivery-supervisor-loop --fixture multilane`
+
+Behavior:
+
+- Adds an opt-in multi-lane fixture with two independent lane-distinct Codex
+  workers and one dependent Codex follow-up task.
+- Lets the existing bounded Codex supervisor loop complete multiple lane
+  workers over bounded ticks while preserving serial execution semantics.
+- Exposes target task state and task state counts for the fixture readback.
+
+Validation:
+
+- `py_compile` passed for touched runtime/CLI/tests.
+- Focused bounded Codex loop tests passed: `4 passed, 333 deselected`.
+- Focused Codex loop CLI tests passed: `2 passed, 100 deselected`.
+- Adjacent Codex delivery/runtime tests passed: `14 passed, 323 deselected`.
+- Doc-loop validator passed.
+
+### Codex Delivery Sandbox Patch Review Closure
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-27-codex-delivery-sandbox-patch-review-closure.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`
+- Bounded loop binding:
+  `src/runtime/orchestration/codex_delivery_smoke.py`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-supervisor-once`,
+  `doc-based-coding scheduler codex-delivery-supervisor-loop`
+
+Behavior:
+
+- Allows host opt-in sandbox preflight for Codex delivery, including
+  git-worktree allocation when an explicit sandbox root is provided.
+- Passes preflight runtime workspace metadata to Codex CLI.
+- Publishes git-worktree edits as review-only
+  `worker_patch_review_proposal` artifacts before consuming successful
+  results.
+- Keeps result completion, patch review, patch apply, and sandbox cleanup as
+  separate operator decisions.
+
+Validation:
+
+- `py_compile` passed for touched runtime/CLI/tests.
+- Focused Codex delivery supervisor runtime tests passed:
+  `13 passed, 323 deselected`.
+- Focused Codex delivery supervisor CLI tests passed:
+  `5 passed, 97 deselected`.
+- Adjacent Codex result/permission/worker patch review runtime tests passed:
+  `23 passed, 313 deselected`.
+- Adjacent Codex delivery / worker patch CLI tests passed:
+  `9 passed, 93 deselected`.
+- Doc-loop validator passed.
+
+### Codex Interruption Recovery And Retry Policy
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-27-codex-interruption-recovery-and-retry-policy.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`
+- Bounded loop binding:
+  `src/runtime/orchestration/codex_delivery_smoke.py`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-supervisor-once`,
+  `doc-based-coding scheduler codex-delivery-supervisor-loop`
+
+Behavior:
+
+- Allows host-authorized retry of eligible transient failed Codex delivery
+  records after restart.
+- Keeps non-retryable failures failed.
+- Skips already completed scheduler tasks rather than duplicating completion.
+- Preserves compact runtime invocation audit and no raw transcript persistence.
+- Does not resume a live Codex process mid-turn and does not mutate
+  agent-owned Local Work Trajectory.
+
+Validation:
+
+- `py_compile` passed.
+- Focused C4 runtime retry tests passed:
+  `2 passed, 331 deselected` and `1 passed, 333 deselected`.
+- Focused C4 CLI help tests passed: `2 passed, 99 deselected`.
+- Adjacent Codex delivery/result-consumer/permission/runtime invocation tests
+  passed: `25 passed, 309 deselected`.
+- Adjacent Codex delivery CLI tests passed: `9 passed, 92 deselected`.
+
+### Codex Permission Review Outcome Consumer
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-27-codex-permission-review-outcome-consumer.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/codex_permission_review_consumer.py`
+- Helper: `consume_codex_permission_review_result()`
+- Supervisor integration:
+  `run_codex_delivery_supervisor_once()` now routes
+  `RuntimeRunResult.permission_requests` before successful result consumption.
+- Delivery state: `review_required` / `delivery_review_required`
+
+Behavior:
+
+- Stores permission-review output artifacts as durable review evidence.
+- Appends scheduler `task_review_required` rather than `task_completed`.
+- Marks delivery `review_required`, not `acknowledged` or provider `failed`.
+- Keeps downstream dependencies waiting until a scheduler-owned permission
+  approval event resolves review.
+- Preserves no raw transcript persistence and no runtime-owned Local Work
+  Trajectory mutation.
+
+Validation:
+
+- `py_compile` passed.
+- Focused Codex permission/result/delivery runtime tests passed:
+  `11 passed, 320 deselected`.
+- Focused Codex delivery CLI tests passed: `4 passed, 97 deselected`.
+- Adjacent Codex delivery/result-consumer/runtime invocation tests passed:
+  `20 passed, 311 deselected`.
+- Adjacent Codex delivery CLI tests passed: `9 passed, 92 deselected`.
+
+### Bounded Codex Supervisor Loop Binding
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-26-bounded-codex-supervisor-loop-binding.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/codex_delivery_smoke.py`
+- Helper: `run_bounded_codex_delivery_supervisor_loop()`
+- CLI: `doc-based-coding scheduler codex-delivery-supervisor-loop`
+
+Behavior:
+
+- Runs a bounded host/operator loop that recovers scheduler state, marks
+  admissible tasks ready, persists dispatcher decisions, syncs delivery records,
+  invokes Codex with result consumption, and recovers again.
+- Exposes explicit bounds for max ticks, max deliveries, and max runtime
+  failures.
+- Returns compact stop/readback evidence including stop reason, task state
+  counts, target states, delivery counts, runtime invocation count, and
+  authority split.
+- Does not implement daemonization, interruption resume, permission/review
+  outcome consumption, MCP live-provider execution, source patch apply, or
+  runtime-owned Local Work Trajectory mutation.
+
+Validation:
+
+- `py_compile` passed.
+- Focused C1/C2 runtime tests passed: `4 passed, 326 deselected`.
+- Focused C1/C2 CLI tests passed: `4 passed, 97 deselected`.
+- Adjacent Codex delivery/result-consumer runtime tests passed:
+  `19 passed, 311 deselected`.
+- Adjacent Codex delivery CLI tests passed: `9 passed, 92 deselected`.
+
+### Credentialed Codex CLI E2E Smoke
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-26-credentialed-codex-cli-e2e-smoke.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/codex_delivery_smoke.py`
+- Helper: `run_codex_delivery_e2e_smoke()`
+- CLI: `doc-based-coding scheduler codex-delivery-e2e-smoke`
+
+Behavior:
+
+- Optionally initializes a minimal scheduler-owned C1 fixture with one ready
+  Codex task and one waiting non-Codex control task.
+- Fails closed on negative Codex CLI readiness before dispatcher/delivery/runtime
+  mutation.
+- Chains dispatcher tick, delivery sync, Codex delivery with result consumption,
+  and scheduler recovery for one narrow task.
+- Produces compact readback for runtime audit, delivery acknowledgement, output
+  artifact ref, and recovered target task state.
+
+Validation:
+
+- `py_compile` passed.
+- Focused C1 runtime tests passed: `2 passed, 326 deselected`.
+- Focused C1 CLI tests passed: `2 passed, 97 deselected`.
+- Adjacent Codex delivery/result-consumer runtime tests passed:
+  `17 passed, 311 deselected`.
+- Adjacent Codex delivery CLI tests passed: `7 passed, 92 deselected`.
+
+### Codex Result Consumer Contract
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-26-codex-result-consumer-contract.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/codex_result_consumer.py`
+- Consumer helper:
+  `consume_successful_codex_result()`
+- Supervisor integration:
+  `CodexDeliverySupervisorRequest.consume_success_results`,
+  `artifact_store_path`, and `replace_existing_result_artifact`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-supervisor-once
+  --consume-success-results`
+
+Behavior:
+
+- Stores successful Codex `RuntimeRunResult.output_artifact` into the durable
+  ExchangeArtifact store.
+- Appends `task_completed` to the scheduler event log so existing recovery
+  advances the task to `complete`.
+- Acknowledges delivery only after result artifact/event persistence succeeds.
+- Marks delivery `failed` with `failure_kind=result_consumer_failed` when the
+  successful provider result cannot be consumed durably.
+- Does not mutate scheduler snapshots, compact event logs, expose MCP live
+  provider execution, persist raw transcripts, or mutate runtime-owned Local
+  Work Trajectory.
+
+Validation:
+
+- `py_compile` passed.
+- Focused Codex result/delivery runtime tests passed:
+  `6 passed, 320 deselected`.
+- Focused CLI/Codex delivery tests passed: `3 passed, 94 deselected`.
+
+### Codex Delivery Supervisor Loop
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-26-codex-delivery-supervisor-loop.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/leader_worker_codex_delivery.py`
+- Host-owned pass:
+  `run_codex_delivery_supervisor_once()`
+- Models:
+  `CodexDeliverySupervisorRequest`,
+  `CodexDeliverySupervisorRecord`,
+  `CodexDeliverySupervisorResult`
+- CLI:
+  `doc-based-coding scheduler codex-delivery-supervisor-once`
+
+Behavior:
+
+- Consumes pending leader-worker delivery records only when they correspond to
+  ready/admissible Codex scheduler tasks.
+- Executes Codex through host-authorized adapter wiring and explicit
+  process-spawn grant.
+- Writes delivery acknowledgement plus compact runtime invocation audit.
+- Does not mutate scheduler state/event log, ExchangeArtifact store, MCP live
+  provider surfaces, raw transcripts, or runtime-owned Local Work Trajectory.
+
+Validation:
+
+- `py_compile` passed.
+- Focused Codex delivery runtime tests passed: `3 passed, 320 deselected`.
+- Focused CLI/delivery/runtime tests passed: `4 passed, 92 deselected`.
+- Focused adjacent runtime regression passed: `12 passed, 311 deselected`.
+- Doc-loop validator passed.
+- `git diff --check` passed with Windows line-ending warnings only.
+
+### Host-Owned Worker Delivery Acknowledgement
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-25-host-owned-worker-delivery-acknowledgement.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/leader_worker_delivery.py`
+- Durable delivery state: `LeaderWorkerDeliveryState`
+- JSONL delivery log: `JsonlLeaderWorkerDeliveryEventLog`
+- Sync/ack/readback helpers:
+  `sync_leader_worker_delivery_from_dispatch_log()`,
+  `acknowledge_leader_worker_delivery()`,
+  `inspect_leader_worker_delivery_state()`
+- CLI:
+  `doc-based-coding scheduler leader-worker-delivery-sync`,
+  `doc-based-coding scheduler leader-worker-delivery-ack`,
+  `doc-based-coding scheduler inspect-leader-worker-delivery`
+
+Validation:
+
+- `py_compile` passed.
+- Focused delivery tests in `tests/test_runtime_orchestration.py` passed:
+  `2 passed, 318 deselected`.
+- Focused leader-worker/runtime regression passed:
+  `12 passed, 308 deselected`.
+- Focused CLI regression passed:
+  `5 passed, 90 deselected`.
+
+### Recoverable Leader Worker Dispatcher Tick
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-25-recoverable-leader-worker-dispatcher-tick.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/leader_worker_dispatcher.py`
+- Durable dispatcher state: `LeaderWorkerDispatcherState`
+- JSONL dispatch log: `JsonlLeaderWorkerDispatcherEventLog`
+- Tick/loop helpers:
+  `run_leader_worker_dispatcher_tick()`,
+  `run_leader_worker_dispatcher_loop()`
+- CLI:
+  `doc-based-coding scheduler leader-worker-dispatcher-tick`,
+  `doc-based-coding scheduler leader-worker-dispatcher-loop`
+
+Validation:
+
+- `py_compile` passed.
+- Focused dispatcher tests in `tests/test_runtime_orchestration.py` passed:
+  `3 passed, 315 deselected`.
+- Focused activation/CLI regression in tracked suites passed:
+  `15 passed, 397 deselected`.
+
+### Runtime Invocation Recovery And Audit Trail
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-25-runtime-invocation-recovery-and-audit-trail.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/runtime_invocation_audit.py`
+- JSONL store: `JsonlRuntimeInvocationLog`
+- Retry/audit runner: `run_with_runtime_invocation_audit()`
+- CLI readback: `doc-based-coding scheduler inspect-runtime-invocations`
+- Host-owned guide-worker wrapper:
+  `run_host_owned_guide_worker_provider_execution()` now audits and retries
+  Qoder/Codex provider client invocations by default.
+
+Validation:
+
+- `py_compile` passed.
+- Focused runtime/CLI tests in tracked suites passed:
+  `15 passed, 397 deselected`.
+- Focused wrapper/CLI/runtime integration tests passed:
+  `3 passed, 76 deselected`; `5 passed, 87 deselected`; `8 passed`.
+
+### Leader Worker Activation Loop Contract
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-25-leader-worker-activation-loop-contract.md`
+
+Current implementation surface:
+
+- Runtime helper/module: `src/runtime/orchestration/leader_worker_activation.py`
+- Policy helper: `evaluate_leader_worker_policy()`
+- Activation pass: `run_leader_worker_activation_pass()`
+- CLI readback: `doc-based-coding scheduler inspect-leader-worker-activation`
+
+Validation:
+
+- `py_compile` passed.
+- Focused runtime/CLI tests in tracked suites passed:
+  `15 passed, 397 deselected`.
 
 ### Checklist Recovery-Surface Optimization
 
@@ -562,9 +1028,23 @@ Validation:
 - [x] Complete worker patch check/apply/reject consumer.
 - [x] Complete multi-worker patch composition preflight.
 - [x] Complete Host UX worker patch review binding.
-- [ ] Select the next narrow orchestration planning gate for
-  cleanup-after-review automation policy, multi-patch apply policy, or agent
-  storage isolation.
+- [x] Complete runtime invocation audit/retry and leader-worker activation
+  contracts.
+- [x] Complete recoverable leader-worker dispatcher tick/loop.
+- [x] Complete host-owned worker delivery acknowledgement.
+- [x] Complete Codex delivery supervisor loop over pending delivery records.
+- [x] Define stable Codex CLI worker runtime continuous-use target and
+  acceptance criteria.
+- [x] Complete Codex permission/review outcome consumer.
+- [x] Complete Codex interruption recovery and retry policy.
+- [x] Complete Codex delivery sandbox patch review closure.
+- [x] Complete Codex multi-lane continuous progress fixture.
+- [x] Complete Codex runtime status readback and close the first stable
+  continuous-use target in
+  `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`.
+- [ ] For later gates, consider persistent monitoring UI, true process-level
+  parallelism, distributed worker leases, live Codex process resume, or
+  automatic log compaction as separate product slices.
 
 ## Write Rules For This File
 

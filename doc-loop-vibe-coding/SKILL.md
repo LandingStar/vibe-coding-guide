@@ -46,10 +46,12 @@ python doc-loop-vibe-coding/scripts/validate_doc_loop.py --target <repo>
 If the repo already has the scaffold, start by reading:
 
 1. `design_docs/Project Master Checklist.md`
-2. `design_docs/Global Phase Map and Current Position.md`
-3. The active planning or phase doc under `design_docs/stages/`
-4. The relevant long-lived rules under `design_docs/tooling/`
-5. `.codex/handoffs/CURRENT.md` only when session transfer matters
+2. The files listed in the Checklist's current recovery read order
+3. `design_docs/Global Phase Map and Current Position.md`
+4. The active planning or phase doc under `design_docs/stages/`
+5. The relevant long-lived rules under `design_docs/tooling/`
+6. `.codex/handoffs/CURRENT.md` / `.codex/checkpoints/latest.md` only when
+   the Checklist points to them or session transfer matters
 
 ## Instance Workflow
 

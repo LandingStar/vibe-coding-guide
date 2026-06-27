@@ -17,8 +17,10 @@ from src.runtime.orchestration import (
     CoordinationEvent,
     AgentSpec,
     AgentHomeRegistration,
+    AgentMailboxCursor,
     AgentScratchSpace,
     ArtifactDelta,
+    ArtifactVersionRecord,
     CodexCliAgentRuntimeAdapter,
     CodexCliClientConfig,
     CodexCliProcessClient,
@@ -27,6 +29,7 @@ from src.runtime.orchestration import (
     CodexCliRuntimeError,
     CleanupReceipt,
     ContextScope,
+    CodexResultConsumerRequest,
     EditLeaseLifecycleRecord,
     EditScopeLease,
     ExchangeArtifact,
@@ -51,8 +54,21 @@ from src.runtime.orchestration import (
     JsonArtifactVersionStore,
     JsonExchangeArtifactAdmissionLedger,
     JsonlCoordinationEventLog,
+    JsonlLeaderWorkerDeliveryEventLog,
+    JsonlLeaderWorkerDispatcherEventLog,
+    JsonlRuntimeInvocationLog,
     JsonlSchedulerEventLog,
     JsonlSchedulerMergeGateEventLog,
+    LeaderWorkerActivationState,
+    LeaderWorkerDeliveryAckRequest,
+    LeaderWorkerDeliverySyncRequest,
+    CodexDeliverySupervisorRequest,
+    CodexDeliveryBoundedLoopRequest,
+    CodexDeliveryE2ESmokeRequest,
+    CodexRuntimeStatusRequest,
+    CodexCliHostReadinessReport,
+    LeaderWorkerDispatcherLoopRequest,
+    LeaderWorkerDispatcherTickRequest,
     SandboxAllocation,
     SandboxLeaseMountAuthorization,
     SandboxProviderRegistry,
@@ -75,10 +91,13 @@ from src.runtime.orchestration import (
     PermissionRequest,
     RuntimeCapabilities,
     RuntimeHostInvocation,
+    RuntimeInvocationRecord,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
     RuntimeRegistryWiringResult,
+    RuntimeRetryPolicy,
     RuntimeRunResult,
+    RuntimeAttemptRecord,
     PreflightedTaskRunResult,
     RunHandle,
     SessionHandle,
@@ -115,6 +134,7 @@ from src.runtime.orchestration import (
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SupervisorAgentStorageBindingRequest,
     SupervisorStorageBindingEvidenceSummary,
+    acknowledge_leader_worker_delivery,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
     agent_home_registration_to_artifact,
@@ -129,6 +149,8 @@ from src.runtime.orchestration import (
     build_scheduler_loop_evidence,
     build_supervisor_storage_binding_evidence,
     build_worker_patch_review_artifact,
+    compact_runtime_invocation_log,
+    consume_successful_codex_result,
     consume_worker_patch_review_decision,
     decide_agent_exchange_action_candidate,
     default_supervisor_storage_binding_evidence_path,
@@ -139,6 +161,7 @@ from src.runtime.orchestration import (
     drain_preflighted_ready_tasks,
     drain_ready_tasks,
     evaluate_stop_condition,
+    evaluate_leader_worker_policy,
     evaluate_task_admission,
     expire_edit_leases,
     exchange_artifact_from_json_dict,
@@ -149,6 +172,8 @@ from src.runtime.orchestration import (
     inspect_scheduler_daemon_lifecycle_control,
     inspect_scheduler_authorization,
     inspect_scheduler_authorization_snapshot,
+    inspect_leader_worker_delivery_state,
+    inspect_runtime_invocation_log,
     has_scheduler_readable_relation,
     mark_ready_tasks,
     mark_exchange_artifact_version_consumed,
@@ -160,6 +185,8 @@ from src.runtime.orchestration import (
     project_group_item_delivery_signal,
     project_group_item_surface,
     recover_scheduler_state,
+    read_leader_worker_dispatcher_state,
+    read_leader_worker_delivery_state,
     replay_scheduler_events,
     resolve_scheduler_merge_gate,
     resolve_task_permission_review,
@@ -177,6 +204,14 @@ from src.runtime.orchestration import (
     run_scheduler_daemon_lifecycle_once,
     run_scheduler_daemon_tick,
     run_guide_worker_local_trajectory_orchestration,
+    run_leader_worker_activation_pass,
+    run_bounded_codex_delivery_supervisor_loop,
+    run_codex_delivery_e2e_smoke,
+    run_codex_delivery_supervisor_once,
+    inspect_codex_runtime_status,
+    run_leader_worker_dispatcher_loop,
+    run_leader_worker_dispatcher_tick,
+    run_with_runtime_invocation_audit,
     roll_up_work_item,
     sandbox_capability_placeholder,
     scheduler_task_batch_submission_from_artifact,
@@ -187,6 +222,7 @@ from src.runtime.orchestration import (
     submit_scheduler_task_batch,
     submit_scheduler_task_batch_with_persistence,
     submit_scheduler_task,
+    sync_leader_worker_delivery_from_dispatch_log,
     supervisor_storage_binding_evidence_summary_to_artifact,
     validate_supervisor_storage_binding_artifact_refs,
     validate_exchange_artifact,
@@ -12591,6 +12627,104 @@ class _RecordingCodexCliClient:
         return self.result
 
 
+class _EditingCodexCliClient:
+    def __init__(self, *, relative_path: str, content: str) -> None:
+        self.relative_path = relative_path
+        self.content = content
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        self.requests = self.requests + (request,)
+        workspace = Path(request.task.runtime_workspace_root)
+        if not workspace:
+            raise AssertionError("editing Codex test client requires runtime workspace root")
+        target = workspace / self.relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(self.content, encoding="utf-8")
+        return CodexCliResult(
+            summary=f"edited {self.relative_path}",
+            output_text=f"edited {self.relative_path}",
+            artifact_delta=ArtifactDelta(
+                artifact_id=request.output_artifact_id or f"{request.task.task_id}:codex-result",
+                version="v1",
+                summary=f"edited {self.relative_path}",
+                changed_refs=(
+                    ExchangeReference(
+                        ref_kind="file",
+                        ref_id=self.relative_path,
+                        path=self.relative_path,
+                    ),
+                ),
+            ),
+        )
+
+
+class _SequenceCodexCliClient:
+    def __init__(self, results: tuple[CodexCliResult, ...]) -> None:
+        self.results = results
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        self.requests = self.requests + (request,)
+        index = len(self.requests) - 1
+        if index >= len(self.results):
+            raise AssertionError("Codex client was invoked more times than expected")
+        return self.results[index]
+
+
+class _UnavailableCodexCliClient:
+    def __init__(self) -> None:
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def host_readiness_report(self) -> CodexCliHostReadinessReport:
+        return CodexCliHostReadinessReport(
+            executable="missing-codex",
+            executable_resolved="",
+            cli_available=False,
+            ready=False,
+            error_kind="cli_unavailable",
+            raw_error_type="MissingExecutable",
+            summary="Codex CLI executable is unavailable: missing-codex",
+        )
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        self.requests = self.requests + (request,)
+        raise AssertionError("unavailable Codex client should not be invoked")
+
+
+class _FailingCodexCliClient:
+    def __init__(self, exc: Exception) -> None:
+        self.exc = exc
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        self.requests = self.requests + (request,)
+        raise self.exc
+
+
+class _SequenceCodexCliClientWithFailures:
+    def __init__(self, outcomes: tuple[object, ...]) -> None:
+        self.outcomes = outcomes
+        self.requests: tuple[CodexCliRequest, ...] = ()
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        self.requests = self.requests + (request,)
+        index = len(self.requests) - 1
+        if index >= len(self.outcomes):
+            raise AssertionError("Codex client was invoked more times than expected")
+        outcome = self.outcomes[index]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome  # type: ignore[return-value]
+
+
+def _state_counts_from_delivery_records(state) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in state.records.values():
+        counts[record.delivery_state] = counts.get(record.delivery_state, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def _qoder_sdk_request() -> QoderQueryRequest:
     agent = AgentSpec(
         agent_id="agent:qoder-sdk",
@@ -12688,3 +12822,2031 @@ class _FakeAsyncMessageStream:
             return next(self._iterator)
         except StopIteration as exc:
             raise StopAsyncIteration from exc
+
+
+def test_runtime_invocation_audit_records_success(tmp_path: Path) -> None:
+    log = JsonlRuntimeInvocationLog(tmp_path / "invocations.jsonl")
+
+    result = run_with_runtime_invocation_audit(
+        invocation_id="inv-1",
+        provider="codex",
+        operation=lambda: _RuntimeAuditResult(
+            summary="completed",
+            metadata={"stdout_bytes": 12, "stderr_bytes": 0},
+        ),
+        log=log,
+        task_id="task-1",
+        agent_id="agent:worker",
+        timestamp_factory=_runtime_audit_clock(),
+    )
+
+    assert result.summary == "completed"
+    records = log.read_all()
+    assert len(records) == 1
+    record = records[0]
+    assert record.status == "succeeded"
+    assert record.provider == "codex"
+    assert record.task_id == "task-1"
+    assert record.agent_id == "agent:worker"
+    assert record.attempt_count == 1
+    assert record.attempts[0].stdout_bytes == 12
+    assert record.to_json_dict()["authority_split"]["raw_transcript_persisted"] is False
+
+
+def test_runtime_invocation_audit_retries_retryable_failure(tmp_path: Path) -> None:
+    log = JsonlRuntimeInvocationLog(tmp_path / "invocations.jsonl")
+    calls = {"count": 0}
+
+    def operation():
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise _RetryableRuntimeAuditError("timeout")
+        return _RuntimeAuditResult(summary="recovered")
+
+    result = run_with_runtime_invocation_audit(
+        invocation_id="inv-retry",
+        provider="qoder",
+        operation=operation,
+        log=log,
+        retry_policy=RuntimeRetryPolicy(max_attempts=2),
+        timestamp_factory=_runtime_audit_clock(),
+    )
+
+    assert result.summary == "recovered"
+    assert calls["count"] == 2
+    record = log.read_all()[0]
+    assert record.status == "succeeded"
+    assert record.attempt_count == 2
+    assert [attempt.status for attempt in record.attempts] == ["failed", "succeeded"]
+    assert "secret" not in record.attempts[0].summary
+
+
+def test_runtime_invocation_audit_fail_fast_for_non_retryable(tmp_path: Path) -> None:
+    log = JsonlRuntimeInvocationLog(tmp_path / "invocations.jsonl")
+
+    with pytest.raises(_FatalRuntimeAuditError):
+        run_with_runtime_invocation_audit(
+            invocation_id="inv-fatal",
+            provider="codex",
+            operation=lambda: (_ for _ in ()).throw(_FatalRuntimeAuditError("auth")),
+            log=log,
+            retry_policy=RuntimeRetryPolicy(max_attempts=3),
+            timestamp_factory=_runtime_audit_clock(),
+        )
+
+    record = log.read_all()[0]
+    assert record.status == "failed"
+    assert record.attempt_count == 1
+    assert record.final_error_kind == "authentication_failed"
+
+
+def test_runtime_invocation_log_inspection_and_compaction(tmp_path: Path) -> None:
+    log_path = tmp_path / "invocations.jsonl"
+    log = JsonlRuntimeInvocationLog(log_path)
+    for index in range(3):
+        run_with_runtime_invocation_audit(
+            invocation_id=f"inv-{index}",
+            provider="fake",
+            operation=lambda index=index: _RuntimeAuditResult(summary=f"ok {index}"),
+            log=log,
+            timestamp_factory=_runtime_audit_clock(),
+        )
+
+    summary = inspect_runtime_invocation_log(log_path, latest_limit=2)
+    assert summary.record_count == 3
+    assert summary.succeeded_count == 3
+    assert [record.invocation_id for record in summary.latest_records] == ["inv-1", "inv-2"]
+
+    compacted = compact_runtime_invocation_log(
+        log_path,
+        tmp_path / "archive.jsonl",
+        retain_latest=1,
+    )
+
+    assert compacted.archived_count == 2
+    assert compacted.retained_count == 1
+    assert [record.invocation_id for record in JsonlRuntimeInvocationLog(log_path).read_all()] == ["inv-2"]
+
+
+def test_leader_worker_policy_recommends_single_lane_and_requires_multilane() -> None:
+    single = evaluate_leader_worker_policy(["lane:client"])
+    multi = evaluate_leader_worker_policy(["lane:client", "lane:server"])
+
+    assert single.leader_worker_recommended is True
+    assert single.leader_worker_required is False
+    assert multi.leader_worker_required is True
+
+
+def test_leader_worker_activation_wakes_leader_on_new_worker_message_once() -> None:
+    record = ArtifactVersionRecord(
+        artifact_id="ex-worker-reply",
+        version="v1",
+        artifact=ExchangeArtifact(
+            artifact_id="ex-worker-reply",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(ExchangePayloadPart(part_type="text", text="done"),),
+        ),
+    )
+
+    first = run_leader_worker_activation_pass(
+        scheduler_state=SchedulerState(),
+        exchange_records=(record,),
+        leader_agent_id="agent:guide",
+        worker_agent_ids=("agent:worker",),
+    )
+
+    leader = next(item for item in first.lifecycles if item.agent_id == "agent:guide")
+    assert leader.lifecycle_state == "runnable"
+    assert leader.new_message_sources == ("ex-worker-reply@v1",)
+    assert any(event.event_kind == "message_available" for event in first.events)
+
+    second = run_leader_worker_activation_pass(
+        scheduler_state=SchedulerState(),
+        exchange_records=(record,),
+        activation_state=first.next_state,
+    )
+    leader_second = next(item for item in second.lifecycles if item.agent_id == "agent:guide")
+    assert leader_second.lifecycle_state == "waiting_message"
+    assert leader_second.new_message_sources == ()
+
+
+def test_leader_worker_activation_reports_ready_and_waiting_worker_tasks() -> None:
+    state = SchedulerState(
+        tasks={
+            "task-ready": ScheduledTask(
+                task_id="task-ready",
+                title="Ready worker",
+                instruction="Run ready worker",
+                agent=AgentSpec(agent_id="agent:worker-a", runtime_provider="fake"),
+                state="ready",
+                context_scope=ContextScope(context_id="ctx-a", lane_id="lane:a"),
+            ),
+            "task-waiting": ScheduledTask(
+                task_id="task-waiting",
+                title="Waiting worker",
+                instruction="Wait for dependency",
+                agent=AgentSpec(agent_id="agent:worker-b", runtime_provider="fake"),
+                state="waiting",
+                context_scope=ContextScope(context_id="ctx-b", lane_id="lane:b"),
+                blocked_reason="waiting for task-ready to complete",
+            ),
+        }
+    )
+
+    result = run_leader_worker_activation_pass(
+        scheduler_state=state,
+        exchange_records=(),
+        worker_agent_ids=("agent:worker-a", "agent:worker-b"),
+    )
+
+    worker_a = next(item for item in result.lifecycles if item.agent_id == "agent:worker-a")
+    worker_b = next(item for item in result.lifecycles if item.agent_id == "agent:worker-b")
+    assert result.policy.leader_worker_required is True
+    assert worker_a.lifecycle_state == "runnable"
+    assert worker_a.ready_task_ids == ("task-ready",)
+    assert worker_b.lifecycle_state == "waiting_dependency"
+    assert worker_b.waiting_task_ids == ("task-waiting",)
+    assert any(event.event_kind == "leader_required" for event in result.events)
+    assert any(event.event_kind == "task_ready" for event in result.events)
+    assert any(event.event_kind == "dependency_wait" for event in result.events)
+
+
+def test_leader_worker_activation_honors_existing_mailbox_cursor() -> None:
+    record = ArtifactVersionRecord(
+        artifact_id="ex-old",
+        version="v1",
+        artifact=ExchangeArtifact(
+            artifact_id="ex-old",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:worker",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+        ),
+    )
+    activation_state = LeaderWorkerActivationState(
+        leader_agent_id="agent:guide",
+        worker_agent_ids=("agent:worker",),
+        mailbox_cursors={
+            "agent:guide": AgentMailboxCursor(
+                agent_id="agent:guide",
+                consumed_sources=("ex-old@v1",),
+            )
+        },
+    )
+
+    result = run_leader_worker_activation_pass(
+        scheduler_state=SchedulerState(),
+        exchange_records=(record,),
+        activation_state=activation_state,
+    )
+
+    leader = next(item for item in result.lifecycles if item.agent_id == "agent:guide")
+    assert leader.new_message_sources == ()
+    assert leader.lifecycle_state == "waiting_message"
+
+
+def test_leader_worker_dispatcher_tick_persists_decisions_and_state(tmp_path: Path) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+
+    result = run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-25T12:00:00+00:00",
+        )
+    )
+    state = read_leader_worker_dispatcher_state(paths["dispatcher_state"])
+    records = JsonlLeaderWorkerDispatcherEventLog(paths["dispatch_log"]).read_all()
+
+    assert result.tick_record.decision_count == 4
+    assert {decision.event_kind for decision in result.decisions} == {
+        "leader_required",
+        "message_available",
+        "task_ready",
+        "dependency_wait",
+    }
+    assert state is not None
+    assert state.tick_count == 1
+    assert state.last_result_summary["decision_count"] == 4
+    assert len(state.emitted_source_keys) == 4
+    assert len(records) == 1
+    assert records[0].decision_count == 4
+    assert result.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert result.to_json_dict()["authority_split"]["scheduler_state_mutated"] is False
+
+
+def test_leader_worker_dispatcher_tick_after_restart_suppresses_existing_decisions(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+    request = LeaderWorkerDispatcherTickRequest(
+        dispatcher_state_path=paths["dispatcher_state"],
+        dispatch_event_log_path=paths["dispatch_log"],
+        scheduler_snapshot_path=paths["snapshot"],
+        scheduler_event_log_path=paths["event_log"],
+        artifact_store_path=paths["artifact_store"],
+        worker_agent_ids=("agent:server", "agent:client"),
+        timestamp="2026-06-25T12:00:00+00:00",
+    )
+
+    first = run_leader_worker_dispatcher_tick(request)
+    second = run_leader_worker_dispatcher_tick(request)
+    records = JsonlLeaderWorkerDispatcherEventLog(paths["dispatch_log"]).read_all()
+
+    assert first.tick_record.decision_count == 4
+    assert second.tick_record.decision_count == 0
+    assert second.tick_record.suppressed_decision_count == 3
+    assert (
+        second.state_after.activation_state.mailbox_cursors["agent:guide"].consumed_sources
+        == ("ex-server-report@v1",)
+    )
+    assert second.state_after.tick_count == 2
+    assert len(records) == 2
+
+
+def test_leader_worker_dispatcher_loop_stops_when_no_new_decisions(tmp_path: Path) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+    request = LeaderWorkerDispatcherLoopRequest(
+        tick_request=LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-25T12:00:00+00:00",
+        ),
+        max_ticks=3,
+    )
+
+    result = run_leader_worker_dispatcher_loop(request)
+
+    assert result.tick_count == 2
+    assert result.total_decision_count == 4
+    assert result.stop_reason == "no_new_dispatch_decisions"
+    assert result.iterations[1].tick_record.decision_count == 0
+
+
+def test_leader_worker_delivery_sync_is_idempotent_over_dispatch_log(tmp_path: Path) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-25T12:00:00+00:00",
+        )
+    )
+    request = LeaderWorkerDeliverySyncRequest(
+        delivery_state_path=paths["delivery_state"],
+        delivery_event_log_path=paths["delivery_log"],
+        dispatch_event_log_path=paths["dispatch_log"],
+        timestamp="2026-06-25T12:00:01+00:00",
+        host_id="host:test",
+    )
+
+    first = sync_leader_worker_delivery_from_dispatch_log(request)
+    second = sync_leader_worker_delivery_from_dispatch_log(request)
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    events = JsonlLeaderWorkerDeliveryEventLog(paths["delivery_log"]).read_all()
+
+    assert first.synced_count == 4
+    assert first.to_json_dict()["state_counts"] == {"pending": 4}
+    assert second.synced_count == 0
+    assert second.existing_count == 4
+    assert state is not None
+    assert len(state.records) == 4
+    assert state.sync_count == 2
+    assert len(events) == 4
+    assert first.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert first.to_json_dict()["authority_split"]["dispatcher_state_mutated"] is False
+
+
+def test_leader_worker_delivery_ack_updates_known_record(tmp_path: Path) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+    dispatch = run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-25T12:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-25T12:00:01+00:00",
+        )
+    )
+    decision = next(decision for decision in dispatch.decisions if decision.event_kind == "task_ready")
+
+    result = acknowledge_leader_worker_delivery(
+        LeaderWorkerDeliveryAckRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            source_key=decision.source_key,
+            target_state="acknowledged",
+            timestamp="2026-06-25T12:00:02+00:00",
+            host_id="host:runner",
+            runtime_provider="codex",
+            runtime_session_id="session-1",
+            runtime_run_id="run-1",
+            invocation_id="inv-1",
+        )
+    )
+    inspection = inspect_leader_worker_delivery_state(paths["delivery_state"])
+    events = JsonlLeaderWorkerDeliveryEventLog(paths["delivery_log"]).read_all()
+
+    assert result.changed is True
+    assert result.record.delivery_state == "acknowledged"
+    assert result.record.runtime_provider == "codex"
+    assert result.record.delivery_attempt_count == 1
+    assert inspection.state_counts == {"acknowledged": 1, "pending": 3}
+    assert len(events) == 5
+    assert events[-1].event_kind == "delivery_acknowledged"
+    assert result.to_json_dict()["authority_split"]["scheduler_state_mutated"] is False
+    assert result.to_json_dict()["authority_split"]["provider_executed"] is False
+
+
+def test_codex_delivery_supervisor_acknowledges_pending_codex_task(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-26T08:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-26T08:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="codex delivery complete", output_text="ok")
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-26T08:00:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:codex-test",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert result.skipped_count == 2
+    assert result.attempted_count == 1
+    assert result.to_json_dict()["authority_split"]["provider_executed"] is True
+    assert result.to_json_dict()["authority_split"]["scheduler_state_mutated"] is False
+    assert client.requests[0].task.task_id == "task-server"
+    assert client.requests[0].agent.runtime_provider == "codex"
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
+    acknowledged = next(
+        record for record in state.records.values() if record.delivery_state == "acknowledged"
+    )
+    assert acknowledged.runtime_provider == "codex"
+    assert acknowledged.runtime_session_id == "codex-session-1"
+    assert acknowledged.runtime_run_id == "codex-run-1"
+    assert acknowledged.invocation_id == "codex-delivery:host-invocation:codex-test:codex-session-1:task-server"
+    assert runtime_records[0].provider == "codex"
+    assert runtime_records[0].status == "succeeded"
+    assert runtime_records[0].runtime_surface == "host-owned-codex-delivery-supervisor-once"
+
+
+def test_codex_result_consumer_stores_artifact_and_completion_event(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / ".codex/scheduler/state.json"
+    event_log = tmp_path / ".codex/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    task = ScheduledTask(
+        task_id="task-consume",
+        title="Consume result",
+        instruction="Persist the result.",
+        agent=AgentSpec(agent_id="agent:codex", runtime_provider="codex"),
+        state="ready",
+        context_scope=ContextScope(context_id="ctx-consume", lane_id="lane:codex"),
+    )
+    write_scheduler_state_snapshot(SchedulerState(tasks={task.task_id: task}), snapshot)
+    event_log.parent.mkdir(parents=True, exist_ok=True)
+    event_log.write_text("", encoding="utf-8")
+    run_result = RuntimeRunResult(
+        run_handle=RunHandle(
+            run_id="run-consume",
+            session_id="session-consume",
+            task_id=task.task_id,
+        ),
+        output_artifact=ExchangeArtifact(
+            artifact_id="task-consume:codex-result",
+            version="v1",
+            kind="result",
+            intent="inform",
+            producer="agent:codex",
+            scope=ExchangeScope(context_id="ctx-consume", lane_id="lane:codex"),
+            parts=(
+                ExchangePayloadPart(part_type="text", text="done"),
+                ExchangePayloadPart(
+                    part_type="artifact_delta",
+                    data={"summary": "done", "changed_refs": []},
+                ),
+            ),
+        ),
+        artifact_delta=ArtifactDelta(
+            artifact_id="task-consume:codex-result",
+            version="v1",
+            summary="done",
+        ),
+    )
+
+    result = consume_successful_codex_result(
+        CodexResultConsumerRequest(
+            artifact_store_path=artifact_store,
+            scheduler_event_log_path=event_log,
+            timestamp="2026-06-26T08:30:01+00:00",
+            event_id_prefix="host-invocation:result-test",
+        ),
+        task=task,
+        run_result=run_result,
+    )
+
+    stored = JsonArtifactVersionStore(artifact_store).get(
+        "task-consume:codex-result",
+        "v1",
+    )
+    events = JsonlSchedulerEventLog(event_log).read_all()
+    recovery = recover_scheduler_state(snapshot, event_log)
+
+    assert result.artifact_id == "task-consume:codex-result"
+    assert stored.artifact.parts[0].text == "done"
+    assert len(events) == 1
+    assert events[0].event_kind == "task_completed"
+    assert events[0].task_id == "task-consume"
+    assert events[0].output_artifact_id == "task-consume:codex-result"
+    assert recovery.recovered_state.tasks["task-consume"].state == "complete"
+    assert (
+        recovery.recovered_state.tasks["task-consume"].output_artifact_ref.ref_id
+        == "task-consume:codex-result"
+    )
+    assert recovery.recovered_state.run_records[0].run_id == "run-consume"
+
+
+def test_codex_delivery_supervisor_can_consume_success_result(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-26T08:40:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-26T08:40:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="codex consumed", output_text="persisted")
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-26T08:40:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:codex-consume-test",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    stored = JsonArtifactVersionStore(paths["artifact_store"]).get(
+        "task-server:codex-result",
+        "v1",
+    )
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    acknowledged_record = next(
+        record for record in result.records if record.status == "acknowledged"
+    )
+    assert acknowledged_record.result_consumption is not None
+    assert result.to_json_dict()["authority_split"]["scheduler_event_log_mutated"] is True
+    assert result.to_json_dict()["authority_split"]["exchange_store_mutated"] is True
+    assert stored.artifact.parts[0].text == "persisted"
+    assert scheduler_events[-1].event_kind == "task_completed"
+    assert scheduler_events[-1].task_id == "task-server"
+    assert recovery.recovered_state.tasks["task-server"].state == "complete"
+    assert recovery.recovered_state.tasks["task-server"].output_artifact_ref.ref_id == (
+        "task-server:codex-result"
+    )
+    assert recovery.recovered_state.run_records[-1].output_artifact_id == (
+        "task-server:codex-result"
+    )
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
+
+
+def test_codex_delivery_supervisor_publishes_git_worktree_patch_review(
+    tmp_path: Path,
+) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    paths = _seed_codex_delivery_supervisor_git_worktree_project(
+        tmp_path,
+        source_repo=source_repo,
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-27T10:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-27T10:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _EditingCodexCliClient(
+        relative_path="src/app.py",
+        content="print('codex sandbox patch')\n",
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-27T10:00:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:codex-patch-review-test",
+            enable_sandbox_preflight=True,
+            workspace_root=source_repo,
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            publish_worker_patch_artifacts=True,
+            worker_patch_target_task_id="task-server",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    store = JsonArtifactVersionStore(paths["artifact_store"])
+    patch_record = store.get("task-server:patch-review", "v1")
+    output_record = store.get("task-server:codex-result", "v1")
+    acknowledged = next(record for record in result.records if record.status == "acknowledged")
+    patch_payload = next(
+        part.data
+        for part in patch_record.artifact.parts
+        if part.part_type == "structured"
+    )
+    evidence = next(
+        part.data
+        for part in patch_record.artifact.parts
+        if part.part_type == "evidence"
+    )
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert result.to_json_dict()["authority_split"]["worker_patch_review_artifacts_published"] is True
+    assert acknowledged.worker_patch_review is not None
+    assert acknowledged.worker_patch_review.artifact_id == "task-server:patch-review"
+    assert acknowledged.worker_patch_review.patch_state == "has_patch"
+    assert acknowledged.worker_patch_review.changed_paths == ("src/app.py",)
+    assert client.requests[0].task.runtime_workspace_root
+    assert client.requests[0].task.sandbox_provider == "git-worktree"
+    assert client.requests[0].task.sandbox_allocation_id.startswith(
+        "git-worktree:task-server:"
+    )
+    assert "src/app.py" in client.requests[0].task.visible_mounts
+    assert output_record.artifact.parts[0].text == "edited src/app.py"
+    assert patch_payload["product_type"] == "worker_patch_review_proposal"
+    assert patch_payload["sandbox_provider"] == "git-worktree"
+    assert patch_payload["patch_state"] == "has_patch"
+    assert patch_payload["changed_paths"] == ["src/app.py"]
+    assert "codex sandbox patch" in evidence["git_diff"]
+    assert (source_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert recovery.recovered_state.tasks["task-server"].state == "complete"
+    assert state is not None
+    delivered = next(
+        record for record in state.records.values() if record.delivery_state == "acknowledged"
+    )
+    assert delivered.metadata["worker_patch_review"]["ref_id"] == "task-server:patch-review"
+
+
+def test_codex_delivery_supervisor_patch_publish_failure_does_not_complete_task(
+    tmp_path: Path,
+) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    paths = _seed_codex_delivery_supervisor_git_worktree_project(
+        tmp_path,
+        source_repo=source_repo,
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-27T10:10:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-27T10:10:01+00:00",
+            host_id="host:test",
+        )
+    )
+    JsonArtifactVersionStore(paths["artifact_store"]).put(
+        ExchangeArtifact(
+            artifact_id="task-server:patch-review",
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer="agent:other",
+            parts=(ExchangePayloadPart(part_type="text", text="collision"),),
+        )
+    )
+    client = _EditingCodexCliClient(
+        relative_path="src/app.py",
+        content="print('collision path')\n",
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-27T10:10:02+00:00",
+            host_invocation_id="host-invocation:codex-patch-collision-test",
+            enable_sandbox_preflight=True,
+            workspace_root=source_repo,
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            publish_worker_patch_artifacts=True,
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    failed = next(record for record in result.records if record.status == "failed")
+
+    assert result.ok is False
+    assert failed.failure_kind == "worker_patch_review_publish_failed"
+    assert "already exists" in failed.failure_detail
+    assert not any(event.event_kind == "task_completed" for event in scheduler_events)
+    assert recovery.recovered_state.tasks["task-server"].state == "ready"
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"failed": 1, "pending": 3}
+
+
+def test_codex_delivery_supervisor_routes_permission_request_to_review_required(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_codex_delivery_supervisor_permission_project(tmp_path)
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-27T08:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-27T08:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    permission = PermissionRequest(
+        request_id="permission:shell:test",
+        request_kind="shell",
+        run_id="",
+        summary="Codex wants to run tests before finalizing.",
+        target="npm test",
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(
+            summary="codex needs permission",
+            output_text="Review evidence from Codex.",
+            permission_requests=(permission,),
+        )
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-27T08:00:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:codex-review-test",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    stored = JsonArtifactVersionStore(paths["artifact_store"]).get(
+        "task-server:codex-result",
+        "v1",
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    record = next(record for record in result.records if record.status == "review_required")
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.executed_count == 0
+    assert result.review_required_count == 1
+    assert record.permission_review is not None
+    assert record.result_consumption is None
+    assert record.permission_requests == (permission,)
+    assert payload["review_required_count"] == 1
+    assert payload["authority_split"]["scheduler_event_log_mutated"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert not any(
+        event.event_kind == "task_completed" and event.task_id == "task-server"
+        for event in scheduler_events
+    )
+    assert scheduler_events[-1].event_kind == "task_review_required"
+    assert scheduler_events[-1].reason == "permission review required: shell npm test"
+    assert recovery.recovered_state.tasks["task-server"].state == "review_required"
+    assert recovery.recovered_state.tasks["task-server"].blocked_reason == (
+        "permission review required: shell npm test"
+    )
+    assert recovery.recovered_state.tasks["task-client"].state == "waiting"
+    assert recovery.recovered_state.run_records[-1].state == "review_required"
+    assert stored.artifact.parts[0].text == "Review evidence from Codex."
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {
+        "pending": 3,
+        "review_required": 1,
+    }
+    review_delivery = next(
+        record for record in state.records.values()
+        if record.delivery_state == "review_required"
+    )
+    assert review_delivery.metadata["permission_request_count"] == 1
+    assert review_delivery.metadata["permission_requests"][0]["target"] == "npm test"
+    assert runtime_records[0].status == "succeeded"
+
+
+def test_codex_delivery_supervisor_fails_delivery_when_result_consumer_fails(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-26T08:50:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-26T08:50:01+00:00",
+            host_id="host:test",
+        )
+    )
+    JsonArtifactVersionStore(paths["artifact_store"]).put(
+        ExchangeArtifact(
+            artifact_id="task-server:codex-result",
+            version="v1",
+            kind="result",
+            intent="inform",
+            producer="agent:other",
+            parts=(
+                ExchangePayloadPart(part_type="text", text="existing"),
+                ExchangePayloadPart(
+                    part_type="artifact_delta",
+                    data={"summary": "existing", "changed_refs": []},
+                ),
+            ),
+        )
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="codex collision", output_text="new output")
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-26T08:50:02+00:00",
+            host_id="host:codex-test",
+            host_invocation_id="host-invocation:codex-consume-failed-test",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+
+    assert result.ok is False
+    assert result.failed_count == 1
+    failed_record = next(record for record in result.records if record.status == "failed")
+    assert failed_record.failure_kind == "result_consumer_failed"
+    assert "already exists" in failed_record.failure_detail
+    assert result.to_json_dict()["authority_split"]["exchange_store_mutated"] is False
+    assert not any(event.event_kind == "task_completed" for event in scheduler_events)
+    assert recovery.recovered_state.tasks["task-server"].state == "ready"
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"failed": 1, "pending": 3}
+
+
+def test_codex_delivery_supervisor_skips_non_codex_tasks_without_state_change(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs(tmp_path)
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-26T08:10:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-26T08:10:01+00:00",
+        )
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="should not run", output_text="unexpected")
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=2,
+            timestamp="2026-06-26T08:10:02+00:00",
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+
+    assert result.ok is True
+    assert result.executed_count == 0
+    assert result.failed_count == 0
+    assert result.skipped_count == 4
+    assert client.requests == ()
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"pending": 4}
+    assert JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all() == ()
+
+
+def test_codex_delivery_supervisor_marks_runtime_failure(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-26T08:20:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-26T08:20:01+00:00",
+        )
+    )
+    client = _FailingCodexCliClient(
+        CodexCliRuntimeError(
+            error_kind="timeout",
+            summary="temporary OPENAI_API_KEY=secret timeout",
+            retryable=True,
+        )
+    )
+
+    result = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-26T08:20:02+00:00",
+            runtime_invocation_max_attempts=2,
+            runtime_invocation_backoff_seconds=0,
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is False
+    assert result.failed_count == 1
+    assert result.executed_count == 0
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"failed": 1, "pending": 3}
+    failed = next(record for record in state.records.values() if record.delivery_state == "failed")
+    assert failed.failure_kind == "timeout"
+    assert "OPENAI_API_KEY=[redacted]" in failed.failure_detail
+    assert "secret" not in failed.failure_detail
+    assert failed.runtime_session_id == "codex-session-1"
+    assert runtime_records[0].status == "failed"
+    assert runtime_records[0].attempt_count == 2
+    assert runtime_records[0].final_error_kind == "timeout"
+    assert "OPENAI_API_KEY=[redacted]" in runtime_records[0].final_summary
+
+
+def test_codex_delivery_supervisor_retries_retryable_failed_delivery_after_restart(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-27T09:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-27T09:00:01+00:00",
+        )
+    )
+    client = _SequenceCodexCliClientWithFailures(
+        (
+            CodexCliRuntimeError(
+                error_kind="timeout",
+                summary="temporary timeout",
+                retryable=True,
+            ),
+            CodexCliResult(summary="retry succeeded", output_text="done after retry"),
+        )
+    )
+
+    first = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-27T09:00:02+00:00",
+            host_invocation_id="host-invocation:codex-retry-first",
+            runtime_invocation_max_attempts=1,
+        ),
+        codex_cli_client=client,
+    )
+    second = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            retry_failed_delivery=True,
+            max_delivery_attempts_per_record=2,
+            timestamp="2026-06-27T09:00:03+00:00",
+            host_invocation_id="host-invocation:codex-retry-second",
+            runtime_invocation_max_attempts=1,
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    retry_record = next(record for record in second.records if record.status == "acknowledged")
+
+    assert first.ok is False
+    assert first.failed_count == 1
+    assert second.ok is True
+    assert second.executed_count == 1
+    assert retry_record.retry_attempt is True
+    assert len(client.requests) == 2
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
+    acknowledged = next(
+        record for record in state.records.values() if record.delivery_state == "acknowledged"
+    )
+    assert acknowledged.delivery_attempt_count == 2
+    assert acknowledged.metadata["retry_attempt"] is True
+    assert [
+        event.event_kind for event in scheduler_events
+        if event.task_id == "task-server"
+    ] == ["task_completed"]
+    assert recovery.recovered_state.tasks["task-server"].state == "complete"
+    assert len(runtime_records) == 2
+    assert [record.status for record in runtime_records] == ["failed", "succeeded"]
+
+
+def test_codex_delivery_supervisor_does_not_retry_non_retryable_failed_delivery(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="codex",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-27T09:10:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-27T09:10:01+00:00",
+        )
+    )
+    client = _SequenceCodexCliClientWithFailures(
+        (
+            CodexCliRuntimeError(
+                error_kind="authentication_failed",
+                summary="auth failed",
+                retryable=False,
+            ),
+            CodexCliResult(summary="should not run", output_text="unexpected"),
+        )
+    )
+
+    first = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-27T09:10:02+00:00",
+            host_invocation_id="host-invocation:codex-no-retry-first",
+            runtime_invocation_max_attempts=1,
+        ),
+        codex_cli_client=client,
+    )
+    second = run_codex_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            retry_failed_delivery=True,
+            max_delivery_attempts_per_record=2,
+            timestamp="2026-06-27T09:10:03+00:00",
+            host_invocation_id="host-invocation:codex-no-retry-second",
+            runtime_invocation_max_attempts=1,
+        ),
+        codex_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert first.ok is False
+    assert first.failed_count == 1
+    assert second.ok is True
+    assert second.attempted_count == 0
+    assert len(client.requests) == 1
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"failed": 1, "pending": 3}
+    assert len(runtime_records) == 1
+
+
+def test_codex_delivery_e2e_smoke_completes_one_codex_task(
+    tmp_path: Path,
+) -> None:
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c1-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c1-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-26T10:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _RecordingCodexCliClient(
+        CodexCliResult(summary="codex e2e complete", output_text="c1 complete")
+    )
+
+    result = run_codex_delivery_e2e_smoke(request, codex_cli_client=client)
+
+    recovery = recover_scheduler_state(
+        request.scheduler_snapshot_path,
+        request.scheduler_event_log_path,
+    )
+    delivery_state = read_leader_worker_delivery_state(request.delivery_state_path)
+    runtime_records = JsonlRuntimeInvocationLog(
+        request.runtime_invocation_log_path
+    ).read_all()
+    stored = JsonArtifactVersionStore(request.artifact_store_path).get(
+        f"{request.target_task_id}:codex-result",
+        "v1",
+    )
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "complete"
+    assert result.fixture.initialized is True
+    assert result.dispatcher_tick is not None
+    assert result.dispatcher_tick.tick_record.decision_count >= 3
+    assert result.delivery_sync is not None
+    assert result.delivery_sync.synced_count >= 3
+    assert result.codex_delivery is not None
+    assert result.codex_delivery.executed_count == 1
+    assert result.codex_delivery.skipped_count == 1
+    assert recovery.recovered_state.tasks[request.target_task_id].state == "complete"
+    assert (
+        recovery.recovered_state.tasks[request.target_task_id].output_artifact_ref.ref_id
+        == f"{request.target_task_id}:codex-result"
+    )
+    assert delivery_state is not None
+    assert _state_counts_from_delivery_records(delivery_state) == {
+        "acknowledged": 1,
+        "pending": 3,
+    }
+    assert runtime_records[0].provider == "codex"
+    assert runtime_records[0].status == "succeeded"
+    assert stored.artifact.parts[0].text == "c1 complete"
+    assert payload["counts"]["runtime_invocations"] == 1
+    assert payload["authority_split"]["scheduler_event_log_mutated"] is True
+    assert payload["authority_split"]["exchange_store_mutated"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_codex_delivery_e2e_smoke_fails_closed_when_codex_not_ready(
+    tmp_path: Path,
+) -> None:
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c1-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c1-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=False,
+        require_host_ready=True,
+    )
+    client = _UnavailableCodexCliClient()
+
+    result = run_codex_delivery_e2e_smoke(request, codex_cli_client=client)
+    payload = result.to_json_dict()
+
+    assert result.ok is False
+    assert result.stop_reason == "codex_not_ready"
+    assert result.readiness is not None
+    assert result.readiness.ready is False
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert not Path(request.dispatcher_state_path).exists()
+    assert not Path(request.delivery_state_path).exists()
+    assert not Path(request.runtime_invocation_log_path).exists()
+
+
+def test_bounded_codex_delivery_supervisor_loop_completes_codex_chain(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c2-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c2-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-26T11:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _SequenceCodexCliClient(
+        (
+            CodexCliResult(summary="first complete", output_text="first complete"),
+            CodexCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+
+    result = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        codex_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(
+        smoke_request.runtime_invocation_log_path
+    ).read_all()
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "all_targets_complete"
+    assert result.tick_count == 2
+    assert result.acknowledged_count == 2
+    assert result.failed_count == 0
+    assert tuple(request.task.task_id for request in client.requests) == (
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+    )
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert len(runtime_records) == 2
+    assert payload["target_task_states"] == {
+        smoke_request.target_task_id: "complete",
+        smoke_request.followup_task_id: "complete",
+    }
+    assert payload["task_state_counts"]["complete"] == 2
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_bounded_codex_delivery_supervisor_loop_multilane_fixture(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c6-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c6-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-27T11:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _SequenceCodexCliClient(
+        (
+            CodexCliResult(summary="lane a complete", output_text="lane a complete"),
+            CodexCliResult(summary="lane b complete", output_text="lane b complete"),
+            CodexCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+
+    result = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        codex_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    delivery_state = read_leader_worker_delivery_state(smoke_request.delivery_state_path)
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "all_targets_complete"
+    assert result.acknowledged_count == 3
+    assert result.fixture.fixture == "multilane"
+    assert tuple(request.task.task_id for request in client.requests) == (
+        smoke_request.target_task_id,
+        smoke_request.parallel_task_id,
+        smoke_request.followup_task_id,
+    )
+    assert tuple(request.task.scope.lane_id for request in client.requests[:2]) == (
+        smoke_request.codex_lane_id,
+        smoke_request.parallel_lane_id,
+    )
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.parallel_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert payload["target_task_states"] == {
+        smoke_request.target_task_id: "complete",
+        smoke_request.parallel_task_id: "complete",
+        smoke_request.followup_task_id: "complete",
+    }
+    assert payload["task_state_counts"]["complete"] == 3
+    assert delivery_state is not None
+    assert _state_counts_from_delivery_records(delivery_state)["acknowledged"] == 3
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_codex_runtime_status_summarizes_multilane_loop_without_mutation(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c7-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c7-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-27T12:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _SequenceCodexCliClient(
+        (
+            CodexCliResult(summary="lane a complete", output_text="lane a complete"),
+            CodexCliResult(summary="lane b complete", output_text="lane b complete"),
+            CodexCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+    run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        codex_cli_client=client,
+    )
+    event_count_before = len(
+        JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()
+    )
+    runtime_count_before = len(
+        JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()
+    )
+
+    status = inspect_codex_runtime_status(
+        CodexRuntimeStatusRequest(
+            scheduler_snapshot_path=smoke_request.scheduler_snapshot_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            delivery_state_path=smoke_request.delivery_state_path,
+            runtime_invocation_log_path=smoke_request.runtime_invocation_log_path,
+            artifact_store_path=smoke_request.artifact_store_path,
+            target_task_ids=(
+                smoke_request.target_task_id,
+                smoke_request.parallel_task_id,
+                smoke_request.followup_task_id,
+            ),
+        )
+    )
+    payload = status.to_json_dict()
+
+    assert status.ok is True
+    assert status.next_action == "idle"
+    assert status.scheduler_task_state_counts["complete"] == 3
+    assert "waiting" not in status.scheduler_task_state_counts
+    assert status.waiting_task_ids == ()
+    assert status.target_task_states == {
+        smoke_request.target_task_id: "complete",
+        smoke_request.parallel_task_id: "complete",
+        smoke_request.followup_task_id: "complete",
+    }
+    assert status.delivery_state_counts["acknowledged"] == 3
+    assert status.actionable_pending_codex_delivery_count == 0
+    assert status.runtime_invocation_counts["record_count"] == 3
+    assert status.runtime_invocation_counts["succeeded"] == 3
+    assert status.runtime_invocation_counts["provider:codex"] == 3
+    assert {
+        ref["ref_id"]
+        for ref in status.output_artifact_refs
+    } >= {
+        f"{smoke_request.target_task_id}:codex-result",
+        f"{smoke_request.parallel_task_id}:codex-result",
+        f"{smoke_request.followup_task_id}:codex-result",
+    }
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert len(JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()) == event_count_before
+    assert len(JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()) == runtime_count_before
+
+
+def test_bounded_codex_delivery_supervisor_loop_stops_at_max_deliveries(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c2-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c2-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-26T11:10:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _SequenceCodexCliClient(
+        (
+            CodexCliResult(summary="first complete", output_text="first complete"),
+            CodexCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+
+    result = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=1,
+            max_runtime_failures=1,
+        ),
+        codex_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+
+    assert result.ok is False
+    assert result.stop_reason == "max_deliveries_reached"
+    assert result.acknowledged_count == 1
+    assert len(client.requests) == 1
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "waiting"
+
+
+def test_bounded_codex_delivery_supervisor_loop_retries_failed_delivery_after_restart(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c4-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c4-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-27T09:20:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    client = _SequenceCodexCliClientWithFailures(
+        (
+            CodexCliRuntimeError(
+                error_kind="timeout",
+                summary="temporary timeout",
+                retryable=True,
+            ),
+            CodexCliResult(summary="retry completed", output_text="retry completed"),
+            CodexCliResult(summary="followup completed", output_text="followup completed"),
+        )
+    )
+
+    first = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=2,
+            max_deliveries=1,
+            max_runtime_failures=1,
+            max_delivery_attempts_per_record=2,
+        ),
+        codex_cli_client=client,
+    )
+    second = run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=replace(smoke_request, initialize_fixture=False),
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=2,
+            max_delivery_attempts_per_record=2,
+        ),
+        codex_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    delivery_state = read_leader_worker_delivery_state(smoke_request.delivery_state_path)
+    scheduler_events = JsonlSchedulerEventLog(
+        smoke_request.scheduler_event_log_path
+    ).read_all()
+
+    assert first.ok is False
+    assert first.stop_reason == "max_runtime_failures_reached"
+    assert second.ok is True
+    assert second.stop_reason == "all_targets_complete"
+    assert tuple(request.task.task_id for request in client.requests) == (
+        smoke_request.target_task_id,
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+    )
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert [
+        event.event_kind for event in scheduler_events
+        if event.task_id == smoke_request.target_task_id
+    ] == ["task_completed"]
+    assert delivery_state is not None
+    assert _state_counts_from_delivery_records(delivery_state)["acknowledged"] == 2
+
+
+class _RuntimeAuditResult:
+    def __init__(
+        self,
+        summary: str,
+        metadata: dict[str, object] | None = None,
+    ) -> None:
+        self.summary = summary
+        self.metadata = metadata or {}
+
+
+class _RetryableRuntimeAuditError(Exception):
+    error_kind = "timeout"
+    raw_error_type = "TimeoutExpired"
+    retryable = True
+    summary = "temporary timeout with OPENAI_API_KEY=secret"
+
+
+class _FatalRuntimeAuditError(Exception):
+    error_kind = "authentication_failed"
+    raw_error_type = "AuthError"
+    retryable = False
+    summary = "auth failed"
+
+
+def _runtime_audit_clock():
+    counter = {"value": 0}
+
+    def now() -> str:
+        counter["value"] += 1
+        return f"2026-06-25T00:00:{counter['value']:02d}+00:00"
+
+    return now
+
+
+def _seed_leader_worker_dispatcher_inputs(tmp_path: Path) -> dict[str, Path]:
+    return _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="fake",
+        client_provider="fake",
+    )
+
+
+def _seed_leader_worker_dispatcher_inputs_with_provider(
+    tmp_path: Path,
+    *,
+    server_provider,
+    client_provider,
+) -> dict[str, Path]:
+    snapshot = tmp_path / ".codex/scheduler/state.json"
+    event_log = tmp_path / ".codex/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    event_log.parent.mkdir(parents=True, exist_ok=True)
+    event_log.write_text("", encoding="utf-8")
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-server": ScheduledTask(
+                    task_id="task-server",
+                    title="Server",
+                    instruction="Implement server",
+                    agent=AgentSpec(agent_id="agent:server", runtime_provider=server_provider),
+                    state="ready",
+                    context_scope=ContextScope(context_id="ctx-server", lane_id="lane:server"),
+                ),
+                "task-client": ScheduledTask(
+                    task_id="task-client",
+                    title="Client",
+                    instruction="Implement client",
+                    agent=AgentSpec(agent_id="agent:client", runtime_provider=client_provider),
+                    state="waiting",
+                    context_scope=ContextScope(context_id="ctx-client", lane_id="lane:client"),
+                    blocked_reason="waiting for task-server",
+                ),
+            }
+        ),
+        snapshot,
+    )
+    JsonArtifactVersionStore(artifact_store).put(
+        ExchangeArtifact(
+            artifact_id="ex-server-report",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:server",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(ExchangePayloadPart(part_type="text", text="server ready"),),
+        )
+    )
+    return {
+        "snapshot": snapshot,
+        "event_log": event_log,
+        "artifact_store": artifact_store,
+        "dispatcher_state": dispatcher_state,
+        "dispatch_log": dispatch_log,
+        "delivery_state": delivery_state,
+        "delivery_log": delivery_log,
+        "runtime_log": runtime_log,
+    }
+
+
+def _seed_codex_delivery_supervisor_permission_project(tmp_path: Path) -> dict[str, Path]:
+    snapshot = tmp_path / ".codex/scheduler/state.json"
+    event_log = tmp_path / ".codex/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    event_log.parent.mkdir(parents=True, exist_ok=True)
+    event_log.write_text("", encoding="utf-8")
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-server": ScheduledTask(
+                    task_id="task-server",
+                    title="Server",
+                    instruction="Implement server",
+                    agent=AgentSpec(agent_id="agent:server", runtime_provider="codex"),
+                    state="ready",
+                    context_scope=ContextScope(
+                        context_id="ctx-server",
+                        lane_id="lane:server",
+                    ),
+                ),
+                "task-client": ScheduledTask(
+                    task_id="task-client",
+                    title="Client",
+                    instruction="Implement client after server is complete",
+                    agent=AgentSpec(agent_id="agent:client", runtime_provider="codex"),
+                    state="waiting",
+                    context_scope=ContextScope(
+                        context_id="ctx-client",
+                        lane_id="lane:client",
+                    ),
+                    blocked_reason="waiting for task-server",
+                ),
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep:client-after-server",
+                    source_task_id="task-server",
+                    target_task_id="task-client",
+                    required_state="complete",
+                ),
+            ),
+        ),
+        snapshot,
+    )
+    JsonArtifactVersionStore(artifact_store).put(
+        ExchangeArtifact(
+            artifact_id="ex-server-report",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:server",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(ExchangePayloadPart(part_type="text", text="server ready"),),
+        )
+    )
+    return {
+        "snapshot": snapshot,
+        "event_log": event_log,
+        "artifact_store": artifact_store,
+        "dispatcher_state": dispatcher_state,
+        "dispatch_log": dispatch_log,
+        "delivery_state": delivery_state,
+        "delivery_log": delivery_log,
+        "runtime_log": runtime_log,
+    }
+
+
+def _seed_codex_delivery_supervisor_git_worktree_project(
+    tmp_path: Path,
+    *,
+    source_repo: Path,
+) -> dict[str, Path]:
+    snapshot = tmp_path / ".codex/scheduler/state.json"
+    event_log = tmp_path / ".codex/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    event_log.parent.mkdir(parents=True, exist_ok=True)
+    event_log.write_text("", encoding="utf-8")
+    server_task = ScheduledTask(
+        task_id="task-server",
+        title="Server",
+        instruction="Edit src/app.py inside the sandbox.",
+        agent=AgentSpec(agent_id="agent:server", runtime_provider="codex"),
+        state="ready",
+        context_scope=ContextScope(
+            context_id="ctx-server",
+            lane_id="lane:server",
+            required_refs=(
+                ExchangeReference(ref_kind="file", ref_id="src/app.py", path="src/app.py"),
+            ),
+        ),
+        edit_lease=EditScopeLease(
+            lease_id="lease-server",
+            task_id="task-server",
+            allowed_artifacts=("src/app.py",),
+            lease_mode="write",
+        ),
+        sandbox_profile=SandboxProfile(
+            profile_id="worktree",
+            profile_kind="git-worktree",
+            mount_policy="lease-scoped",
+        ),
+        acceptance=("Edit only src/app.py.",),
+        output_artifact_id="task-server:codex-result",
+    )
+    client_task = ScheduledTask(
+        task_id="task-client",
+        title="Client",
+        instruction="Wait for server completion.",
+        agent=AgentSpec(agent_id="agent:client", runtime_provider="codex"),
+        state="waiting",
+        context_scope=ContextScope(context_id="ctx-client", lane_id="lane:client"),
+        blocked_reason="waiting for task-server",
+    )
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                server_task.task_id: server_task,
+                client_task.task_id: client_task,
+            },
+            dependencies=(
+                TaskDependency(
+                    dependency_id="dep:client-after-server",
+                    source_task_id="task-server",
+                    target_task_id="task-client",
+                    required_state="complete",
+                ),
+            ),
+            edit_lease_lifecycle={
+                "lease-server": EditLeaseLifecycleRecord(
+                    lease_id="lease-server",
+                    task_id="task-server",
+                    state="acquired",
+                    mode="write",
+                    allowed_artifacts=("src/app.py",),
+                    acquired_at="2026-06-27T10:00:00+00:00",
+                ),
+            },
+        ),
+        snapshot,
+    )
+    JsonArtifactVersionStore(artifact_store).put(
+        ExchangeArtifact(
+            artifact_id="ex-server-report",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:server",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="text",
+                    text=f"source repo: {source_repo}",
+                ),
+            ),
+        )
+    )
+    return {
+        "snapshot": snapshot,
+        "event_log": event_log,
+        "artifact_store": artifact_store,
+        "dispatcher_state": dispatcher_state,
+        "dispatch_log": dispatch_log,
+        "delivery_state": delivery_state,
+        "delivery_log": delivery_log,
+        "runtime_log": runtime_log,
+    }

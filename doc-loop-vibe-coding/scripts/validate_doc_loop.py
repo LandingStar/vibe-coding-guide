@@ -36,8 +36,10 @@ REQUIRED_FILES = [
 
 REQUIRED_HEADINGS = {
     "design_docs/Project Master Checklist.md": [
-        "## 当前快照",
-        "## 当前待办与风险",
+        "## Current Snapshot",
+        "## Current Recovery Read Order",
+        "## Current Pending Todo",
+        "## Write Rules For This File",
     ],
     "design_docs/Global Phase Map and Current Position.md": [
         "## 当前阶段判断",
@@ -48,8 +50,8 @@ REQUIRED_HEADINGS = {
         "## 权威文档分层",
     ],
     "design_docs/tooling/Session Handoff Standard.md": [
-        "## 适用范围",
-        "## 安全停点",
+        "## 2. 适用范围",
+        "## 4. Handoff 类型与安全停点",
     ],
     "design_docs/tooling/Subagent Delegation Standard.md": [
         "## 责任边界",

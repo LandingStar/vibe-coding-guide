@@ -167,6 +167,10 @@ Keep the lifecycle split:
    scheduler projection, do not create persistent agent home directories, do
    not persist raw transcripts, and do not mutate agent-owned Local Work
    Trajectory.
+   In multi-lane Local Work, leader-worker coordination is required rather
+   than optional. Treat worker/leader inactive periods as lifecycle state
+   waiting for messages, dependencies, or review; use compact runtime invocation audit
+   for provider-backed execution and do not persist raw transcripts.
 12. `agentExchangeReply` and
    `doc-based-coding scheduler reply-exchange-artifact` create one
    exact-version reply ExchangeArtifact with `causality.replies_to`,

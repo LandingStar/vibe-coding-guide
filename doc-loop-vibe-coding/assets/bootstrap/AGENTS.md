@@ -13,10 +13,13 @@
 开始工作前，先读：
 
 1. `docs/README.md`（若项目携带平台权威文档）
-2. `design_docs/Project Master Checklist.md`
-3. `design_docs/Global Phase Map and Current Position.md`
-4. 当前 active planning 或 phase 文档
-5. 相关的 `design_docs/tooling/` 长期协议
+2. `design_docs/Project Master Checklist.md`（短热状态入口）
+3. Checklist 的 `Current Recovery Read Order` 指向的最新 closure/gate/review 文档
+4. `design_docs/Global Phase Map and Current Position.md`
+5. 当前 active planning 或 phase 文档
+6. 相关的 `design_docs/tooling/` 长期协议
+
+`.codex/checkpoints/latest.md` 与 `.codex/handoffs/CURRENT.md` 是恢复安全停点或停放分支的辅助入口；只有当 Checklist 指向它们、用户要求恢复对应分支，或需要核对 safe-stop/handoff footprint 时才默认读取。不要让旧 checkpoint/handoff 覆盖 Checklist 中更新的当前焦点。
 
 若 `docs/` 与 `design_docs/` 冲突，以 `docs/` 为准。
 
@@ -50,4 +53,4 @@ Dependency baseline 规则：
 - 每次提问前，应先给出当前最相关的文档链接，便于用户直接跳转审核；若提问依赖 planning-gate、direction-analysis、review 文档或权威文档，至少链接其中最关键的入口。
 - Phase 完成后自动准备下一步分析文档并以推进式提问继续交流，不得停下等待。
 - 候选方向必须引用具体文档作为依据。
-- 若对项目状态记忆不完整，应先重读 Checklist / Phase Map / CURRENT.md。
+- 若对项目状态记忆不完整，应先重读 Checklist 及其 `Current Recovery Read Order` 指向的文档；只有在 Checklist 指向 handoff/checkpoint 或需要恢复安全停点时才读 CURRENT.md / checkpoint。

@@ -17,14 +17,20 @@ from typing import Any
 from src.runtime.orchestration import (
     CodexCliClient,
     CodexCliClientConfig,
+    CodexCliRequest,
+    CodexCliResult,
     CodexCliProcessClient,
+    DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
     GuideWorkerInstruction,
     GuideWorkerLocalOrchestrationRequest,
     GuideWorkerLocalOrchestrationResult,
     GuideWorkerPlanningRequest,
     InMemoryArtifactVersionStore,
     JsonArtifactVersionStore,
+    JsonlRuntimeInvocationLog,
     QoderQueryClient,
+    QoderQueryRequest,
+    QoderQueryResult,
     QoderSDKQueryClient,
     QoderSDKQueryClientConfig,
     RuntimeHostInvocation,
@@ -43,7 +49,9 @@ from src.runtime.orchestration import (
     default_exchange_artifact_admission_ledger_path,
     default_exchange_artifact_store_path,
     resolve_guide_worker_instructions,
+    RuntimeRetryPolicy,
     run_guide_worker_local_trajectory_orchestration,
+    run_with_runtime_invocation_audit,
     write_sandbox_allocation_receipt_evidence,
 )
 
@@ -99,6 +107,9 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     evidence_metadata: Mapping[str, object] = field(default_factory=dict)
     publish_worker_patch_artifacts: bool = True
     worker_patch_target_task_id: str = ""
+    runtime_invocation_log_path: str | Path | None = DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH
+    runtime_invocation_max_attempts: int = 2
+    runtime_invocation_backoff_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +141,9 @@ class HostOwnedGuideWorkerProviderExecutionEvidence:
                     self.metadata.get("sandbox_allocation_evidence_path")
                 ),
                 "auto_merge_performed": False,
+                "runtime_invocation_audit_enabled": bool(
+                    self.metadata.get("runtime_invocation_log_path")
+                ),
             }
         )
         return {
@@ -237,6 +251,27 @@ def run_host_owned_guide_worker_provider_execution(
     if "codex" in providers and codex_client is None:
         codex_client = CodexCliProcessClient(active_config.codex_cli_client_config)
     _validate_real_runtime_client_ready(providers, qoder_client, codex_client)
+
+    runtime_invocation_log = _runtime_invocation_log(project_root, active_config)
+    retry_policy = RuntimeRetryPolicy(
+        max_attempts=active_config.runtime_invocation_max_attempts,
+        backoff_seconds=active_config.runtime_invocation_backoff_seconds,
+    ).normalized()
+    if runtime_invocation_log is not None:
+        if qoder_client is not None:
+            qoder_client = _AuditedQoderQueryClient(
+                inner=qoder_client,
+                log=runtime_invocation_log,
+                retry_policy=retry_policy,
+                host_invocation_id=active_config.host_invocation_id,
+            )
+        if codex_client is not None:
+            codex_client = _AuditedCodexCliClient(
+                inner=codex_client,
+                log=runtime_invocation_log,
+                retry_policy=retry_policy,
+                host_invocation_id=active_config.host_invocation_id,
+            )
 
     host_invocation = _host_invocation(active_config, providers)
     runtime_config = _runtime_config(active_config, providers, host_invocation)
@@ -813,6 +848,13 @@ def _evidence_metadata(
         "sandbox_allocation_evidence_path": "" if sandbox_write_path is None else str(sandbox_write_path),
         "publish_worker_patch_artifacts": config.publish_worker_patch_artifacts,
         "worker_patch_target_task_id": config.worker_patch_target_task_id,
+        "runtime_invocation_log_path": (
+            ""
+            if config.runtime_invocation_log_path is None
+            else str(config.runtime_invocation_log_path)
+        ),
+        "runtime_invocation_max_attempts": config.runtime_invocation_max_attempts,
+        "runtime_invocation_backoff_seconds": config.runtime_invocation_backoff_seconds,
     }
     metadata.update(dict(config.evidence_metadata))
     return metadata
@@ -823,3 +865,117 @@ def _project_path(project_root: str | Path, path: str | Path) -> Path:
     if candidate.is_absolute():
         return candidate
     return Path(project_root) / candidate
+
+
+def _runtime_invocation_log(
+    project_root: str | Path,
+    config: HostOwnedGuideWorkerProviderExecutionConfig,
+) -> JsonlRuntimeInvocationLog | None:
+    if config.runtime_invocation_log_path is None:
+        return None
+    return JsonlRuntimeInvocationLog(
+        _project_path(project_root, config.runtime_invocation_log_path)
+    )
+
+
+class _AuditedQoderQueryClient:
+    """Host-owned audit/retry wrapper around the raw Qoder client seam."""
+
+    def __init__(
+        self,
+        *,
+        inner: QoderQueryClient,
+        log: JsonlRuntimeInvocationLog,
+        retry_policy: RuntimeRetryPolicy,
+        host_invocation_id: str,
+    ) -> None:
+        self.inner = inner
+        self.log = log
+        self.retry_policy = retry_policy
+        self.host_invocation_id = host_invocation_id
+
+    def query(self, request: QoderQueryRequest) -> QoderQueryResult:
+        return run_with_runtime_invocation_audit(
+            invocation_id=_runtime_invocation_id(
+                "qoder",
+                self.host_invocation_id,
+                request,
+            ),
+            provider="qoder",
+            operation=lambda: self.inner.query(request),
+            log=self.log,
+            retry_policy=self.retry_policy,
+            task_id=request.task.task_id,
+            session_id=request.session.session_id,
+            agent_id=request.agent.agent_id,
+            runtime_surface="host-owned-guide-worker-provider-execution",
+            metadata=_runtime_invocation_metadata(self.host_invocation_id, request),
+        )
+
+
+class _AuditedCodexCliClient:
+    """Host-owned audit/retry wrapper around the raw Codex CLI client seam."""
+
+    def __init__(
+        self,
+        *,
+        inner: CodexCliClient,
+        log: JsonlRuntimeInvocationLog,
+        retry_policy: RuntimeRetryPolicy,
+        host_invocation_id: str,
+    ) -> None:
+        self.inner = inner
+        self.log = log
+        self.retry_policy = retry_policy
+        self.host_invocation_id = host_invocation_id
+
+    def exec(self, request: CodexCliRequest) -> CodexCliResult:
+        return run_with_runtime_invocation_audit(
+            invocation_id=_runtime_invocation_id(
+                "codex",
+                self.host_invocation_id,
+                request,
+            ),
+            provider="codex",
+            operation=lambda: self.inner.exec(request),
+            log=self.log,
+            retry_policy=self.retry_policy,
+            task_id=request.task.task_id,
+            session_id=request.session.session_id,
+            agent_id=request.agent.agent_id,
+            runtime_surface="host-owned-guide-worker-provider-execution",
+            metadata=_runtime_invocation_metadata(self.host_invocation_id, request),
+        )
+
+
+def _runtime_invocation_id(
+    provider: RuntimeProviderKind,
+    host_invocation_id: str,
+    request: QoderQueryRequest | CodexCliRequest,
+) -> str:
+    return ":".join(
+        part
+        for part in (
+            "host-guide-worker",
+            provider,
+            host_invocation_id,
+            request.session.session_id,
+            request.task.task_id,
+        )
+        if part
+    )
+
+
+def _runtime_invocation_metadata(
+    host_invocation_id: str,
+    request: QoderQueryRequest | CodexCliRequest,
+) -> dict[str, object]:
+    return {
+        "host_invocation_id": host_invocation_id,
+        "lane_id": request.task.scope.lane_id,
+        "context_id": request.task.scope.context_id,
+        "runtime_workspace_root_present": bool(request.task.runtime_workspace_root),
+        "sandbox_allocation_id": request.task.sandbox_allocation_id,
+        "sandbox_provider": request.task.sandbox_provider,
+        "run_id_available_at_client_seam": False,
+    }

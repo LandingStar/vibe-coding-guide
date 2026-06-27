@@ -33,6 +33,8 @@ type ProgressGraphPreviewV2PoCNode = {
   summary: string;
   tags: string[];
   hasRuntimeBinding: boolean;
+  hasLocalTrajectory: boolean;
+  localTrajectoryId: string | null;
   workItemIds: string[];
   groupItemIds: string[];
 };
@@ -187,6 +189,27 @@ async function main(): Promise<void> {
   if (!(container instanceof HTMLElement) || !(detail instanceof HTMLElement)) {
     return;
   }
+  detail.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest('[data-pg-open-trajectory-node-id]');
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+    const nodeId = button.getAttribute('data-pg-open-trajectory-node-id') || '';
+    const trajectoryId = button.getAttribute('data-pg-open-trajectory-id') || '';
+    if (!nodeId) {
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('pg-host-open-trajectory', {
+      detail: {
+        nodeId,
+        trajectoryId,
+      },
+    }));
+  });
 
   window.__pgHostV2GraphCleanup?.();
   window.__pgHostV2GraphCleanup = undefined;
@@ -248,10 +271,27 @@ async function main(): Promise<void> {
     renderer?.setInteractionState({ hoveredNodeId: nodeId }, { render: false });
   };
 
+  const handleHostSelectGraphNode = (event: Event): void => {
+    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object'
+      ? event.detail
+      : {};
+    const graphId = typeof detail.graphId === 'string' ? detail.graphId : '';
+    const nodeId = typeof detail.nodeId === 'string' ? detail.nodeId : '';
+    if (graphId && graphId !== payload.graphId) {
+      return;
+    }
+    if (!payload.nodes.some((node) => node.id === nodeId)) {
+      return;
+    }
+    setSelectedNode(nodeId);
+    resetRendererZoom(renderer);
+  };
+  window.addEventListener('pg-host-select-graph-node', handleHostSelectGraphNode);
+
   renderer = new Canvas2DRenderer({
     canvas,
     model,
-    getAppearance: () => buildGraphAppearance(configState),
+    getAppearance: () => buildGraphAppearance(configState, payload),
     getHighlightedNodes: (activeNodeId: string) => getNeighborhoodNodeIds(model, activeNodeId),
     getHighlightedLinks: (activeNodeId: string) => getNeighborhoodLinkIds(model, activeNodeId),
     interaction: {
@@ -288,6 +328,15 @@ async function main(): Promise<void> {
       },
       onNodeOpen: ({ nodeId }) => {
         setSelectedNode(nodeId);
+        const node = payload.nodes.find((item) => item.id === nodeId);
+        if (node?.hasLocalTrajectory) {
+          window.dispatchEvent(new CustomEvent('pg-host-open-trajectory', {
+            detail: {
+              nodeId,
+              trajectoryId: node.localTrajectoryId,
+            },
+          }));
+        }
       },
       onStatus: ({ statusText }) => updateStatusText(statusText, lastMetrics),
     },
@@ -542,6 +591,7 @@ async function main(): Promise<void> {
     clearPostShakeResetTimer();
     resizeObserver?.disconnect();
     window.removeEventListener('resize', handleWindowResize);
+    window.removeEventListener('pg-host-select-graph-node', handleHostSelectGraphNode);
     window.removeEventListener('pointermove', handleSidePanelResize);
     window.removeEventListener('pointerup', stopSidePanelResize);
     window.removeEventListener('pointercancel', stopSidePanelResize);
@@ -720,9 +770,40 @@ function buildDisplayOptions(configState: V2GraphConfigState): DisplayOptions {
   };
 }
 
-function buildGraphAppearance(configState: V2GraphConfigState): GraphAppearance {
+function buildGraphAppearance(
+  configState: V2GraphConfigState,
+  payload: ProgressGraphPreviewV2PoCPayload,
+): GraphAppearance {
+  const trajectoryNodeIds = new Set(
+    payload.nodes
+      .filter((node) => node.hasLocalTrajectory)
+      .map((node) => node.id),
+  );
   return {
     display: buildDisplayOptions(configState),
+    hooks: {
+      getNodeStyle: ({ node, style }) => {
+        if (!trajectoryNodeIds.has(node.id)) {
+          return;
+        }
+        return {
+          ...style,
+          fill: '#f2efff',
+          stroke: '#5b3fd6',
+          strokeWidth: Math.max(style.strokeWidth ?? 1, 4),
+        };
+      },
+      getLabelStyle: ({ node, style }) => {
+        if (!trajectoryNodeIds.has(node.id)) {
+          return;
+        }
+        return {
+          ...style,
+          color: '#2f2180',
+          font: '700 12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+        };
+      },
+    },
     hitTest: {
       minRadius: 9,
       padding: 4,
@@ -1093,6 +1174,25 @@ function renderNodeDetail(
     <div><strong>Tags</strong><br>${escapeHtml(node.tags.length ? node.tags.join(', ') : 'none')}</div>
   </div>
 </div>`;
+  if (node.hasLocalTrajectory) {
+    const kicker = detail.querySelector('.pg-host-v2-detail-kicker');
+    if (kicker instanceof HTMLElement) {
+      kicker.textContent = `${kicker.textContent || 'Node'} · trajectory anchor`;
+    }
+    const grid = detail.querySelector('.pg-host-v2-detail-grid');
+    if (grid instanceof HTMLElement) {
+      const anchorCell = document.createElement('div');
+      anchorCell.innerHTML = `<strong>Local trajectory</strong><br>${escapeHtml(node.localTrajectoryId ?? 'attached')}`;
+      grid.prepend(anchorCell);
+    }
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'pg-host-v2-detail-action';
+    action.dataset.pgOpenTrajectoryNodeId = node.id;
+    action.dataset.pgOpenTrajectoryId = node.localTrajectoryId ?? '';
+    action.textContent = 'Open trajectory';
+    detail.querySelector('.pg-host-v2-detail-stack')?.append(action);
+  }
 }
 
 function renderEmpty(container: HTMLElement, detail: HTMLElement, message: string): void {

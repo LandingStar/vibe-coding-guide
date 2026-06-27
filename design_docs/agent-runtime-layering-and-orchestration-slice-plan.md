@@ -200,7 +200,22 @@ Still missing:
 6. A fake-run scheduler test harness independent from UI.
 7. A first Qoder-backed bounded task execution spike.
 8. Clear policy for when runtime subagents may be used inside a scheduled task.
-9. Coordination exchange artifact schema and event-log integration.
+9. End-to-end guide/worker use of the coordination exchange surfaces inside a
+   scheduler-owned workflow.
+
+No longer missing:
+
+1. Coordination `ExchangeArtifact` schema and local durable store foundation.
+2. Per-agent mailbox and compact exchange-history read models.
+3. Reply and exact-version lifecycle transition helpers.
+4. Action-candidate detection and disposition products.
+5. Accepted-candidate consumers for scheduler admission, review intake,
+   handoff delivery, explicit merge-gate resolution, and explicit task
+   blocking.
+
+Closure evidence:
+
+- `review/agent-communication-product-closure-2026-06-22.md`
 
 ## Proposed Orchestration Slices
 
@@ -611,11 +626,33 @@ artifact and persists the resulting scheduler task contracts. The JSON store is
 durable and local, but it remains a coordination artifact store rather than
 scheduler state authority.
 
+### 2026-06-22 Agent Communication Product Closure
+
+The first agent communication product layer is now implemented on top of the
+`ExchangeArtifact` store:
+
+1. `agent_communication.py` builds per-agent mailbox views.
+2. `agent_exchange_history.py` builds compact causality/log history summaries.
+3. `agent_exchange_actions.py` provides exact-version reply and lifecycle
+   transition helpers.
+4. `agent_exchange_action_candidates.py` identifies scheduler submission,
+   review, handoff, blocker, and merge action candidates.
+5. `agent_exchange_action_disposition.py` records candidate dispositions as
+   machine-readable coordination products.
+6. `agent_exchange_action_consumers.py` consumes accepted dispositions through
+   explicit owner surfaces.
+
+The surfaces are exposed through CLI, MCP tools, and where appropriate
+read-only resources. Acceptance evidence is summarized in
+`review/agent-communication-product-closure-2026-06-22.md`.
+
 Non-goals:
 
 1. No raw transcript persistence implementation yet.
 2. No UI rendering implementation yet.
 3. No full product-type enum freeze beyond the first contract.
+4. No real multi-agent scheduling workflow or runtime-provider execution
+   policy over these communication products yet.
 
 ## Recommended Next Step
 

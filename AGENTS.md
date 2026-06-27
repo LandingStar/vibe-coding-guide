@@ -4,6 +4,7 @@
 
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
 - Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.
+- Leader-worker is the recommended execution structure for single-lane Local Work and the required structure for Local Work with two or more lanes. In multi-lane work, lane workers may be inactive while waiting for dependencies, review, or leader messages; the leader may also be inactive while waiting for worker feedback. Treat message-driven reactivation and mailbox/history audit as part of the orchestration contract, not as optional chat bookkeeping.
 - When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` as soon as a distinct work context begins, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
 - When calling `localTrajectory start`, include `sourceGraphId` and `sourceNodeId` if a visible owning progress-map node is known so the trajectory is attached from birth. Use `localTrajectory setAnchor` when the current trajectory should move later; pass both `sourceGraphId` and `sourceNodeId`, or pass neither to clear the anchor. Prefer visible current-phase, active-slice, or planning-gate nodes over leaving task work unanchored.
 - Use `localTrajectory addCompound` when a planned phase should appear as one large event with its own child trajectory; it does not pack or move existing events.
@@ -17,11 +18,16 @@
 
 开始工作前，先读：
 
-1. `design_docs/Project Master Checklist.md`
-2. `design_docs/Global Phase Map and Current Position.md`
-3. 当前 active planning 或 phase 文档
-4. `docs/starter-surface.md`、`docs/README.md` 与当前任务直接相关的 `docs/` 权威文档
-5. 相关的 `design_docs/tooling/` 长期协议
+1. `design_docs/Project Master Checklist.md`（短热状态入口）
+2. Checklist 的 `Current Recovery Read Order` 指向的最新 closure/gate/review 文档
+3. `design_docs/Global Phase Map and Current Position.md`
+4. 当前 active planning 或 phase 文档
+5. `docs/starter-surface.md`、`docs/README.md` 与当前任务直接相关的 `docs/` 权威文档
+6. 相关的 `design_docs/tooling/` 长期协议
+
+`.codex/checkpoints/latest.md` 与 `.codex/handoffs/CURRENT.md` 是恢复安全停点或停放分支的辅助入口；只有当 Checklist 指向它们、用户要求恢复对应分支，或需要核对 safe-stop/handoff footprint 时才默认读取。不要让旧 checkpoint/handoff 覆盖 Checklist 中更新的当前焦点。
+
+`design_docs/history/Project Master Checklist Archive 2026-06-22.md` 是长历史归档，不是默认首读文件；只有追溯历史、审计旧 validation 或恢复旧阶段时才按需读取。
 
 当前仓库的特殊点：
 
@@ -42,6 +48,7 @@
 - 在没有窄 scope 文档前，不进入大规模实现。
 - 代码、测试、帮助和文档更新必须对应同一个当前切片。
 - 若发现新问题超出当前切片，先写回 planning-gate，而不是就地扩 scope。
+- 通过 Codex/Qoder/opencode 等后端 runtime 执行 worker 时，应优先走带 compact runtime invocation audit 的 host-owned wrapper；中断、超时、retryable failure、最终失败或恢复成功都应留下可审计记录，且不得保存 raw transcript 或 secret value。
 - 只有在安全停点才刷新 `.codex/handoffs/CURRENT.md`。
 - 安全停点下，允许 model 主动进入 handoff 分支；handoff 分支内只有 `blocked` 是自动停止信号。
 - 命中重要设计节点时，先整理设计结论交用户审核，再继续下一大步。
@@ -62,5 +69,5 @@
 - 每次提问前，应先给出当前最相关的文档链接，便于用户直接跳转审核；若提问依赖 planning-gate、direction-analysis、review 文档或权威文档，至少链接其中最关键的入口。
 - Phase 完成后自动准备下一步分析文档并以推进式提问继续交流，不得停下等待。
 - 候选方向必须引用具体文档作为依据。
-- 若对项目状态记忆不完整，应先重读 Checklist/Phase Map/CURRENT.md。
+- 若对项目状态记忆不完整，应先重读 Checklist 及其 `Current Recovery Read Order` 指向的文档；只有在 Checklist 指向 handoff/checkpoint 或需要恢复安全停点时才读 CURRENT.md / checkpoint。
 - 完成边界强制规则：当所有当前任务已完成且不存在活跃 planning-gate 时，必须先调用 `get_next_action` 获取下一步推荐，再基于该推荐组装包含自身判断的 forward question。绝不以"是否继续/收尾"结尾。此为对话推进规则中最高风险违规场景，优先级最高。

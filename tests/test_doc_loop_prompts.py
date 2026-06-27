@@ -147,6 +147,8 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "run_host_owned_guide_worker_provider_execution" in text
         assert "host_guide_worker_provider_execution_evidence" in text
         assert "per-worker execution receipts" in text
+        assert "In multi-lane Local Work, leader-worker coordination is required" in text
+        assert "compact runtime invocation audit" in text
         assert "doc-based-coding scheduler evidence-publish-consumer-closure" in text
         assert "run_evidence_publish_to_consumer_closure" in text
         assert "not a new MCP tool" in text

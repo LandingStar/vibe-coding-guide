@@ -1,43 +1,73 @@
-# 项目总清单与状态板
+# Project Master Checklist
 
-## 文档定位
+## Purpose
 
-本文件是 `{{PROJECT_NAME}}` 的总入口、状态板与协作恢复入口。
+This file is the short recovery/status entry for `{{PROJECT_NAME}}`. It should
+stay small enough for agents to read after context compression.
 
-若当前对话、workspace 现实状态与其他文档冲突，优先级应为：
+Do not expand this file into a full project timeline. Put historical detail in
+`design_docs/history/`, the relevant planning gate, review document, or
+direction-analysis document.
+
+## Authority And Conflict Order
+
+If repository documents disagree, use this order:
 
 1. 用户在最新对话中的明确决定
 2. 当前 workspace 的现实状态
-3. 正式设计文档与协议文档
-4. 当前 active handoff
+3. `docs/` and long-lived protocol docs under `design_docs/tooling/`
+4. 当前 active planning gate / phase doc
+5. This checklist as a compact status index
+6. Checkpoint / handoff for their safe-stop branch only
+7. Archived historical records
 
-## 当前快照
+## Current Snapshot
 
 - Snapshot Date: `{{CURRENT_DATE}}`
 - Project Name: `{{PROJECT_NAME}}`
 - Current Phase: `Planning Gate`
-- Active Slice: `TBD`
-- Safe Stop Status: `Bootstrap Only`
+- Current Focus: `Bootstrap / first narrow planning gate`
+- Active Planning Gate: `TBD`
+- Latest Completed Slice: `Bootstrap scaffold`
 
-## 当前文档入口
+## Current Recovery Read Order
 
-- `design_docs/Global Phase Map and Current Position.md`
-- `design_docs/stages/README.md`
-- `design_docs/tooling/README.md`
-- `.codex/handoffs/CURRENT.md`
+Start with these files, in order:
 
-## 已确认决策
+1. `design_docs/Project Master Checklist.md`
+2. `design_docs/Global Phase Map and Current Position.md`
+3. Current active planning or phase document
+4. Directly relevant `docs/` and `design_docs/tooling/` protocol documents
 
-- 本项目默认采用“生成/更新 doc 规划 -> 按 doc 实施 -> 结果回写 doc”的工作流。
-- 当前还处于 bootstrap 后的规划门，尚未进入第一条正式执行切片。
-- handoff 只负责安全停点交接，不替代正式设计文档。- 本项目遵循平台的三层 adoption 模型：平台权威文档（`docs/`）→ 官方实例 pack → 项目级本地 pack。
-- 重要设计节点必须通过 review state machine（`proposed → waiting_review → approved`）进行审核后才能应用。
-## 当前待办与风险
+Read `.codex/handoffs/CURRENT.md` and `.codex/checkpoints/latest.md` only when
+resuming a safe-stop branch, when this checklist points to them, or when the
+user explicitly asks for handoff/checkpoint recovery.
 
-- `TBD`: 定义第一条窄执行主线并写成 planning-gate 文档。
-- `TBD`: 根据项目实际情况细化阶段树和验证门。
-- 风险：若先编码再补文档，后续上下文会再次漂移。
+## Active Work
 
-## 最近一次写回
+### Bootstrap / First Planning Gate
 
-- `{{CURRENT_DATE}}`: 初始化 doc-loop 骨架。
+Status: `in progress`
+
+Goal:
+
+- Define the first narrow execution slice as a planning-gate document.
+- Keep implementation paused until that narrow scope exists.
+
+## Current Pending Todo
+
+- [ ] Define the first narrow execution mainline.
+- [ ] Write it as a planning-gate document under
+  `design_docs/stages/planning-gate/`.
+- [ ] Refine phase tree and validation gates based on project reality.
+
+## Write Rules For This File
+
+Keep this file short:
+
+- Update it when current phase, active gate, latest completed slice, recovery
+  order, or immediate pending todo changes.
+- Do not append long validation streams or full historical phase logs here.
+- Put historical detail in `design_docs/history/` or the relevant planning gate
+  / review / direction-analysis document.
+- Keep new entries linked to their source docs.

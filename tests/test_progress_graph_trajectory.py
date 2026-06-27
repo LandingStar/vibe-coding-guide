@@ -68,6 +68,7 @@ from src.runtime.orchestration import (
     write_scheduler_state_snapshot,
     write_supervisor_storage_binding_evidence,
     JsonArtifactVersionStore,
+    JsonlRuntimeInvocationLog,
 )
 from src.runtime.orchestration.agent_exchange_action_candidates import (
     inspect_agent_exchange_action_candidates,
@@ -2267,6 +2268,58 @@ def test_host_owned_guide_worker_provider_execution_mixed_fake_and_qoder_workers
     assert len(client.requests) == 1
 
 
+def test_host_owned_guide_worker_provider_execution_audits_and_retries_qoder_invocation(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / ".codex/runtime/provider-invocations.jsonl"
+    client = _FlakyQoderClient()
+
+    result = run_host_owned_guide_worker_provider_execution(
+        tmp_path,
+        config=HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id="guide-worker-runtime-audit",
+            timestamp="2026-06-25T08:45:00+08:00",
+            worker_instructions=(
+                GuideWorkerInstruction(
+                    task_id="task/runtime/audit",
+                    title="Runtime audit worker",
+                    instruction="Complete this qoder worker task.",
+                    lane_id="lane:audit",
+                    worker_runtime_provider="qoder",
+                    output_artifact_id="task/runtime/audit:result",
+                ),
+            ),
+            runtime_invocation_log_path=log_path,
+            runtime_invocation_max_attempts=2,
+            runtime_invocation_backoff_seconds=0,
+        ),
+        qoder_query_client=client,
+    )
+    records = JsonlRuntimeInvocationLog(log_path).read_all()
+    payload = result.to_json_dict()
+
+    assert payload["ok"] is True
+    assert payload["metadata"]["runtime_invocation_log_path"] == str(log_path)
+    assert payload["metadata"]["runtime_invocation_max_attempts"] == 2
+    assert payload["authority_split"]["runtime_invocation_audit_enabled"] is True
+    assert len(client.requests) == 2
+    assert len(records) == 1
+    record = records[0]
+    assert record.provider == "qoder"
+    assert record.status == "succeeded"
+    assert record.task_id == "task/runtime/audit"
+    assert record.session_id == "qoder-session-1"
+    assert record.agent_id == "agent:qoder-worker"
+    assert record.runtime_surface == "host-owned-guide-worker-provider-execution"
+    assert record.attempt_count == 2
+    assert [attempt.status for attempt in record.attempts] == ["failed", "succeeded"]
+    assert record.attempts[0].retryable is True
+    assert "OPENAI_API_KEY=[redacted]" in record.attempts[0].summary
+    assert "secret-token" not in record.attempts[0].summary
+    assert record.metadata["lane_id"] == "lane:audit"
+    assert record.to_json_dict()["authority_split"]["raw_transcript_persisted"] is False
+
+
 def test_host_owned_guide_worker_provider_execution_runs_planned_qoder_workers(
     tmp_path: Path,
 ) -> None:
@@ -4253,6 +4306,24 @@ class _RecordingQoderClient:
     def query(self, request: QoderQueryRequest) -> QoderQueryResult:
         self.requests = self.requests + (request,)
         return self.result
+
+
+class _FlakyQoderClient:
+    def __init__(self) -> None:
+        self.requests: tuple[QoderQueryRequest, ...] = ()
+
+    def query(self, request: QoderQueryRequest) -> QoderQueryResult:
+        self.requests = self.requests + (request,)
+        if len(self.requests) == 1:
+            raise QoderRuntimeError(
+                error_kind="timeout",
+                summary="temporary outage OPENAI_API_KEY=secret-token",
+                retryable=True,
+            )
+        return QoderQueryResult(
+            summary="retried qoder worker complete",
+            output_text="ok",
+        )
 
 
 class _RecordingCodexCliClient:

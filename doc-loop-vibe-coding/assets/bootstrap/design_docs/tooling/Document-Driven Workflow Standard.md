@@ -21,7 +21,7 @@
 - `docs/`
   - 平台级权威文档（若本项目携带平台 docs）。定义核心对象、gate 语义、review state machine、project adoption、插件模型。若与项目内部文档冲突，以 `docs/` 为准。
 - `Project Master Checklist.md`
-  - 状态板与协作入口
+  - 短热状态、恢复顺序与协作入口；不得重新膨胀为全历史流水账
 - `Global Phase Map and Current Position.md`
   - 当前阶段口径与阅读顺序
 - `design_docs/stages/`
@@ -29,9 +29,11 @@
 - `design_docs/tooling/`
   - 长期有效的协议与标准
 - `.codex/handoffs/CURRENT.md`
-  - 安全停点交接入口
+  - 安全停点交接入口；只在 Checklist 指向或恢复停放分支时作为默认读取入口
 - `.codex/prompts/doc-loop/`
   - 可复用提示词面
+
+`design_docs/Project Master Checklist.md` 应保持小型恢复面：它记录当前焦点、最新完成切片、准备中的 planning-gate、停放分支入口和读取顺序。长历史应放入 `design_docs/history/`、对应 planning-gate、review 或 direction-analysis 文档。若 Checklist 与旧 checkpoint/handoff 冲突，以 Checklist 中更新的当前焦点为准；checkpoint/handoff 只恢复其所代表的安全停点。
 
 ## 规划规则
 

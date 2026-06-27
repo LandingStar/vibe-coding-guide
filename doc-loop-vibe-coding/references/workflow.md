@@ -26,7 +26,8 @@ Use the following layers and do not collapse them into one giant document. These
   Platform-level authority. Defines core objects, gate semantics, review state machine, project adoption, and plugin model. Takes precedence when it disagrees with instance-level or project-local docs.
 
 - `design_docs/Project Master Checklist.md`
-  Use as the status board and coordination entrypoint.
+  Use as the short hot-state board, recovery read order, and coordination
+  entrypoint. Do not grow it into a full historical timeline.
 - `design_docs/Global Phase Map and Current Position.md`
   Use to explain where the project is in the larger arc.
 - `design_docs/stages/planning-gate/`
@@ -36,7 +37,8 @@ Use the following layers and do not collapse them into one giant document. These
 - `design_docs/tooling/`
   Use for long-lived workflow, authoring, handoff, and delegation standards.
 - `.codex/handoffs/CURRENT.md`
-  Use for safe-stop transfer only. It is not the highest truth source.
+  Use for safe-stop transfer only, especially when the Checklist points to it
+  or a parked branch is being resumed. It is not the highest truth source.
 - `.codex/prompts/doc-loop/`
   Use for reusable prompt surfaces. Keep them synchronized with the workflow they implement.
 
@@ -45,10 +47,12 @@ Use the following layers and do not collapse them into one giant document. These
 On an existing project, read in this order:
 
 1. `Project Master Checklist.md`
-2. `Global Phase Map and Current Position.md`
-3. the current planning or phase doc
-4. only the relevant tooling standards
-5. the current handoff only when session transfer matters
+2. the files listed in the Checklist's current recovery read order
+3. `Global Phase Map and Current Position.md`
+4. the current planning or phase doc
+5. only the relevant tooling standards
+6. the current handoff/checkpoint only when the Checklist points to them or
+   session transfer matters
 
 Do not start by reading every historical phase doc. Pull only the minimum context needed for the active slice.
 
