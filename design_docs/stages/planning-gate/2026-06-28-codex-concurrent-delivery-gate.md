@@ -28,6 +28,16 @@ delivery supervisor:
 6. prove the behavior through a fake-client concurrent fixture and CLI parsing
    tests without requiring live Codex CLI.
 
+## Provider Scope
+
+This gate only adapts Codex delivery:
+
+1. the concurrency limit applies to the host-owned Codex delivery supervisor
+   and bounded Codex supervisor loop;
+2. the runtime adapter hardening applies to `CodexCliAgentRuntimeAdapter`;
+3. no Qoder, opencode, generic provider runtime, or guide-worker wave executor
+   concurrency contract is claimed by this gate.
+
 ## Non-Goals
 
 This gate does not:
@@ -38,7 +48,8 @@ This gate does not:
    or exchange artifact writes concurrent;
 4. auto-resolve merge gates or writeback conflicts;
 5. resume a live Codex process mid-run;
-6. mutate agent-owned Local Work Trajectory from runtime code.
+6. mutate agent-owned Local Work Trajectory from runtime code;
+7. provide provider-agnostic concurrency for non-Codex runtimes.
 
 ## Acceptance Criteria
 

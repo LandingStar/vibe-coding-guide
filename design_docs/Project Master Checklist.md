@@ -120,6 +120,8 @@ Behavior:
 
 - Adds explicit opt-in process-level concurrency for independent
   lane-distinct Codex delivery records.
+- Scope is Codex-only: it does not claim Qoder, opencode, generic provider
+  runtime, or guide-worker wave executor concurrency support.
 - Keeps the default serial and leaves same-lane ready records pending for
   later ticks rather than placing them in the same concurrent runtime batch.
 - Keeps result consumption, permission review, worker patch review, delivery

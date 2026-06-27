@@ -366,6 +366,10 @@ Status: implemented in
 Purpose: add explicit bounded process-level concurrency for independent
 lane-distinct Codex worker delivery while retaining serialized writeback.
 
+Provider scope: C8 is Codex-only. It does not adapt Qoder, opencode, generic
+provider runtimes, or the guide-worker wave executor to process-level
+concurrency.
+
 Acceptance:
 
 1. `CodexDeliverySupervisorRequest` and bounded loop request expose an
