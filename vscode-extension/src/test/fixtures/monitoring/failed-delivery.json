@@ -1,0 +1,318 @@
+{
+  "schema_version": "monitoring-snapshot.v1",
+  "ok": false,
+  "next_action": "investigate failed deliveries",
+  "paths": {
+    "scheduler_snapshot_path": ".codex/scheduler/state.json",
+    "scheduler_event_log_path": ".codex/scheduler/events.jsonl",
+    "delivery_state_path": ".codex/scheduler/delivery-state.json",
+    "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+    "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+    "live_codex_smoke_report_path": ".codex/scheduler/smoke-report.json"
+  },
+  "scheduler": {
+    "task_state_counts": {
+      "complete": 2,
+      "ready": 1,
+      "waiting": 1,
+      "review_required": 2,
+      "proposed": 0,
+      "running": 0
+    },
+    "target_task_states": {
+      "T-001": "complete",
+      "T-002": "complete",
+      "T-003": "review_required",
+      "T-004": "review_required",
+      "T-005": "ready",
+      "T-006": "waiting"
+    },
+    "waiting_task_ids": ["T-006"],
+    "review_required_task_ids": ["T-003", "T-004"],
+    "completed_task_output_refs": [
+      { "task_id": "T-001", "ref_kind": "exchange_artifact", "ref_id": "art-001", "version": "v1" },
+      { "task_id": "T-002", "ref_kind": "exchange_artifact", "ref_id": "art-002", "version": "v1" }
+    ]
+  },
+  "delivery": {
+    "state_counts": {
+      "delivered": 3,
+      "acknowledged": 2,
+      "pending": 2,
+      "review_required": 1,
+      "failed": 2
+    },
+    "actionable_pending_codex_delivery_count": 2,
+    "latest_records": [
+      {
+        "delivery_id": "D-010",
+        "source_key": "scheduler/T-006",
+        "decision_id": "dec-010",
+        "tick_id": "tick-010",
+        "dispatcher_id": "disp-001",
+        "event_kind": "delivery_failed",
+        "agent_id": "worker-alpha",
+        "role": "lane-worker",
+        "next_action": "retry_or_escalate",
+        "lane_id": "main",
+        "task_id": "T-006",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "failed",
+        "created_at": "2026-06-28T15:00:00Z",
+        "updated_at": "2026-06-28T15:02:00Z",
+        "delivered_at": "2026-06-28T15:01:00Z",
+        "review_required_at": "",
+        "acknowledged_at": "",
+        "failed_at": "2026-06-28T15:02:00Z",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "sess-010",
+        "runtime_run_id": "run-010",
+        "invocation_id": "inv-010",
+        "delivery_attempt_count": 3,
+        "failure_kind": "timeout",
+        "failure_detail": "Codex CLI process timed out after 3 attempts",
+        "metadata": {}
+      },
+      {
+        "delivery_id": "D-009",
+        "source_key": "scheduler/T-005",
+        "decision_id": "dec-009",
+        "tick_id": "tick-009",
+        "dispatcher_id": "disp-001",
+        "event_kind": "delivery_failed",
+        "agent_id": "worker-beta",
+        "role": "lane-worker",
+        "next_action": "retry_or_escalate",
+        "lane_id": "feat",
+        "task_id": "T-005",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "failed",
+        "created_at": "2026-06-28T14:50:00Z",
+        "updated_at": "2026-06-28T14:55:00Z",
+        "delivered_at": "2026-06-28T14:51:00Z",
+        "review_required_at": "",
+        "acknowledged_at": "",
+        "failed_at": "2026-06-28T14:55:00Z",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "sess-009",
+        "runtime_run_id": "run-009",
+        "invocation_id": "inv-009",
+        "delivery_attempt_count": 2,
+        "failure_kind": "exit_code",
+        "failure_detail": "Codex CLI exited with code 1: permission denied on write path",
+        "metadata": {}
+      },
+      {
+        "delivery_id": "D-008",
+        "source_key": "scheduler/T-004",
+        "decision_id": "dec-008",
+        "tick_id": "tick-008",
+        "dispatcher_id": "disp-001",
+        "event_kind": "delivery_review_required",
+        "agent_id": "worker-alpha",
+        "role": "lane-worker",
+        "next_action": "await_operator_review",
+        "lane_id": "main",
+        "task_id": "T-004",
+        "source": "scheduler",
+        "reason": "worker flagged ambiguous output requiring human review",
+        "delivery_state": "review_required",
+        "created_at": "2026-06-28T14:40:00Z",
+        "updated_at": "2026-06-28T14:42:00Z",
+        "delivered_at": "2026-06-28T14:41:00Z",
+        "review_required_at": "2026-06-28T14:42:00Z",
+        "acknowledged_at": "",
+        "failed_at": "",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "sess-008",
+        "runtime_run_id": "run-008",
+        "invocation_id": "inv-008",
+        "delivery_attempt_count": 1,
+        "failure_kind": "",
+        "failure_detail": "",
+        "metadata": {}
+      },
+      {
+        "delivery_id": "D-007",
+        "source_key": "scheduler/T-005",
+        "decision_id": "dec-007",
+        "tick_id": "tick-007",
+        "dispatcher_id": "disp-001",
+        "event_kind": "pending_synced",
+        "agent_id": "worker-gamma",
+        "role": "lane-worker",
+        "next_action": "deliver_to_runtime",
+        "lane_id": "feat",
+        "task_id": "T-005",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "pending",
+        "created_at": "2026-06-28T14:48:00Z",
+        "updated_at": "2026-06-28T14:48:00Z",
+        "delivered_at": "",
+        "review_required_at": "",
+        "acknowledged_at": "",
+        "failed_at": "",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "",
+        "runtime_run_id": "",
+        "invocation_id": "",
+        "delivery_attempt_count": 0,
+        "failure_kind": "",
+        "failure_detail": "",
+        "metadata": {}
+      }
+    ]
+  },
+  "runtimeInvocations": {
+    "counts": {
+      "record_count": 6,
+      "succeeded": 3,
+      "failed": 3,
+      "provider:codex": 5,
+      "provider:opencode": 1
+    },
+    "latest_records": [
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-010",
+        "provider": "codex",
+        "status": "failed",
+        "started_at": "2026-06-28T15:01:00Z",
+        "ended_at": "2026-06-28T15:02:00Z",
+        "task_id": "T-006",
+        "session_id": "sess-010",
+        "run_id": "run-010",
+        "agent_id": "worker-alpha",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 3,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          { "attempt_index": 1, "started_at": "2026-06-28T15:01:00Z", "ended_at": "2026-06-28T15:01:20Z", "status": "failed", "retryable": true, "error_kind": "timeout", "raw_error_type": "TimeoutError", "summary": "codex CLI timed out", "metadata": {} },
+          { "attempt_index": 2, "started_at": "2026-06-28T15:01:25Z", "ended_at": "2026-06-28T15:01:45Z", "status": "failed", "retryable": true, "error_kind": "timeout", "raw_error_type": "TimeoutError", "summary": "codex CLI timed out again", "metadata": {} },
+          { "attempt_index": 3, "started_at": "2026-06-28T15:01:50Z", "ended_at": "2026-06-28T15:02:00Z", "status": "failed", "retryable": false, "error_kind": "timeout", "raw_error_type": "TimeoutError", "summary": "final timeout, max attempts reached", "metadata": {} }
+        ],
+        "final_error_kind": "timeout",
+        "final_summary": "codex CLI timed out after 3 attempts",
+        "metadata": {},
+        "authority_split": { "runtime_invocation_authority": "bounded-codex-worker", "raw_transcript_persisted": false, "scheduler_state_mutated": false, "exchange_store_mutated": false, "local_work_trajectory_mutated": false }
+      },
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-009",
+        "provider": "codex",
+        "status": "failed",
+        "started_at": "2026-06-28T14:51:00Z",
+        "ended_at": "2026-06-28T14:55:00Z",
+        "task_id": "T-005",
+        "session_id": "sess-009",
+        "run_id": "run-009",
+        "agent_id": "worker-beta",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 2,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          { "attempt_index": 1, "started_at": "2026-06-28T14:51:00Z", "ended_at": "2026-06-28T14:53:00Z", "status": "failed", "retryable": true, "error_kind": "exit_code", "raw_error_type": "ProcessError", "summary": "exit code 1: permission denied", "metadata": {} },
+          { "attempt_index": 2, "started_at": "2026-06-28T14:53:10Z", "ended_at": "2026-06-28T14:55:00Z", "status": "failed", "retryable": false, "error_kind": "exit_code", "raw_error_type": "ProcessError", "summary": "exit code 1: permission denied (retry failed)", "metadata": {} }
+        ],
+        "final_error_kind": "exit_code",
+        "final_summary": "Codex CLI exited with code 1: permission denied on write path",
+        "metadata": {},
+        "authority_split": { "runtime_invocation_authority": "bounded-codex-worker", "raw_transcript_persisted": false, "scheduler_state_mutated": false, "exchange_store_mutated": false, "local_work_trajectory_mutated": false }
+      }
+    ],
+    "concurrency": {
+      "latestProviderCounts": { "codex": 5, "opencode": 1 },
+      "failedTaskIds": ["T-006", "T-005"],
+      "latestRecords": [
+        { "invocationId": "inv-010", "provider": "codex", "status": "failed", "taskId": "T-006", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T15:01:00Z", "endedAt": "2026-06-28T15:02:00Z" },
+        { "invocationId": "inv-009", "provider": "codex", "status": "failed", "taskId": "T-005", "agentId": "worker-beta", "laneId": "feat", "startedAt": "2026-06-28T14:51:00Z", "endedAt": "2026-06-28T14:55:00Z" }
+      ],
+      "liveOverlapProven": false,
+      "overlapPairCount": 0
+    }
+  },
+  "artifacts": {
+    "output_artifact_refs": [
+      { "ref_kind": "exchange_artifact", "ref_id": "art-001", "version": "v1" }
+    ],
+    "review_artifact_refs": [
+      { "ref_kind": "exchange_artifact", "ref_id": "art-review-004", "version": "v1", "product_type": "delivery_review" }
+    ],
+    "worker_patch_artifact_refs": []
+  },
+  "liveCodexSmoke": {
+    "exists": true,
+    "ok": false,
+    "verdict": "failed",
+    "diagnostic": "overlap assertion failed: no lane-distinct concurrent pair found",
+    "path": ".codex/scheduler/smoke-report.json",
+    "counts": {
+      "total_tasks": 4,
+      "total_invocations": 6,
+      "lane_distinct_agents": 2
+    },
+    "firstConcurrentBatch": {
+      "taskIds": ["T-001", "T-002"],
+      "invocationIds": ["inv-001", "inv-002"]
+    },
+    "overlap": {
+      "proven": false,
+      "pairs": [],
+      "timingParseErrors": []
+    },
+    "residualGaps": ["no concurrent lane-distinct Codex invocations detected in batch"]
+  },
+  "workerReports": {
+    "mode": "leader-owned-consumer",
+    "directWorkerTrajectoryMutationAllowed": false,
+    "consumerCommand": "doc-based-coding scheduler consume-worker-trajectory-report --report-path <path>",
+    "procedureDoc": "docs/worker-trajectory-update-reporting.md",
+    "schema": "docs/specs/subagent-report.schema.json",
+    "notes": [
+      "Workers must not call localTrajectory directly.",
+      "Trajectory updates go through Subagent Report.trajectory_update.",
+      "Leader audits and applies trajectory mutations after review."
+    ]
+  },
+  "operatorSignals": [
+    {
+      "severity": "error",
+      "kind": "failed_delivery",
+      "message": "2 failed deliveries",
+      "suggestedAction": "investigate failed deliveries and retry or escalate"
+    },
+    {
+      "severity": "warning",
+      "kind": "pending_codex_delivery",
+      "message": "2 pending Codex deliveries",
+      "suggestedAction": "run delivery supervisor to dispatch pending deliveries"
+    },
+    {
+      "severity": "warning",
+      "kind": "live_codex_smoke_not_passing",
+      "message": "Live Codex smoke test not passing",
+      "suggestedAction": "review smoke report and re-run concurrent worker smoke test"
+    }
+  ],
+  "errors": [],
+  "authoritySplit": {
+    "readModelOnly": true,
+    "providerExecuted": false,
+    "schedulerStateMutated": false,
+    "schedulerEventLogMutated": false,
+    "dispatcherStateMutated": false,
+    "deliveryStateMutated": false,
+    "deliveryLogMutated": false,
+    "exchangeStoreMutated": false,
+    "runtimeInvocationLogMutated": false,
+    "localWorkTrajectoryMutated": false,
+    "rawTranscriptExposed": false
+  }
+}

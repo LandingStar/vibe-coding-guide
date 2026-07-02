@@ -121,14 +121,15 @@ class InstructionsGenerator:
         return "\n".join(lines)
 
     def _work_agent_local_trajectory_section(self) -> str:
-        """Render generic guidance for execution agents that can mutate local trajectory."""
+        """Render generic guidance for leader-owned local trajectory updates."""
 
         lines = [
             "## Work Agent Local Trajectory",
             "",
             "- For task-like implementation, validation, review, or write-back work, the agent owns Local Work Trajectory maintenance.",
+            "- Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put progress/status suggestions in `Subagent Report.trajectory_update` for the leader to consume. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.",
             "- Do not wait for the user to ask for trajectory updates. Start or continue the trajectory as part of doing the work.",
-            "- Use the MCP `localTrajectory` tool as the preferred mutation surface when it is available.",
+            "- Use the MCP `localTrajectory` tool as the preferred mutation surface when it is available to a leader/main/supervisor context.",
             "- Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.",
             "- Leader-worker is recommended for single-lane Local Work and required when Local Work has two or more lanes. In multi-lane work, model workers and the leader as activatable lifecycle participants: they may wait for dependencies, review, or messages, and message-driven reactivation must remain auditable.",
             "- Call `localTrajectory start` when beginning a tracked task and no active trajectory exists; include `sourceGraphId` and `sourceNodeId` on `start` when a visible owning progress-map node is known so the trajectory is attached from birth.",

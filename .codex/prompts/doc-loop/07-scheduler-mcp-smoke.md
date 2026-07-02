@@ -10,7 +10,11 @@ Read first:
 3. The current planning-gate that authorizes scheduler work
 
 Do not use this prompt for ordinary Local Work Trajectory updates.
-`localTrajectory` remains the agent-owned lifecycle mutation tool.
+`localTrajectory` remains the leader/main/supervisor-owned lifecycle mutation
+tool. Bounded workers/subagents must not call it directly; worker progress,
+blocked state, completion, or suggested trajectory actions belong in
+`Subagent Report.trajectory_update` for the leader to consume. Worker report
+procedure: `docs/worker-trajectory-update-reporting.md`.
 Scheduler MCP tools operate on scheduler-owned snapshot/event-log state.
 
 ## Authority Boundary

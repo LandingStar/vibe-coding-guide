@@ -123,6 +123,35 @@ def _write_binding_ref_submission_artifacts(
     )
 
 
+def _write_mcp_worker_trajectory_report(
+    report_path: Path,
+    *,
+    suggested_action: str,
+) -> None:
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(
+            {
+                "report_id": "report-mcp-worker",
+                "contract_id": "contract-mcp-worker",
+                "status": "completed",
+                "changed_artifacts": ["server.js"],
+                "verification_results": ["node --check server.js passed"],
+                "trajectory_update": {
+                    "lane_id": "lane:server",
+                    "task_id": "task/server",
+                    "event_status": "completed",
+                    "summary": "Worker server task finished.",
+                    "suggested_action": suggested_action,
+                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "leader_notes": ["Consume after leader review."],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: Path) -> None:
     store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
     ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
@@ -228,6 +257,108 @@ def test_governance_tools_scheduler_binding_reference_inspect_is_read_only(
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
     assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_mcp_local_trajectory_rejects_worker_role_with_report_path(
+    tmp_path: Path,
+) -> None:
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        local_tool = next(tool for tool in tools if tool.name == "localTrajectory")
+        assert "callerRole" in local_tool.inputSchema["properties"]
+        assert "Subagent Report.trajectory_update" in local_tool.description
+        assert "docs/worker-trajectory-update-reporting.md" in local_tool.description
+        assert (
+            "docs/worker-trajectory-update-reporting.md"
+            in local_tool.inputSchema["properties"]["callerRole"]["description"]
+        )
+
+        call_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="localTrajectory",
+                    arguments={
+                        "action": "start",
+                        "laneLabel": "worker",
+                        "firstEventTitle": "worker direct mutation",
+                        "callerRole": "worker",
+                    },
+                )
+            )
+        )
+        payload = json.loads(call_result.root.content[0].text)
+        assert payload["ok"] is False
+        assert "leader/main/supervisor authority" in payload["error"]
+        assert "Subagent Report.trajectory_update" in payload["error"]
+        assert "docs/worker-trajectory-update-reporting.md" in payload["error"]
+        assert payload["callerRole"] == "worker"
+
+    asyncio.run(exercise_server())
+    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
+def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    _write_mcp_worker_trajectory_report(report_path, suggested_action="append")
+    server = create_server(tmp_path, dry_run=True)
+
+    async def exercise_server() -> None:
+        list_result = await server.request_handlers[ListToolsRequest](ListToolsRequest())
+        tools = list_result.root.tools
+        names = {tool.name for tool in tools}
+        assert "consumeWorkerTrajectoryReport" in names
+        tool = next(tool for tool in tools if tool.name == "consumeWorkerTrajectoryReport")
+        assert tool.inputSchema["required"] == ["reportPath"]
+        assert "Subagent Report.trajectory_update" in tool.description
+        assert "docs/worker-trajectory-update-reporting.md" in tool.description
+
+        denied_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="consumeWorkerTrajectoryReport",
+                    arguments={
+                        "reportPath": ".codex/agent-output/report-worker.json",
+                        "callerRole": "worker",
+                    },
+                )
+            )
+        )
+        denied = json.loads(denied_result.root.content[0].text)
+        assert denied["ok"] is False
+        assert denied["status"] == "denied"
+        assert "Subagent Report.trajectory_update" in denied["errors"][0]
+
+        consumed_result = await server.request_handlers[CallToolRequest](
+            CallToolRequest(
+                params=CallToolRequestParams(
+                    name="consumeWorkerTrajectoryReport",
+                    arguments={
+                        "reportPath": ".codex/agent-output/report-worker.json",
+                        "callerRole": "leader",
+                        "actor": "agent:guide",
+                        "title": "MCP worker report consumed",
+                    },
+                )
+            )
+        )
+        consumed = json.loads(consumed_result.root.content[0].text)
+        assert consumed["ok"] is True
+        assert consumed["status"] == "consumed"
+        assert consumed["consumed_action"] == "start"
+        assert consumed["authority_split"]["local_work_trajectory_mutated"] is True
+
+    asyncio.run(exercise_server())
+    trajectory = json.loads(
+        (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert trajectory["events"]["event:001"]["title"] == "MCP worker report consumed"
 
 
 def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -> None:

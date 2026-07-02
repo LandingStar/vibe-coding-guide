@@ -36,6 +36,13 @@
 - `dependency-baseline-generator-contract.md`
 - `dependency-baseline-maintenance-guide.md`
 - `qoder-host-provisioning-check-guide.md`
+- `opencode-host-provisioning-check-guide.md`
+- `worker-trajectory-update-reporting.md`
+  - worker-to-leader Local Work Trajectory update reporting and consumption
+- `monitoring-ui-backend-api.md`
+  - read-only backend snapshot API for the future monitoring UI
+- `self-check-doctor-contract.md`
+  - unified read-only self-check / doctor framework contract
 - `installation-guide.md`
 - `current-prototype-status.md`
 - `first-stable-release-boundary.md`
@@ -85,5 +92,9 @@
 22. `dependency-baseline-generator-contract.md`
 23. `dependency-baseline-maintenance-guide.md`
 24. `qoder-host-provisioning-check-guide.md`
-25. `current-prototype-status.md`
-26. `first-stable-release-boundary.md`
+25. `opencode-host-provisioning-check-guide.md`
+26. `worker-trajectory-update-reporting.md`
+27. `monitoring-ui-backend-api.md`
+28. `self-check-doctor-contract.md`
+29. `current-prototype-status.md`
+30. `first-stable-release-boundary.md`

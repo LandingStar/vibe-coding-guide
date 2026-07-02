@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "2026-07-02 gate 提交暂存预演",
-  "recorded_at": "2026-07-02T12:01:34.134173+00:00",
+  "title": "逐块整理剩余提交",
+  "recorded_at": "2026-07-02T12:47:21.856179+00:00",
   "source_graph_id": "",
   "source_node_id": "",
-  "guide_context": "design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md + design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md + design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md",
+  "guide_context": "AGENTS.md + docs/worker-trajectory-update-reporting.md + design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "2026-07-02 gate 提交暂存预演",
+    "title": "逐块整理剩余提交",
     "lane_count": 1,
     "event_count": 2,
     "relation_count": 1,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "commit-prep",
-      "status": "done",
+      "label": "commit-series",
+      "status": "active",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md + design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md + design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md"
+        "context": "AGENTS.md + docs/worker-trajectory-update-reporting.md + design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md"
       }
     }
   },
@@ -36,31 +36,30 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "整理并暂存 2026-07-02 gate 文件列表",
-      "kind": "review",
-      "status": "completed",
+      "title": "整理并提交当前暂存整合块",
+      "kind": "task",
+      "status": "in_progress",
       "order": 1,
-      "summary": "",
+      "summary": "用户确认不再继续拆分；按一体化能力块复核暂存范围、未暂存依赖、敏感/本机配置风险与验证结果后提交。",
       "metadata": {
-        "created_at": "2026-07-02T11:58:08.201987+00:00",
-        "activated_at": "2026-07-02T11:58:08.201987+00:00",
+        "created_at": "2026-07-02T12:29:01.227755+00:00",
+        "activated_at": "2026-07-02T12:29:01.227755+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-07-02T12:01:22.976725+00:00"
+        "updated_at": "2026-07-02T12:35:57.272630+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "完成 staged diff 与目标测试复核",
+      "title": "验证整合提交块",
       "kind": "validation",
       "status": "completed",
       "order": 2,
-      "summary": "暂存 14 个 2026-07-02 gate 直接文件；git diff --cached --check 通过；compact hydration 目标测试 3 passed；next_action 目标测试 5 passed；repo-root smoke 52 passed, 1 skipped。tests/test_mcp_tools.py 已加入 .gitignore 测试白名单后纳入暂存。",
+      "summary": "运行 whitespace/secret guard、Python 编译、focused pytest、extension build 与 monitoring dashboard 截图验证，确保当前大块可提交。",
       "metadata": {
-        "created_at": "2026-07-02T12:01:12.038811+00:00",
+        "created_at": "2026-07-02T12:43:06.982762+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-07-02T12:01:22.976725+00:00",
-        "completed_at": "2026-07-02T12:01:34.134173+00:00"
+        "completed_at": "2026-07-02T12:47:21.856179+00:00"
       }
     }
   },

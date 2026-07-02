@@ -1,4 +1,8 @@
-"""Read-only Codex worker runtime status summary."""
+"""Read-only provider worker runtime status summary.
+
+Historical Codex names are kept for compatibility while the implementation can
+inspect Codex or OpenCode delivery readback.
+"""
 
 from __future__ import annotations
 
@@ -21,15 +25,17 @@ from .runtime_invocation_audit import (
     RuntimeInvocationRecord,
     inspect_runtime_invocation_log,
 )
+from .runtime_adapter import RuntimeProviderKind
 from .scheduler_store import recover_scheduler_state
 
 
 @dataclass(frozen=True, slots=True)
-class CodexRuntimeStatusRequest:
-    """Request for a compact read-only Codex runtime status summary."""
+class ProviderRuntimeStatusRequest:
+    """Request for a compact read-only provider runtime status summary."""
 
     scheduler_snapshot_path: str | Path
     scheduler_event_log_path: str | Path
+    runtime_provider: RuntimeProviderKind = "codex"
     delivery_state_path: str | Path = DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH
     runtime_invocation_log_path: str | Path = DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH
     artifact_store_path: str | Path = DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
@@ -39,10 +45,10 @@ class CodexRuntimeStatusRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class CodexRuntimeStatus:
+class ProviderRuntimeStatus:
     """Compact readback for operator or guide-agent decision making."""
 
-    request: CodexRuntimeStatusRequest
+    request: ProviderRuntimeStatusRequest
     ok: bool
     scheduler_task_state_counts: Mapping[str, int]
     target_task_states: Mapping[str, str]
@@ -56,8 +62,16 @@ class CodexRuntimeStatus:
     output_artifact_refs: tuple[Mapping[str, str], ...] = ()
     review_artifact_refs: tuple[Mapping[str, str], ...] = ()
     worker_patch_artifact_refs: tuple[Mapping[str, str], ...] = ()
-    actionable_pending_codex_delivery_count: int = 0
+    actionable_pending_delivery_count: int = 0
     errors: tuple[str, ...] = ()
+
+    @property
+    def actionable_pending_codex_delivery_count(self) -> int:
+        """Compatibility alias for the historical Codex-only field."""
+
+        if self.request.runtime_provider != "codex":
+            return 0
+        return self.actionable_pending_delivery_count
 
     @property
     def next_action(self) -> str:
@@ -67,15 +81,17 @@ class CodexRuntimeStatus:
             return "review_required_items"
         if self.delivery_state_counts.get("failed", 0):
             return "inspect_failed_delivery"
-        if self.actionable_pending_codex_delivery_count:
+        if self.actionable_pending_delivery_count:
             return "run_supervisor_loop"
         if self.waiting_task_ids:
             return "inspect_waiting_dependencies"
         return "idle"
 
     def to_json_dict(self) -> dict[str, object]:
+        provider = self.request.runtime_provider
         return {
             "ok": self.ok,
+            "runtime_provider": provider,
             "next_action": self.next_action,
             "paths": {
                 "scheduler_snapshot_path": str(Path(self.request.scheduler_snapshot_path)),
@@ -93,8 +109,14 @@ class CodexRuntimeStatus:
             },
             "delivery": {
                 "state_counts": dict(self.delivery_state_counts),
+                "actionable_pending_delivery_count": (
+                    self.actionable_pending_delivery_count
+                ),
+                "actionable_pending_runtime_provider": provider,
                 "actionable_pending_codex_delivery_count": (
-                    self.actionable_pending_codex_delivery_count
+                    self.actionable_pending_delivery_count
+                    if provider == "codex"
+                    else 0
                 ),
                 "latest_records": [
                     record.to_json_dict()
@@ -129,10 +151,32 @@ class CodexRuntimeStatus:
         }
 
 
-def inspect_codex_runtime_status(
-    request: CodexRuntimeStatusRequest,
-) -> CodexRuntimeStatus:
-    """Build a compact read-only status summary for Codex worker delivery."""
+@dataclass(frozen=True, slots=True)
+class CodexRuntimeStatusRequest(ProviderRuntimeStatusRequest):
+    """Compatibility request for a compact read-only Codex runtime status."""
+
+    runtime_provider: RuntimeProviderKind = "codex"
+
+
+@dataclass(frozen=True, slots=True)
+class OpenCodeRuntimeStatusRequest(ProviderRuntimeStatusRequest):
+    """Request for a compact read-only OpenCode runtime status summary."""
+
+    runtime_provider: RuntimeProviderKind = "opencode"
+
+
+class CodexRuntimeStatus(ProviderRuntimeStatus):
+    """Compatibility status type for Codex runtime readback."""
+
+
+class OpenCodeRuntimeStatus(ProviderRuntimeStatus):
+    """Status type for OpenCode runtime readback."""
+
+
+def inspect_provider_runtime_status(
+    request: ProviderRuntimeStatusRequest,
+) -> ProviderRuntimeStatus:
+    """Build a compact read-only status summary for provider worker delivery."""
 
     errors: list[str] = []
     try:
@@ -143,7 +187,7 @@ def inspect_codex_runtime_status(
         )
         scheduler_state = recovery.recovered_state
     except Exception as exc:
-        return CodexRuntimeStatus(
+        return ProviderRuntimeStatus(
             request=request,
             ok=False,
             scheduler_task_state_counts={},
@@ -172,7 +216,12 @@ def inspect_codex_runtime_status(
     )
     errors.extend(artifact_errors)
     target_task_ids = request.target_task_ids or tuple(sorted(scheduler_state.tasks))
-    return CodexRuntimeStatus(
+    actionable_pending_count = _actionable_pending_delivery_count(
+        request.delivery_state_path,
+        scheduler_state.tasks,
+        request.runtime_provider,
+    )
+    return ProviderRuntimeStatus(
         request=request,
         ok=not errors,
         scheduler_task_state_counts=_task_state_counts(scheduler_state.tasks.values()),
@@ -206,14 +255,12 @@ def inspect_codex_runtime_status(
         ),
         delivery_state_counts=delivery.state_counts,
         latest_delivery_records=delivery.latest_records,
-        actionable_pending_codex_delivery_count=_actionable_pending_codex_delivery_count(
-            request.delivery_state_path,
-            scheduler_state.tasks,
-        ),
+        actionable_pending_delivery_count=actionable_pending_count,
         runtime_invocation_counts={
             "record_count": invocations.record_count,
             "succeeded": invocations.succeeded_count,
             "failed": invocations.failed_count,
+            f"actionable_provider:{request.runtime_provider}": actionable_pending_count,
             **{
                 f"provider:{provider}": count
                 for provider, count in invocations.provider_counts.items()
@@ -224,6 +271,100 @@ def inspect_codex_runtime_status(
         review_artifact_refs=review_refs,
         worker_patch_artifact_refs=patch_refs,
         errors=tuple(errors),
+    )
+
+
+def inspect_codex_runtime_status(
+    request: CodexRuntimeStatusRequest,
+) -> CodexRuntimeStatus:
+    """Build a compact read-only status summary for Codex worker delivery."""
+
+    status = inspect_provider_runtime_status(
+        ProviderRuntimeStatusRequest(
+            scheduler_snapshot_path=request.scheduler_snapshot_path,
+            scheduler_event_log_path=request.scheduler_event_log_path,
+            runtime_provider="codex",
+            delivery_state_path=request.delivery_state_path,
+            runtime_invocation_log_path=request.runtime_invocation_log_path,
+            artifact_store_path=request.artifact_store_path,
+            target_task_ids=request.target_task_ids,
+            latest_limit=request.latest_limit,
+            strict_recovery=request.strict_recovery,
+        )
+    )
+    return CodexRuntimeStatus(
+        request=CodexRuntimeStatusRequest(
+            scheduler_snapshot_path=status.request.scheduler_snapshot_path,
+            scheduler_event_log_path=status.request.scheduler_event_log_path,
+            delivery_state_path=status.request.delivery_state_path,
+            runtime_invocation_log_path=status.request.runtime_invocation_log_path,
+            artifact_store_path=status.request.artifact_store_path,
+            target_task_ids=status.request.target_task_ids,
+            latest_limit=status.request.latest_limit,
+            strict_recovery=status.request.strict_recovery,
+        ),
+        ok=status.ok,
+        scheduler_task_state_counts=status.scheduler_task_state_counts,
+        target_task_states=status.target_task_states,
+        waiting_task_ids=status.waiting_task_ids,
+        review_required_task_ids=status.review_required_task_ids,
+        completed_task_output_refs=status.completed_task_output_refs,
+        delivery_state_counts=status.delivery_state_counts,
+        latest_delivery_records=status.latest_delivery_records,
+        runtime_invocation_counts=status.runtime_invocation_counts,
+        latest_runtime_invocations=status.latest_runtime_invocations,
+        output_artifact_refs=status.output_artifact_refs,
+        review_artifact_refs=status.review_artifact_refs,
+        worker_patch_artifact_refs=status.worker_patch_artifact_refs,
+        actionable_pending_delivery_count=status.actionable_pending_delivery_count,
+        errors=status.errors,
+    )
+
+
+def inspect_opencode_runtime_status(
+    request: OpenCodeRuntimeStatusRequest,
+) -> OpenCodeRuntimeStatus:
+    """Build a compact read-only status summary for OpenCode worker delivery."""
+
+    status = inspect_provider_runtime_status(
+        ProviderRuntimeStatusRequest(
+            scheduler_snapshot_path=request.scheduler_snapshot_path,
+            scheduler_event_log_path=request.scheduler_event_log_path,
+            runtime_provider="opencode",
+            delivery_state_path=request.delivery_state_path,
+            runtime_invocation_log_path=request.runtime_invocation_log_path,
+            artifact_store_path=request.artifact_store_path,
+            target_task_ids=request.target_task_ids,
+            latest_limit=request.latest_limit,
+            strict_recovery=request.strict_recovery,
+        )
+    )
+    return OpenCodeRuntimeStatus(
+        request=OpenCodeRuntimeStatusRequest(
+            scheduler_snapshot_path=status.request.scheduler_snapshot_path,
+            scheduler_event_log_path=status.request.scheduler_event_log_path,
+            delivery_state_path=status.request.delivery_state_path,
+            runtime_invocation_log_path=status.request.runtime_invocation_log_path,
+            artifact_store_path=status.request.artifact_store_path,
+            target_task_ids=status.request.target_task_ids,
+            latest_limit=status.request.latest_limit,
+            strict_recovery=status.request.strict_recovery,
+        ),
+        ok=status.ok,
+        scheduler_task_state_counts=status.scheduler_task_state_counts,
+        target_task_states=status.target_task_states,
+        waiting_task_ids=status.waiting_task_ids,
+        review_required_task_ids=status.review_required_task_ids,
+        completed_task_output_refs=status.completed_task_output_refs,
+        delivery_state_counts=status.delivery_state_counts,
+        latest_delivery_records=status.latest_delivery_records,
+        runtime_invocation_counts=status.runtime_invocation_counts,
+        latest_runtime_invocations=status.latest_runtime_invocations,
+        output_artifact_refs=status.output_artifact_refs,
+        review_artifact_refs=status.review_artifact_refs,
+        worker_patch_artifact_refs=status.worker_patch_artifact_refs,
+        actionable_pending_delivery_count=status.actionable_pending_delivery_count,
+        errors=status.errors,
     )
 
 
@@ -294,9 +435,10 @@ def _task_state_counts(tasks: object) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-def _actionable_pending_codex_delivery_count(
+def _actionable_pending_delivery_count(
     delivery_state_path: str | Path,
     tasks: Mapping[str, object],
+    runtime_provider: RuntimeProviderKind,
 ) -> int:
     state = read_leader_worker_delivery_state(delivery_state_path)
     if state is None:
@@ -311,7 +453,7 @@ def _actionable_pending_codex_delivery_count(
         if task is None:
             continue
         agent = getattr(task, "agent", None)
-        if getattr(agent, "runtime_provider", "") != "codex":
+        if getattr(agent, "runtime_provider", "") != runtime_provider:
             continue
         if getattr(task, "state", "") != "ready":
             continue
@@ -322,5 +464,11 @@ def _actionable_pending_codex_delivery_count(
 __all__ = [
     "CodexRuntimeStatus",
     "CodexRuntimeStatusRequest",
+    "OpenCodeRuntimeStatus",
+    "OpenCodeRuntimeStatusRequest",
+    "ProviderRuntimeStatus",
+    "ProviderRuntimeStatusRequest",
     "inspect_codex_runtime_status",
+    "inspect_opencode_runtime_status",
+    "inspect_provider_runtime_status",
 ]

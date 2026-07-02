@@ -61,6 +61,7 @@
     "docs/subagent-management.md",
     "docs/subagent-schemas.md",
     "docs/official-instance-doc-loop.md",
+    "docs/worker-trajectory-update-reporting.md",
     "docs/dependency-baseline-generator-contract.md",
     "docs/dependency-baseline-maintenance-guide.md",
     "docs/current-prototype-status.md",

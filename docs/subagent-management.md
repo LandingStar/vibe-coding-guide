@@ -131,10 +131,22 @@
 最低报告内容包括：
 
 - 实际改动了什么
+- 若与 Local Work Trajectory 相关，使用 `trajectory_update` 汇报进度/阻塞/完成和建议动作
 - 跑了哪些验证
 - 哪些问题未解决
 - 做了哪些假设
 - 是否建议升级
+
+子 agent / worker 不直接调用 `localTrajectory`，也不直接修改
+`.codex/progress-graph/local-work-trajectory.json`。Local Work Trajectory
+写入由主 agent / leader / supervisor 审核 report 后执行；worker 的
+`trajectory_update` 是建议和证据，不是 mutation authority。
+
+leader / supervisor 可用 `consumeWorkerTrajectoryReport` 或
+`doc-based-coding scheduler consume-worker-trajectory-report` 消费第一版
+`trajectory_update`。该消费器只处理 `append` / `advance` / `block` /
+`wait` / `resume` / `close` / `none`，不会从 worker report 执行复杂
+pack、merge、relate、anchor 或 child trajectory 操作。
 
 ## Handoff
 

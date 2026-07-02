@@ -5,15 +5,15 @@
       "name": "doc-based-coding-platform-local-pack",
       "version": "0.9.1",
       "kind": "project-local",
-      "content_hash": "sha256:5e99a49ed057782cb7ab112d1b03c275f279a135b464bb8b22544b62ab5f503d",
-      "locked_at": "2026-06-17T07:06:08.251800+00:00"
+      "content_hash": "sha256:ee7fcab03d4bd33d1b5b06377503d24d6fba76f5f6080860314b49d96321253b",
+      "locked_at": "2026-06-29T02:38:24.187216+00:00"
     },
     "doc-loop-vibe-coding": {
       "name": "doc-loop-vibe-coding",
       "version": "0.9.8",
       "kind": "official-instance",
-      "content_hash": "sha256:6ef818671ce52695b1a7f81528ab0a2a395a5761c4ee9e986f3c9e4ba2913755",
-      "locked_at": "2026-06-19T18:35:54.707857+00:00"
+      "content_hash": "sha256:b2ea69db8ea6b79fab0dba6d035fae732efa3326ff48b48022895d62fc958122",
+      "locked_at": "2026-06-29T02:38:24.234567+00:00"
     }
   }
 }

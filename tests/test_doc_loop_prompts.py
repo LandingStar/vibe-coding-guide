@@ -75,6 +75,28 @@ def test_local_prompts_require_forward_question_for_progression() -> None:
         assert "forward-driving question" in text
 
 
+def test_execute_prompt_limits_worker_local_trajectory_authority() -> None:
+    for rel_path in [
+        ".codex/prompts/doc-loop/02-execute-by-doc.md",
+        "doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/02-execute-by-doc.md",
+    ]:
+        text = _read(rel_path)
+        assert "Direct `localTrajectory` mutation is leader/main/supervisor authority" in text
+        assert "Subagent Report.trajectory_update" in text
+        assert "docs/worker-trajectory-update-reporting.md" in text
+
+
+def test_subagent_contract_prompt_requires_trajectory_update_reports() -> None:
+    for rel_path in [
+        ".codex/prompts/doc-loop/04-subagent-contract.md",
+        "doc-loop-vibe-coding/assets/bootstrap/.codex/prompts/doc-loop/04-subagent-contract.md",
+    ]:
+        text = _read(rel_path)
+        assert "不要直接调用 `localTrajectory`" in text
+        assert "Subagent Report.trajectory_update" in text
+        assert "docs/worker-trajectory-update-reporting.md" in text
+
+
 def test_bootstrap_prompts_require_forward_question_for_progression() -> None:
     for rel_path in BOOTSTRAP_PROMPTS:
         text = _read(rel_path)
@@ -149,6 +171,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "per-worker execution receipts" in text
         assert "In multi-lane Local Work, leader-worker coordination is required" in text
         assert "compact runtime invocation audit" in text
+        assert "leader/main/supervisor-owned lifecycle mutation" in text
+        assert "Subagent Report.trajectory_update" in text
+        assert "docs/worker-trajectory-update-reporting.md" in text
         assert "doc-based-coding scheduler evidence-publish-consumer-closure" in text
         assert "run_evidence_publish_to_consumer_closure" in text
         assert "not a new MCP tool" in text
@@ -729,3 +754,25 @@ def test_qoder_host_provisioning_guide_is_linked_from_docs() -> None:
     assert "token_present" in guide
     assert "--no-initialize-snapshot" in guide
     assert "must not be written" in guide
+
+
+def test_worker_trajectory_update_reporting_is_linked_and_schema_backed() -> None:
+    docs_readme = _read("docs/README.md")
+    guide = _read("docs/worker-trajectory-update-reporting.md")
+    schema = json.loads(_read("docs/specs/subagent-report.schema.json"))
+
+    assert "worker-trajectory-update-reporting.md" in docs_readme
+    assert "Subagent Report.trajectory_update" in guide
+    assert "Workers and subagents do not mutate Local Work Trajectory directly" in guide
+    assert "docs/worker-trajectory-update-reporting.md" in _read(
+        ".codex/packs/project-local.pack.json"
+    )
+    trajectory_schema = schema["properties"]["trajectory_update"]
+    assert trajectory_schema["$ref"] == "#/$defs/trajectoryUpdate"
+    assert schema["$defs"]["trajectoryUpdate"]["additionalProperties"] is False
+    assert "packRange" not in schema["$defs"]["trajectoryUpdate"]["properties"][
+        "suggested_action"
+    ]["enum"]
+    assert "advance" in schema["$defs"]["trajectoryUpdate"]["properties"][
+        "suggested_action"
+    ]["enum"]

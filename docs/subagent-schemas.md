@@ -154,6 +154,8 @@
   - 实际改动的 artifact
 - `artifact_payloads`
   - 可选的结构化内容载荷，供后续 writeback plan 映射消费
+- `trajectory_update`
+  - 可选的轨迹/状态建议段，供 leader / main agent 消费后更新 Local Work Trajectory
 - `verification_results`
   - 运行过的验证及结果
 - `unresolved_items`
@@ -171,6 +173,8 @@
 - `changed_artifacts` 与 `verification_results` 不应为空泛描述。
 - `changed_artifacts` 仍是执行后证据列表；`artifact_payloads` 不替代执行证据。
 - `artifact_payloads` 若存在，只表达“供后续 writeback 消费的结构化内容候选”，不等于“真实文件已被成功写回”。
+- `trajectory_update` 若存在，只表达“worker 对 Local Work Trajectory 的建议更新/状态汇报”，不等于 worker 已经或可以直接突变 Local Work Trajectory。
+- worker / subagent 不应直接调用 `localTrajectory`；leader / main / supervisor 审核 report 后才拥有 Local Work Trajectory mutation authority。
 
 ### `artifact_payloads` 第一版边界
 
@@ -187,6 +191,28 @@
 - `content_type` 只允许：`markdown` / `json` / `yaml` / `text`
 
 当前不把 directive 级更新（如 `section_replace` / `line_insert`）直接塞进 `Subagent Report`。这层 schema 只负责提供后续 writeback 可消费的结构化候选内容，不负责声明真实文件已经被更新。
+
+### `trajectory_update` 第一版边界
+
+若 `trajectory_update` 出现，第一版固定包含：
+
+- `lane_id`
+- `task_id`
+- `event_status`
+- `summary`
+- `suggested_action`
+
+其中：
+
+- `event_status` 只允许：`completed` / `partial` / `blocked` / `waiting` / `in_progress`
+- `suggested_action` 只允许：`append` / `advance` / `block` / `wait` / `resume` / `close` / `none`
+- `evidence_refs` 与 `leader_notes` 是可选数组，用于帮助 leader 审核后决定是否调用 `localTrajectory`
+
+当前不把 `localTrajectory` 的完整 action payload、事件 id 重写、pack/merge 复杂操作或跨图 anchor mutation 放入 worker report。第一版只让 worker 给出可审计建议，leader 仍是唯一的 Local Work Trajectory 写入者。
+
+worker 侧固定回写流程见 [`worker-trajectory-update-reporting.md`](worker-trajectory-update-reporting.md)；之后如果调整 worker-to-leader 回写流程，先更新该文档。
+
+leader 侧第一版消费面为 `consumeWorkerTrajectoryReport` / `doc-based-coding scheduler consume-worker-trajectory-report`。它先校验完整 `Subagent Report`，再只消费 `append` / `advance` / `block` / `wait` / `resume` / `close` / `none`。复杂 pack、merge、relate、anchor 和 child trajectory 操作不从 worker report 自动执行。
 
 ### JSON Schema
 

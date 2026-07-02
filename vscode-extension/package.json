@@ -135,6 +135,17 @@
         "category": "Doc-Based Coding"
       },
       {
+        "command": "docBasedCoding.openMonitoringDashboard",
+        "title": "Open Monitoring Dashboard",
+        "category": "Doc-Based Coding"
+      },
+      {
+        "command": "docBasedCoding.refreshMonitoringDashboard",
+        "title": "Refresh Monitoring Dashboard",
+        "icon": "$(refresh)",
+        "category": "Doc-Based Coding"
+      },
+      {
         "command": "docBasedCoding.setupWizard",
         "title": "Setup Wizard",
         "category": "Doc-Based Coding"
@@ -320,6 +331,13 @@
           "type": "string",
           "default": "gpt-4o-mini",
           "description": "Model name sent to the external OpenAI-compatible API."
+        },
+        "docBasedCoding.monitoring.autoRefreshIntervalMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "maximum": 60000,
+          "description": "Auto-refresh interval in milliseconds for the monitoring dashboard. Range: 1000–60000ms."
         }
       }
     }

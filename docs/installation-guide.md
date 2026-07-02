@@ -159,6 +159,32 @@ doc-based-coding generate-instructions --target copilot --output .\.github\copil
 - 输出到 `AGENTS.md` / `AGENTS.override.md` 时，CLI 会自动按 Codex 目标生成标题和说明
 - 输出到 `copilot-instructions.md` 时，CLI 会自动按 Copilot 目标生成标题和说明
 
+### 5. Codex doctor 自检
+
+如果目标宿主是 Codex，安装和 MCP 注册后优先运行统一自检：
+
+```powershell
+doc-based-coding doctor --profile codex
+```
+
+该命令输出统一 self-check JSON。第一版至少包含
+`codex.mcp_exposure`，用于判断项目级 `.codex/config.toml` 是否存在、
+用户级 Codex config 是否信任当前项目，以及 `codex mcp list` 是否能看到
+enabled 的 doc-based-coding MCP server。
+
+其他第一批 doctor profile：
+
+```powershell
+doc-based-coding doctor --profile opencode
+doc-based-coding doctor --profile scheduler
+doc-based-coding doctor --profile all
+```
+
+- `opencode.cli_readiness` 只检查 OpenCode CLI 是否可见，不运行
+  OpenCode provider task。
+- `scheduler.storage_visibility` 只读检查默认 scheduler 存储目录、
+  snapshot 和 event log 是否存在/可读，不推进 scheduler。
+
 ## MCP 安装态接入
 
 ### 当前 MCP 运行情况
@@ -216,6 +242,20 @@ args = []
 cwd = "."
 ```
 
+Codex 只会加载当前有效配置层中的 MCP server。若使用项目级
+`.codex/config.toml`，必须先让 Codex 信任该项目；否则 `codex mcp list`
+或 `codex doctor` 可能仍显示 `MCP servers 0`，即使项目内配置文件已经
+存在且 `doc-based-coding-mcp` 本身可以正常启动。此时应在用户级
+`~/.codex/config.toml` 中确认目标项目有 trusted 记录，例如 Windows：
+
+```toml
+[projects.'c:\path\to\target-repo']
+trust_level = "trusted"
+```
+
+修改 trust 或 MCP 配置后，应重启当前 Codex CLI / VS Code Codex 插件
+会话；已运行的 MCP host 通常不会热加载新增 server。
+
 如果你更习惯命令式注册，也可以在目标项目根目录运行：
 
 ```powershell
@@ -263,6 +303,28 @@ macOS / Linux 示例：
 - `cwd` 指向目标项目根目录
 - 不再依赖发布者工作区中的 `src.mcp.server` 或固定 `.venv-mcp`
 - 不依赖某个特定 MCP 客户端专有的源码路径约定
+
+### Codex MCP 暴露排障顺序
+
+如果 Codex 中看不到 `localTrajectory`、`check_constraints` 等工具，先按
+下面顺序切分问题：
+
+0. 先运行安装态只读诊断：
+   `doc-based-coding doctor --profile codex`
+   其中 `codex.mcp_exposure` 会报告项目级 `.codex/config.toml`、trusted
+   状态、`codex mcp list` 摘要，以及推荐修复动作。
+1. 验证 server 进程自身可启动：
+   `.\.venv\Scripts\doc-based-coding-mcp.exe --help`
+2. 验证 Codex 是否加载了 MCP 注册：
+   `codex -C <target-repo> mcp list`
+3. 若第 2 步显示 `No MCP servers configured` 或 `codex doctor` 显示
+   `MCP servers 0`，优先检查项目是否 trusted，以及当前会话是否已重启。
+4. 若 `codex mcp list` 能看到 server，但工具发现仍缺失，再检查 server
+   使用的 `command`、`args`、`cwd` 是否指向目标项目，以及是否连接了旧
+   MCP 进程。
+5. 若要区分“包未暴露工具”与“Codex 未加载配置”，可用真实 MCP client
+   对同一启动命令执行 `tools/list`；若其中包含 `localTrajectory`，问题
+   就在 Codex 注册/加载层，而不是 runtime 包或 MCP server 工具声明层。
 
 ## 与 adoption 文档的关系
 

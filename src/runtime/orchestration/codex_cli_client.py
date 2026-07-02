@@ -84,17 +84,19 @@ class CodexCliProcessClient:
     def exec(self, request: CodexCliRequest) -> CodexCliResult:
         """Run one bounded Codex CLI task and return a compact result."""
 
-        self.validate_host_ready()
+        executable = self.validate_host_ready()
         prompt = self._build_prompt(request)
         with tempfile.TemporaryDirectory(prefix="dbc-codex-cli-") as temp_dir:
             output_path = Path(temp_dir) / "last-message.txt"
-            command = self._build_command(request, output_path)
+            command = self._build_command(request, output_path, executable=executable)
             try:
                 cwd = self._execution_cwd(request)
                 completed = self._runner(
                     command,
                     input=prompt,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     capture_output=True,
                     cwd=cwd,
                     timeout=self.config.timeout_seconds,
@@ -145,15 +147,17 @@ class CodexCliProcessClient:
                 metadata=self._result_metadata(completed, request),
             )
 
-    def validate_host_ready(self) -> None:
+    def validate_host_ready(self) -> str:
         """Fail closed before scheduler execution when Codex CLI is missing."""
 
-        if not self._which(self.config.executable):
+        resolved = self._which(self.config.executable)
+        if not resolved:
             raise CodexCliRuntimeError(
                 error_kind="cli_unavailable",
                 summary=f"Codex CLI executable is unavailable: {self.config.executable}",
                 raw_error_type="MissingExecutable",
             )
+        return resolved
 
     def host_readiness_report(self) -> CodexCliHostReadinessReport:
         """Return credential-safe readiness details without executing a task."""
@@ -182,9 +186,11 @@ class CodexCliProcessClient:
         self,
         request: CodexCliRequest,
         output_path: Path,
+        *,
+        executable: str | None = None,
     ) -> list[str]:
         command = [
-            self.config.executable,
+            executable or self.config.executable,
             "exec",
             "--output-last-message",
             str(output_path),
@@ -192,9 +198,14 @@ class CodexCliProcessClient:
             self.config.color,
             "--sandbox",
             self.config.sandbox,
-            "--ask-for-approval",
-            self.config.ask_for_approval,
         ]
+        if self.config.ask_for_approval:
+            command.extend(
+                [
+                    "--config",
+                    f"approval_policy={json_toml_string(self.config.ask_for_approval)}",
+                ]
+            )
         cwd = str(self.config.cwd or "")
         if request.task.runtime_workspace_root:
             cwd = request.task.runtime_workspace_root
@@ -309,3 +320,10 @@ def _compact_summary(value: Any) -> str:
     if len(first_line) <= 160:
         return first_line
     return first_line[:157].rstrip() + "..."
+
+
+def json_toml_string(value: str) -> str:
+    """Return a quoted scalar accepted by Codex ``--config key=value``."""
+
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'

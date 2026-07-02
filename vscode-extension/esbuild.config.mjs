@@ -31,6 +31,7 @@ const webviewBuildOptions = {
     entryPoints: {
         progressGraphV2Engine: 'src/webviews/progressGraphV2Engine.ts',
         localWorkTrajectory: 'src/webviews/localWorkTrajectory.tsx',
+        monitoringDashboard: 'src/webviews/monitoringDashboard.tsx',
         knowledgeGraphForceWorker: 'node_modules/@note-web/knowledge-graph-engine/src/layout/force-worker.js',
     },
     bundle: true,

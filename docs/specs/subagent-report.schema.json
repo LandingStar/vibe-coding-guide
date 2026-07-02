@@ -37,6 +37,10 @@
       "items": { "$ref": "#/$defs/artifactPayload" },
       "description": "Optional structured content payloads for future writeback planning. Presence does not imply the payload has already been written back."
     },
+    "trajectory_update": {
+      "$ref": "#/$defs/trajectoryUpdate",
+      "description": "Optional worker-authored progress/status suggestion for the leader to consume into Local Work Trajectory. Workers must not mutate localTrajectory directly."
+    },
     "verification_results": {
       "type": "array",
       "items": { "type": "string" },
@@ -85,6 +89,54 @@
           "type": "string",
           "description": "Declared content type for downstream writeback mapping.",
           "enum": ["markdown", "json", "yaml", "text"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "trajectoryUpdate": {
+      "type": "object",
+      "required": [
+        "lane_id",
+        "task_id",
+        "event_status",
+        "summary",
+        "suggested_action"
+      ],
+      "properties": {
+        "lane_id": {
+          "type": "string",
+          "description": "Lane or context id the worker report applies to.",
+          "minLength": 1
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Scheduler task, contract, or worker task id that produced this report.",
+          "minLength": 1
+        },
+        "event_status": {
+          "type": "string",
+          "description": "Worker-observed state for leader-side trajectory integration.",
+          "enum": ["completed", "partial", "blocked", "waiting", "in_progress"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Concise worker progress/status summary for the leader.",
+          "minLength": 1
+        },
+        "suggested_action": {
+          "type": "string",
+          "description": "Suggested leader-side Local Work Trajectory action. This is advisory and does not mutate trajectory by itself.",
+          "enum": ["append", "advance", "block", "wait", "resume", "close", "none"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Artifacts, commands, or report refs that support the suggested update."
+        },
+        "leader_notes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Notes for the leader/supervisor before it mutates Local Work Trajectory."
         }
       },
       "additionalProperties": false

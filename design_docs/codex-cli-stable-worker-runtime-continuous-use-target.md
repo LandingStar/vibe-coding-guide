@@ -391,6 +391,37 @@ Non-goals:
 3. No live Codex process resume.
 4. No automatic patch application or conflict resolution.
 
+### Gate C9 — Live Codex Concurrent Worker Smoke
+
+Status: proposed in
+`design_docs/stages/planning-gate/2026-06-28-live-codex-concurrent-worker-smoke.md`.
+
+Purpose: prove the C8 concurrency path with live Codex CLI worker invocations,
+not only fake-client overlap.
+
+Acceptance:
+
+1. A repeatable test workspace run creates at least two independent
+   lane-distinct Codex worker tasks and one dependent fan-in task.
+2. The bounded supervisor runs with `max_concurrent_deliveries >= 2`.
+3. Runtime invocation audit contains compact started/finished timing for each
+   live Codex invocation.
+4. At least two lane-distinct live Codex worker invocations overlap in active
+   time, or the smoke is explicitly marked inconclusive with a diagnostic.
+5. The final report states worker task count, attempted live invocation count,
+   completed/failed/skipped counts, concurrent batch membership, and serialized
+   writeback evidence.
+6. Worker trajectory updates are consumed only through the leader-owned
+   `consumeWorkerTrajectoryReport` / CLI equivalent path.
+
+Non-goals:
+
+1. No daemon or long-lived worker pool.
+2. No distributed leases.
+3. No live process resume.
+4. No non-Codex provider concurrency.
+5. No automatic patch application.
+
 ## Recommended Order
 
 Recommended immediate order:
@@ -403,6 +434,7 @@ Recommended immediate order:
 6. C6: Multi-Lane Continuous Progress Fixture.
 7. C7: Operator / Guide-Agent Runtime Status Readback.
 8. C8: Codex Concurrent Delivery Gate.
+9. C9: Live Codex Concurrent Worker Smoke.
 
 Reasoning:
 
@@ -415,6 +447,9 @@ Reasoning:
 - C7 turns the machinery into an inspectable operator product.
 - C8 upgrades lane-aware scheduling into opt-in true process-level Codex
   runtime concurrency while keeping writeback serialized.
+- C9 upgrades the evidence quality from fake-client concurrency validation to
+  a repeatable live Codex worker smoke with durable overlap and worker-count
+  readback.
 
 ## Completion Audit
 
@@ -455,10 +490,17 @@ Acceptance evidence is recorded in:
 - `design_docs/stages/planning-gate/2026-06-26-codex-result-consumer-contract.md`
 - `design_docs/stages/planning-gate/2026-06-26-codex-delivery-supervisor-loop.md`
 
-As of 2026-06-28, the follow-up C8 gate also closes the previously deferred
-process-level concurrency gap for independent lane-distinct Codex delivery:
+As of 2026-06-28, the follow-up C8 gate closes the implementation-level
+process concurrency gap for independent lane-distinct Codex delivery through
+fake-client overlap validation:
 
 - `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
+
+A separate live evidence gate remains proposed because the inspected
+test-workspace artifacts prove scheduler-level parallel waves and fake-runtime
+worker records, but not live Codex CLI process-level worker overlap:
+
+- `design_docs/stages/planning-gate/2026-06-28-live-codex-concurrent-worker-smoke.md`
 
 ## Current Distance Estimate
 
@@ -469,16 +511,19 @@ From the current repository state:
 3. Review-safe real coding worker use: C1 through C5.
 4. Multi-lane usable worker runtime: C1 through C6.
 5. Operator-friendly routine use: C1 through C7.
-6. Opt-in process-concurrent lane-distinct Codex delivery: C1 through C8.
+6. Opt-in process-concurrent lane-distinct Codex delivery implementation:
+   C1 through C8.
+7. Live Codex worker concurrency evidence in a repeatable test workspace:
+   C1 through C9.
 
 The project now has the C1 through C8 foundation for review-safe, recoverable,
 multi-lane Codex worker delivery with compact operator / guide-agent status
 readback and explicit opt-in process-level runtime concurrency for independent
 lane-distinct delivery records. It satisfies this document's first stable
-continuous-use target and the follow-up C8 concurrency gate while leaving
-daemonization, persistent monitoring UI, distributed worker leases, live Codex
-process resume, live-provider throughput validation, and automatic patch
-application as explicit later product work.
+continuous-use target and the C8 implementation gate while leaving live Codex
+concurrent-worker smoke evidence, daemonization, persistent monitoring UI,
+distributed worker leases, live Codex process resume, live-provider throughput
+validation, and automatic patch application as explicit later product work.
 
 ## Explicit Non-Goals For The Target
 

@@ -15,6 +15,19 @@
     "Prepared a structured markdown payload candidate for the planning-gate artifact.",
     "Confirmed the candidate still links back to the status board and phase map."
   ],
+  "trajectory_update": {
+    "lane_id": "lane:planning",
+    "task_id": "contract-doc-loop-worker-001",
+    "event_status": "completed",
+    "summary": "Worker prepared the planning-gate payload candidate and is ready for leader review.",
+    "suggested_action": "advance",
+    "evidence_refs": [
+      "design_docs/stages/planning-gate/Next Slice Candidate.md"
+    ],
+    "leader_notes": [
+      "Leader should advance Local Work Trajectory only after reviewing the payload candidate."
+    ]
+  },
   "unresolved_items": [
     "The acceptance section still needs the exact automated regression command."
   ],

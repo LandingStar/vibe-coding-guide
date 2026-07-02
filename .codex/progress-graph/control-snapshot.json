@@ -1,61 +1,227 @@
 {
   "snapshot_version": "v1alpha1",
   "snapshot_kind": "orchestration-bridge-compact",
-  "generated_at": "2026-06-06T18:13:18.875328+00:00",
+  "generated_at": "2026-06-27T06:11:08.031512+00:00",
   "work_items": [
     {
-      "work_item_id": "doc-loop-work::2026-05-27-knowledge-graph-engine-progress-preview-integration",
-      "lifecycle_state": "completed",
-      "rollup_surface_kind": "none",
-      "rollup_surface_state": "",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "lifecycle_state": "waiting_external_resolution",
+      "rollup_surface_kind": "grouped_review",
+      "rollup_surface_state": "review_required",
       "rollup_blocked_reason": null,
-      "rollup_writeback_disposition": "eligible",
+      "rollup_writeback_disposition": "pending",
       "dominant_group_item_ids": [
-        "doc-loop-group::2026-05-27-knowledge-graph-engine-progress-preview-integration::planning-gate"
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::planning-gate",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:007",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:008",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:009",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:010",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:011",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:012"
       ],
-      "open_group_item_count": 0,
-      "source_trace_id": "2026-06-02T10:09:03+08:00"
+      "open_group_item_count": 7,
+      "source_trace_id": null
     },
     {
-      "work_item_id": "doc-loop-work::handoff::knowledge-graph-engine-progress-preview-integration",
+      "work_item_id": "doc-loop-work::handoff::evidence-publish-to-consumer-closure",
       "lifecycle_state": "completed",
       "rollup_surface_kind": "group_terminal",
       "rollup_surface_state": "handoff",
       "rollup_blocked_reason": null,
       "rollup_writeback_disposition": "none",
       "dominant_group_item_ids": [
-        "doc-loop-group::handoff::knowledge-graph-engine-progress-preview-integration::current-mirror"
+        "doc-loop-group::handoff::evidence-publish-to-consumer-closure::current-mirror"
       ],
       "open_group_item_count": 0,
-      "source_trace_id": "2026-06-02T10:16:21+08:00"
+      "source_trace_id": "2026-06-22T18:23:48+08:00"
     }
   ],
   "group_items": [
     {
-      "group_item_id": "doc-loop-group::2026-05-27-knowledge-graph-engine-progress-preview-integration::planning-gate",
-      "work_item_id": "doc-loop-work::2026-05-27-knowledge-graph-engine-progress-preview-integration",
-      "task_group_id": "design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md",
-      "child_task_ids": [],
-      "lifecycle_state": "settled",
-      "governance_surface_kind": "none",
-      "governance_surface_state": "",
-      "current_gate_state": "active",
-      "writeback_disposition": "eligible",
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::planning-gate",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:007",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:008",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:009",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:010",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:011",
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:012"
+      ],
+      "lifecycle_state": "dispatched",
+      "governance_surface_kind": "grouped_review",
+      "governance_surface_state": "review_required",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
       "delivery_surface_kind": "none",
       "delivery_state": "",
       "blocked_reason": "",
-      "open_items": [],
+      "open_items": [
+        "Finish prompt updates in `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` and bootstrap copy.",
+        "Update `design_docs/tooling/MCP Tool Surface Audit.md` without claiming a new MCP tool exists.",
+        "Rerun focused runtime, CLI, prompt, diff-check, and change-analysis validation.",
+        "If validation passes, close the planning gate and write back Checklist / Phase Map / review / follow-up docs.",
+        "Stage only slice-relevant files and commit.",
+        "Formalize Checklist recovery-surface redesign after the active closure slice:"
+      ],
       "authoritative_refs": [
-        "design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md",
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
         ".codex/checkpoints/latest.md"
       ],
-      "latest_trace_id": "2026-06-02T10:09:03+08:00",
+      "latest_trace_id": null,
       "latest_envelope_id": null,
       "actor_label": null
     },
     {
-      "group_item_id": "doc-loop-group::handoff::knowledge-graph-engine-progress-preview-integration::current-mirror",
-      "work_item_id": "doc-loop-work::handoff::knowledge-graph-engine-progress-preview-integration",
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:007",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "Finish prompt updates in `.codex/prompts/doc-loop/07-scheduler-mcp-smoke.md` and bootstrap copy."
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md",
+        ".codex/prompts/doc-loop/07-scheduler-mcp-smoke.md"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:008",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "Update `design_docs/tooling/MCP Tool Surface Audit.md` without claiming a new MCP tool exists."
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md",
+        "design_docs/tooling/MCP"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:009",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "Rerun focused runtime, CLI, prompt, diff-check, and change-analysis validation."
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:010",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "If validation passes, close the planning gate and write back Checklist / Phase Map / review / follow-up docs."
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:011",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "Stage only slice-relevant files and commit."
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:012",
+      "work_item_id": "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure",
+      "task_group_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "child_task_ids": [],
+      "lifecycle_state": "prepared",
+      "governance_surface_kind": "none",
+      "governance_surface_state": "",
+      "current_gate_state": "waiting_review",
+      "writeback_disposition": "pending",
+      "delivery_surface_kind": "none",
+      "delivery_state": "",
+      "blocked_reason": "",
+      "open_items": [
+        "Formalize Checklist recovery-surface redesign after the active closure slice:"
+      ],
+      "authoritative_refs": [
+        "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+        ".codex/checkpoints/latest.md"
+      ],
+      "latest_trace_id": null,
+      "latest_envelope_id": null,
+      "actor_label": null
+    },
+    {
+      "group_item_id": "doc-loop-group::handoff::evidence-publish-to-consumer-closure::current-mirror",
+      "work_item_id": "doc-loop-work::handoff::evidence-publish-to-consumer-closure",
       "task_group_id": ".codex/handoffs/CURRENT.md",
       "child_task_ids": [],
       "lifecycle_state": "settled",
@@ -67,53 +233,125 @@
       "delivery_state": "delivered",
       "blocked_reason": "",
       "open_items": [
-        "current handoff: 2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close",
-        "source path: .codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md"
+        "current handoff: 2026-06-22_1823_evidence-publish-to-consumer-closure_wip-safe-stop",
+        "source path: .codex/handoffs/history/2026-06-22_1823_evidence-publish-to-consumer-closure_wip-safe-stop.md"
       ],
       "authoritative_refs": [
         ".codex/handoffs/CURRENT.md",
-        ".codex/handoffs/history/2026-06-02_1016_knowledge-graph-engine-progress-preview-integration_stage-close.md"
+        ".codex/handoffs/history/2026-06-22_1823_evidence-publish-to-consumer-closure_wip-safe-stop.md"
       ],
-      "latest_trace_id": "2026-06-02T10:16:21+08:00",
+      "latest_trace_id": "2026-06-22T18:23:48+08:00",
       "latest_envelope_id": null,
       "actor_label": null
     }
   ],
   "bindings": [
     {
-      "binding_id": "binding::2026-05-27-knowledge-graph-engine-progress-preview-integration::planning-gate",
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::planning-gate",
       "binding_kind": "node",
       "graph_id": "planning-gates-index",
-      "graph_target_id": "design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md",
-      "graph_target_key": "planning-gates-index::design_docs/stages/planning-gate/2026-05-27-knowledge-graph-engine-progress-preview-integration.md",
+      "graph_target_id": "design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
+      "graph_target_key": "planning-gates-index::design_docs/stages/planning-gate/2026-06-22-evidence-publish-to-consumer-closure.md",
       "work_item_ids": [
-        "doc-loop-work::2026-05-27-knowledge-graph-engine-progress-preview-integration"
+        "doc-loop-work::2026-06-22-evidence-publish-to-consumer-closure"
       ],
       "group_item_ids": [
-        "doc-loop-group::2026-05-27-knowledge-graph-engine-progress-preview-integration::planning-gate"
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::planning-gate"
       ],
       "binding_reason": "explicit-node-ref"
     },
     {
-      "binding_id": "binding::handoff::knowledge-graph-engine-progress-preview-integration::current-mirror",
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:007",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:007",
+      "graph_target_key": "checkpoint-current::todo:007",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:007"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:008",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:008",
+      "graph_target_key": "checkpoint-current::todo:008",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:008"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:009",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:009",
+      "graph_target_key": "checkpoint-current::todo:009",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:009"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:010",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:010",
+      "graph_target_key": "checkpoint-current::todo:010",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:010"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:011",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:011",
+      "graph_target_key": "checkpoint-current::todo:011",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:011"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::2026-06-22-evidence-publish-to-consumer-closure::todo:012",
+      "binding_kind": "node",
+      "graph_id": "checkpoint-current",
+      "graph_target_id": "todo:012",
+      "graph_target_key": "checkpoint-current::todo:012",
+      "work_item_ids": [],
+      "group_item_ids": [
+        "doc-loop-group::2026-06-22-evidence-publish-to-consumer-closure::todo:012"
+      ],
+      "binding_reason": "explicit-node-ref"
+    },
+    {
+      "binding_id": "binding::handoff::evidence-publish-to-consumer-closure::current-mirror",
       "binding_kind": "unbound-runtime-panel",
       "graph_id": null,
       "graph_target_id": null,
       "graph_target_key": null,
       "work_item_ids": [
-        "doc-loop-work::handoff::knowledge-graph-engine-progress-preview-integration"
+        "doc-loop-work::handoff::evidence-publish-to-consumer-closure"
       ],
       "group_item_ids": [
-        "doc-loop-group::handoff::knowledge-graph-engine-progress-preview-integration::current-mirror"
+        "doc-loop-group::handoff::evidence-publish-to-consumer-closure::current-mirror"
       ],
       "binding_reason": "current-handoff-mirror"
     }
   ],
   "summary": {
-    "open_work_item_count": 0,
+    "open_work_item_count": 1,
     "blocked_work_item_count": 0,
-    "waiting_external_resolution_count": 0,
-    "active_group_item_count": 0,
+    "waiting_external_resolution_count": 1,
+    "active_group_item_count": 7,
     "unbound_group_item_count": 0
   }
 }

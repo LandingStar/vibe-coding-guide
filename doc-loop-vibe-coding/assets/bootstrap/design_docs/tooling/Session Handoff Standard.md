@@ -1,10 +1,10 @@
 # Session Handoff Standard
 
-## 文档定位
+## 1. 文档定位
 
 本文件定义 `{{PROJECT_NAME}}` 在多会话切换时使用的标准 handoff 规则。
 
-## 适用范围
+## 2. 适用范围
 
 本标准适用于：
 
@@ -14,7 +14,7 @@
 
 本标准不服务于任意中途暂停的随手总结。
 
-## 权威优先级
+## 3. 权威来源与优先级
 
 handoff 不是最高真相来源。
 
@@ -25,7 +25,7 @@ handoff 不是最高真相来源。
 3. 正式设计文档与协议文档
 4. 当前 active handoff
 
-## 安全停点
+## 4. Handoff 类型与安全停点
 
 只有当以下条件同时成立时，才应生成正式 handoff：
 
@@ -47,7 +47,7 @@ safe-stop close 不只包含 handoff 本身，还应包含一组 writeback bundl
 
 同时还要按实际情况判断条件项，例如是否清除 active planning-gate 标记、是否 supersede 旧 active canonical handoff、是否同步协议文档。
 
-## Core Fields
+## 5. Core Fields
 
 每个 handoff 默认至少应包含：
 
@@ -61,7 +61,7 @@ safe-stop close 不只包含 handoff 本身，还应包含一组 writeback bundl
 
 若 handoff 涉及需要 review 的 artifact（如设计结论、phase-close proposal），应在 `Open Items` 或 `Next Step Contract` 中注明该 artifact 在 review state machine 中的当前状态（`proposed` / `waiting_review` / `approved` / `rejected` / `revised` / `applied`）。
 
-## 接手流程
+## 6. 接手流程
 
 接手方默认按以下顺序恢复上下文：
 
@@ -72,7 +72,7 @@ safe-stop close 不只包含 handoff 本身，还应包含一组 writeback bundl
 
 若 intake 结果为 `blocked`，必须停止并显式暴露阻断原因；若结果不是 `blocked`，model 可以继续执行当前合同。
 
-## 禁止事项
+## 7. 禁止事项
 
 handoff 中禁止：
 

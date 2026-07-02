@@ -16,6 +16,7 @@ import { ConfigExplorerProvider } from './views/configExplorer';
 import { ConfigPanelProvider } from './views/configPanel';
 import { regenerateProgressGraphArtifacts } from './views/progressGraphArtifacts';
 import { ProgressGraphPreviewPanel } from './views/progressGraphPreview';
+import { MonitoringPanel } from './views/monitoringPanel';
 import { GovernanceStatusBar } from './views/statusBar';
 import { MCPGovernanceInterceptor, registerGovernanceListeners } from './governance/interceptor';
 import { ReviewPanelProvider } from './governance/reviewPanel';
@@ -256,6 +257,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
     context.subscriptions.push(progressGraphPreviewPanel);
 
+    const monitoringPanel = new MonitoringPanel(context.extensionUri, outputChannel);
+    context.subscriptions.push(monitoringPanel);
+
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand('docBasedCoding.refreshConstraints', async () => {
@@ -359,6 +363,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 return;
             }
             await progressGraphPreviewPanel?.revealArtifact(workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.openMonitoringDashboard', async () => {
+            const workspace = vscode.workspace.workspaceFolders?.[0];
+            if (!workspace) {
+                vscode.window.showWarningMessage('Open a workspace folder to load the monitoring dashboard.');
+                return;
+            }
+            await monitoringPanel.open(workspace);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docBasedCoding.refreshMonitoringDashboard', async () => {
+            const workspace = vscode.workspace.workspaceFolders?.[0];
+            if (!workspace) {
+                vscode.window.showWarningMessage('Open a workspace folder to refresh the monitoring dashboard.');
+                return;
+            }
+            await monitoringPanel.refresh(workspace);
         }),
     );
 

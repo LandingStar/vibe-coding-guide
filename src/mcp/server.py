@@ -563,7 +563,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "sourceNodeId, or pass neither to clear the anchor. "
                     "After validation or delivery completes, keep advancing until completed "
                     "milestones are not left pending or in_progress. This writes only the "
-                    "local trajectory metadata artifact, not source files."
+                    "local trajectory metadata artifact, not source files. Direct mutation is "
+                    "leader/main/supervisor authority; bounded workers/subagents must report "
+                    "trajectory changes through Subagent Report.trajectory_update; see "
+                    "docs/worker-trajectory-update-reporting.md for the worker report path."
                 ),
                 inputSchema={
                     "type": "object",
@@ -773,8 +776,102 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                             "type": "string",
                             "description": "Global progress graph node id for start or setAnchor. Provide with sourceGraphId, or omit both to start unanchored / clear the anchor.",
                         },
+                        "callerRole": {
+                            "type": "string",
+                            "enum": [
+                                "leader",
+                                "main",
+                                "supervisor",
+                                "guide",
+                                "worker",
+                                "subagent",
+                                "lane_worker",
+                                "bounded_worker",
+                            ],
+                            "description": "Optional caller role. Omitted preserves leader/main compatibility. Worker/subagent roles are rejected and must use Subagent Report.trajectory_update instead; see docs/worker-trajectory-update-reporting.md.",
+                        },
                     },
                     "required": ["action"],
+                },
+            ),
+            Tool(
+                name="consumeWorkerTrajectoryReport",
+                description=(
+                    "Leader/main/supervisor-side consumer for a worker "
+                    "Subagent Report.trajectory_update section. Reads one report "
+                    "JSON file, validates it against docs/specs/subagent-report.schema.json, "
+                    "and maps only the safe first-version suggested actions "
+                    "append, advance, block, wait, resume, close, or none into "
+                    "leader-owned Local Work Trajectory mutation. Worker/subagent "
+                    "caller roles are denied; workers must write the report field "
+                    "described in docs/worker-trajectory-update-reporting.md. This "
+                    "does not run providers, mutate scheduler state, or consume "
+                    "ExchangeArtifact lifecycle state."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "reportPath": {
+                            "type": "string",
+                            "description": "Path to a worker Subagent Report JSON file. Relative paths resolve under the MCP project root.",
+                        },
+                        "callerRole": {
+                            "type": "string",
+                            "enum": [
+                                "leader",
+                                "main",
+                                "supervisor",
+                                "guide",
+                                "worker",
+                                "subagent",
+                                "lane_worker",
+                                "bounded_worker",
+                            ],
+                            "description": "Caller role. Leader/main/supervisor/guide roles may consume. Worker/subagent roles are rejected and must use Subagent Report.trajectory_update only.",
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Leader/supervisor actor recorded in the audit payload.",
+                        },
+                        "currentEventId": {
+                            "type": "string",
+                            "description": "Optional existing trajectory event id for advance/block/wait/resume/close.",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Optional event title for append/start. Defaults to trajectory_update.task_id.",
+                        },
+                        "eventKind": {
+                            "type": "string",
+                            "enum": [
+                                "start",
+                                "task",
+                                "decision",
+                                "review",
+                                "wait",
+                                "validation",
+                                "writeback",
+                                "handoff",
+                                "compound",
+                                "merge",
+                                "close",
+                            ],
+                            "description": "Event kind for append/start. Defaults to task.",
+                        },
+                        "startIfMissing": {
+                            "type": "boolean",
+                            "description": "When true, append creates a minimal Local Work Trajectory if none exists. Default true.",
+                        },
+                        "trajectoryTitle": {
+                            "type": "string",
+                            "description": "Trajectory title when append starts a missing trajectory.",
+                        },
+                        "guideContext": {
+                            "type": "string",
+                            "description": "Guide context stored when append starts a missing trajectory.",
+                        },
+                    },
+                    "required": ["reportPath"],
                 },
             ),
             Tool(
@@ -2897,6 +2994,19 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 target_endpoint_compound_path=arguments.get("targetEndpointCompoundPath", ""),
                 source_graph_id=arguments.get("sourceGraphId", ""),
                 source_node_id=arguments.get("sourceNodeId", ""),
+                caller_role=arguments.get("callerRole", ""),
+            )
+        elif name == "consumeWorkerTrajectoryReport":
+            result = tools.consume_worker_trajectory_report(
+                report_path=arguments.get("reportPath", ""),
+                caller_role=arguments.get("callerRole", "leader"),
+                actor=arguments.get("actor", "leader"),
+                current_event_id=arguments.get("currentEventId", ""),
+                title=arguments.get("title", ""),
+                event_kind=arguments.get("eventKind", "task"),
+                start_if_missing=arguments.get("startIfMissing", True),
+                trajectory_title=arguments.get("trajectoryTitle", "Local Work Trajectory"),
+                guide_context=arguments.get("guideContext", "worker-trajectory-report-consumer"),
             )
         elif name == "schedulerProjection":
             result = tools.scheduler_projection(

@@ -5,7 +5,8 @@
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
 - Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.
 - Leader-worker is the recommended execution structure for single-lane Local Work and the required structure for Local Work with two or more lanes. In multi-lane work, lane workers may be inactive while waiting for dependencies, review, or leader messages; the leader may also be inactive while waiting for worker feedback. Treat message-driven reactivation and mailbox/history audit as part of the orchestration contract, not as optional chat bookkeeping.
-- When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` as soon as a distinct work context begins, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
+- Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put trajectory/status suggestions in their `Subagent Report.trajectory_update`, and the leader/main agent consumes the report before mutating Local Work Trajectory. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.
+- When MCP exposes `localTrajectory` to a leader/main/supervisor, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` as soon as a distinct work context begins, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
 - When calling `localTrajectory start`, include `sourceGraphId` and `sourceNodeId` if a visible owning progress-map node is known so the trajectory is attached from birth. Use `localTrajectory setAnchor` when the current trajectory should move later; pass both `sourceGraphId` and `sourceNodeId`, or pass neither to clear the anchor. Prefer visible current-phase, active-slice, or planning-gate nodes over leaving task work unanchored.
 - Use `localTrajectory addCompound` when a planned phase should appear as one large event with its own child trajectory; it does not pack or move existing events.
 - Use `localTrajectory packRange` only to pack an existing continuous same-lane event interval into one compound event while preserving the interval in the child trajectory.
@@ -59,6 +60,7 @@
 - 主 agent 负责权威文档、集成和最终 write-back。
 - 子 agent 只处理被明确写入合同的窄切片。
 - 共享状态文档默认不交给子 agent 直接维护。
+- 子 agent / worker 不直接维护 Local Work Trajectory；其进度、阻塞、完成和建议推进动作必须写入 `Subagent Report.trajectory_update`，由主 agent / leader 审核后执行 `localTrajectory`。固定流程文档：`docs/worker-trajectory-update-reporting.md`。
 
 对话行为约束（始终有效，不因上下文压缩后失效）：
 

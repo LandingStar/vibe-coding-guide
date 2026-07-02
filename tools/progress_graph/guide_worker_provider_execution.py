@@ -28,6 +28,11 @@ from src.runtime.orchestration import (
     InMemoryArtifactVersionStore,
     JsonArtifactVersionStore,
     JsonlRuntimeInvocationLog,
+    OpenCodeCliClient,
+    OpenCodeCliClientConfig,
+    OpenCodeCliProcessClient,
+    OpenCodeCliRequest,
+    OpenCodeCliResult,
     QoderQueryClient,
     QoderQueryRequest,
     QoderQueryResult,
@@ -84,6 +89,7 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     providers: tuple[RuntimeProviderKind, ...] = ("qoder",)
     qoder_client_config: QoderSDKQueryClientConfig = field(default_factory=QoderSDKQueryClientConfig)
     codex_cli_client_config: CodexCliClientConfig = field(default_factory=CodexCliClientConfig)
+    opencode_cli_client_config: OpenCodeCliClientConfig = field(default_factory=OpenCodeCliClientConfig)
     host_invocation_id: str = "host-owned-guide-worker-provider-execution"
     requested_by: str = "host:guide-worker-provider-execution"
     reason: str = "host-owned guide-worker provider execution"
@@ -231,6 +237,7 @@ def run_host_owned_guide_worker_provider_execution(
     config: HostOwnedGuideWorkerProviderExecutionConfig | None = None,
     qoder_query_client: QoderQueryClient | None = None,
     codex_cli_client: CodexCliClient | None = None,
+    opencode_cli_client: OpenCodeCliClient | None = None,
     sdk_importer: Callable[[str], Any] | None = None,
     environment: Mapping[str, str] | None = None,
     artifact_store: InMemoryArtifactVersionStore | None = None,
@@ -250,7 +257,15 @@ def run_host_owned_guide_worker_provider_execution(
     codex_client = codex_cli_client
     if "codex" in providers and codex_client is None:
         codex_client = CodexCliProcessClient(active_config.codex_cli_client_config)
-    _validate_real_runtime_client_ready(providers, qoder_client, codex_client)
+    opencode_client = opencode_cli_client
+    if "opencode" in providers and opencode_client is None:
+        opencode_client = OpenCodeCliProcessClient(active_config.opencode_cli_client_config)
+    _validate_real_runtime_client_ready(
+        providers,
+        qoder_client,
+        codex_client,
+        opencode_client,
+    )
 
     runtime_invocation_log = _runtime_invocation_log(project_root, active_config)
     retry_policy = RuntimeRetryPolicy(
@@ -272,6 +287,13 @@ def run_host_owned_guide_worker_provider_execution(
                 retry_policy=retry_policy,
                 host_invocation_id=active_config.host_invocation_id,
             )
+        if opencode_client is not None:
+            opencode_client = _AuditedOpenCodeCliClient(
+                inner=opencode_client,
+                log=runtime_invocation_log,
+                retry_policy=retry_policy,
+                host_invocation_id=active_config.host_invocation_id,
+            )
 
     host_invocation = _host_invocation(active_config, providers)
     runtime_config = _runtime_config(active_config, providers, host_invocation)
@@ -287,6 +309,7 @@ def run_host_owned_guide_worker_provider_execution(
         artifact_store=store,
         qoder_query_client=qoder_client,
         codex_cli_client=codex_client,
+        opencode_cli_client=opencode_client,
     )
     sandbox_registry = _sandbox_registry(project_root, active_config)
     request = GuideWorkerLocalOrchestrationRequest(
@@ -410,12 +433,24 @@ def _runtime_config(
             allow_process_spawn=config.allow_process_spawn,
             allow_network=config.allow_network,
         )
+    opencode_grant = None
+    if "opencode" in providers:
+        opencode_grant = RuntimeProviderPermissionGrant(
+            grant_id=config.grant_id,
+            provider="opencode",
+            approved_by=config.approved_by,
+            approved_at=approved_at,
+            scope=config.grant_scope,
+            allow_process_spawn=config.allow_process_spawn,
+            allow_network=config.allow_network,
+        )
     return RuntimeRegistryWiringConfig(
         providers=providers,
         timestamp=config.timestamp,
         host_invocation=host_invocation,
         qoder_permission_grant=qoder_grant,
         codex_permission_grant=codex_grant,
+        opencode_permission_grant=opencode_grant,
     )
 
 
@@ -437,7 +472,7 @@ def _normalize_providers(
 ) -> tuple[RuntimeProviderKind, ...]:
     normalized: list[RuntimeProviderKind] = []
     for provider in providers:
-        if provider not in {"fake", "qoder", "codex"}:
+        if provider not in {"fake", "qoder", "codex", "opencode"}:
             raise ValueError(f"unsupported guide-worker provider: {provider!r}")
         if provider not in normalized:
             normalized.append(provider)
@@ -534,8 +569,15 @@ def _effective_worker_instructions(
 def _default_worker_instructions(
     provider: RuntimeProviderKind = "qoder",
 ) -> tuple[GuideWorkerInstruction, ...]:
-    label = "Codex CLI" if provider == "codex" else "Qoder"
-    provider_slug = "codex" if provider == "codex" else "qoder"
+    if provider == "codex":
+        label = "Codex CLI"
+        provider_slug = "codex"
+    elif provider == "opencode":
+        label = "OpenCode CLI"
+        provider_slug = "opencode"
+    else:
+        label = "Qoder"
+        provider_slug = "qoder"
     return (
         GuideWorkerInstruction(
             task_id="task/guide-worker-provider/client",
@@ -576,6 +618,7 @@ def _validate_real_runtime_client_ready(
     providers: tuple[RuntimeProviderKind, ...],
     qoder_query_client: QoderQueryClient | None,
     codex_cli_client: CodexCliClient | None,
+    opencode_cli_client: OpenCodeCliClient | None,
 ) -> None:
     if "qoder" in providers and qoder_query_client is not None:
         validator = getattr(qoder_query_client, "validate_host_ready", None)
@@ -583,6 +626,10 @@ def _validate_real_runtime_client_ready(
             validator()
     if "codex" in providers and codex_cli_client is not None:
         validator = getattr(codex_cli_client, "validate_host_ready", None)
+        if callable(validator):
+            validator()
+    if "opencode" in providers and opencode_cli_client is not None:
+        validator = getattr(opencode_cli_client, "validate_host_ready", None)
         if callable(validator):
             validator()
 
@@ -839,6 +886,8 @@ def _evidence_metadata(
         "codex_cli_executable": config.codex_cli_client_config.executable,
         "codex_cli_sandbox": config.codex_cli_client_config.sandbox,
         "codex_cli_ask_for_approval": config.codex_cli_client_config.ask_for_approval,
+        "opencode_cli_executable": config.opencode_cli_client_config.executable,
+        "opencode_cli_output_format": config.opencode_cli_client_config.output_format,
         "planner_worker_runtime_provider": config.planner_worker_runtime_provider,
         "git_worktree_sandbox_opt_in": config.git_worktree_sandbox_root is not None,
         "git_worktree_sandbox_root": (
@@ -948,10 +997,45 @@ class _AuditedCodexCliClient:
         )
 
 
+class _AuditedOpenCodeCliClient:
+    """Host-owned audit/retry wrapper around the raw OpenCode CLI client seam."""
+
+    def __init__(
+        self,
+        *,
+        inner: OpenCodeCliClient,
+        log: JsonlRuntimeInvocationLog,
+        retry_policy: RuntimeRetryPolicy,
+        host_invocation_id: str,
+    ) -> None:
+        self.inner = inner
+        self.log = log
+        self.retry_policy = retry_policy
+        self.host_invocation_id = host_invocation_id
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        return run_with_runtime_invocation_audit(
+            invocation_id=_runtime_invocation_id(
+                "opencode",
+                self.host_invocation_id,
+                request,
+            ),
+            provider="opencode",
+            operation=lambda: self.inner.exec(request),
+            log=self.log,
+            retry_policy=self.retry_policy,
+            task_id=request.task.task_id,
+            session_id=request.session.session_id,
+            agent_id=request.agent.agent_id,
+            runtime_surface="host-owned-guide-worker-provider-execution",
+            metadata=_runtime_invocation_metadata(self.host_invocation_id, request),
+        )
+
+
 def _runtime_invocation_id(
     provider: RuntimeProviderKind,
     host_invocation_id: str,
-    request: QoderQueryRequest | CodexCliRequest,
+    request: QoderQueryRequest | CodexCliRequest | OpenCodeCliRequest,
 ) -> str:
     return ":".join(
         part
@@ -968,7 +1052,7 @@ def _runtime_invocation_id(
 
 def _runtime_invocation_metadata(
     host_invocation_id: str,
-    request: QoderQueryRequest | CodexCliRequest,
+    request: QoderQueryRequest | CodexCliRequest | OpenCodeCliRequest,
 ) -> dict[str, object]:
     return {
         "host_invocation_id": host_invocation_id,

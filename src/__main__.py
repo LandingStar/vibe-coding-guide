@@ -7,9 +7,12 @@ Installed entry point:
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
     doc-based-coding codex readiness           — Check Codex CLI host readiness
+    doc-based-coding opencode readiness        — Check OpenCode CLI host readiness
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
     doc-based-coding qoder smoke               — Run host-owned Qoder smoke helper
+    doc-based-coding worker-binding <subcommand> — Maintain continuous worker bindings
     doc-based-coding scheduler <subcommand>    — Scheduler operator helpers
+    doc-based-coding doctor                    — Run unified self-check diagnostics
     doc-based-coding generate-instructions     — Generate agent instructions segment
 
 Module entry point:
@@ -24,6 +27,7 @@ from __future__ import annotations
 import json
 import sys
 import traceback
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .runtime.bridge import RuntimeBridge
@@ -281,7 +285,13 @@ _QODER_GUIDE_WORKER_SMOKE_USAGE = (
 )
 
 _CODEX_READINESS_USAGE = (
-    "Usage: doc-based-coding codex readiness [--executable PATH]"
+    "Usage: doc-based-coding codex readiness [--executable PATH] [--project-root PATH]"
+)
+
+_DOCTOR_USAGE = (
+    "Usage: doc-based-coding doctor "
+    "[--profile codex|opencode|vscode|runtime|scheduler|mcp|all] "
+    "[--project-root PATH] [--timeout-seconds N]"
 )
 
 _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
@@ -303,12 +313,234 @@ _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
     "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
 )
 
+_OPENCODE_READINESS_USAGE = (
+    "Usage: doc-based-coding opencode readiness [--executable PATH]"
+)
+
+_OPENCODE_SERVE_READINESS_USAGE = (
+    "Usage: doc-based-coding opencode serve-readiness "
+    "[--executable PATH] [--hostname HOST] [--port N] [--attach-url URL] "
+    "[--health-path PATH] [--health-timeout-seconds N] [--require-healthy] "
+    "[--username-env-var NAME] [--password-env-var NAME]"
+)
+
+_OPENCODE_SERVER_API_READINESS_USAGE = (
+    "Usage: doc-based-coding opencode server-api-readiness "
+    "[--base-url URL] [--health-path PATH] [--doc-path PATH] [--check-doc] "
+    "[--timeout-seconds N] [--username-env-var NAME] [--password-env-var NAME]"
+)
+
+_OPENCODE_SERVE_LIFECYCLE_USAGE = (
+    "Usage: doc-based-coding opencode serve-lifecycle <record|inspect> [args]"
+)
+
+_OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE = (
+    "Usage: doc-based-coding opencode serve-lifecycle record "
+    "--action start|stop|restart|status|external "
+    "[--status planned|observed|succeeded|failed] "
+    "[--ledger-path PATH] [--executable PATH] [--hostname HOST] [--port N] "
+    "[--attach-url URL] [--receipt-id ID] [--timestamp TIMESTAMP] "
+    "[--pid PID] [--process-ref REF] [--actor ID] [--reason TEXT] "
+    "[--note TEXT] [--no-command-preview]"
+)
+
+_OPENCODE_SERVE_LIFECYCLE_INSPECT_USAGE = (
+    "Usage: doc-based-coding opencode serve-lifecycle inspect "
+    "[--ledger-path PATH] [--action start|stop|restart|status|external] "
+    "[--status planned|observed|succeeded|failed] [--latest-limit N]"
+)
+
+_OPENCODE_SESSION_USAGE = (
+    "Usage: doc-based-coding opencode session "
+    "<claim|release|inspect|recover-stale> [args]"
+)
+
+_OPENCODE_SESSION_CLAIM_USAGE = (
+    "Usage: doc-based-coding opencode session claim "
+    "--scope-kind lane|agent|task|custom --scope-id ID "
+    "--attach-url URL --session-id ID "
+    "[--ledger-path PATH] [--binding-id ID] [--owner-agent-id ID] "
+    "[--lane-id ID] [--worker-agent-id ID] [--reason TEXT] "
+    "[--timestamp TIMESTAMP] [--expires-at TIMESTAMP] [--no-replace-existing]"
+)
+
+_OPENCODE_SESSION_RELEASE_USAGE = (
+    "Usage: doc-based-coding opencode session release "
+    "(--binding-id ID | --scope-kind lane|agent|task|custom --scope-id ID) "
+    "[--ledger-path PATH] [--status released|expired] "
+    "[--timestamp TIMESTAMP] [--reason TEXT]"
+)
+
+_OPENCODE_SESSION_INSPECT_USAGE = (
+    "Usage: doc-based-coding opencode session inspect "
+    "[--ledger-path PATH] [--scope-kind lane|agent|task|custom] "
+    "[--scope-id ID] [--include-released]"
+)
+
+_OPENCODE_SESSION_RECOVER_STALE_USAGE = (
+    "Usage: doc-based-coding opencode session recover-stale "
+    "--now TIMESTAMP [--ledger-path PATH] [--timestamp TIMESTAMP] "
+    "[--expire-unhealthy] [--health-path PATH] [--health-timeout-seconds N] "
+    "[--username-env-var NAME] [--password-env-var NAME] [--reason TEXT]"
+)
+
+_WORKER_BINDING_USAGE = (
+    "Usage: doc-based-coding worker-binding "
+    "<claim|promote-server-api-session|inspect-promotion-candidates|lane-ownership|reuse|fork|compact|release|inspect|recover-stale> [args]"
+)
+
+_WORKER_BINDING_CLAIM_USAGE = (
+    "Usage: doc-based-coding worker-binding claim "
+    "--worker-id ID --runtime-provider fake|qoder|codex|opencode "
+    "--scope-kind lane|lane_group|agent|task --scope-id ID "
+    "[--lane-id ID ...] [--ledger-path PATH] [--event-log-path PATH] "
+    "[--binding-id ID] [--session-attach-url URL] [--session-id ID] "
+    "[--continue-session] [--fork-session] "
+    "[--compact-context-ref REF] [--mailbox-cursor-ref REF] "
+    "[--worker-report-ref REF ...] [--audit-ref REF ...] "
+    "[--timestamp TIMESTAMP] [--expires-at TIMESTAMP] [--reason TEXT] "
+    "[--no-replace-existing]"
+)
+
+_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE = (
+    "Usage: doc-based-coding worker-binding promote-server-api-session "
+    "--worker-id ID --scope-kind lane|lane_group|agent|task --scope-id ID "
+    "--attach-url URL --session-id ID "
+    "[--session-selector-source server_api_created] "
+    "[--lane-id ID ...] [--ledger-path PATH] [--event-log-path PATH] "
+    "[--claim-lane-ownership] [--lane-ownership-ledger-path PATH] "
+    "[--lane-ownership-event-log-path PATH] "
+    "[--binding-id ID] [--compact-context-ref REF] [--mailbox-cursor-ref REF] "
+    "[--worker-report-ref REF ...] [--audit-ref REF ...] "
+    "[--timestamp TIMESTAMP] [--expires-at TIMESTAMP] [--reason TEXT] "
+    "[--no-replace-existing]"
+)
+
+_WORKER_BINDING_LANE_OWNERSHIP_USAGE = (
+    "Usage: doc-based-coding worker-binding lane-ownership "
+    "<inspect|activate> [args]"
+)
+
+_WORKER_BINDING_LANE_OWNERSHIP_INSPECT_USAGE = (
+    "Usage: doc-based-coding worker-binding lane-ownership inspect "
+    "[--ledger-path PATH] [--ownership-id ID] [--scope-kind lane|lane_group] "
+    "[--scope-id ID] [--lane-id ID] [--binding-id ID] [--worker-id ID] "
+    "[--include-inactive]"
+)
+
+_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE = (
+    "Usage: doc-based-coding worker-binding lane-ownership activate "
+    "(--ownership-id ID | --binding-id ID) --delivery-id ID --task-id ID "
+    "[--ledger-path PATH] [--event-log-path PATH] [--activated-at TIMESTAMP] "
+    "[--audit-ref REF ...] [--reason TEXT]"
+)
+
+_WORKER_BINDING_INSPECT_PROMOTION_CANDIDATES_USAGE = (
+    "Usage: doc-based-coding worker-binding inspect-promotion-candidates "
+    "[--runtime-invocation-log-path PATH] [--latest-limit N] "
+    "[--include-incomplete] [--command-prefix TEXT]"
+)
+
+_WORKER_BINDING_REUSE_USAGE = (
+    "Usage: doc-based-coding worker-binding reuse "
+    "--binding-id ID [--ledger-path PATH] [--event-log-path PATH] "
+    "[--task-id ID] [--agent-id ID] [--lane-id ID] "
+    "[--audit-ref REF ...] [--timestamp TIMESTAMP] [--reason TEXT]"
+)
+
+_WORKER_BINDING_FORK_USAGE = (
+    "Usage: doc-based-coding worker-binding fork "
+    "--source-binding-id ID --scope-kind lane|lane_group|agent|task --scope-id ID "
+    "[--worker-id ID] [--new-binding-id ID] [--lane-id ID ...] "
+    "[--ledger-path PATH] [--event-log-path PATH] "
+    "[--session-attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
+    "[--compact-context-ref REF] [--mailbox-cursor-ref REF] "
+    "[--worker-report-ref REF ...] [--audit-ref REF ...] "
+    "[--timestamp TIMESTAMP] [--expires-at TIMESTAMP] [--reason TEXT]"
+)
+
+_WORKER_BINDING_COMPACT_USAGE = (
+    "Usage: doc-based-coding worker-binding compact "
+    "(--compact-context-ref REF | --build-context-bundle --summary TEXT) "
+    "(--binding-id ID | --scope-kind lane|lane_group|agent|task --scope-id ID) "
+    "[--ledger-path PATH] [--event-log-path PATH] "
+    "[--context-bundle-dir PATH] [--context-bundle-path PATH] [--bundle-id ID] "
+    "[--key-decision TEXT ...] [--current-state TEXT] [--artifact-ref REF ...] "
+    "[--mailbox-cursor-ref REF] [--worker-report-ref REF ...] "
+    "[--audit-ref REF ...] [--timestamp TIMESTAMP] [--reason TEXT]"
+)
+
+_WORKER_BINDING_RELEASE_USAGE = (
+    "Usage: doc-based-coding worker-binding release "
+    "(--binding-id ID | --scope-kind lane|lane_group|agent|task --scope-id ID) "
+    "[--ledger-path PATH] [--event-log-path PATH] "
+    "[--status released|stale|archived] [--timestamp TIMESTAMP] [--reason TEXT]"
+)
+
+_WORKER_BINDING_INSPECT_USAGE = (
+    "Usage: doc-based-coding worker-binding inspect "
+    "[--ledger-path PATH] [--runtime-provider fake|qoder|codex|opencode] "
+    "[--scope-kind lane|lane_group|agent|task] [--scope-id ID] "
+    "[--worker-id ID] [--lane-id ID] [--include-inactive]"
+)
+
+_WORKER_BINDING_RECOVER_STALE_USAGE = (
+    "Usage: doc-based-coding worker-binding recover-stale "
+    "--now TIMESTAMP [--ledger-path PATH] [--event-log-path PATH] "
+    "[--timestamp TIMESTAMP] [--reason TEXT]"
+)
+
+_OPENCODE_GUIDE_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding opencode guide-worker-smoke "
+    "[--executable PATH] [--cwd PATH] [--model NAME] "
+    "[--output-format text|json] "
+    "[--attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--evidence-id ID] [--evidence-path PATH] "
+    "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
+    "[--sandbox-allocation-evidence-path PATH] "
+    "[--host-invocation-id ID] [--reason TEXT] "
+    "[--runtime-invocation-log-path PATH] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N] "
+    "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
+    "[--max-parallel-lanes N] [--max-waves N] "
+    "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
+)
+
+_PROVIDER_GUIDE_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding provider guide-worker-smoke "
+    "[--providers codex,opencode] "
+    "[--codex-executable PATH] [--codex-cwd PATH] [--codex-model NAME] "
+    "[--codex-sandbox read-only|workspace-write|danger-full-access] "
+    "[--codex-ask-for-approval untrusted|on-request|never] "
+    "[--opencode-executable PATH] [--opencode-cwd PATH] [--opencode-model NAME] "
+    "[--opencode-output-format text|json] "
+    "[--opencode-attach-url URL] [--opencode-session-id ID] "
+    "[--opencode-continue-session] [--opencode-fork-session] "
+    "[--artifact-store-path PATH] [--admission-ledger-path PATH] "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--evidence-id ID] [--evidence-path PATH] "
+    "[--git-worktree-sandbox-root PATH] [--sandbox-allocation-evidence-id ID] "
+    "[--sandbox-allocation-evidence-path PATH] "
+    "[--host-invocation-id ID] [--reason TEXT] "
+    "[--runtime-invocation-log-path PATH] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N] "
+    "[--guide-task-title TEXT] [--guide-task-summary TEXT] "
+    "[--planner-lane LANE_ID=LABEL:FOCUS[:ARTIFACT,ARTIFACT[:SANDBOX_KIND]]] "
+    "[--planner-lane-provider LANE_ID=codex|opencode|qoder|fake] "
+    "[--max-parallel-lanes N] [--max-waves N] "
+    "[--wave-execution-mode serial|threaded] [--timestamp TIMESTAMP]"
+)
+
 
 def cmd_codex(args: list[str]) -> int:
     """Codex CLI host-runtime helper subcommands."""
     if not args or args[0] in ("-h", "--help"):
         print(
             "Usage: doc-based-coding codex <subcommand> [args]\n\n"
+            "Codex CLI host readiness helpers.\n\n"
             "Subcommands:\n"
             "  readiness [--executable PATH]\n"
             "      Check Codex CLI host readiness without running a task\n"
@@ -335,13 +567,16 @@ def cmd_codex_readiness(args: list[str]) -> int:
         print(
             _CODEX_READINESS_USAGE + "\n\n"
             "This command checks whether Codex CLI is available to the host "
-            "runtime. It prints only credential-safe executable information; "
-            "it does not run providers, write scheduler state, write evidence, "
-            "or mutate Local Work Trajectory.",
+            "runtime and whether Codex can see a doc-based-coding MCP server "
+            "for the project. It prints only credential-safe executable and "
+            "configuration exposure information; it does not run providers, "
+            "start MCP servers, call MCP tools, write scheduler state, write "
+            "evidence, or mutate Local Work Trajectory.",
         )
         return 0
 
     executable = "codex"
+    project_root = ""
     i = 0
     while i < len(args):
         arg = args[i]
@@ -352,21 +587,148 @@ def cmd_codex_readiness(args: list[str]) -> int:
             executable = args[i + 1]
             i += 2
             continue
+        if arg == "--project-root":
+            if i + 1 >= len(args):
+                print(_CODEX_READINESS_USAGE, file=sys.stderr)
+                return 1
+            project_root = args[i + 1]
+            i += 2
+            continue
         print(f"Unknown codex readiness option: {arg}", file=sys.stderr)
         print(_CODEX_READINESS_USAGE, file=sys.stderr)
         return 1
 
     try:
-        from .runtime.orchestration import CodexCliClientConfig, CodexCliProcessClient
+        from .runtime.orchestration import (
+            CodexCliClientConfig,
+            CodexCliProcessClient,
+            run_self_check_doctor,
+        )
 
         report = CodexCliProcessClient(
             CodexCliClientConfig(executable=executable)
         ).host_readiness_report()
+        doctor_report = run_self_check_doctor(
+            Path(project_root) if project_root else _find_project_root(),
+            profile="codex",
+            metadata={"codex_executable": executable},
+        )
     except Exception as e:
         return _handle_error("Error checking Codex CLI readiness", e, category="codex_readiness_failed")
 
-    _print_json(report.to_json_dict())
+    payload = report.to_json_dict()
+    payload["mcp_exposure"] = _doctor_codex_mcp_exposure_compat(doctor_report)
+    _print_json(payload)
     return 0
+
+
+def _doctor_codex_mcp_exposure_compat(doctor_report) -> dict[str, object]:
+    for check in doctor_report.checks:
+        if check.check_id == "codex.mcp_exposure":
+            evidence = dict(check.evidence)
+            authority = check.authority_split.to_json_dict()
+            return {
+                "diagnostic_status": check.status,
+                "project_config_exists": evidence.get("project_config_exists"),
+                "user_config_exists": evidence.get("user_config_exists"),
+                "project_trusted": evidence.get("project_trusted"),
+                "mcp_list_ran": evidence.get("mcp_list_ran"),
+                "mcp_list_returncode": evidence.get("mcp_list_returncode"),
+                "mcp_list_summary": evidence.get("mcp_list_summary"),
+                "mcp_servers_zero_hint": evidence.get("mcp_servers_zero_hint"),
+                "doc_based_coding_server_visible": evidence.get("doc_based_coding_server_visible"),
+                "doc_based_coding_server_enabled": evidence.get("doc_based_coding_server_enabled"),
+                "suspected_problem": check.suspected_problem,
+                "remediation": list(check.remediation),
+                "command_preview": evidence.get("command_preview", []),
+                "doctor_check_id": check.check_id,
+                "authority_split": {
+                    "provider_executed": authority["provider_executed"],
+                    "mcp_server_started": authority["mcp_server_started"],
+                    "mcp_tool_called": authority["mcp_tool_called"],
+                    "codex_config_mutated": authority["config_mutated"],
+                    "secret_material_read": authority["secret_material_read"],
+                },
+            }
+    return {
+        "diagnostic_status": "skipped",
+        "suspected_problem": "codex_mcp_exposure_check_missing",
+        "remediation": ["Run `doc-based-coding doctor --profile codex` for the unified report."],
+        "doctor_check_id": "",
+        "authority_split": {
+            "provider_executed": False,
+            "mcp_server_started": False,
+            "mcp_tool_called": False,
+            "codex_config_mutated": False,
+            "secret_material_read": False,
+        },
+    }
+
+
+def cmd_doctor(args: list[str]) -> int:
+    """Run unified self-check diagnostics."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _DOCTOR_USAGE + "\n\n"
+            "Runs credential-safe, read-only self-check diagnostics. The default "
+            "profile is all. Doctor does not run provider tasks, call MCP tools, "
+            "start MCP servers, mutate config, or print secret values.",
+        )
+        return 0
+
+    profile = "all"
+    project_root = ""
+    timeout_seconds = 10
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--profile":
+            if i + 1 >= len(args):
+                print(_DOCTOR_USAGE, file=sys.stderr)
+                return 1
+            profile = args[i + 1]
+            i += 2
+            continue
+        if arg == "--project-root":
+            if i + 1 >= len(args):
+                print(_DOCTOR_USAGE, file=sys.stderr)
+                return 1
+            project_root = args[i + 1]
+            i += 2
+            continue
+        if arg == "--timeout-seconds":
+            if i + 1 >= len(args):
+                print(_DOCTOR_USAGE, file=sys.stderr)
+                return 1
+            try:
+                timeout_seconds = int(args[i + 1])
+            except ValueError:
+                print(_DOCTOR_USAGE, file=sys.stderr)
+                print("--timeout-seconds must be an integer", file=sys.stderr)
+                return 1
+            i += 2
+            continue
+        print(f"Unknown doctor option: {arg}", file=sys.stderr)
+        print(_DOCTOR_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import doctor_exit_code, run_self_check_doctor
+
+        report = run_self_check_doctor(
+            Path(project_root) if project_root else _find_project_root(),
+            profile=profile,
+            timeout_seconds=timeout_seconds,
+        )
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    except Exception as e:
+        return _handle_error("Error running doctor self-checks", e, category="doctor_failed")
+
+    _print_json(report.to_json_dict())
+    return doctor_exit_code(report)
 
 
 def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
@@ -647,6 +1009,2413 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
             "Error running Codex guide-worker smoke",
             e,
             category="codex_guide_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.orchestration.ok else 1
+
+
+def cmd_opencode(args: list[str]) -> int:
+    """OpenCode CLI host-runtime helper subcommands."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding opencode <subcommand> [args]\n\n"
+            "OpenCode CLI host readiness helpers.\n\n"
+            "Subcommands:\n"
+            "  readiness [--executable PATH]\n"
+            "      Check OpenCode CLI host readiness without running a task\n"
+            "  serve-readiness [--executable PATH] [--attach-url URL]\n"
+            "      Check host-owned OpenCode serve attach target readiness\n"
+            "  server-api-readiness [--base-url URL] [--check-doc]\n"
+            "      Check host-owned OpenCode direct server/API readiness\n"
+            "  serve-lifecycle <record|inspect>\n"
+            "      Record or inspect host-owned OpenCode serve lifecycle receipts\n"
+            "  session <claim|release|inspect>\n"
+            "      Maintain host-owned OpenCode session binding receipts\n"
+            "  guide-worker-smoke [--executable PATH] [--cwd PATH] [--model NAME]\n"
+            "      Run host-owned OpenCode CLI guide-worker lane-wave execution\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "readiness":
+        return cmd_opencode_readiness(args[1:])
+    if sub == "serve-readiness":
+        return cmd_opencode_serve_readiness(args[1:])
+    if sub == "server-api-readiness":
+        return cmd_opencode_server_api_readiness(args[1:])
+    if sub == "serve-lifecycle":
+        return cmd_opencode_serve_lifecycle(args[1:])
+    if sub == "session":
+        return cmd_opencode_session(args[1:])
+    if sub == "guide-worker-smoke":
+        return cmd_opencode_guide_worker_smoke(args[1:])
+
+    print(f"Unknown opencode subcommand: {sub}", file=sys.stderr)
+    print(
+        "Usage: doc-based-coding opencode <readiness|serve-readiness|server-api-readiness|serve-lifecycle|session|guide-worker-smoke> [args]",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def cmd_opencode_readiness(args: list[str]) -> int:
+    """Check OpenCode CLI host readiness without executing a task."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_READINESS_USAGE + "\n\n"
+            "This command checks whether OpenCode CLI is available to the host "
+            "runtime. It prints only credential-safe executable information; "
+            "it does not run providers, write scheduler state, write evidence, "
+            "or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    executable = "opencode"
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--executable":
+            if i + 1 >= len(args):
+                print(_OPENCODE_READINESS_USAGE, file=sys.stderr)
+                return 1
+            executable = args[i + 1]
+            i += 2
+            continue
+        print(f"Unknown opencode readiness option: {arg}", file=sys.stderr)
+        print(_OPENCODE_READINESS_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import OpenCodeCliClientConfig, OpenCodeCliProcessClient
+
+        report = OpenCodeCliProcessClient(
+            OpenCodeCliClientConfig(executable=executable)
+        ).host_readiness_report()
+    except Exception as e:
+        return _handle_error(
+            "Error checking OpenCode CLI readiness",
+            e,
+            category="opencode_readiness_failed",
+        )
+
+    _print_json(report.to_json_dict())
+    return 0
+
+
+def cmd_opencode_serve_readiness(args: list[str]) -> int:
+    """Inspect host-owned OpenCode serve attach target readiness."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SERVE_READINESS_USAGE + "\n\n"
+            "This command inspects a host-owned OpenCode serve target for use "
+            "with opencode run --attach. It checks the OpenCode CLI executable "
+            "and probes the serve health endpoint, but it does not start, stop, "
+            "restart, or supervise opencode serve. Basic-auth credentials are "
+            "read only from named environment variables when configured and "
+            "secret values are never printed. It does not run providers, write "
+            "scheduler state, write runtime invocation logs, or mutate Local "
+            "Work Trajectory.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "executable": "opencode",
+        "hostname": "127.0.0.1",
+        "port": 4096,
+        "attach_url": "",
+        "health_path": "/global/health",
+        "health_timeout_seconds": 2.0,
+        "require_healthy": False,
+        "username_env_var": "OPENCODE_SERVER_USERNAME",
+        "password_env_var": "OPENCODE_SERVER_PASSWORD",
+    }
+    cli_to_key = {
+        "--executable": "executable",
+        "--hostname": "hostname",
+        "--port": "port",
+        "--attach-url": "attach_url",
+        "--health-path": "health_path",
+        "--health-timeout-seconds": "health_timeout_seconds",
+        "--username-env-var": "username_env_var",
+        "--password-env-var": "password_env_var",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--require-healthy":
+            parsed["require_healthy"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode serve-readiness option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SERVE_READINESS_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SERVE_READINESS_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "port":
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_OPENCODE_SERVE_READINESS_USAGE, file=sys.stderr)
+                print("--port must be an integer", file=sys.stderr)
+                return 1
+        elif key == "health_timeout_seconds":
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(_OPENCODE_SERVE_READINESS_USAGE, file=sys.stderr)
+                print("--health-timeout-seconds must be a number", file=sys.stderr)
+                return 1
+        else:
+            parsed[key] = value
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeServeReadinessRequest,
+            inspect_opencode_serve_readiness,
+        )
+
+        report = inspect_opencode_serve_readiness(
+            OpenCodeServeReadinessRequest(
+                executable=str(parsed["executable"]),
+                hostname=str(parsed["hostname"]),
+                port=int(parsed["port"]),
+                attach_url=str(parsed["attach_url"]),
+                health_path=str(parsed["health_path"]),
+                health_timeout_seconds=float(parsed["health_timeout_seconds"]),
+                require_healthy=bool(parsed["require_healthy"]),
+                username_env_var=str(parsed["username_env_var"]),
+                password_env_var=str(parsed["password_env_var"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error checking OpenCode serve readiness",
+            e,
+            category="opencode_serve_readiness_failed",
+        )
+
+    _print_json(report.to_json_dict())
+    return 0 if report.ready else 1
+
+
+def cmd_opencode_server_api_readiness(args: list[str]) -> int:
+    """Inspect host-owned OpenCode direct server/API readiness."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SERVER_API_READINESS_USAGE + "\n\n"
+            "This command inspects a host-owned running OpenCode server/API "
+            "target for direct HTTP adapter use. It probes health and, when "
+            "--check-doc is set, the OpenAPI document endpoint. It does not "
+            "start, stop, restart, or supervise opencode serve, does not run "
+            "provider tasks, and does not write scheduler state, delivery "
+            "state, runtime invocation logs, or Local Work Trajectory. Basic "
+            "auth credentials are read only from named environment variables "
+            "when configured and secret values are never printed.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "base_url": "http://127.0.0.1:4096",
+        "health_path": "/global/health",
+        "doc_path": "/doc",
+        "check_doc": False,
+        "timeout_seconds": 2.0,
+        "username_env_var": "OPENCODE_SERVER_USERNAME",
+        "password_env_var": "OPENCODE_SERVER_PASSWORD",
+    }
+    cli_to_key = {
+        "--base-url": "base_url",
+        "--health-path": "health_path",
+        "--doc-path": "doc_path",
+        "--timeout-seconds": "timeout_seconds",
+        "--username-env-var": "username_env_var",
+        "--password-env-var": "password_env_var",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--check-doc":
+            parsed["check_doc"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode server-api-readiness option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SERVER_API_READINESS_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SERVER_API_READINESS_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "timeout_seconds":
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(_OPENCODE_SERVER_API_READINESS_USAGE, file=sys.stderr)
+                print("--timeout-seconds must be a number", file=sys.stderr)
+                return 1
+        else:
+            parsed[key] = value
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeServerApiClientConfig,
+            inspect_opencode_server_api_readiness,
+        )
+
+        report = inspect_opencode_server_api_readiness(
+            OpenCodeServerApiClientConfig(
+                base_url=str(parsed["base_url"]),
+                health_path=str(parsed["health_path"]),
+                doc_path=str(parsed["doc_path"]),
+                timeout_seconds=float(parsed["timeout_seconds"]),
+                username_env_var=str(parsed["username_env_var"]),
+                password_env_var=str(parsed["password_env_var"]),
+            ),
+            check_doc=bool(parsed["check_doc"]),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error checking OpenCode server/API readiness",
+            e,
+            category="opencode_server_api_readiness_failed",
+        )
+
+    _print_json(report.to_json_dict())
+    return 0 if report.ready else 1
+
+
+def cmd_opencode_serve_lifecycle(args: list[str]) -> int:
+    """Maintain host-owned OpenCode serve lifecycle receipts."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SERVE_LIFECYCLE_USAGE + "\n\n"
+            "This command records or inspects durable host-owned OpenCode "
+            "serve lifecycle receipts. It is an audit surface for external "
+            "start/stop/restart/status decisions; it does not start, stop, "
+            "restart, supervise, or health-monitor opencode serve, does not "
+            "run providers, write scheduler or delivery state, write runtime "
+            "invocation logs, or mutate Local Work Trajectory.\n\n"
+            "Subcommands:\n"
+            "  record   Append one lifecycle receipt\n"
+            "  inspect  Read lifecycle receipts without mutation\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "record":
+        return cmd_opencode_serve_lifecycle_record(args[1:])
+    if sub == "inspect":
+        return cmd_opencode_serve_lifecycle_inspect(args[1:])
+    print(f"Unknown opencode serve-lifecycle subcommand: {sub}", file=sys.stderr)
+    print(_OPENCODE_SERVE_LIFECYCLE_USAGE, file=sys.stderr)
+    return 1
+
+
+def cmd_opencode_serve_lifecycle_record(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE + "\n\n"
+            "Record appends one host-owned OpenCode serve lifecycle receipt. "
+            "Use it after an external host script or operator starts/stops a "
+            "serve process, or before a planned action that should be audited. "
+            "The command writes only the lifecycle ledger receipt. It does not "
+            "spawn or terminate opencode serve and never stores secret values.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-serve-lifecycle-ledger.json",
+        "action": "",
+        "status": "observed",
+        "executable": "opencode",
+        "hostname": "127.0.0.1",
+        "port": 4096,
+        "attach_url": "",
+        "receipt_id": "",
+        "timestamp": "",
+        "pid": "",
+        "process_ref": "",
+        "actor": "",
+        "reason": "",
+        "note": "",
+        "include_command_preview": True,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--action": "action",
+        "--status": "status",
+        "--executable": "executable",
+        "--hostname": "hostname",
+        "--port": "port",
+        "--attach-url": "attach_url",
+        "--receipt-id": "receipt_id",
+        "--timestamp": "timestamp",
+        "--pid": "pid",
+        "--process-ref": "process_ref",
+        "--actor": "actor",
+        "--reason": "reason",
+        "--note": "note",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--no-command-preview":
+            parsed["include_command_preview"] = False
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode serve-lifecycle record option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "port":
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE, file=sys.stderr)
+                print("--port must be an integer", file=sys.stderr)
+                return 1
+        else:
+            parsed[key] = value
+        i += 2
+    if not parsed["action"]:
+        print(_OPENCODE_SERVE_LIFECYCLE_RECORD_USAGE, file=sys.stderr)
+        print("serve-lifecycle record requires --action", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeServeLifecycleRecordRequest,
+            record_opencode_serve_lifecycle_receipt,
+        )
+
+        root = _find_project_root()
+        result = record_opencode_serve_lifecycle_receipt(
+            OpenCodeServeLifecycleRecordRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                action=str(parsed["action"]),  # type: ignore[arg-type]
+                status=str(parsed["status"]),  # type: ignore[arg-type]
+                executable=str(parsed["executable"]),
+                hostname=str(parsed["hostname"]),
+                port=int(parsed["port"]),
+                attach_url=str(parsed["attach_url"]),
+                receipt_id=str(parsed["receipt_id"]),
+                timestamp=str(parsed["timestamp"]),
+                pid=str(parsed["pid"]),
+                process_ref=str(parsed["process_ref"]),
+                actor=str(parsed["actor"]),
+                reason=str(parsed["reason"]),
+                note=str(parsed["note"]),
+                include_command_preview=bool(parsed["include_command_preview"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error recording OpenCode serve lifecycle receipt",
+            e,
+            category="opencode_serve_lifecycle_record_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_serve_lifecycle_inspect(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SERVE_LIFECYCLE_INSPECT_USAGE + "\n\n"
+            "Inspect reads the OpenCode serve lifecycle ledger without "
+            "mutation. It does not probe health, run providers, or manage "
+            "opencode serve.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-serve-lifecycle-ledger.json",
+        "action": "",
+        "status": "",
+        "latest_limit": 0,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--action": "action",
+        "--status": "status",
+        "--latest-limit": "latest_limit",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg not in cli_to_key:
+            print(f"Unknown opencode serve-lifecycle inspect option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SERVE_LIFECYCLE_INSPECT_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SERVE_LIFECYCLE_INSPECT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "latest_limit":
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_OPENCODE_SERVE_LIFECYCLE_INSPECT_USAGE, file=sys.stderr)
+                print("--latest-limit must be an integer", file=sys.stderr)
+                return 1
+        else:
+            parsed[key] = value
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeServeLifecycleInspectRequest,
+            inspect_opencode_serve_lifecycle_receipts,
+        )
+
+        root = _find_project_root()
+        result = inspect_opencode_serve_lifecycle_receipts(
+            OpenCodeServeLifecycleInspectRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                action=str(parsed["action"]),
+                status=str(parsed["status"]),
+                latest_limit=int(parsed["latest_limit"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting OpenCode serve lifecycle receipts",
+            e,
+            category="opencode_serve_lifecycle_inspect_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_session(args: list[str]) -> int:
+    """Maintain host-owned OpenCode session binding receipts."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SESSION_USAGE + "\n\n"
+            "This command maintains durable OpenCode session binding receipts "
+            "for later opencode run --attach --session use. It does not create "
+            "OpenCode sessions, run providers, store transcripts, write "
+            "scheduler state, or mutate Local Work Trajectory.\n\n"
+            "Subcommands:\n"
+            "  claim    Create or replace one active binding\n"
+            "  release  Mark one active binding released or expired\n"
+            "  inspect  Read bindings without mutation\n"
+            "  recover-stale  Expire stale bindings by explicit policy\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "claim":
+        return cmd_opencode_session_claim(args[1:])
+    if sub == "release":
+        return cmd_opencode_session_release(args[1:])
+    if sub == "inspect":
+        return cmd_opencode_session_inspect(args[1:])
+    if sub == "recover-stale":
+        return cmd_opencode_session_recover_stale(args[1:])
+    print(f"Unknown opencode session subcommand: {sub}", file=sys.stderr)
+    print(_OPENCODE_SESSION_USAGE, file=sys.stderr)
+    return 1
+
+
+def cmd_opencode_session_claim(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SESSION_CLAIM_USAGE + "\n\n"
+            "Claiming records a reusable OpenCode session selector for a scope. "
+            "Recommended default scope is lane when a worker should continue "
+            "across same-lane tasks. The command writes only the session ledger "
+            "receipt and does not run OpenCode.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "scope_kind": "",
+        "scope_id": "",
+        "attach_url": "",
+        "session_id": "",
+        "binding_id": "",
+        "owner_agent_id": "",
+        "lane_id": "",
+        "worker_agent_id": "",
+        "reason": "",
+        "timestamp": "",
+        "expires_at": "",
+        "replace_existing": True,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--attach-url": "attach_url",
+        "--session-id": "session_id",
+        "--binding-id": "binding_id",
+        "--owner-agent-id": "owner_agent_id",
+        "--lane-id": "lane_id",
+        "--worker-agent-id": "worker_agent_id",
+        "--reason": "reason",
+        "--timestamp": "timestamp",
+        "--expires-at": "expires_at",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--no-replace-existing":
+            parsed["replace_existing"] = False
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode session claim option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SESSION_CLAIM_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SESSION_CLAIM_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeSessionClaimRequest,
+            claim_opencode_session_binding,
+        )
+
+        result = claim_opencode_session_binding(
+            OpenCodeSessionClaimRequest(
+                ledger_path=_resolve_project_path(_find_project_root(), str(parsed["ledger_path"])),
+                scope_kind=str(parsed["scope_kind"]),  # type: ignore[arg-type]
+                scope_id=str(parsed["scope_id"]),
+                attach_url=str(parsed["attach_url"]),
+                session_id=str(parsed["session_id"]),
+                binding_id=str(parsed["binding_id"]),
+                owner_agent_id=str(parsed["owner_agent_id"]),
+                lane_id=str(parsed["lane_id"]),
+                worker_agent_id=str(parsed["worker_agent_id"]),
+                reason=str(parsed["reason"]),
+                timestamp=str(parsed["timestamp"]),
+                expires_at=str(parsed["expires_at"]),
+                replace_existing=bool(parsed["replace_existing"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error claiming OpenCode session binding",
+            e,
+            category="opencode_session_claim_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_session_release(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SESSION_RELEASE_USAGE + "\n\n"
+            "Release marks a binding inactive in the local ledger. It does not "
+            "terminate OpenCode server processes or delete provider state.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "binding_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "status": "released",
+        "timestamp": "",
+        "reason": "",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--binding-id": "binding_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--status": "status",
+        "--timestamp": "timestamp",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg not in cli_to_key:
+            print(f"Unknown opencode session release option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SESSION_RELEASE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SESSION_RELEASE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["binding_id"] and not (parsed["scope_kind"] and parsed["scope_id"]):
+        print(_OPENCODE_SESSION_RELEASE_USAGE, file=sys.stderr)
+        print("release requires --binding-id or --scope-kind with --scope-id", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeSessionReleaseRequest,
+            release_opencode_session_binding,
+        )
+
+        result = release_opencode_session_binding(
+            OpenCodeSessionReleaseRequest(
+                ledger_path=_resolve_project_path(_find_project_root(), str(parsed["ledger_path"])),
+                binding_id=str(parsed["binding_id"]),
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                status=str(parsed["status"]),  # type: ignore[arg-type]
+                timestamp=str(parsed["timestamp"]),
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error releasing OpenCode session binding",
+            e,
+            category="opencode_session_release_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_session_inspect(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SESSION_INSPECT_USAGE + "\n\n"
+            "Inspect reads the local OpenCode session binding ledger without "
+            "mutation. Released and expired bindings are hidden unless "
+            "--include-released is passed.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "scope_kind": "",
+        "scope_id": "",
+        "include_released": False,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-released":
+            parsed["include_released"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode session inspect option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SESSION_INSPECT_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SESSION_INSPECT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeSessionInspectRequest,
+            inspect_opencode_session_bindings,
+        )
+
+        result = inspect_opencode_session_bindings(
+            OpenCodeSessionInspectRequest(
+                ledger_path=_resolve_project_path(_find_project_root(), str(parsed["ledger_path"])),
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                include_released=bool(parsed["include_released"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting OpenCode session bindings",
+            e,
+            category="opencode_session_inspect_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_session_recover_stale(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_SESSION_RECOVER_STALE_USAGE + "\n\n"
+            "Recover-stale expires active local ledger bindings whose expires_at "
+            "is not later than --now. With --expire-unhealthy it also probes the "
+            "binding attach target health endpoint. The command does not create "
+            "sessions, start or stop opencode serve, run providers, mutate "
+            "scheduler or delivery state, or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "now": "",
+        "timestamp": "",
+        "expire_unhealthy": False,
+        "health_path": "/global/health",
+        "health_timeout_seconds": 2.0,
+        "username_env_var": "OPENCODE_SERVER_USERNAME",
+        "password_env_var": "OPENCODE_SERVER_PASSWORD",
+        "reason": "stale OpenCode session binding recovery",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--now": "now",
+        "--timestamp": "timestamp",
+        "--health-path": "health_path",
+        "--health-timeout-seconds": "health_timeout_seconds",
+        "--username-env-var": "username_env_var",
+        "--password-env-var": "password_env_var",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--expire-unhealthy":
+            parsed["expire_unhealthy"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown opencode session recover-stale option: {arg}", file=sys.stderr)
+            print(_OPENCODE_SESSION_RECOVER_STALE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_OPENCODE_SESSION_RECOVER_STALE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "health_timeout_seconds":
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(_OPENCODE_SESSION_RECOVER_STALE_USAGE, file=sys.stderr)
+                print(f"{arg} must be a number", file=sys.stderr)
+                return 1
+        else:
+            parsed[key] = value
+        i += 2
+    if not parsed["now"]:
+        print(_OPENCODE_SESSION_RECOVER_STALE_USAGE, file=sys.stderr)
+        print("recover-stale requires --now", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            OpenCodeSessionRecoverStaleRequest,
+            recover_stale_opencode_session_bindings,
+        )
+
+        result = recover_stale_opencode_session_bindings(
+            OpenCodeSessionRecoverStaleRequest(
+                ledger_path=_resolve_project_path(_find_project_root(), str(parsed["ledger_path"])),
+                now=str(parsed["now"]),
+                timestamp=str(parsed["timestamp"]),
+                expire_unhealthy=bool(parsed["expire_unhealthy"]),
+                health_path=str(parsed["health_path"]),
+                health_timeout_seconds=float(parsed["health_timeout_seconds"]),
+                username_env_var=str(parsed["username_env_var"]),
+                password_env_var=str(parsed["password_env_var"]),
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error recovering stale OpenCode session bindings",
+            e,
+            category="opencode_session_recover_stale_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding(args: list[str]) -> int:
+    """Maintain provider-neutral continuous worker binding receipts."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_USAGE + "\n\n"
+            "This command maintains durable continuous worker binding receipts. "
+            "Bindings let scheduler-owned delivery reuse a worker identity across "
+            "same-lane or lane-group tasks. The command does not create runtime "
+            "sessions, run providers, mutate scheduler state, patch merge state, "
+            "or Local Work Trajectory.\n\n"
+            "Subcommands:\n"
+            "  claim          Create or replace one active binding\n"
+            "  promote-server-api-session\n"
+            "                 Promote an explicit OpenCode server/API-created session\n"
+            "  inspect-promotion-candidates\n"
+            "                 Read runtime audit and suggest explicit promotions\n"
+            "  lane-ownership\n"
+            "                 Inspect or activate continuous worker lane ownership\n"
+            "  reuse          Record delivery-time reuse of one binding\n"
+            "  fork           Derive a new binding from an active binding\n"
+            "  compact        Attach compact context/report refs to a binding\n"
+            "  release        Mark one active binding released, stale, or archived\n"
+            "  inspect        Read bindings without mutation\n"
+            "  recover-stale  Mark elapsed bindings stale by explicit policy\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "claim":
+        return cmd_worker_binding_claim(args[1:])
+    if sub == "promote-server-api-session":
+        return cmd_worker_binding_promote_server_api_session(args[1:])
+    if sub == "inspect-promotion-candidates":
+        return cmd_worker_binding_inspect_promotion_candidates(args[1:])
+    if sub == "lane-ownership":
+        return cmd_worker_binding_lane_ownership(args[1:])
+    if sub == "reuse":
+        return cmd_worker_binding_reuse(args[1:])
+    if sub == "fork":
+        return cmd_worker_binding_fork(args[1:])
+    if sub == "compact":
+        return cmd_worker_binding_compact(args[1:])
+    if sub == "release":
+        return cmd_worker_binding_release(args[1:])
+    if sub == "inspect":
+        return cmd_worker_binding_inspect(args[1:])
+    if sub == "recover-stale":
+        return cmd_worker_binding_recover_stale(args[1:])
+    print(f"Unknown worker-binding subcommand: {sub}", file=sys.stderr)
+    print(_WORKER_BINDING_USAGE, file=sys.stderr)
+    return 1
+
+
+def cmd_worker_binding_claim(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_CLAIM_USAGE + "\n\n"
+            "Claiming records a project-owned worker continuity binding. For "
+            "OpenCode, --session-id and optional --session-attach-url are copied "
+            "into the provider-specific selector used at delivery time. The "
+            "binding ledger remains the continuity source; OpenCode session "
+            "state remains provider-owned.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "worker_id": "",
+        "runtime_provider": "opencode",
+        "scope_kind": "",
+        "scope_id": "",
+        "lane_ids": [],
+        "binding_id": "",
+        "session_attach_url": "",
+        "session_id": "",
+        "continue_session": False,
+        "fork_session": False,
+        "compact_context_ref": "",
+        "mailbox_cursor_ref": "",
+        "worker_report_refs": [],
+        "audit_refs": [],
+        "timestamp": "",
+        "expires_at": "",
+        "reason": "",
+        "replace_existing": True,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--worker-id": "worker_id",
+        "--runtime-provider": "runtime_provider",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--binding-id": "binding_id",
+        "--session-attach-url": "session_attach_url",
+        "--session-id": "session_id",
+        "--compact-context-ref": "compact_context_ref",
+        "--mailbox-cursor-ref": "mailbox_cursor_ref",
+        "--timestamp": "timestamp",
+        "--expires-at": "expires_at",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--no-replace-existing":
+            parsed["replace_existing"] = False
+            i += 1
+            continue
+        if arg == "--continue-session":
+            parsed["continue_session"] = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            parsed["fork_session"] = True
+            i += 1
+            continue
+        if arg in {"--lane-id", "--worker-report-ref", "--audit-ref"}:
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_CLAIM_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            key = {
+                "--lane-id": "lane_ids",
+                "--worker-report-ref": "worker_report_refs",
+                "--audit-ref": "audit_refs",
+            }[arg]
+            parsed[key].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding claim option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_CLAIM_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_CLAIM_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingClaimRequest,
+            ContinuousWorkerSessionSelector,
+            claim_continuous_worker_binding,
+        )
+
+        provider = str(parsed["runtime_provider"])
+        session_selector = None
+        if str(parsed["session_id"]) or bool(parsed["continue_session"]):
+            session_selector = ContinuousWorkerSessionSelector(
+                provider=provider,  # type: ignore[arg-type]
+                attach_url=str(parsed["session_attach_url"]),
+                session_id=str(parsed["session_id"]),
+                continue_session=bool(parsed["continue_session"]),
+                fork_session=bool(parsed["fork_session"]),
+            )
+        root = _find_project_root()
+        result = claim_continuous_worker_binding(
+            ContinuousWorkerBindingClaimRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                worker_id=str(parsed["worker_id"]),
+                runtime_provider=provider,  # type: ignore[arg-type]
+                scope_kind=str(parsed["scope_kind"]),  # type: ignore[arg-type]
+                scope_id=str(parsed["scope_id"]),
+                lane_ids=tuple(parsed["lane_ids"]),  # type: ignore[arg-type]
+                binding_id=str(parsed["binding_id"]),
+                active_session_selector=session_selector,
+                timestamp=str(parsed["timestamp"]),
+                expires_at=str(parsed["expires_at"]),
+                compact_context_ref=str(parsed["compact_context_ref"]),
+                mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                reason=str(parsed["reason"]),
+                replace_existing=bool(parsed["replace_existing"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error claiming continuous worker binding",
+            e,
+            category="worker_binding_claim_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_promote_server_api_session(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE + "\n\n"
+            "Promote is an explicit host/leader continuity decision. It takes "
+            "an OpenCode server/API-created session selector and claims a "
+            "provider-neutral continuous worker binding. It does not create "
+            "sessions, run providers, mutate delivery or scheduler state, or "
+            "mutate Local Work Trajectory. Pass --claim-lane-ownership to also "
+            "claim continuous lane ownership for the promoted binding as the "
+            "same explicit host/leader decision.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "lane_ownership_ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
+        "lane_ownership_event_log_path": ".codex/runtime/continuous-worker-lane-ownership-events.jsonl",
+        "session_selector_source": "server_api_created",
+        "attach_url": "",
+        "session_id": "",
+        "worker_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "lane_ids": [],
+        "binding_id": "",
+        "compact_context_ref": "",
+        "mailbox_cursor_ref": "",
+        "worker_report_refs": [],
+        "audit_refs": [],
+        "timestamp": "",
+        "expires_at": "",
+        "reason": "",
+        "replace_existing": True,
+        "claim_lane_ownership": False,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--lane-ownership-ledger-path": "lane_ownership_ledger_path",
+        "--lane-ownership-event-log-path": "lane_ownership_event_log_path",
+        "--session-selector-source": "session_selector_source",
+        "--attach-url": "attach_url",
+        "--session-id": "session_id",
+        "--worker-id": "worker_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--binding-id": "binding_id",
+        "--compact-context-ref": "compact_context_ref",
+        "--mailbox-cursor-ref": "mailbox_cursor_ref",
+        "--timestamp": "timestamp",
+        "--expires-at": "expires_at",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--no-replace-existing":
+            parsed["replace_existing"] = False
+            i += 1
+            continue
+        if arg == "--claim-lane-ownership":
+            parsed["claim_lane_ownership"] = True
+            i += 1
+            continue
+        if arg in {"--lane-id", "--worker-report-ref", "--audit-ref"}:
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            key = {
+                "--lane-id": "lane_ids",
+                "--worker-report-ref": "worker_report_refs",
+                "--audit-ref": "audit_refs",
+            }[arg]
+            parsed[key].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding promote-server-api-session option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    missing = [
+        name
+        for name in ("--worker-id", "--scope-kind", "--scope-id", "--attach-url", "--session-id")
+        if not parsed[
+            {
+                "--worker-id": "worker_id",
+                "--scope-kind": "scope_kind",
+                "--scope-id": "scope_id",
+                "--attach-url": "attach_url",
+                "--session-id": "session_id",
+            }[name]
+        ]
+    ]
+    if missing:
+        print(_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if bool(parsed["claim_lane_ownership"]) and str(parsed["scope_kind"]) not in {
+        "lane",
+        "lane_group",
+    }:
+        print(_WORKER_BINDING_PROMOTE_SERVER_API_SESSION_USAGE, file=sys.stderr)
+        print(
+            "--claim-lane-ownership requires --scope-kind lane or lane_group",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            LaneOwnershipClaimRequest,
+            ServerApiCreatedSessionPromotionRequest,
+            claim_lane_ownership,
+            promote_server_api_created_session_to_continuous_worker_binding,
+        )
+
+        root = _find_project_root()
+        result = promote_server_api_created_session_to_continuous_worker_binding(
+            ServerApiCreatedSessionPromotionRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                session_selector_source=str(parsed["session_selector_source"]),
+                attach_url=str(parsed["attach_url"]),
+                session_id=str(parsed["session_id"]),
+                worker_id=str(parsed["worker_id"]),
+                scope_kind=str(parsed["scope_kind"]),  # type: ignore[arg-type]
+                scope_id=str(parsed["scope_id"]),
+                lane_ids=tuple(parsed["lane_ids"]),  # type: ignore[arg-type]
+                binding_id=str(parsed["binding_id"]),
+                compact_context_ref=str(parsed["compact_context_ref"]),
+                mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                timestamp=str(parsed["timestamp"]),
+                expires_at=str(parsed["expires_at"]),
+                reason=str(parsed["reason"]) or "server/API-created OpenCode session promoted",
+                replace_existing=bool(parsed["replace_existing"]),
+            )
+        )
+        payload = result.to_json_dict()
+        if bool(parsed["claim_lane_ownership"]) and result.ok and result.binding is not None:
+            ownership_result = claim_lane_ownership(
+                LaneOwnershipClaimRequest(
+                    ledger_path=_resolve_project_path(
+                        root,
+                        str(parsed["lane_ownership_ledger_path"]),
+                    ),
+                    event_log_path=_resolve_project_path(
+                        root,
+                        str(parsed["lane_ownership_event_log_path"]),
+                    ),
+                    scope_kind="lane_group" if str(parsed["scope_kind"]) == "lane_group" else "lane",
+                    scope_id=str(parsed["scope_id"]),
+                    lane_ids=tuple(parsed["lane_ids"]),  # type: ignore[arg-type]
+                    binding_id=result.binding.binding_id,
+                    worker_id=str(parsed["worker_id"]),
+                    timestamp=str(parsed["timestamp"]),
+                    requested_by="host:worker-binding-promote-server-api-session",
+                    reason="lane ownership claimed during server/API session promotion",
+                    audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                    metadata={
+                        "promotion_source": "server_api_created",
+                        "promotion_binding_id": result.binding.binding_id,
+                    },
+                )
+            )
+            payload["lane_ownership_claimed"] = ownership_result.ok
+            payload["lane_ownership_result"] = ownership_result.to_json_dict()
+    except Exception as e:
+        return _handle_error(
+            "Error promoting server/API-created session to continuous worker binding",
+            e,
+            category="worker_binding_promote_server_api_session_failed",
+        )
+    lane_ownership_payload = payload.get("lane_ownership_result")
+    lane_ownership_ok = (
+        True
+        if not isinstance(lane_ownership_payload, dict)
+        else bool(lane_ownership_payload.get("ok"))
+    )
+    _print_json(payload)
+    return 0 if payload.get("ok") and lane_ownership_ok else 1
+
+
+def cmd_worker_binding_inspect_promotion_candidates(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_INSPECT_PROMOTION_CANDIDATES_USAGE + "\n\n"
+            "This is a read-only helper. It scans compact runtime invocation "
+            "audit records for OpenCode server_api_created sessions and emits "
+            "structured promotion candidates plus copyable "
+            "worker-binding promote-server-api-session commands. It does not "
+            "promote automatically, create sessions, run providers, mutate "
+            "ledgers, or mutate Local Work Trajectory.\n\n"
+            "Relative --runtime-invocation-log-path values are resolved against "
+            "the detected project root/current workspace. Run from the intended "
+            "workspace or pass an absolute audit path.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+        "latest_limit": 100,
+        "include_incomplete": False,
+        "command_prefix": "doc-based-coding",
+    }
+    cli_to_key = {
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--latest-limit": "latest_limit",
+        "--command-prefix": "command_prefix",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-incomplete":
+            parsed["include_incomplete"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding inspect-promotion-candidates option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_INSPECT_PROMOTION_CANDIDATES_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_INSPECT_PROMOTION_CANDIDATES_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        value = args[i + 1]
+        if arg == "--latest-limit":
+            try:
+                parsed["latest_limit"] = int(value)
+            except ValueError:
+                print(_WORKER_BINDING_INSPECT_PROMOTION_CANDIDATES_USAGE, file=sys.stderr)
+                print("--latest-limit must be an integer", file=sys.stderr)
+                return 1
+        else:
+            parsed[cli_to_key[arg]] = value
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            WorkerBindingPromotionCandidateReadbackRequest,
+            inspect_worker_binding_promotion_candidates,
+        )
+
+        root = _find_project_root()
+        result = inspect_worker_binding_promotion_candidates(
+            WorkerBindingPromotionCandidateReadbackRequest(
+                runtime_invocation_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["runtime_invocation_log_path"]),
+                ),
+                latest_limit=int(parsed["latest_limit"]),
+                include_incomplete=bool(parsed["include_incomplete"]),
+                command_prefix=tuple(str(parsed["command_prefix"]).split()),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting worker-binding promotion candidates",
+            e,
+            category="worker_binding_promotion_candidate_inspect_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_reuse(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_REUSE_USAGE + "\n\n"
+            "Reuse records that scheduler-owned delivery reused a continuous "
+            "worker binding. It updates last_used_at and compact audit refs, "
+            "but does not run providers or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "binding_id": "",
+        "task_id": "",
+        "agent_id": "",
+        "lane_id": "",
+        "audit_refs": [],
+        "timestamp": "",
+        "reason": "continuous worker binding reused for delivery",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--binding-id": "binding_id",
+        "--task-id": "task_id",
+        "--agent-id": "agent_id",
+        "--lane-id": "lane_id",
+        "--timestamp": "timestamp",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--audit-ref":
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_REUSE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            parsed["audit_refs"].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding reuse option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_REUSE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_REUSE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["binding_id"]:
+        print(_WORKER_BINDING_REUSE_USAGE, file=sys.stderr)
+        print("reuse requires --binding-id", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingReuseRequest,
+            record_continuous_worker_binding_reuse,
+        )
+
+        root = _find_project_root()
+        result = record_continuous_worker_binding_reuse(
+            ContinuousWorkerBindingReuseRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                binding_id=str(parsed["binding_id"]),
+                task_id=str(parsed["task_id"]),
+                agent_id=str(parsed["agent_id"]),
+                lane_id=str(parsed["lane_id"]),
+                timestamp=str(parsed["timestamp"]),
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error recording continuous worker binding reuse",
+            e,
+            category="worker_binding_reuse_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_fork(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_FORK_USAGE + "\n\n"
+            "Fork records a new project-owned continuous worker binding derived "
+            "from an existing active binding. It may carry an OpenCode "
+            "fork_session selector, but it does not create provider sessions.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "source_binding_id": "",
+        "new_binding_id": "",
+        "worker_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "lane_ids": [],
+        "session_attach_url": "",
+        "session_id": "",
+        "continue_session": False,
+        "fork_session": False,
+        "compact_context_ref": "",
+        "mailbox_cursor_ref": "",
+        "worker_report_refs": [],
+        "audit_refs": [],
+        "timestamp": "",
+        "expires_at": "",
+        "reason": "continuous worker binding forked",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--source-binding-id": "source_binding_id",
+        "--new-binding-id": "new_binding_id",
+        "--worker-id": "worker_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--session-attach-url": "session_attach_url",
+        "--session-id": "session_id",
+        "--compact-context-ref": "compact_context_ref",
+        "--mailbox-cursor-ref": "mailbox_cursor_ref",
+        "--timestamp": "timestamp",
+        "--expires-at": "expires_at",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--continue-session":
+            parsed["continue_session"] = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            parsed["fork_session"] = True
+            i += 1
+            continue
+        if arg in {"--lane-id", "--worker-report-ref", "--audit-ref"}:
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_FORK_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            key = {
+                "--lane-id": "lane_ids",
+                "--worker-report-ref": "worker_report_refs",
+                "--audit-ref": "audit_refs",
+            }[arg]
+            parsed[key].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding fork option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_FORK_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_FORK_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["source_binding_id"] or not parsed["scope_kind"] or not parsed["scope_id"]:
+        print(_WORKER_BINDING_FORK_USAGE, file=sys.stderr)
+        print("fork requires --source-binding-id, --scope-kind, and --scope-id", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingForkRequest,
+            ContinuousWorkerSessionSelector,
+            fork_continuous_worker_binding,
+        )
+
+        session_selector = None
+        if str(parsed["session_id"]) or bool(parsed["continue_session"]):
+            session_selector = ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url=str(parsed["session_attach_url"]),
+                session_id=str(parsed["session_id"]),
+                continue_session=bool(parsed["continue_session"]),
+                fork_session=bool(parsed["fork_session"]),
+            )
+        root = _find_project_root()
+        result = fork_continuous_worker_binding(
+            ContinuousWorkerBindingForkRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                source_binding_id=str(parsed["source_binding_id"]),
+                new_binding_id=str(parsed["new_binding_id"]),
+                worker_id=str(parsed["worker_id"]),
+                scope_kind=str(parsed["scope_kind"]),  # type: ignore[arg-type]
+                scope_id=str(parsed["scope_id"]),
+                lane_ids=tuple(parsed["lane_ids"]),  # type: ignore[arg-type]
+                active_session_selector=session_selector,
+                timestamp=str(parsed["timestamp"]),
+                expires_at=str(parsed["expires_at"]),
+                compact_context_ref=str(parsed["compact_context_ref"]),
+                mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error forking continuous worker binding",
+            e,
+            category="worker_binding_fork_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_compact(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_COMPACT_USAGE + "\n\n"
+            "Compact records a project-owned compact context snapshot reference "
+            "for an active binding. It does not persist raw transcript text.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "binding_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "compact_context_ref": "",
+        "build_context_bundle": False,
+        "context_bundle_dir": ".codex/runtime/continuous-worker-contexts",
+        "context_bundle_path": "",
+        "bundle_id": "",
+        "summary": "",
+        "key_decisions": [],
+        "current_state": "",
+        "artifact_refs": [],
+        "mailbox_cursor_ref": "",
+        "worker_report_refs": [],
+        "audit_refs": [],
+        "timestamp": "",
+        "reason": "continuous worker binding compacted",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--binding-id": "binding_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--compact-context-ref": "compact_context_ref",
+        "--context-bundle-dir": "context_bundle_dir",
+        "--context-bundle-path": "context_bundle_path",
+        "--bundle-id": "bundle_id",
+        "--summary": "summary",
+        "--current-state": "current_state",
+        "--mailbox-cursor-ref": "mailbox_cursor_ref",
+        "--timestamp": "timestamp",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--build-context-bundle":
+            parsed["build_context_bundle"] = True
+            i += 1
+            continue
+        if arg in {"--worker-report-ref", "--audit-ref", "--key-decision", "--artifact-ref"}:
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            key = {
+                "--worker-report-ref": "worker_report_refs",
+                "--audit-ref": "audit_refs",
+                "--key-decision": "key_decisions",
+                "--artifact-ref": "artifact_refs",
+            }[arg]
+            parsed[key].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding compact option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["compact_context_ref"] and not parsed["build_context_bundle"]:
+        print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+        print("compact requires --compact-context-ref or --build-context-bundle", file=sys.stderr)
+        return 1
+    if parsed["build_context_bundle"] and not parsed["summary"]:
+        print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+        print("--build-context-bundle requires --summary", file=sys.stderr)
+        return 1
+    if not parsed["binding_id"] and not (parsed["scope_kind"] and parsed["scope_id"]):
+        print(_WORKER_BINDING_COMPACT_USAGE, file=sys.stderr)
+        print("compact requires --binding-id or --scope-kind with --scope-id", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingCompactRequest,
+            ContinuousWorkerCompactContextBuildRequest,
+            build_continuous_worker_compact_context_bundle,
+            compact_continuous_worker_binding,
+        )
+
+        root = _find_project_root()
+        compact_context_ref = str(parsed["compact_context_ref"])
+        context_result = None
+        if parsed["build_context_bundle"]:
+            context_result = build_continuous_worker_compact_context_bundle(
+                ContinuousWorkerCompactContextBuildRequest(
+                    ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                    bundle_dir_path=_resolve_project_path(root, str(parsed["context_bundle_dir"])),
+                    bundle_path=(
+                        _resolve_project_path(root, str(parsed["context_bundle_path"]))
+                        if str(parsed["context_bundle_path"])
+                        else ""
+                    ),
+                    binding_id=str(parsed["binding_id"]),
+                    scope_kind=str(parsed["scope_kind"]),
+                    scope_id=str(parsed["scope_id"]),
+                    bundle_id=str(parsed["bundle_id"]),
+                    timestamp=str(parsed["timestamp"]),
+                    summary=str(parsed["summary"]),
+                    key_decisions=tuple(parsed["key_decisions"]),  # type: ignore[arg-type]
+                    current_state=str(parsed["current_state"]),
+                    artifact_refs=tuple(parsed["artifact_refs"]),  # type: ignore[arg-type]
+                    mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                    worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                    audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                )
+            )
+            if not context_result.ok:
+                _print_json(context_result.to_json_dict())
+                return 1
+            compact_context_ref = context_result.compact_context_ref
+        result = compact_continuous_worker_binding(
+            ContinuousWorkerBindingCompactRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                binding_id=str(parsed["binding_id"]),
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                compact_context_ref=compact_context_ref,
+                mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                timestamp=str(parsed["timestamp"]),
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error compacting continuous worker binding",
+            e,
+            category="worker_binding_compact_failed",
+        )
+    payload = result.to_json_dict()
+    if "context_result" in locals() and context_result is not None:
+        payload["context_bundle"] = context_result.to_json_dict()
+    _print_json(payload)
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_release(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_RELEASE_USAGE + "\n\n"
+            "Release marks a continuous worker binding inactive in the project "
+            "ledger. It does not stop provider sessions or delete provider state.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "binding_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "status": "released",
+        "timestamp": "",
+        "reason": "",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--binding-id": "binding_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--status": "status",
+        "--timestamp": "timestamp",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding release option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_RELEASE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_RELEASE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["binding_id"] and not (parsed["scope_kind"] and parsed["scope_id"]):
+        print(_WORKER_BINDING_RELEASE_USAGE, file=sys.stderr)
+        print("release requires --binding-id or --scope-kind with --scope-id", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingReleaseRequest,
+            release_continuous_worker_binding,
+        )
+
+        root = _find_project_root()
+        result = release_continuous_worker_binding(
+            ContinuousWorkerBindingReleaseRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                binding_id=str(parsed["binding_id"]),
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                lifecycle_status=str(parsed["status"]),  # type: ignore[arg-type]
+                timestamp=str(parsed["timestamp"]),
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error releasing continuous worker binding",
+            e,
+            category="worker_binding_release_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_inspect(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_INSPECT_USAGE + "\n\n"
+            "Inspect reads the continuous worker binding ledger without mutation. "
+            "Released, stale, and archived bindings are hidden unless "
+            "--include-inactive is passed.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "runtime_provider": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "worker_id": "",
+        "lane_id": "",
+        "include_inactive": False,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--runtime-provider": "runtime_provider",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--worker-id": "worker_id",
+        "--lane-id": "lane_id",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-inactive":
+            parsed["include_inactive"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding inspect option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_INSPECT_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_INSPECT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingInspectRequest,
+            inspect_continuous_worker_bindings,
+        )
+
+        result = inspect_continuous_worker_bindings(
+            ContinuousWorkerBindingInspectRequest(
+                ledger_path=_resolve_project_path(_find_project_root(), str(parsed["ledger_path"])),
+                runtime_provider=str(parsed["runtime_provider"]),  # type: ignore[arg-type]
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                worker_id=str(parsed["worker_id"]),
+                lane_id=str(parsed["lane_id"]),
+                include_inactive=bool(parsed["include_inactive"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting continuous worker bindings",
+            e,
+            category="worker_binding_inspect_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_lane_ownership(args: list[str]) -> int:
+    """Inspect or activate continuous worker lane ownership records."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_LANE_OWNERSHIP_USAGE + "\n\n"
+            "Lane ownership maps a lane or lane group to a continuous worker "
+            "binding. This surface is host/leader-owned and does not run "
+            "providers, mutate delivery or scheduler state, or mutate Local "
+            "Work Trajectory.\n\n"
+            "Subcommands:\n"
+            "  inspect   Read lane ownership records without mutation\n"
+            "  activate  Mark a claimed ownership active after successful delivery\n",
+        )
+        return 0
+    sub = args[0]
+    if sub == "inspect":
+        return cmd_worker_binding_lane_ownership_inspect(args[1:])
+    if sub == "activate":
+        return cmd_worker_binding_lane_ownership_activate(args[1:])
+    print(f"Unknown worker-binding lane-ownership subcommand: {sub}", file=sys.stderr)
+    print(_WORKER_BINDING_LANE_OWNERSHIP_USAGE, file=sys.stderr)
+    return 1
+
+
+def cmd_worker_binding_lane_ownership_inspect(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_LANE_OWNERSHIP_INSPECT_USAGE + "\n\n"
+            "Inspect reads the continuous worker lane ownership ledger without "
+            "mutation. Transferred and released ownerships are hidden unless "
+            "--include-inactive is passed.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
+        "ownership_id": "",
+        "scope_kind": "",
+        "scope_id": "",
+        "lane_id": "",
+        "binding_id": "",
+        "worker_id": "",
+        "include_inactive": False,
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--ownership-id": "ownership_id",
+        "--scope-kind": "scope_kind",
+        "--scope-id": "scope_id",
+        "--lane-id": "lane_id",
+        "--binding-id": "binding_id",
+        "--worker-id": "worker_id",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--include-inactive":
+            parsed["include_inactive"] = True
+            i += 1
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding lane-ownership inspect option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_LANE_OWNERSHIP_INSPECT_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_LANE_OWNERSHIP_INSPECT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    try:
+        from .runtime.orchestration import (
+            LaneOwnershipInspectRequest,
+            inspect_lane_ownerships,
+        )
+
+        root = _find_project_root()
+        result = inspect_lane_ownerships(
+            LaneOwnershipInspectRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                ownership_id=str(parsed["ownership_id"]),
+                scope_kind=str(parsed["scope_kind"]),
+                scope_id=str(parsed["scope_id"]),
+                lane_id=str(parsed["lane_id"]),
+                binding_id=str(parsed["binding_id"]),
+                worker_id=str(parsed["worker_id"]),
+                include_inactive=bool(parsed["include_inactive"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting continuous worker lane ownership",
+            e,
+            category="worker_binding_lane_ownership_inspect_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_lane_ownership_activate(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE + "\n\n"
+            "Activate moves a claimed lane ownership to active after the host "
+            "has evidence of a successful delivery. It records compact audit "
+            "metadata only and does not run providers.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
+        "event_log_path": ".codex/runtime/continuous-worker-lane-ownership-events.jsonl",
+        "ownership_id": "",
+        "binding_id": "",
+        "delivery_id": "",
+        "task_id": "",
+        "activated_at": "",
+        "audit_refs": [],
+        "reason": "lane ownership activated",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--ownership-id": "ownership_id",
+        "--binding-id": "binding_id",
+        "--delivery-id": "delivery_id",
+        "--task-id": "task_id",
+        "--activated-at": "activated_at",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--audit-ref":
+            if i + 1 >= len(args):
+                print(_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            parsed["audit_refs"].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding lane-ownership activate option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+
+    if not parsed["ownership_id"] and not parsed["binding_id"]:
+        print(_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE, file=sys.stderr)
+        print("lane-ownership activate requires --ownership-id or --binding-id", file=sys.stderr)
+        return 1
+    missing = [
+        name
+        for name in ("--delivery-id", "--task-id")
+        if not parsed[{"--delivery-id": "delivery_id", "--task-id": "task_id"}[name]]
+    ]
+    if missing:
+        print(_WORKER_BINDING_LANE_OWNERSHIP_ACTIVATE_USAGE, file=sys.stderr)
+        print(f"Missing required option(s): {', '.join(missing)}", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            LaneOwnershipActivateRequest,
+            activate_lane_ownership,
+        )
+
+        root = _find_project_root()
+        result = activate_lane_ownership(
+            LaneOwnershipActivateRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                ownership_id=str(parsed["ownership_id"]),
+                binding_id=str(parsed["binding_id"]),
+                activated_at=str(parsed["activated_at"]),
+                delivery_id=str(parsed["delivery_id"]),
+                task_id=str(parsed["task_id"]),
+                reason=str(parsed["reason"]),
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                metadata={"activation_authority": "explicit_host_owned_action"},
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error activating continuous worker lane ownership",
+            e,
+            category="worker_binding_lane_ownership_activate_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_worker_binding_recover_stale(args: list[str]) -> int:
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _WORKER_BINDING_RECOVER_STALE_USAGE + "\n\n"
+            "Recover-stale marks active bindings stale whose expires_at is not "
+            "later than --now. It does not create replacement sessions.",
+        )
+        return 0
+
+    parsed: dict[str, object] = {
+        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "now": "",
+        "timestamp": "",
+        "reason": "continuous worker binding stale recovery",
+    }
+    cli_to_key = {
+        "--ledger-path": "ledger_path",
+        "--event-log-path": "event_log_path",
+        "--now": "now",
+        "--timestamp": "timestamp",
+        "--reason": "reason",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg not in cli_to_key:
+            print(f"Unknown worker-binding recover-stale option: {arg}", file=sys.stderr)
+            print(_WORKER_BINDING_RECOVER_STALE_USAGE, file=sys.stderr)
+            return 1
+        if i + 1 >= len(args):
+            print(_WORKER_BINDING_RECOVER_STALE_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return 1
+        parsed[cli_to_key[arg]] = args[i + 1]
+        i += 2
+    if not parsed["now"]:
+        print(_WORKER_BINDING_RECOVER_STALE_USAGE, file=sys.stderr)
+        print("recover-stale requires --now", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ContinuousWorkerBindingRecoverStaleRequest,
+            recover_stale_continuous_worker_bindings,
+        )
+
+        root = _find_project_root()
+        result = recover_stale_continuous_worker_bindings(
+            ContinuousWorkerBindingRecoverStaleRequest(
+                ledger_path=_resolve_project_path(root, str(parsed["ledger_path"])),
+                event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                now=str(parsed["now"]),
+                timestamp=str(parsed["timestamp"]),
+                reason=str(parsed["reason"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error recovering stale continuous worker bindings",
+            e,
+            category="worker_binding_recover_stale_failed",
+        )
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_opencode_guide_worker_smoke(args: list[str]) -> int:
+    """Run host-owned OpenCode CLI guide-worker provider execution through CLI."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _OPENCODE_GUIDE_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned live-provider guide-worker smoke "
+            "surface for OpenCode CLI. It delegates to "
+            "run_host_owned_guide_worker_provider_execution(), uses explicit "
+            "host-authorized adapter wiring and an OpenCode process-spawn "
+            "grant. It is not an MCP real-provider execution surface, does "
+            "not persist raw transcripts, and does not mutate agent-owned "
+            "Local Work Trajectory. Runtime invocations are audited to compact "
+            "JSONL by default and retry retryable provider failures. "
+            "Git-worktree worker changes are exported as review-only worker "
+            "patch artifacts and merge candidates; they are not applied "
+            "automatically.",
+        )
+        return 0
+
+    executable = "opencode"
+    cwd = ""
+    model = ""
+    output_format = "json"
+    attach_url = ""
+    session_id = ""
+    continue_session = False
+    fork_session = False
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    git_worktree_sandbox_root = ""
+    sandbox_allocation_evidence_id = ""
+    sandbox_allocation_evidence_path = ""
+    host_invocation_id = ""
+    reason = ""
+    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_max_attempts = 2
+    runtime_invocation_backoff_seconds = 0.0
+    guide_task_title = ""
+    guide_task_summary = ""
+    planner_lane_specs: list[str] = []
+    max_parallel_lanes = 2
+    max_waves = 1
+    wave_execution_mode = "threaded"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--executable",
+            "--cwd",
+            "--model",
+            "--output-format",
+            "--attach-url",
+            "--session-id",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--git-worktree-sandbox-root",
+            "--sandbox-allocation-evidence-id",
+            "--sandbox-allocation-evidence-path",
+            "--host-invocation-id",
+            "--reason",
+            "--runtime-invocation-log-path",
+            "--runtime-invocation-max-attempts",
+            "--runtime-invocation-backoff-seconds",
+            "--guide-task-title",
+            "--guide-task-summary",
+            "--planner-lane",
+            "--max-parallel-lanes",
+            "--max-waves",
+            "--wave-execution-mode",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--executable":
+                executable = value
+            elif arg == "--cwd":
+                cwd = value
+            elif arg == "--model":
+                model = value
+            elif arg == "--output-format":
+                output_format = value
+            elif arg == "--attach-url":
+                attach_url = value
+            elif arg == "--session-id":
+                session_id = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--git-worktree-sandbox-root":
+                git_worktree_sandbox_root = value
+            elif arg == "--sandbox-allocation-evidence-id":
+                sandbox_allocation_evidence_id = value
+            elif arg == "--sandbox-allocation-evidence-path":
+                sandbox_allocation_evidence_path = value
+            elif arg == "--host-invocation-id":
+                host_invocation_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--runtime-invocation-log-path":
+                runtime_invocation_log_path = value
+            elif arg == "--runtime-invocation-max-attempts":
+                try:
+                    runtime_invocation_max_attempts = int(value)
+                except ValueError:
+                    print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-max-attempts must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--runtime-invocation-backoff-seconds":
+                try:
+                    runtime_invocation_backoff_seconds = float(value)
+                except ValueError:
+                    print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-backoff-seconds must be a number", file=sys.stderr)
+                    return 1
+            elif arg == "--guide-task-title":
+                guide_task_title = value
+            elif arg == "--guide-task-summary":
+                guide_task_summary = value
+            elif arg == "--planner-lane":
+                planner_lane_specs.append(value)
+            elif arg == "--max-parallel-lanes":
+                try:
+                    max_parallel_lanes = int(value)
+                except ValueError:
+                    print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-parallel-lanes must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-waves":
+                try:
+                    max_waves = int(value)
+                except ValueError:
+                    print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-waves must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--wave-execution-mode":
+                wave_execution_mode = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        if arg == "--continue-session":
+            continue_session = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            fork_session = True
+            i += 1
+            continue
+        print(f"Unknown opencode guide-worker-smoke option: {arg}", file=sys.stderr)
+        print(_OPENCODE_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+        return 1
+
+    if output_format not in {"text", "json"}:
+        print("opencode guide-worker-smoke --output-format must be text or json", file=sys.stderr)
+        return 1
+    if session_id and continue_session:
+        print("opencode guide-worker-smoke cannot use --session-id with --continue-session", file=sys.stderr)
+        return 1
+    if fork_session and not (session_id or continue_session):
+        print(
+            "opencode guide-worker-smoke --fork-session requires --session-id or --continue-session",
+            file=sys.stderr,
+        )
+        return 1
+    if max_parallel_lanes < 1:
+        print("opencode guide-worker-smoke --max-parallel-lanes must be positive", file=sys.stderr)
+        return 1
+    if max_waves < 1:
+        print("opencode guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_max_attempts < 1:
+        print("opencode guide-worker-smoke --runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_backoff_seconds < 0:
+        print(
+            "opencode guide-worker-smoke --runtime-invocation-backoff-seconds must be non-negative",
+            file=sys.stderr,
+        )
+        return 1
+    if wave_execution_mode not in {"serial", "threaded"}:
+        print(
+            "opencode guide-worker-smoke --wave-execution-mode must be serial or threaded",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
+            OpenCodeCliClientConfig,
+        )
+        from tools.progress_graph import (
+            HostOwnedGuideWorkerProviderExecutionConfig,
+            run_host_owned_guide_worker_provider_execution,
+        )
+
+        opencode_config = OpenCodeCliClientConfig(
+            executable=executable,
+            cwd=cwd,
+            model=model,
+            output_format=output_format,  # type: ignore[arg-type]
+            attach_url=attach_url,
+            session_id=session_id,
+            continue_session=continue_session,
+            fork_session=fork_session,
+        )
+        planning_request = GuideWorkerPlanningRequest(
+            task_title=guide_task_title,
+            task_summary=guide_task_summary,
+            lane_specs=tuple(
+                _parse_guide_worker_planner_lane_spec(
+                    item,
+                    GuideWorkerPlannerLaneSpec,
+                )
+                for item in planner_lane_specs
+            ),
+        )
+        config_kwargs = {
+            "evidence_id": evidence_id or "opencode-guide-worker-provider-execution",
+            "timestamp": timestamp,
+            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "admission_ledger_path": (
+                admission_ledger_path
+                or ".codex/orchestration/exchange-artifact-admissions.json"
+            ),
+            "snapshot_path": (
+                snapshot_path
+                or ".codex/scheduler/opencode-guide-worker-provider-execution-state.json"
+            ),
+            "event_log_path": (
+                event_log_path
+                or ".codex/scheduler/opencode-guide-worker-provider-execution-events.jsonl"
+            ),
+            "evidence_output_path": evidence_path or None,
+            "workspace_root": str(root),
+            "git_worktree_sandbox_root": git_worktree_sandbox_root or None,
+            "sandbox_allocation_evidence_id": sandbox_allocation_evidence_id,
+            "sandbox_allocation_evidence_path": sandbox_allocation_evidence_path or None,
+            "providers": ("opencode",),
+            "opencode_cli_client_config": opencode_config,
+            "host_invocation_id": (
+                host_invocation_id
+                or "host-owned-opencode-guide-worker-provider-execution-cli"
+            ),
+            "requested_by": "cli:opencode-guide-worker-smoke",
+            "reason": reason or "host-owned OpenCode CLI guide-worker smoke run from CLI",
+            "runtime_invocation_log_path": runtime_invocation_log_path or None,
+            "runtime_invocation_max_attempts": runtime_invocation_max_attempts,
+            "runtime_invocation_backoff_seconds": runtime_invocation_backoff_seconds,
+            "grant_id": (
+                f"grant-{host_invocation_id}"
+                if host_invocation_id
+                else "grant-host-owned-opencode-guide-worker-provider-execution-cli"
+            ),
+            "approved_by": "cli:opencode-guide-worker-smoke",
+            "approved_at": timestamp,
+            "planning_request": planning_request,
+            "planner_worker_runtime_provider": "opencode",
+            "max_parallel_lanes": max_parallel_lanes,
+            "max_waves": max_waves,
+            "wave_execution_mode": wave_execution_mode,
+        }
+        if planner_lane_specs:
+            config_kwargs["worker_instructions"] = ()
+        config = HostOwnedGuideWorkerProviderExecutionConfig(**config_kwargs)
+        result = run_host_owned_guide_worker_provider_execution(root, config=config)
+    except Exception as e:
+        return _handle_error(
+            "Error running OpenCode guide-worker smoke",
+            e,
+            category="opencode_guide_worker_smoke_failed",
         )
 
     _print_json(result.to_json_dict())
@@ -1224,6 +3993,405 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     return 0 if result.orchestration.ok else 1
 
 
+def cmd_provider(args: list[str]) -> int:
+    """Mixed runtime-provider host helper subcommands."""
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding provider <subcommand> [args]\n\n"
+            "Mixed runtime provider host helpers.\n\n"
+            "Subcommands:\n"
+            "  guide-worker-smoke [--providers codex,opencode]\n"
+            "      Run host-owned mixed-provider guide-worker lane-wave execution\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "guide-worker-smoke":
+        return cmd_provider_guide_worker_smoke(args[1:])
+
+    print(f"Unknown provider subcommand: {sub}", file=sys.stderr)
+    print("Usage: doc-based-coding provider <guide-worker-smoke> [args]", file=sys.stderr)
+    return 1
+
+
+def cmd_provider_guide_worker_smoke(args: list[str]) -> int:
+    """Run host-owned mixed-provider guide-worker execution through CLI."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _PROVIDER_GUIDE_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned mixed-provider guide-worker smoke "
+            "surface. It defaults to providers=codex,opencode and lets "
+            "--planner-lane-provider assign a provider per lane. It delegates "
+            "to run_host_owned_guide_worker_provider_execution(), uses explicit "
+            "host-authorized adapter wiring and provider grants, is not an MCP "
+            "real-provider execution surface, does not persist raw transcripts, "
+            "and does not mutate agent-owned Local Work Trajectory.",
+        )
+        return 0
+
+    providers_text = "codex,opencode"
+    codex_executable = "codex"
+    codex_cwd = ""
+    codex_model = ""
+    codex_sandbox = "workspace-write"
+    codex_ask_for_approval = "never"
+    opencode_executable = "opencode"
+    opencode_cwd = ""
+    opencode_model = ""
+    opencode_output_format = "json"
+    opencode_attach_url = ""
+    opencode_session_id = ""
+    opencode_continue_session = False
+    opencode_fork_session = False
+    artifact_store_path = ""
+    admission_ledger_path = ""
+    snapshot_path = ""
+    event_log_path = ""
+    evidence_id = ""
+    evidence_path = ""
+    git_worktree_sandbox_root = ""
+    sandbox_allocation_evidence_id = ""
+    sandbox_allocation_evidence_path = ""
+    host_invocation_id = ""
+    reason = ""
+    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_max_attempts = 2
+    runtime_invocation_backoff_seconds = 0.0
+    guide_task_title = ""
+    guide_task_summary = ""
+    planner_lane_specs: list[str] = []
+    planner_lane_providers: list[str] = []
+    max_parallel_lanes = 2
+    max_waves = 1
+    wave_execution_mode = "threaded"
+    timestamp = ""
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--providers",
+            "--codex-executable",
+            "--codex-cwd",
+            "--codex-model",
+            "--codex-sandbox",
+            "--codex-ask-for-approval",
+            "--opencode-executable",
+            "--opencode-cwd",
+            "--opencode-model",
+            "--opencode-output-format",
+            "--opencode-attach-url",
+            "--opencode-session-id",
+            "--artifact-store-path",
+            "--admission-ledger-path",
+            "--snapshot-path",
+            "--event-log-path",
+            "--evidence-id",
+            "--evidence-path",
+            "--git-worktree-sandbox-root",
+            "--sandbox-allocation-evidence-id",
+            "--sandbox-allocation-evidence-path",
+            "--host-invocation-id",
+            "--reason",
+            "--runtime-invocation-log-path",
+            "--runtime-invocation-max-attempts",
+            "--runtime-invocation-backoff-seconds",
+            "--guide-task-title",
+            "--guide-task-summary",
+            "--planner-lane",
+            "--planner-lane-provider",
+            "--max-parallel-lanes",
+            "--max-waves",
+            "--wave-execution-mode",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--providers":
+                providers_text = value
+            elif arg == "--codex-executable":
+                codex_executable = value
+            elif arg == "--codex-cwd":
+                codex_cwd = value
+            elif arg == "--codex-model":
+                codex_model = value
+            elif arg == "--codex-sandbox":
+                codex_sandbox = value
+            elif arg == "--codex-ask-for-approval":
+                codex_ask_for_approval = value
+            elif arg == "--opencode-executable":
+                opencode_executable = value
+            elif arg == "--opencode-cwd":
+                opencode_cwd = value
+            elif arg == "--opencode-model":
+                opencode_model = value
+            elif arg == "--opencode-output-format":
+                opencode_output_format = value
+            elif arg == "--opencode-attach-url":
+                opencode_attach_url = value
+            elif arg == "--opencode-session-id":
+                opencode_session_id = value
+            elif arg == "--artifact-store-path":
+                artifact_store_path = value
+            elif arg == "--admission-ledger-path":
+                admission_ledger_path = value
+            elif arg == "--snapshot-path":
+                snapshot_path = value
+            elif arg == "--event-log-path":
+                event_log_path = value
+            elif arg == "--evidence-id":
+                evidence_id = value
+            elif arg == "--evidence-path":
+                evidence_path = value
+            elif arg == "--git-worktree-sandbox-root":
+                git_worktree_sandbox_root = value
+            elif arg == "--sandbox-allocation-evidence-id":
+                sandbox_allocation_evidence_id = value
+            elif arg == "--sandbox-allocation-evidence-path":
+                sandbox_allocation_evidence_path = value
+            elif arg == "--host-invocation-id":
+                host_invocation_id = value
+            elif arg == "--reason":
+                reason = value
+            elif arg == "--runtime-invocation-log-path":
+                runtime_invocation_log_path = value
+            elif arg == "--runtime-invocation-max-attempts":
+                try:
+                    runtime_invocation_max_attempts = int(value)
+                except ValueError:
+                    print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-max-attempts must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--runtime-invocation-backoff-seconds":
+                try:
+                    runtime_invocation_backoff_seconds = float(value)
+                except ValueError:
+                    print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--runtime-invocation-backoff-seconds must be a number", file=sys.stderr)
+                    return 1
+            elif arg == "--guide-task-title":
+                guide_task_title = value
+            elif arg == "--guide-task-summary":
+                guide_task_summary = value
+            elif arg == "--planner-lane":
+                planner_lane_specs.append(value)
+            elif arg == "--planner-lane-provider":
+                planner_lane_providers.append(value)
+            elif arg == "--max-parallel-lanes":
+                try:
+                    max_parallel_lanes = int(value)
+                except ValueError:
+                    print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-parallel-lanes must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--max-waves":
+                try:
+                    max_waves = int(value)
+                except ValueError:
+                    print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+                    print("--max-waves must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--wave-execution-mode":
+                wave_execution_mode = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        if arg == "--opencode-continue-session":
+            opencode_continue_session = True
+            i += 1
+            continue
+        if arg == "--opencode-fork-session":
+            opencode_fork_session = True
+            i += 1
+            continue
+        print(f"Unknown provider guide-worker-smoke option: {arg}", file=sys.stderr)
+        print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        providers = _parse_runtime_provider_csv(providers_text)
+        lane_provider_map = _parse_planner_lane_provider_overrides(
+            planner_lane_providers,
+            providers=providers,
+        )
+    except ValueError as exc:
+        print(_PROVIDER_GUIDE_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if "codex" not in providers or "opencode" not in providers:
+        print(
+            "provider guide-worker-smoke currently requires default mixed providers codex and opencode",
+            file=sys.stderr,
+        )
+        return 1
+    if codex_sandbox not in {"read-only", "workspace-write", "danger-full-access"}:
+        print(
+            "provider guide-worker-smoke --codex-sandbox must be read-only, workspace-write, or danger-full-access",
+            file=sys.stderr,
+        )
+        return 1
+    if codex_ask_for_approval not in {"untrusted", "on-request", "never"}:
+        print(
+            "provider guide-worker-smoke --codex-ask-for-approval must be untrusted, on-request, or never",
+            file=sys.stderr,
+        )
+        return 1
+    if opencode_output_format not in {"text", "json"}:
+        print(
+            "provider guide-worker-smoke --opencode-output-format must be text or json",
+            file=sys.stderr,
+        )
+        return 1
+    if opencode_session_id and opencode_continue_session:
+        print(
+            "provider guide-worker-smoke cannot use --opencode-session-id with --opencode-continue-session",
+            file=sys.stderr,
+        )
+        return 1
+    if opencode_fork_session and not (opencode_session_id or opencode_continue_session):
+        print(
+            "provider guide-worker-smoke --opencode-fork-session requires --opencode-session-id or --opencode-continue-session",
+            file=sys.stderr,
+        )
+        return 1
+    if max_parallel_lanes < 1:
+        print("provider guide-worker-smoke --max-parallel-lanes must be positive", file=sys.stderr)
+        return 1
+    if max_waves < 1:
+        print("provider guide-worker-smoke --max-waves must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_max_attempts < 1:
+        print("provider guide-worker-smoke --runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if runtime_invocation_backoff_seconds < 0:
+        print(
+            "provider guide-worker-smoke --runtime-invocation-backoff-seconds must be non-negative",
+            file=sys.stderr,
+        )
+        return 1
+    if wave_execution_mode not in {"serial", "threaded"}:
+        print(
+            "provider guide-worker-smoke --wave-execution-mode must be serial or threaded",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            CodexCliClientConfig,
+            GuideWorkerPlannerLaneSpec,
+            GuideWorkerPlanningRequest,
+            OpenCodeCliClientConfig,
+        )
+        from tools.progress_graph import (
+            HostOwnedGuideWorkerProviderExecutionConfig,
+            run_host_owned_guide_worker_provider_execution,
+        )
+
+        parsed_lane_specs = [
+            _parse_guide_worker_planner_lane_spec(item, GuideWorkerPlannerLaneSpec)
+            for item in planner_lane_specs
+        ]
+        if not parsed_lane_specs:
+            parsed_lane_specs = [
+                GuideWorkerPlannerLaneSpec(
+                    lane_id="lane:codex",
+                    label="Codex lane",
+                    focus="Codex worker validates backend/runtime changes",
+                    worker_runtime_provider="codex",
+                ),
+                GuideWorkerPlannerLaneSpec(
+                    lane_id="lane:opencode",
+                    label="OpenCode lane",
+                    focus="OpenCode worker validates frontend/integration changes",
+                    worker_runtime_provider="opencode",
+                ),
+            ]
+        parsed_lane_specs = _apply_lane_provider_overrides(
+            parsed_lane_specs,
+            lane_provider_map,
+        )
+        planning_request = GuideWorkerPlanningRequest(
+            task_title=guide_task_title,
+            task_summary=guide_task_summary,
+            lane_specs=tuple(parsed_lane_specs),
+        )
+        codex_config = CodexCliClientConfig(
+            executable=codex_executable,
+            cwd=codex_cwd,
+            model=codex_model,
+            sandbox=codex_sandbox,  # type: ignore[arg-type]
+            ask_for_approval=codex_ask_for_approval,  # type: ignore[arg-type]
+        )
+        opencode_config = OpenCodeCliClientConfig(
+            executable=opencode_executable,
+            cwd=opencode_cwd,
+            model=opencode_model,
+            output_format=opencode_output_format,  # type: ignore[arg-type]
+            attach_url=opencode_attach_url,
+            session_id=opencode_session_id,
+            continue_session=opencode_continue_session,
+            fork_session=opencode_fork_session,
+        )
+        host_id = host_invocation_id or "host-owned-mixed-provider-guide-worker-smoke-cli"
+        config = HostOwnedGuideWorkerProviderExecutionConfig(
+            evidence_id=evidence_id or "mixed-provider-guide-worker-smoke",
+            timestamp=timestamp,
+            artifact_store_path=artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            admission_ledger_path=(
+                admission_ledger_path
+                or ".codex/orchestration/exchange-artifact-admissions.json"
+            ),
+            snapshot_path=(
+                snapshot_path
+                or ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json"
+            ),
+            event_log_path=(
+                event_log_path
+                or ".codex/scheduler/mixed-provider-guide-worker-smoke-events.jsonl"
+            ),
+            evidence_output_path=evidence_path or None,
+            workspace_root=str(root),
+            git_worktree_sandbox_root=git_worktree_sandbox_root or None,
+            sandbox_allocation_evidence_id=sandbox_allocation_evidence_id,
+            sandbox_allocation_evidence_path=sandbox_allocation_evidence_path or None,
+            providers=providers,
+            codex_cli_client_config=codex_config,
+            opencode_cli_client_config=opencode_config,
+            host_invocation_id=host_id,
+            requested_by="cli:provider-guide-worker-smoke",
+            reason=reason or "host-owned mixed-provider guide-worker smoke run from CLI",
+            runtime_invocation_log_path=runtime_invocation_log_path or None,
+            runtime_invocation_max_attempts=runtime_invocation_max_attempts,
+            runtime_invocation_backoff_seconds=runtime_invocation_backoff_seconds,
+            grant_id=f"grant-{host_id}",
+            approved_by="cli:provider-guide-worker-smoke",
+            approved_at=timestamp,
+            planning_request=planning_request,
+            worker_instructions=(),
+            max_parallel_lanes=max_parallel_lanes,
+            max_waves=max_waves,
+            wave_execution_mode=wave_execution_mode,
+        )
+        result = run_host_owned_guide_worker_provider_execution(root, config=config)
+    except Exception as e:
+        return _handle_error(
+            "Error running mixed-provider guide-worker smoke",
+            e,
+            category="provider_guide_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.orchestration.ok else 1
+
+
 _SCHEDULER_ADMIT_USAGE = (
     "Usage: doc-based-coding scheduler admit-exchange-artifact "
     "--artifact-id ID --version VERSION --snapshot-path PATH --event-log-path PATH "
@@ -1309,6 +4477,29 @@ _SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE = (
     "[--artifact-store-path PATH] [--target-task-id ID]... [--latest-limit N]"
 )
 
+_SCHEDULER_INSPECT_OPENCODE_RUNTIME_STATUS_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-opencode-runtime-status "
+    "--snapshot-path PATH --event-log-path PATH "
+    "[--delivery-state-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--artifact-store-path PATH] [--target-task-id ID]... [--latest-limit N]"
+)
+
+_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE = (
+    "Usage: doc-based-coding scheduler inspect-monitoring-snapshot "
+    "--snapshot-path PATH --event-log-path PATH "
+    "[--delivery-state-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--artifact-store-path PATH] [--live-codex-smoke-report-path PATH] "
+    "[--target-task-id ID]... [--latest-limit N]"
+)
+
+_SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE = (
+    "Usage: doc-based-coding scheduler consume-worker-trajectory-report "
+    "--report-path PATH [--caller-role leader|main|supervisor|guide] "
+    "[--actor ACTOR] [--current-event-id ID] [--title TITLE] "
+    "[--event-kind task|review|validation|writeback|wait|decision|handoff|close] "
+    "[--no-start-if-missing] [--trajectory-title TITLE] [--guide-context LABEL]"
+)
+
 _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE = (
     "Usage: doc-based-coding scheduler codex-delivery-supervisor-once "
     "--snapshot-path PATH --event-log-path PATH "
@@ -1324,6 +4515,34 @@ _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE = (
     "[--executable PATH] [--cwd PATH] [--model MODEL] "
     "[--sandbox read-only|workspace-write|danger-full-access] "
     "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--reason TEXT] "
+    "[--timestamp TIMESTAMP] [--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE = (
+    "Usage: doc-based-coding scheduler opencode-delivery-supervisor-once "
+    "--snapshot-path PATH --event-log-path PATH "
+    "[--delivery-state-path PATH] [--delivery-event-log-path PATH] "
+    "[--runtime-invocation-log-path PATH] [--artifact-store-path PATH] "
+    "[--consume-success-results] [--replace-existing-result-artifact] "
+    "[--max-deliveries N] [--retry-failed-delivery] "
+    "[--max-delivery-attempts-per-record N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--opencode-transport cli|server-api] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--output-format text|json] "
+    "[--attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
+    "[--server-api-base-url URL] [--server-api-session-id ID] "
+    "[--server-api-health-path PATH] [--server-api-doc-path PATH] "
+    "[--server-api-timeout-seconds N] "
+    "[--server-api-username-env-var NAME] [--server-api-password-env-var NAME] "
+    "[--worker-binding-ledger-path PATH] [--worker-binding-event-log-path PATH] "
+    "[--no-worker-binding-lookup] "
+    "[--session-ledger-path PATH] [--no-session-ledger-lookup] "
     "[--host-id ID] [--host-invocation-id ID] [--reason TEXT] "
     "[--timestamp TIMESTAMP] [--runtime-invocation-max-attempts N] "
     "[--runtime-invocation-backoff-seconds N]"
@@ -1347,6 +4566,32 @@ _SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE = (
     "[--runtime-invocation-backoff-seconds N]"
 )
 
+_SCHEDULER_OPENCODE_DELIVERY_E2E_SMOKE_USAGE = (
+    "Usage: doc-based-coding scheduler opencode-delivery-e2e-smoke "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture simple|multilane] "
+    "[--replace-existing-result-artifact] "
+    "[--target-task-id ID] [--waiting-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--output-format text|json] "
+    "[--opencode-transport cli|server-api] "
+    "[--attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
+    "[--server-api-base-url URL] [--server-api-session-id ID] "
+    "[--server-api-health-path PATH] [--server-api-doc-path PATH] "
+    "[--server-api-timeout-seconds N] "
+    "[--server-api-username-env-var NAME] [--server-api-password-env-var NAME] "
+    "[--worker-binding-ledger-path PATH] [--worker-binding-event-log-path PATH] "
+    "[--no-worker-binding-lookup] "
+    "[--session-ledger-path PATH] [--no-session-ledger-lookup] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
 _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE = (
     "Usage: doc-based-coding scheduler codex-delivery-supervisor-loop "
     "[--snapshot-path PATH] [--event-log-path PATH] "
@@ -1362,10 +4607,94 @@ _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_LOOP_USAGE = (
     "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
     "[--git-executable PATH] [--publish-worker-patch-artifacts] "
     "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
-    "[--target-task-id ID] [--waiting-task-id ID] [--followup-task-id ID] "
+    "[--target-task-id ID] [--parallel-task-id ID] "
+    "[--waiting-task-id ID] [--followup-task-id ID] "
     "[--executable PATH] [--cwd PATH] [--model MODEL] "
     "[--sandbox read-only|workspace-write|danger-full-access] "
     "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_LOOP_USAGE = (
+    "Usage: doc-based-coding scheduler opencode-delivery-supervisor-loop "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture simple|multilane] "
+    "[--replace-existing-result-artifact] "
+    "[--max-ticks N] [--max-deliveries N] [--max-runtime-failures N] "
+    "[--max-delivery-attempts-per-record N] [--max-concurrent-deliveries N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--target-task-id ID] [--parallel-task-id ID] "
+    "[--waiting-task-id ID] [--followup-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--output-format text|json] "
+    "[--opencode-transport cli|server-api] "
+    "[--attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
+    "[--server-api-base-url URL] [--server-api-session-id ID] "
+    "[--server-api-health-path PATH] [--server-api-doc-path PATH] "
+    "[--server-api-timeout-seconds N] "
+    "[--server-api-username-env-var NAME] [--server-api-password-env-var NAME] "
+    "[--worker-binding-ledger-path PATH] [--worker-binding-event-log-path PATH] "
+    "[--no-worker-binding-lookup] "
+    "[--session-ledger-path PATH] [--no-session-ledger-lookup] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding scheduler live-codex-concurrent-worker-smoke "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture multilane] [--report-path PATH] "
+    "[--replace-existing-result-artifact] "
+    "[--max-ticks N] [--max-deliveries N] [--max-runtime-failures N] "
+    "[--max-delivery-attempts-per-record N] [--max-concurrent-deliveries N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--target-task-id ID] [--parallel-task-id ID] "
+    "[--waiting-task-id ID] [--followup-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--sandbox read-only|workspace-write|danger-full-access] "
+    "[--ask-for-approval untrusted|on-request|never] "
+    "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
+    "[--runtime-invocation-max-attempts N] "
+    "[--runtime-invocation-backoff-seconds N]"
+)
+
+_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE = (
+    "Usage: doc-based-coding scheduler live-opencode-concurrent-worker-smoke "
+    "[--snapshot-path PATH] [--event-log-path PATH] "
+    "[--artifact-store-path PATH] [--dispatcher-state-path PATH] "
+    "[--dispatch-event-log-path PATH] [--delivery-state-path PATH] "
+    "[--delivery-event-log-path PATH] [--runtime-invocation-log-path PATH] "
+    "[--initialize-fixture] [--replace-existing-fixture] "
+    "[--fixture multilane] [--report-path PATH] "
+    "[--replace-existing-result-artifact] "
+    "[--max-ticks N] [--max-deliveries N] [--max-runtime-failures N] "
+    "[--max-delivery-attempts-per-record N] [--max-concurrent-deliveries N] "
+    "[--enable-sandbox-preflight] [--workspace-root PATH] "
+    "[--scratch-root PATH] [--git-worktree-sandbox-root PATH] "
+    "[--git-executable PATH] [--publish-worker-patch-artifacts] "
+    "[--worker-patch-guide-agent-id ID] [--worker-patch-target-task-id ID] "
+    "[--target-task-id ID] [--parallel-task-id ID] "
+    "[--waiting-task-id ID] [--followup-task-id ID] "
+    "[--executable PATH] [--cwd PATH] [--model MODEL] "
+    "[--output-format text|json] "
+    "[--attach-url URL] [--session-id ID] [--continue-session] [--fork-session] "
     "[--host-id ID] [--host-invocation-id ID] [--timestamp TIMESTAMP] "
     "[--runtime-invocation-max-attempts N] "
     "[--runtime-invocation-backoff-seconds N]"
@@ -1637,9 +4966,17 @@ def cmd_scheduler(args: list[str]) -> int:
             "  leader-worker-delivery-ack Record host/runtime delivery acknowledgement for one decision\n"
             "  inspect-leader-worker-delivery Read host-owned delivery acknowledgement state without mutation\n"
             "  inspect-codex-runtime-status Read compact Codex scheduler/delivery/runtime status without mutation\n"
+            "  inspect-opencode-runtime-status Read compact OpenCode scheduler/delivery/runtime status without mutation\n"
+            "  inspect-monitoring-snapshot Read frontend-oriented orchestration monitoring snapshot without mutation\n"
+            "  consume-worker-trajectory-report Consume worker report trajectory_update as leader-owned trajectory mutation\n"
             "  codex-delivery-supervisor-once Run one host-owned Codex pass over pending delivery records\n"
+            "  opencode-delivery-supervisor-once Run one host-owned OpenCode pass over pending delivery records\n"
             "  codex-delivery-e2e-smoke Run C1 Codex delivery/result-consumer smoke\n"
+            "  opencode-delivery-e2e-smoke Run C1 OpenCode delivery/result-consumer smoke\n"
             "  codex-delivery-supervisor-loop Run bounded C2 Codex supervisor loop\n"
+            "  opencode-delivery-supervisor-loop Run bounded OpenCode supervisor loop\n"
+            "  live-codex-concurrent-worker-smoke Run C9 live Codex concurrent worker evidence smoke\n"
+            "  live-opencode-concurrent-worker-smoke Run live OpenCode concurrent worker evidence smoke\n"
             "  inspect-agent-action-candidates Read communication artifacts as action candidates without mutation\n"
             "  decide-agent-action-candidate Record an action-candidate disposition ExchangeArtifact\n"
             "  consume-accepted-scheduler-candidate Consume accepted scheduler candidate disposition via exact admission\n"
@@ -1697,12 +5034,28 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_leader_worker_delivery(args[1:])
     if sub == "inspect-codex-runtime-status":
         return cmd_scheduler_inspect_codex_runtime_status(args[1:])
+    if sub == "inspect-opencode-runtime-status":
+        return cmd_scheduler_inspect_opencode_runtime_status(args[1:])
+    if sub == "inspect-monitoring-snapshot":
+        return cmd_scheduler_inspect_monitoring_snapshot(args[1:])
+    if sub == "consume-worker-trajectory-report":
+        return cmd_scheduler_consume_worker_trajectory_report(args[1:])
     if sub == "codex-delivery-supervisor-once":
         return cmd_scheduler_codex_delivery_supervisor_once(args[1:])
+    if sub == "opencode-delivery-supervisor-once":
+        return cmd_scheduler_opencode_delivery_supervisor_once(args[1:])
     if sub == "codex-delivery-e2e-smoke":
         return cmd_scheduler_codex_delivery_e2e_smoke(args[1:])
+    if sub == "opencode-delivery-e2e-smoke":
+        return cmd_scheduler_opencode_delivery_e2e_smoke(args[1:])
     if sub == "codex-delivery-supervisor-loop":
         return cmd_scheduler_codex_delivery_supervisor_loop(args[1:])
+    if sub == "opencode-delivery-supervisor-loop":
+        return cmd_scheduler_opencode_delivery_supervisor_loop(args[1:])
+    if sub == "live-codex-concurrent-worker-smoke":
+        return cmd_scheduler_live_codex_concurrent_worker_smoke(args[1:])
+    if sub == "live-opencode-concurrent-worker-smoke":
+        return cmd_scheduler_live_opencode_concurrent_worker_smoke(args[1:])
     if sub == "inspect-agent-action-candidates":
         return cmd_scheduler_inspect_agent_action_candidates(args[1:])
     if sub == "decide-agent-action-candidate":
@@ -1760,7 +5113,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-runtime-invocations|inspect-leader-worker-activation|leader-worker-dispatcher-tick|leader-worker-dispatcher-loop|leader-worker-delivery-sync|leader-worker-delivery-ack|inspect-leader-worker-delivery|inspect-codex-runtime-status|codex-delivery-supervisor-once|codex-delivery-e2e-smoke|codex-delivery-supervisor-loop|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-runtime-invocations|inspect-leader-worker-activation|leader-worker-dispatcher-tick|leader-worker-dispatcher-loop|leader-worker-delivery-sync|leader-worker-delivery-ack|inspect-leader-worker-delivery|inspect-codex-runtime-status|inspect-opencode-runtime-status|inspect-monitoring-snapshot|consume-worker-trajectory-report|codex-delivery-supervisor-once|opencode-delivery-supervisor-once|codex-delivery-e2e-smoke|opencode-delivery-e2e-smoke|codex-delivery-supervisor-loop|opencode-delivery-supervisor-loop|live-codex-concurrent-worker-smoke|live-opencode-concurrent-worker-smoke|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -4058,43 +7411,160 @@ def cmd_scheduler_inspect_leader_worker_delivery(args: list[str]) -> int:
 def cmd_scheduler_inspect_codex_runtime_status(args: list[str]) -> int:
     """Read compact Codex scheduler/delivery/runtime status without mutation."""
 
+    return _cmd_scheduler_inspect_provider_runtime_status(
+        args,
+        runtime_provider="codex",
+        usage=_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE,
+        command_name="inspect-codex-runtime-status",
+        provider_label="Codex",
+    )
+
+
+def cmd_scheduler_inspect_opencode_runtime_status(args: list[str]) -> int:
+    """Read compact OpenCode scheduler/delivery/runtime status without mutation."""
+
+    return _cmd_scheduler_inspect_provider_runtime_status(
+        args,
+        runtime_provider="opencode",
+        usage=_SCHEDULER_INSPECT_OPENCODE_RUNTIME_STATUS_USAGE,
+        command_name="inspect-opencode-runtime-status",
+        provider_label="OpenCode",
+    )
+
+
+def _cmd_scheduler_inspect_provider_runtime_status(
+    args: list[str],
+    *,
+    runtime_provider: str,
+    usage: str,
+    command_name: str,
+    provider_label: str,
+) -> int:
+    """Read compact provider scheduler/delivery/runtime status without mutation."""
+
     if not args or args[0] in ("-h", "--help"):
         print(
-            _SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE + "\n\n"
+            usage + "\n\n"
             "This is a read-only operator / guide-agent status surface. It "
             "recovers scheduler state, inspects leader-worker delivery, reads "
             "compact runtime invocation audit records, summarizes ExchangeArtifact "
-            "refs, and reports a safe next_action clue. It does not run Codex, "
+            f"refs, and reports a safe next_action clue. It does not run {provider_label}, "
             "does not apply patches, does not mutate scheduler/delivery/artifact "
             "state, does not expose raw transcripts, and does not mutate Local "
             "Work Trajectory.",
         )
         return 0
 
-    parsed = _parse_codex_runtime_status_args(args)
+    parsed = _parse_provider_runtime_status_args(
+        args,
+        usage=usage,
+        command_name=command_name,
+    )
     if parsed is None:
         return 1
     if not parsed["snapshot_path"] or not parsed["event_log_path"]:
-        print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+        print(usage, file=sys.stderr)
         print("--snapshot-path and --event-log-path are required", file=sys.stderr)
         return 1
     if int(parsed["latest_limit"]) < 0:
-        print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+        print(usage, file=sys.stderr)
         print("--latest-limit must be non-negative", file=sys.stderr)
         return 1
 
     root = _find_project_root()
     try:
         from .runtime.orchestration import (
-            CodexRuntimeStatusRequest,
             DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
             DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
             DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
-            inspect_codex_runtime_status,
+            ProviderRuntimeStatusRequest,
+            inspect_provider_runtime_status,
         )
 
-        result = inspect_codex_runtime_status(
-            CodexRuntimeStatusRequest(
+        result = inspect_provider_runtime_status(
+            ProviderRuntimeStatusRequest(
+                scheduler_snapshot_path=_resolve_project_path(
+                    root,
+                    str(parsed["snapshot_path"]),
+                ),
+                scheduler_event_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["event_log_path"]),
+                ),
+                runtime_provider=runtime_provider,  # type: ignore[arg-type]
+                delivery_state_path=_resolve_project_path(
+                    root,
+                    str(parsed["delivery_state_path"])
+                    or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+                ),
+                runtime_invocation_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["runtime_invocation_log_path"])
+                    or DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+                ),
+                artifact_store_path=_resolve_project_path(
+                    root,
+                    str(parsed["artifact_store_path"])
+                    or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+                ),
+                target_task_ids=tuple(parsed["target_task_ids"]),  # type: ignore[arg-type]
+                latest_limit=int(parsed["latest_limit"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            f"Error inspecting {provider_label} runtime status",
+            e,
+            category=f"scheduler_{runtime_provider}_runtime_status_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_scheduler_inspect_monitoring_snapshot(args: list[str]) -> int:
+    """Read frontend-oriented orchestration monitoring snapshot without mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE + "\n\n"
+            "This is a read-only backend API surface for a future monitoring "
+            "UI. It recovers scheduler state, inspects leader-worker delivery, "
+            "reads compact runtime invocation audit records, summarizes the "
+            "optional live Codex concurrent-worker smoke report, and returns "
+            "frontend-oriented JSON sections for scheduler, delivery, "
+            "runtimeInvocations, liveCodexSmoke, workerReports, and "
+            "operatorSignals. It does not run providers, does not mutate "
+            "scheduler/delivery/runtime/artifact state, does not expose raw "
+            "transcripts, and does not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_monitoring_snapshot_args(args)
+    if parsed is None:
+        return 1
+    if not parsed["snapshot_path"] or not parsed["event_log_path"]:
+        print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
+        print("--snapshot-path and --event-log-path are required", file=sys.stderr)
+        return 1
+    if int(parsed["latest_limit"]) < 0:
+        print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
+        print("--latest-limit must be non-negative", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+            DEFAULT_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_REPORT_RELATIVE_PATH,
+            DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            MonitoringSnapshotRequest,
+            inspect_monitoring_snapshot,
+        )
+
+        result = inspect_monitoring_snapshot(
+            MonitoringSnapshotRequest(
                 scheduler_snapshot_path=_resolve_project_path(
                     root,
                     str(parsed["snapshot_path"]),
@@ -4118,22 +7588,139 @@ def cmd_scheduler_inspect_codex_runtime_status(args: list[str]) -> int:
                     str(parsed["artifact_store_path"])
                     or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
                 ),
+                live_codex_smoke_report_path=_resolve_project_path(
+                    root,
+                    str(parsed["live_codex_smoke_report_path"])
+                    or DEFAULT_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_REPORT_RELATIVE_PATH,
+                ),
                 target_task_ids=tuple(parsed["target_task_ids"]),  # type: ignore[arg-type]
                 latest_limit=int(parsed["latest_limit"]),
             )
         )
     except Exception as e:
         return _handle_error(
-            "Error inspecting Codex runtime status",
+            "Error inspecting monitoring snapshot",
             e,
-            category="scheduler_codex_runtime_status_failed",
+            category="scheduler_monitoring_snapshot_failed",
         )
 
     _print_json(result.to_json_dict())
     return 0 if result.ok else 1
 
 
-def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | None:
+def cmd_scheduler_consume_worker_trajectory_report(args: list[str]) -> int:
+    """Consume worker report trajectory_update as leader-owned mutation."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE + "\n\n"
+            "This leader/main/supervisor surface reads one worker Subagent "
+            "Report JSON file, validates it against the report schema, and "
+            "consumes only the first-version trajectory_update suggested actions "
+            "append, advance, block, wait, resume, close, or none. Worker/"
+            "subagent caller roles are rejected. It does not run providers, "
+            "mutate scheduler state, or consume ExchangeArtifact lifecycle state.",
+        )
+        return 0
+
+    report_path = ""
+    caller_role = "leader"
+    actor = "leader"
+    current_event_id = ""
+    title = ""
+    event_kind = "task"
+    start_if_missing = True
+    trajectory_title = "Local Work Trajectory"
+    guide_context = "worker-trajectory-report-consumer"
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--no-start-if-missing":
+            start_if_missing = False
+            i += 1
+            continue
+        if arg in {
+            "--report-path",
+            "--caller-role",
+            "--actor",
+            "--current-event-id",
+            "--title",
+            "--event-kind",
+            "--trajectory-title",
+            "--guide-context",
+        }:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--report-path":
+                report_path = value
+            elif arg == "--caller-role":
+                caller_role = value
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--current-event-id":
+                current_event_id = value
+            elif arg == "--title":
+                title = value
+            elif arg == "--event-kind":
+                event_kind = value
+            elif arg == "--trajectory-title":
+                trajectory_title = value
+            elif arg == "--guide-context":
+                guide_context = value
+            i += 2
+            continue
+        print(f"Unknown scheduler consume-worker-trajectory-report option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE, file=sys.stderr)
+        return 1
+
+    if not report_path:
+        print(_SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE, file=sys.stderr)
+        print("Missing required option(s): --report-path", file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            WorkerTrajectoryReportConsumerRequest,
+            consume_worker_trajectory_report,
+        )
+
+        result = consume_worker_trajectory_report(
+            WorkerTrajectoryReportConsumerRequest(
+                project_root=root,
+                report_path=_resolve_project_path(root, report_path),
+                caller_role=caller_role,
+                actor=actor,
+                current_event_id=current_event_id,
+                title=title,
+                event_kind=event_kind,
+                start_if_missing=start_if_missing,
+                trajectory_title=trajectory_title,
+                guide_context=guide_context,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error consuming worker trajectory report",
+            e,
+            category="scheduler_worker_trajectory_report_consume_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
+def _parse_provider_runtime_status_args(
+    args: list[str],
+    *,
+    usage: str,
+    command_name: str,
+) -> dict[str, object] | None:
     parsed: dict[str, object] = {
         "snapshot_path": "",
         "event_log_path": "",
@@ -4156,7 +7743,7 @@ def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | Non
         arg = args[i]
         if arg == "--target-task-id":
             if i + 1 >= len(args):
-                print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+                print(usage, file=sys.stderr)
                 print("Missing value for --target-task-id", file=sys.stderr)
                 return None
             target_ids = parsed["target_task_ids"]
@@ -4165,11 +7752,11 @@ def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | Non
             i += 2
             continue
         if arg not in cli_to_key:
-            print(f"Unknown scheduler inspect-codex-runtime-status option: {arg}", file=sys.stderr)
-            print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+            print(f"Unknown scheduler {command_name} option: {arg}", file=sys.stderr)
+            print(usage, file=sys.stderr)
             return None
         if i + 1 >= len(args):
-            print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+            print(usage, file=sys.stderr)
             print(f"Missing value for {arg}", file=sys.stderr)
             return None
         key = cli_to_key[arg]
@@ -4178,7 +7765,71 @@ def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | Non
             try:
                 parsed[key] = int(value)
             except ValueError:
-                print(_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE, file=sys.stderr)
+                print(usage, file=sys.stderr)
+                print("--latest-limit must be an integer", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    return parsed
+
+
+def _parse_codex_runtime_status_args(args: list[str]) -> dict[str, object] | None:
+    return _parse_provider_runtime_status_args(
+        args,
+        usage=_SCHEDULER_INSPECT_CODEX_RUNTIME_STATUS_USAGE,
+        command_name="inspect-codex-runtime-status",
+    )
+
+
+def _parse_monitoring_snapshot_args(args: list[str]) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "delivery_state_path": "",
+        "runtime_invocation_log_path": "",
+        "artifact_store_path": "",
+        "live_codex_smoke_report_path": "",
+        "target_task_ids": [],
+        "latest_limit": 10,
+    }
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--live-codex-smoke-report-path": "live_codex_smoke_report_path",
+        "--latest-limit": "latest_limit",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--target-task-id":
+            if i + 1 >= len(args):
+                print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
+                print("Missing value for --target-task-id", file=sys.stderr)
+                return None
+            target_ids = parsed["target_task_ids"]
+            assert isinstance(target_ids, list)
+            target_ids.append(args[i + 1])
+            i += 2
+            continue
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler inspect-monitoring-snapshot option: {arg}", file=sys.stderr)
+            print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key == "latest_limit":
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_SCHEDULER_INSPECT_MONITORING_SNAPSHOT_USAGE, file=sys.stderr)
                 print("--latest-limit must be an integer", file=sys.stderr)
                 return None
         else:
@@ -4354,6 +8005,214 @@ def cmd_scheduler_codex_delivery_supervisor_once(args: list[str]) -> int:
     return 0 if result.ok else 1
 
 
+def cmd_scheduler_opencode_delivery_supervisor_once(args: list[str]) -> int:
+    """Run one bounded host-owned OpenCode pass over pending delivery records."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE + "\n\n"
+            "This command is a host-owned live OpenCode delivery supervisor pass. "
+            "It consumes pending leader-worker delivery records for ready OpenCode "
+            "scheduler tasks, invokes OpenCode through explicit host-authorized "
+            "runtime wiring, and writes delivery acknowledgement plus compact "
+            "runtime invocation audit. With --consume-success-results it first "
+            "stores the successful output ExchangeArtifact and appends a "
+            "task_completed scheduler event, then acknowledges delivery. If "
+            "OpenCode surfaces permission requests, it instead stores review "
+            "evidence, appends task_review_required, and marks delivery "
+            "review_required. This surface intentionally uses OpenCode host "
+            "options such as --output-format instead of Codex sandbox or approval "
+            "flags. By default it invokes `opencode run`; pass "
+            "--opencode-transport server-api to call a host-owned running "
+            "OpenCode server/API endpoint through the same runtime seam. With "
+            "explicit sandbox preflight and worker patch publication, git-worktree "
+            "worker edits are exported as review-only worker_patch_review_proposal "
+            "artifacts and are not applied. "
+            "It does not mutate scheduler snapshots, expose MCP live-provider "
+            "execution, persist raw transcripts, apply source workspace patches, "
+            "or mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_opencode_delivery_supervisor_args(args)
+    if parsed is None:
+        return 1
+    if not parsed["snapshot_path"] or not parsed["event_log_path"]:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--snapshot-path and --event-log-path are required", file=sys.stderr)
+        return 1
+    if parsed["output_format"] not in {"text", "json"}:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--output-format must be text or json", file=sys.stderr)
+        return 1
+    if parsed["opencode_transport"] not in {"cli", "server-api"}:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--opencode-transport must be cli or server-api", file=sys.stderr)
+        return 1
+    if float(parsed["server_api_timeout_seconds"]) <= 0:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--server-api-timeout-seconds must be positive", file=sys.stderr)
+        return 1
+    if parsed["session_id"] and parsed["continue_session"]:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("cannot use --session-id with --continue-session", file=sys.stderr)
+        return 1
+    if parsed["fork_session"] and not (parsed["session_id"] or parsed["continue_session"]):
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--fork-session requires --session-id or --continue-session", file=sys.stderr)
+        return 1
+    if int(parsed["max_deliveries"]) < 0:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--max-deliveries must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["runtime_invocation_max_attempts"]) < 1:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--runtime-invocation-max-attempts must be positive", file=sys.stderr)
+        return 1
+    if int(parsed["max_delivery_attempts_per_record"]) < 1:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--max-delivery-attempts-per-record must be positive", file=sys.stderr)
+        return 1
+    if float(parsed["runtime_invocation_backoff_seconds"]) < 0:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print("--runtime-invocation-backoff-seconds must be non-negative", file=sys.stderr)
+        return 1
+    if bool(parsed["publish_worker_patch_artifacts"]) and not bool(
+        parsed["enable_sandbox_preflight"]
+    ):
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+        print(
+            "--publish-worker-patch-artifacts requires --enable-sandbox-preflight",
+            file=sys.stderr,
+        )
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            CodexDeliverySupervisorRequest,
+            DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+            DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            OpenCodeCliClientConfig,
+            run_opencode_delivery_supervisor_once,
+        )
+
+        delivery_state_path = _resolve_project_path(
+            root,
+            str(parsed["delivery_state_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        )
+        delivery_log_path = _resolve_project_path(
+            root,
+            str(parsed["delivery_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        )
+        runtime_log_path = (
+            None
+            if parsed["runtime_invocation_log_path"] is None
+            else _resolve_project_path(
+                root,
+                str(parsed["runtime_invocation_log_path"])
+                or DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
+            )
+        )
+        artifact_store_path = _resolve_project_path(
+            root,
+            str(parsed["artifact_store_path"])
+            or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        )
+        opencode_config = OpenCodeCliClientConfig(
+            executable=str(parsed["executable"]),
+            cwd=str(parsed["cwd"]),
+            model=str(parsed["model"]),
+            output_format=str(parsed["output_format"]),  # type: ignore[arg-type]
+            attach_url=str(parsed["attach_url"]),
+            session_id=str(parsed["session_id"]),
+            continue_session=bool(parsed["continue_session"]),
+            fork_session=bool(parsed["fork_session"]),
+        )
+        opencode_client = _opencode_client_from_parsed_transport(
+            parsed,
+            opencode_config,
+            cli_surface="opencode-delivery-supervisor-once",
+        )
+        result = run_opencode_delivery_supervisor_once(
+            CodexDeliverySupervisorRequest(
+                delivery_state_path=delivery_state_path,
+                delivery_event_log_path=delivery_log_path,
+                scheduler_snapshot_path=_resolve_project_path(root, str(parsed["snapshot_path"])),
+                scheduler_event_log_path=_resolve_project_path(root, str(parsed["event_log_path"])),
+                runtime_invocation_log_path=runtime_log_path,
+                artifact_store_path=artifact_store_path,
+                consume_success_results=bool(parsed["consume_success_results"]),
+                replace_existing_result_artifact=bool(
+                    parsed["replace_existing_result_artifact"]
+                ),
+                max_deliveries=int(parsed["max_deliveries"]),
+                retry_failed_delivery=bool(parsed["retry_failed_delivery"]),
+                max_delivery_attempts_per_record=int(
+                    parsed["max_delivery_attempts_per_record"]
+                ),
+                timestamp=str(parsed["timestamp"]),
+                host_id=str(parsed["host_id"]),
+                host_invocation_id=str(parsed["host_invocation_id"]),
+                requested_by="cli:opencode-delivery-supervisor-once",
+                reason=str(parsed["reason"]),
+                grant_id=f"grant-{parsed['host_invocation_id']}",
+                approved_by="cli:opencode-delivery-supervisor-once",
+                approved_at=str(parsed["timestamp"]),
+                runtime_invocation_max_attempts=int(parsed["runtime_invocation_max_attempts"]),
+                runtime_invocation_backoff_seconds=float(
+                    parsed["runtime_invocation_backoff_seconds"]
+                ),
+                enable_sandbox_preflight=bool(parsed["enable_sandbox_preflight"]),
+                workspace_root=(
+                    _resolve_project_path(root, str(parsed["workspace_root"]))
+                    if str(parsed["workspace_root"])
+                    else root
+                ),
+                scratch_root=str(parsed["scratch_root"]),
+                git_worktree_sandbox_root=(
+                    None
+                    if not str(parsed["git_worktree_sandbox_root"])
+                    else _resolve_project_path(root, str(parsed["git_worktree_sandbox_root"]))
+                ),
+                git_executable=str(parsed["git_executable"]),
+                publish_worker_patch_artifacts=bool(parsed["publish_worker_patch_artifacts"]),
+                worker_patch_guide_agent_id=str(parsed["worker_patch_guide_agent_id"]),
+                worker_patch_target_task_id=str(parsed["worker_patch_target_task_id"]),
+                continuous_worker_binding_ledger_path=_resolve_project_path(
+                    root,
+                    str(parsed["worker_binding_ledger_path"]),
+                ),
+                continuous_worker_binding_event_log_path=_resolve_project_path(
+                    root,
+                    str(parsed["worker_binding_event_log_path"]),
+                ),
+                enable_continuous_worker_binding_lookup=bool(
+                    parsed["worker_binding_lookup"]
+                ),
+                opencode_session_ledger_path=_resolve_project_path(
+                    root,
+                    str(parsed["session_ledger_path"]),
+                ),
+                opencode_enable_session_lookup=bool(parsed["session_ledger_lookup"]),
+            ),
+            opencode_cli_client=opencode_client,
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running OpenCode delivery supervisor",
+            e,
+            category="scheduler_opencode_delivery_supervisor_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
 def _parse_codex_delivery_supervisor_args(args: list[str]) -> dict[str, object] | None:
     parsed: dict[str, object] = {
         "snapshot_path": "",
@@ -4475,6 +8334,432 @@ def _parse_codex_delivery_supervisor_args(args: list[str]) -> dict[str, object] 
     return parsed
 
 
+def _parse_opencode_delivery_supervisor_args(args: list[str]) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "delivery_state_path": "",
+        "delivery_event_log_path": "",
+        "runtime_invocation_log_path": ".codex/runtime/opencode-delivery-invocations.jsonl",
+        "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+        "consume_success_results": False,
+        "replace_existing_result_artifact": False,
+        "max_deliveries": 1,
+        "retry_failed_delivery": False,
+        "max_delivery_attempts_per_record": 2,
+        "executable": "opencode",
+        "cwd": "",
+        "model": "",
+        "output_format": "json",
+        "opencode_transport": "cli",
+        "attach_url": "",
+        "session_id": "",
+        "continue_session": False,
+        "fork_session": False,
+        "server_api_base_url": "http://127.0.0.1:4096",
+        "server_api_session_id": "",
+        "server_api_health_path": "/global/health",
+        "server_api_doc_path": "/doc",
+        "server_api_timeout_seconds": 30.0,
+        "server_api_username_env_var": "OPENCODE_SERVER_USERNAME",
+        "server_api_password_env_var": "OPENCODE_SERVER_PASSWORD",
+        "worker_binding_ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "worker_binding_event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "worker_binding_lookup": True,
+        "session_ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "session_ledger_lookup": True,
+        "host_id": "host:opencode-delivery-supervisor",
+        "host_invocation_id": "host-owned-opencode-delivery-supervisor-once",
+        "reason": "host-owned OpenCode delivery supervisor pass from CLI",
+        "timestamp": "",
+        "runtime_invocation_max_attempts": 2,
+        "runtime_invocation_backoff_seconds": 0.0,
+        "enable_sandbox_preflight": False,
+        "workspace_root": "",
+        "scratch_root": ".codex/scratch",
+        "git_worktree_sandbox_root": "",
+        "git_executable": "git",
+        "publish_worker_patch_artifacts": False,
+        "worker_patch_guide_agent_id": "agent:guide",
+        "worker_patch_target_task_id": "",
+    }
+    options = set(parsed)
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--delivery-event-log-path": "delivery_event_log_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--max-deliveries": "max_deliveries",
+        "--max-delivery-attempts-per-record": "max_delivery_attempts_per_record",
+        "--executable": "executable",
+        "--cwd": "cwd",
+        "--model": "model",
+        "--output-format": "output_format",
+        "--opencode-transport": "opencode_transport",
+        "--attach-url": "attach_url",
+        "--session-id": "session_id",
+        "--server-api-base-url": "server_api_base_url",
+        "--server-api-session-id": "server_api_session_id",
+        "--server-api-health-path": "server_api_health_path",
+        "--server-api-doc-path": "server_api_doc_path",
+        "--server-api-timeout-seconds": "server_api_timeout_seconds",
+        "--server-api-username-env-var": "server_api_username_env_var",
+        "--server-api-password-env-var": "server_api_password_env_var",
+        "--worker-binding-ledger-path": "worker_binding_ledger_path",
+        "--worker-binding-event-log-path": "worker_binding_event_log_path",
+        "--session-ledger-path": "session_ledger_path",
+        "--host-id": "host_id",
+        "--host-invocation-id": "host_invocation_id",
+        "--reason": "reason",
+        "--timestamp": "timestamp",
+        "--runtime-invocation-max-attempts": "runtime_invocation_max_attempts",
+        "--runtime-invocation-backoff-seconds": "runtime_invocation_backoff_seconds",
+        "--workspace-root": "workspace_root",
+        "--scratch-root": "scratch_root",
+        "--git-worktree-sandbox-root": "git_worktree_sandbox_root",
+        "--git-executable": "git_executable",
+        "--worker-patch-guide-agent-id": "worker_patch_guide_agent_id",
+        "--worker-patch-target-task-id": "worker_patch_target_task_id",
+    }
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--consume-success-results":
+            parsed["consume_success_results"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-result-artifact":
+            parsed["replace_existing_result_artifact"] = True
+            i += 1
+            continue
+        if arg == "--retry-failed-delivery":
+            parsed["retry_failed_delivery"] = True
+            i += 1
+            continue
+        if arg == "--enable-sandbox-preflight":
+            parsed["enable_sandbox_preflight"] = True
+            i += 1
+            continue
+        if arg == "--publish-worker-patch-artifacts":
+            parsed["publish_worker_patch_artifacts"] = True
+            i += 1
+            continue
+        if arg == "--continue-session":
+            parsed["continue_session"] = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            parsed["fork_session"] = True
+            i += 1
+            continue
+        if arg == "--no-session-ledger-lookup":
+            parsed["session_ledger_lookup"] = False
+            i += 1
+            continue
+        if arg == "--no-worker-binding-lookup":
+            parsed["worker_binding_lookup"] = False
+            i += 1
+            continue
+        if arg in {"--sandbox", "--ask-for-approval"}:
+            print(
+                f"{arg} is Codex-specific and is not supported by opencode-delivery-supervisor-once",
+                file=sys.stderr,
+            )
+            print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+            return None
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler opencode-delivery-supervisor-once option: {arg}", file=sys.stderr)
+            print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key in {
+            "max_deliveries",
+            "max_delivery_attempts_per_record",
+            "runtime_invocation_max_attempts",
+        }:
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+                print(f"{arg} must be an integer", file=sys.stderr)
+                return None
+        elif key in {"runtime_invocation_backoff_seconds", "server_api_timeout_seconds"}:
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_USAGE, file=sys.stderr)
+                print(f"{arg} must be a number", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    unknown_internal = set(parsed) - options
+    if unknown_internal:
+        raise AssertionError(f"unexpected opencode delivery parser keys: {unknown_internal}")
+    return parsed
+
+
+def _parse_opencode_delivery_loop_args(
+    args: list[str],
+    *,
+    usage: str = _SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_LOOP_USAGE,
+    command_name: str = "opencode-delivery-supervisor-loop",
+    include_report_options: bool = False,
+    default_initialize_fixture: bool = False,
+    default_fixture: str = "simple",
+    default_host_id: str = "host:opencode-delivery-supervisor-loop",
+    default_host_invocation_id: str = "host-owned-opencode-delivery-supervisor-loop",
+    default_max_ticks: int = 3,
+    default_max_deliveries: int = 3,
+    default_max_runtime_failures: int = 1,
+    default_max_concurrent_deliveries: int = 1,
+    default_runtime_invocation_log_path: str = ".codex/runtime/opencode-delivery-loop-invocations.jsonl",
+) -> dict[str, object] | None:
+    parsed: dict[str, object] = {
+        "snapshot_path": "",
+        "event_log_path": "",
+        "artifact_store_path": "",
+        "dispatcher_state_path": "",
+        "dispatch_event_log_path": "",
+        "delivery_state_path": "",
+        "delivery_event_log_path": "",
+        "runtime_invocation_log_path": default_runtime_invocation_log_path,
+        "initialize_fixture": default_initialize_fixture,
+        "replace_existing_fixture": False,
+        "fixture": default_fixture,
+        "replace_existing_result_artifact": False,
+        "target_task_id": "opencode-smoke:worker",
+        "parallel_task_id": "opencode-smoke:parallel-worker",
+        "waiting_task_id": "opencode-smoke:waiting-non-opencode",
+        "followup_task_id": "opencode-smoke:followup",
+        "executable": "opencode",
+        "cwd": "",
+        "model": "",
+        "output_format": "json",
+        "opencode_transport": "cli",
+        "attach_url": "",
+        "session_id": "",
+        "continue_session": False,
+        "fork_session": False,
+        "server_api_base_url": "http://127.0.0.1:4096",
+        "server_api_session_id": "",
+        "server_api_health_path": "/global/health",
+        "server_api_doc_path": "/doc",
+        "server_api_timeout_seconds": 30.0,
+        "server_api_username_env_var": "OPENCODE_SERVER_USERNAME",
+        "server_api_password_env_var": "OPENCODE_SERVER_PASSWORD",
+        "worker_binding_ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "worker_binding_event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "worker_binding_lookup": True,
+        "session_ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "session_ledger_lookup": True,
+        "host_id": default_host_id,
+        "host_invocation_id": default_host_invocation_id,
+        "timestamp": "",
+        "runtime_invocation_max_attempts": 2,
+        "runtime_invocation_backoff_seconds": 0.0,
+        "enable_sandbox_preflight": False,
+        "workspace_root": "",
+        "scratch_root": ".codex/scratch",
+        "git_worktree_sandbox_root": "",
+        "git_executable": "git",
+        "publish_worker_patch_artifacts": False,
+        "worker_patch_guide_agent_id": "agent:guide",
+        "worker_patch_target_task_id": "",
+        "max_ticks": default_max_ticks,
+        "max_deliveries": default_max_deliveries,
+        "max_runtime_failures": default_max_runtime_failures,
+        "max_delivery_attempts_per_record": 2,
+        "max_concurrent_deliveries": default_max_concurrent_deliveries,
+        "report_path": "",
+    }
+    if not include_report_options:
+        parsed.pop("report_path")
+    options = set(parsed)
+    cli_to_key = {
+        "--snapshot-path": "snapshot_path",
+        "--event-log-path": "event_log_path",
+        "--artifact-store-path": "artifact_store_path",
+        "--dispatcher-state-path": "dispatcher_state_path",
+        "--dispatch-event-log-path": "dispatch_event_log_path",
+        "--delivery-state-path": "delivery_state_path",
+        "--delivery-event-log-path": "delivery_event_log_path",
+        "--runtime-invocation-log-path": "runtime_invocation_log_path",
+        "--fixture": "fixture",
+        "--target-task-id": "target_task_id",
+        "--parallel-task-id": "parallel_task_id",
+        "--waiting-task-id": "waiting_task_id",
+        "--followup-task-id": "followup_task_id",
+        "--executable": "executable",
+        "--cwd": "cwd",
+        "--model": "model",
+        "--output-format": "output_format",
+        "--opencode-transport": "opencode_transport",
+        "--attach-url": "attach_url",
+        "--session-id": "session_id",
+        "--server-api-base-url": "server_api_base_url",
+        "--server-api-session-id": "server_api_session_id",
+        "--server-api-health-path": "server_api_health_path",
+        "--server-api-doc-path": "server_api_doc_path",
+        "--server-api-timeout-seconds": "server_api_timeout_seconds",
+        "--server-api-username-env-var": "server_api_username_env_var",
+        "--server-api-password-env-var": "server_api_password_env_var",
+        "--worker-binding-ledger-path": "worker_binding_ledger_path",
+        "--worker-binding-event-log-path": "worker_binding_event_log_path",
+        "--session-ledger-path": "session_ledger_path",
+        "--host-id": "host_id",
+        "--host-invocation-id": "host_invocation_id",
+        "--timestamp": "timestamp",
+        "--runtime-invocation-max-attempts": "runtime_invocation_max_attempts",
+        "--runtime-invocation-backoff-seconds": "runtime_invocation_backoff_seconds",
+        "--workspace-root": "workspace_root",
+        "--scratch-root": "scratch_root",
+        "--git-worktree-sandbox-root": "git_worktree_sandbox_root",
+        "--git-executable": "git_executable",
+        "--worker-patch-guide-agent-id": "worker_patch_guide_agent_id",
+        "--worker-patch-target-task-id": "worker_patch_target_task_id",
+        "--max-ticks": "max_ticks",
+        "--max-deliveries": "max_deliveries",
+        "--max-runtime-failures": "max_runtime_failures",
+        "--max-delivery-attempts-per-record": "max_delivery_attempts_per_record",
+        "--max-concurrent-deliveries": "max_concurrent_deliveries",
+    }
+    if include_report_options:
+        cli_to_key["--report-path"] = "report_path"
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--initialize-fixture":
+            parsed["initialize_fixture"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-fixture":
+            parsed["replace_existing_fixture"] = True
+            i += 1
+            continue
+        if arg == "--replace-existing-result-artifact":
+            parsed["replace_existing_result_artifact"] = True
+            i += 1
+            continue
+        if arg == "--enable-sandbox-preflight":
+            parsed["enable_sandbox_preflight"] = True
+            i += 1
+            continue
+        if arg == "--publish-worker-patch-artifacts":
+            parsed["publish_worker_patch_artifacts"] = True
+            i += 1
+            continue
+        if arg == "--continue-session":
+            parsed["continue_session"] = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            parsed["fork_session"] = True
+            i += 1
+            continue
+        if arg == "--no-session-ledger-lookup":
+            parsed["session_ledger_lookup"] = False
+            i += 1
+            continue
+        if arg == "--no-worker-binding-lookup":
+            parsed["worker_binding_lookup"] = False
+            i += 1
+            continue
+        if arg in {
+            "--sandbox",
+            "--ask-for-approval",
+        }:
+            print(
+                f"{arg} is Codex-specific and is not supported by {command_name}",
+                file=sys.stderr,
+            )
+            print(usage, file=sys.stderr)
+            return None
+        if arg not in cli_to_key:
+            print(f"Unknown scheduler {command_name} option: {arg}", file=sys.stderr)
+            print(usage, file=sys.stderr)
+            return None
+        if i + 1 >= len(args):
+            print(usage, file=sys.stderr)
+            print(f"Missing value for {arg}", file=sys.stderr)
+            return None
+        key = cli_to_key[arg]
+        value = args[i + 1]
+        if key in {
+            "runtime_invocation_max_attempts",
+            "max_ticks",
+            "max_deliveries",
+            "max_runtime_failures",
+            "max_delivery_attempts_per_record",
+            "max_concurrent_deliveries",
+        }:
+            try:
+                parsed[key] = int(value)
+            except ValueError:
+                print(usage, file=sys.stderr)
+                print(f"{arg} must be an integer", file=sys.stderr)
+                return None
+        elif key in {"runtime_invocation_backoff_seconds", "server_api_timeout_seconds"}:
+            try:
+                parsed[key] = float(value)
+            except ValueError:
+                print(usage, file=sys.stderr)
+                print(f"{arg} must be a number", file=sys.stderr)
+                return None
+        else:
+            parsed[key] = value
+        i += 2
+    unknown_internal = set(parsed) - options
+    if unknown_internal:
+        raise AssertionError(f"unexpected {command_name} parser keys: {unknown_internal}")
+    return parsed
+
+
+def _validate_opencode_delivery_loop_parsed_args(
+    parsed: dict[str, object],
+    *,
+    usage: str,
+) -> str:
+    if parsed["fixture"] not in {"simple", "multilane"}:
+        return "--fixture must be simple or multilane"
+    if parsed["output_format"] not in {"text", "json"}:
+        return "--output-format must be text or json"
+    if parsed["opencode_transport"] not in {"cli", "server-api"}:
+        return "--opencode-transport must be cli or server-api"
+    if float(parsed["server_api_timeout_seconds"]) <= 0:
+        return "--server-api-timeout-seconds must be positive"
+    if parsed["session_id"] and parsed["continue_session"]:
+        return "cannot use --session-id with --continue-session"
+    if parsed["fork_session"] and not (parsed["session_id"] or parsed["continue_session"]):
+        return "--fork-session requires --session-id or --continue-session"
+    if int(parsed["runtime_invocation_max_attempts"]) < 1:
+        return "--runtime-invocation-max-attempts must be positive"
+    if float(parsed["runtime_invocation_backoff_seconds"]) < 0:
+        return "--runtime-invocation-backoff-seconds must be non-negative"
+    if int(parsed["max_ticks"]) < 0:
+        return "--max-ticks must be non-negative"
+    if int(parsed["max_deliveries"]) < 0:
+        return "--max-deliveries must be non-negative"
+    if int(parsed["max_runtime_failures"]) < 0:
+        return "--max-runtime-failures must be non-negative"
+    if int(parsed["max_delivery_attempts_per_record"]) < 1:
+        return "--max-delivery-attempts-per-record must be positive"
+    if int(parsed["max_concurrent_deliveries"]) < 1:
+        return "--max-concurrent-deliveries must be positive"
+    if bool(parsed["publish_worker_patch_artifacts"]) and not bool(
+        parsed["enable_sandbox_preflight"]
+    ):
+        return "--publish-worker-patch-artifacts requires --enable-sandbox-preflight"
+    return ""
+
+
 def cmd_scheduler_codex_delivery_e2e_smoke(args: list[str]) -> int:
     """Run the C1 Codex delivery/result-consumer E2E smoke."""
 
@@ -4520,6 +8805,80 @@ def cmd_scheduler_codex_delivery_e2e_smoke(args: list[str]) -> int:
             "Error running Codex delivery E2E smoke",
             e,
             category="scheduler_codex_delivery_e2e_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_scheduler_opencode_delivery_e2e_smoke(args: list[str]) -> int:
+    """Run the C1 OpenCode delivery/result-consumer E2E smoke."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_OPENCODE_DELIVERY_E2E_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned C1 smoke for OpenCode CLI as a "
+            "scheduler-owned worker runtime. It can initialize one narrow "
+            "scheduler fixture, then runs dispatcher tick, delivery sync, "
+            "OpenCode delivery with result consumption, and scheduler recovery. "
+            "It fails closed before mutation when OpenCode readiness is negative. "
+            "This surface intentionally uses OpenCode host options such as "
+            "--output-format and attach/session selectors instead of Codex "
+            "sandbox or approval flags. It is not the bounded supervisor loop, "
+            "does not start or manage opencode serve, does not expose MCP "
+            "live-provider execution, does not apply source-workspace patches, "
+            "and does not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_opencode_delivery_loop_args(
+        args,
+        usage=_SCHEDULER_OPENCODE_DELIVERY_E2E_SMOKE_USAGE,
+        command_name="opencode-delivery-e2e-smoke",
+        default_host_id="host:opencode-delivery-e2e-smoke",
+        default_host_invocation_id="host-owned-opencode-delivery-e2e-smoke",
+        default_runtime_invocation_log_path=(
+            ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+        ),
+    )
+    if parsed is None:
+        return 1
+    validation_error = _validate_opencode_delivery_loop_parsed_args(
+        parsed,
+        usage=_SCHEDULER_OPENCODE_DELIVERY_E2E_SMOKE_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_OPENCODE_DELIVERY_E2E_SMOKE_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            run_opencode_delivery_e2e_smoke,
+        )
+
+        smoke_request, opencode_config = _opencode_delivery_loop_cli_objects(
+            parsed,
+            default_snapshot_path=".codex/scheduler/opencode-delivery-e2e-smoke-state.json",
+            default_event_log_path=".codex/scheduler/opencode-delivery-e2e-smoke-events.jsonl",
+            default_runtime_invocation_log_path=(
+                ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+            ),
+            trajectory_id="opencode-delivery-e2e-smoke",
+        )
+        result = run_opencode_delivery_e2e_smoke(
+            smoke_request,
+            opencode_cli_client=_opencode_client_from_parsed_transport(
+                parsed,
+                opencode_config,
+                cli_surface="opencode-delivery-e2e-smoke",
+            ),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running OpenCode delivery E2E smoke",
+            e,
+            category="scheduler_opencode_delivery_e2e_smoke_failed",
         )
 
     _print_json(result.to_json_dict())
@@ -4620,12 +8979,305 @@ def cmd_scheduler_codex_delivery_supervisor_loop(args: list[str]) -> int:
     return 0 if result.ok else 1
 
 
+def cmd_scheduler_opencode_delivery_supervisor_loop(args: list[str]) -> int:
+    """Run the bounded OpenCode supervisor loop."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_LOOP_USAGE + "\n\n"
+            "This command is a bounded host-owned loop for OpenCode CLI as a "
+            "scheduler-owned worker runtime. Each iteration recovers scheduler "
+            "state, marks newly admissible tasks ready, persists dispatcher "
+            "decisions, syncs delivery records, runs OpenCode delivery with "
+            "result consumption, and recovers again. It has explicit max ticks, "
+            "deliveries, and runtime failures. By default the loop runs "
+            "deliveries serially; pass --max-concurrent-deliveries above 1 to "
+            "run independent lane-distinct OpenCode invocations concurrently "
+            "while keeping writeback serialized. This surface intentionally "
+            "uses OpenCode host options such as --output-format instead of "
+            "Codex sandbox or approval flags. It does not resume a live process "
+            "mid-turn. With explicit sandbox preflight and worker patch "
+            "publication, git-worktree worker edits are exported as review-only "
+            "patch artifacts and are not applied. It does not expose MCP "
+            "live-provider execution, does not apply source workspace patches, "
+            "and does not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_opencode_delivery_loop_args(args)
+    if parsed is None:
+        return 1
+    validation_error = _validate_opencode_delivery_loop_parsed_args(
+        parsed,
+        usage=_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_LOOP_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_OPENCODE_DELIVERY_SUPERVISOR_LOOP_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            CodexDeliveryBoundedLoopRequest,
+            run_bounded_opencode_delivery_supervisor_loop,
+        )
+
+        smoke_request, opencode_config = _opencode_delivery_loop_cli_objects(parsed)
+        result = run_bounded_opencode_delivery_supervisor_loop(
+            CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=int(parsed["max_ticks"]),
+                max_deliveries=int(parsed["max_deliveries"]),
+                max_runtime_failures=int(parsed["max_runtime_failures"]),
+                max_delivery_attempts_per_record=int(
+                    parsed["max_delivery_attempts_per_record"]
+                ),
+                max_concurrent_deliveries=int(parsed["max_concurrent_deliveries"]),
+            ),
+            opencode_cli_client=_opencode_client_from_parsed_transport(
+                parsed,
+                opencode_config,
+                cli_surface="opencode-delivery-supervisor-loop",
+            ),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running bounded OpenCode delivery supervisor loop",
+            e,
+            category="scheduler_opencode_delivery_supervisor_loop_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_scheduler_live_codex_concurrent_worker_smoke(args: list[str]) -> int:
+    """Run the C9 live Codex concurrent worker smoke."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned C9 evidence smoke for the C8 "
+            "concurrent delivery path. It seeds a multi-lane scheduler fixture "
+            "by default, runs the bounded Codex supervisor with at least two "
+            "lane-distinct concurrent deliveries, reads compact runtime "
+            "invocation audit records, computes real started-at/ended-at "
+            "overlap, and writes a final smoke report. It distinguishes "
+            "scheduler batch parallelism from audited live process overlap. "
+            "Result consumption, delivery acknowledgement, scheduler writes, "
+            "and exchange artifact writes stay serialized after runtime "
+            "completion. It does not expose MCP live-provider execution, does "
+            "not apply source-workspace patches, does not store raw "
+            "transcripts, and does not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_codex_delivery_e2e_smoke_args(
+        args,
+        usage=_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE,
+        command_name="live-codex-concurrent-worker-smoke",
+        include_loop_options=True,
+        include_report_options=True,
+        default_initialize_fixture=True,
+        default_fixture="multilane",
+        default_host_id="host:live-codex-concurrent-worker-smoke",
+        default_host_invocation_id="host-owned-live-codex-concurrent-worker-smoke",
+        default_max_ticks=4,
+        default_max_deliveries=4,
+        default_max_runtime_failures=2,
+        default_max_concurrent_deliveries=2,
+        default_runtime_invocation_log_path=(
+            ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
+        ),
+    )
+    if parsed is None:
+        return 1
+    _apply_live_codex_concurrent_worker_smoke_defaults(parsed)
+    validation_error = _validate_codex_delivery_smoke_parsed_args(
+        parsed,
+        usage=_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+    if str(parsed["fixture"]) != "multilane":
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--fixture must be multilane for live concurrent worker smoke", file=sys.stderr)
+        return 1
+    if int(parsed["max_ticks"]) < 0:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-ticks must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_deliveries"]) < 0:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-deliveries must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_runtime_failures"]) < 0:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-runtime-failures must be non-negative", file=sys.stderr)
+        return 1
+    if int(parsed["max_delivery_attempts_per_record"]) < 1:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-delivery-attempts-per-record must be positive", file=sys.stderr)
+        return 1
+    if int(parsed["max_concurrent_deliveries"]) < 2:
+        print(_SCHEDULER_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-concurrent-deliveries must be at least 2", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            CodexDeliveryBoundedLoopRequest,
+            LiveCodexConcurrentWorkerSmokeRequest,
+            run_live_codex_concurrent_worker_smoke,
+        )
+
+        smoke_request, codex_config = _codex_delivery_smoke_cli_objects(parsed)
+        result = run_live_codex_concurrent_worker_smoke(
+            LiveCodexConcurrentWorkerSmokeRequest(
+                loop_request=CodexDeliveryBoundedLoopRequest(
+                    smoke_request=smoke_request,
+                    max_ticks=int(parsed["max_ticks"]),
+                    max_deliveries=int(parsed["max_deliveries"]),
+                    max_runtime_failures=int(parsed["max_runtime_failures"]),
+                    max_delivery_attempts_per_record=int(
+                        parsed["max_delivery_attempts_per_record"]
+                    ),
+                    max_concurrent_deliveries=int(parsed["max_concurrent_deliveries"]),
+                ),
+                report_path=_resolve_project_path(
+                    _find_project_root(),
+                    str(parsed["report_path"]),
+                ),
+            ),
+            codex_cli_client=_codex_process_client_from_config(codex_config),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running live Codex concurrent worker smoke",
+            e,
+            category="scheduler_live_codex_concurrent_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def cmd_scheduler_live_opencode_concurrent_worker_smoke(args: list[str]) -> int:
+    """Run the live OpenCode concurrent worker smoke."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE + "\n\n"
+            "This command is a host-owned live evidence smoke for the OpenCode "
+            "concurrent delivery path. It seeds a multi-lane scheduler fixture "
+            "by default, runs the bounded OpenCode supervisor with at least two "
+            "lane-distinct concurrent deliveries, reads compact runtime "
+            "invocation audit records, computes real started-at/ended-at "
+            "overlap, and writes a final smoke report. It distinguishes "
+            "scheduler batch parallelism from audited live process overlap. "
+            "Result consumption, delivery acknowledgement, scheduler writes, "
+            "and exchange artifact writes stay serialized after runtime "
+            "completion. This surface intentionally uses OpenCode host options "
+            "such as --output-format instead of Codex sandbox or approval flags. "
+            "It does not expose MCP live-provider execution, does not apply "
+            "source-workspace patches, does not store raw transcripts, and does "
+            "not mutate Local Work Trajectory.",
+        )
+        return 0
+
+    parsed = _parse_opencode_delivery_loop_args(
+        args,
+        usage=_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE,
+        command_name="live-opencode-concurrent-worker-smoke",
+        include_report_options=True,
+        default_initialize_fixture=True,
+        default_fixture="multilane",
+        default_host_id="host:live-opencode-concurrent-worker-smoke",
+        default_host_invocation_id="host-owned-live-opencode-concurrent-worker-smoke",
+        default_max_ticks=4,
+        default_max_deliveries=4,
+        default_max_runtime_failures=2,
+        default_max_concurrent_deliveries=2,
+        default_runtime_invocation_log_path=(
+            ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
+        ),
+    )
+    if parsed is None:
+        return 1
+    _apply_live_opencode_concurrent_worker_smoke_defaults(parsed)
+    validation_error = _validate_opencode_delivery_loop_parsed_args(
+        parsed,
+        usage=_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE,
+    )
+    if validation_error:
+        print(_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print(validation_error, file=sys.stderr)
+        return 1
+    if str(parsed["fixture"]) != "multilane":
+        print(_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--fixture must be multilane for live concurrent worker smoke", file=sys.stderr)
+        return 1
+    if int(parsed["max_concurrent_deliveries"]) < 2:
+        print(_SCHEDULER_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_USAGE, file=sys.stderr)
+        print("--max-concurrent-deliveries must be at least 2", file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            CodexDeliveryBoundedLoopRequest,
+            LiveOpenCodeConcurrentWorkerSmokeRequest,
+            run_live_opencode_concurrent_worker_smoke,
+        )
+
+        smoke_request, opencode_config = _opencode_delivery_loop_cli_objects(parsed)
+        result = run_live_opencode_concurrent_worker_smoke(
+            LiveOpenCodeConcurrentWorkerSmokeRequest(
+                loop_request=CodexDeliveryBoundedLoopRequest(
+                    smoke_request=smoke_request,
+                    max_ticks=int(parsed["max_ticks"]),
+                    max_deliveries=int(parsed["max_deliveries"]),
+                    max_runtime_failures=int(parsed["max_runtime_failures"]),
+                    max_delivery_attempts_per_record=int(
+                        parsed["max_delivery_attempts_per_record"]
+                    ),
+                    max_concurrent_deliveries=int(parsed["max_concurrent_deliveries"]),
+                ),
+                report_path=_resolve_project_path(
+                    _find_project_root(),
+                    str(parsed["report_path"]),
+                ),
+            ),
+            opencode_cli_client=_opencode_process_client_from_config(opencode_config),
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running live OpenCode concurrent worker smoke",
+            e,
+            category="scheduler_live_opencode_concurrent_worker_smoke_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
 def _parse_codex_delivery_e2e_smoke_args(
     args: list[str],
     *,
     usage: str = _SCHEDULER_CODEX_DELIVERY_E2E_SMOKE_USAGE,
     command_name: str = "codex-delivery-e2e-smoke",
     include_loop_options: bool = False,
+    include_report_options: bool = False,
+    default_initialize_fixture: bool = False,
+    default_fixture: str = "simple",
+    default_host_id: str = "host:codex-delivery-e2e-smoke",
+    default_host_invocation_id: str = "host-owned-codex-delivery-e2e-smoke",
+    default_max_ticks: int = 3,
+    default_max_deliveries: int = 3,
+    default_max_runtime_failures: int = 1,
+    default_max_concurrent_deliveries: int = 1,
+    default_runtime_invocation_log_path: str = ".codex/runtime/invocations.jsonl",
 ) -> dict[str, object] | None:
     parsed: dict[str, object] = {
         "snapshot_path": "",
@@ -4635,12 +9287,13 @@ def _parse_codex_delivery_e2e_smoke_args(
         "dispatch_event_log_path": "",
         "delivery_state_path": "",
         "delivery_event_log_path": "",
-        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
-        "initialize_fixture": False,
+        "runtime_invocation_log_path": default_runtime_invocation_log_path,
+        "initialize_fixture": default_initialize_fixture,
         "replace_existing_fixture": False,
-        "fixture": "simple",
+        "fixture": default_fixture,
         "replace_existing_result_artifact": False,
         "target_task_id": "codex-smoke:worker",
+        "parallel_task_id": "codex-smoke:parallel-worker",
         "waiting_task_id": "codex-smoke:waiting-non-codex",
         "followup_task_id": "codex-smoke:followup",
         "executable": "codex",
@@ -4648,8 +9301,8 @@ def _parse_codex_delivery_e2e_smoke_args(
         "model": "",
         "sandbox": "workspace-write",
         "ask_for_approval": "never",
-        "host_id": "host:codex-delivery-e2e-smoke",
-        "host_invocation_id": "host-owned-codex-delivery-e2e-smoke",
+        "host_id": default_host_id,
+        "host_invocation_id": default_host_invocation_id,
         "timestamp": "",
         "runtime_invocation_max_attempts": 2,
         "runtime_invocation_backoff_seconds": 0.0,
@@ -4661,17 +9314,20 @@ def _parse_codex_delivery_e2e_smoke_args(
         "publish_worker_patch_artifacts": False,
         "worker_patch_guide_agent_id": "agent:guide",
         "worker_patch_target_task_id": "",
-        "max_ticks": 3,
-        "max_deliveries": 3,
-        "max_runtime_failures": 1,
+        "max_ticks": default_max_ticks,
+        "max_deliveries": default_max_deliveries,
+        "max_runtime_failures": default_max_runtime_failures,
         "max_delivery_attempts_per_record": 2,
-        "max_concurrent_deliveries": 1,
+        "max_concurrent_deliveries": default_max_concurrent_deliveries,
+        "report_path": "",
     }
     if not include_loop_options:
         parsed.pop("max_ticks")
         parsed.pop("max_deliveries")
         parsed.pop("max_runtime_failures")
         parsed.pop("max_delivery_attempts_per_record")
+    if not include_report_options:
+        parsed.pop("report_path")
     options = set(parsed)
     cli_to_key = {
         "--snapshot-path": "snapshot_path",
@@ -4684,6 +9340,7 @@ def _parse_codex_delivery_e2e_smoke_args(
         "--runtime-invocation-log-path": "runtime_invocation_log_path",
         "--fixture": "fixture",
         "--target-task-id": "target_task_id",
+        "--parallel-task-id": "parallel_task_id",
         "--waiting-task-id": "waiting_task_id",
         "--followup-task-id": "followup_task_id",
         "--executable": "executable",
@@ -4713,6 +9370,8 @@ def _parse_codex_delivery_e2e_smoke_args(
                 "--max-concurrent-deliveries": "max_concurrent_deliveries",
             }
         )
+    if include_report_options:
+        cli_to_key["--report-path"] = "report_path"
     i = 0
     while i < len(args):
         arg = args[i]
@@ -4804,6 +9463,85 @@ def _codex_process_client_from_config(config) -> object:
     return CodexCliProcessClient(config)
 
 
+def _opencode_process_client_from_config(config) -> object:
+    from .runtime.orchestration import OpenCodeCliProcessClient
+
+    return OpenCodeCliProcessClient(config)
+
+
+def _opencode_client_from_parsed_transport(
+    parsed: dict[str, object],
+    cli_config,
+    *,
+    cli_surface: str,
+) -> object:
+    if parsed.get("opencode_transport", "cli") == "server-api":
+        from .runtime.orchestration import (
+            OpenCodeServerApiClient,
+            OpenCodeServerApiClientConfig,
+        )
+
+        return OpenCodeServerApiClient(
+            OpenCodeServerApiClientConfig(
+                base_url=str(parsed["server_api_base_url"]),
+                health_path=str(parsed["server_api_health_path"]),
+                doc_path=str(parsed["server_api_doc_path"]),
+                session_id=str(parsed["server_api_session_id"]),
+                model=str(parsed["model"]),
+                timeout_seconds=float(parsed["server_api_timeout_seconds"]),
+                username_env_var=str(parsed["server_api_username_env_var"]),
+                password_env_var=str(parsed["server_api_password_env_var"]),
+                metadata={
+                    "transport": "server-api",
+                    "cli_surface": cli_surface,
+                },
+            )
+        )
+    return _opencode_process_client_from_config(cli_config)
+
+
+def _apply_live_codex_concurrent_worker_smoke_defaults(
+    parsed: dict[str, object],
+) -> None:
+    defaults = {
+        "snapshot_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-state.json",
+        "event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-events.jsonl",
+        "artifact_store_path": ".codex/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json",
+        "dispatcher_state_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-dispatcher-state.json",
+        "dispatch_event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-dispatcher-events.jsonl",
+        "delivery_state_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json",
+        "delivery_event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-delivery-events.jsonl",
+        "runtime_invocation_log_path": ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl",
+        "report_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json",
+    }
+    for key, value in defaults.items():
+        if key in parsed and not str(parsed[key]):
+            parsed[key] = value
+    if not str(parsed.get("timestamp", "")):
+        parsed["timestamp"] = datetime.now(UTC).isoformat()
+
+
+def _apply_live_opencode_concurrent_worker_smoke_defaults(
+    parsed: dict[str, object],
+) -> None:
+    defaults = {
+        "snapshot_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-state.json",
+        "event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-events.jsonl",
+        "artifact_store_path": ".codex/orchestration/live-opencode-concurrent-worker-smoke-exchange-artifacts.json",
+        "dispatcher_state_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-state.json",
+        "dispatch_event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-events.jsonl",
+        "delivery_state_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-delivery-state.json",
+        "delivery_event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-delivery-events.jsonl",
+        "runtime_invocation_log_path": ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl",
+        "report_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json",
+    }
+    for key, value in defaults.items():
+        if key in parsed and not str(parsed[key]):
+            parsed[key] = value
+    if not str(parsed.get("timestamp", "")):
+        parsed["timestamp"] = datetime.now(UTC).isoformat()
+
+
 def _codex_delivery_smoke_cli_objects(parsed: dict[str, object]):
     root = _find_project_root()
     from .runtime.orchestration import (
@@ -4869,6 +9607,7 @@ def _codex_delivery_smoke_cli_objects(parsed: dict[str, object]):
         fixture=str(parsed["fixture"]),
         replace_existing_result_artifact=bool(parsed["replace_existing_result_artifact"]),
         target_task_id=str(parsed["target_task_id"]),
+        parallel_task_id=str(parsed["parallel_task_id"]),
         waiting_task_id=str(parsed["waiting_task_id"]),
         followup_task_id=str(parsed["followup_task_id"]),
         timestamp=str(parsed["timestamp"]),
@@ -4901,6 +9640,134 @@ def _codex_delivery_smoke_cli_objects(parsed: dict[str, object]):
         ask_for_approval=str(parsed["ask_for_approval"]),  # type: ignore[arg-type]
     )
     return request, codex_config
+
+
+def _opencode_delivery_loop_cli_objects(
+    parsed: dict[str, object],
+    *,
+    default_snapshot_path: str = ".codex/scheduler/opencode-delivery-supervisor-loop-state.json",
+    default_event_log_path: str = ".codex/scheduler/opencode-delivery-supervisor-loop-events.jsonl",
+    default_runtime_invocation_log_path: str = ".codex/runtime/opencode-delivery-loop-invocations.jsonl",
+    trajectory_id: str = "opencode-delivery-supervisor-loop",
+):
+    root = _find_project_root()
+    from .runtime.orchestration import (
+        CodexDeliveryE2ESmokeRequest,
+        DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH,
+        DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH,
+        OpenCodeCliClientConfig,
+    )
+
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=_resolve_project_path(
+            root,
+            str(parsed["snapshot_path"]) or default_snapshot_path,
+        ),
+        scheduler_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["event_log_path"]) or default_event_log_path,
+        ),
+        artifact_store_path=_resolve_project_path(
+            root,
+            str(parsed["artifact_store_path"])
+            or DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH,
+        ),
+        dispatcher_state_path=_resolve_project_path(
+            root,
+            str(parsed["dispatcher_state_path"])
+            or DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH,
+        ),
+        dispatch_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["dispatch_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH,
+        ),
+        delivery_state_path=_resolve_project_path(
+            root,
+            str(parsed["delivery_state_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH,
+        ),
+        delivery_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["delivery_event_log_path"])
+            or DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
+        ),
+        runtime_invocation_log_path=(
+            None
+            if parsed["runtime_invocation_log_path"] is None
+            else _resolve_project_path(
+                root,
+                str(parsed["runtime_invocation_log_path"])
+                or default_runtime_invocation_log_path,
+            )
+        ),
+        initialize_fixture=bool(parsed["initialize_fixture"]),
+        replace_existing_fixture=bool(parsed["replace_existing_fixture"]),
+        fixture=str(parsed["fixture"]),
+        replace_existing_result_artifact=bool(parsed["replace_existing_result_artifact"]),
+        target_task_id=str(parsed["target_task_id"]),
+        parallel_task_id=str(parsed["parallel_task_id"]),
+        waiting_task_id=str(parsed["waiting_task_id"]),
+        followup_task_id=str(parsed["followup_task_id"]),
+        timestamp=str(parsed["timestamp"]),
+        host_id=str(parsed["host_id"]),
+        host_invocation_id=str(parsed["host_invocation_id"]),
+        runtime_invocation_max_attempts=int(parsed["runtime_invocation_max_attempts"]),
+        runtime_invocation_backoff_seconds=float(parsed["runtime_invocation_backoff_seconds"]),
+        enable_sandbox_preflight=bool(parsed["enable_sandbox_preflight"]),
+        workspace_root=(
+            _resolve_project_path(root, str(parsed["workspace_root"]))
+            if str(parsed["workspace_root"])
+            else root
+        ),
+        scratch_root=str(parsed["scratch_root"]),
+        git_worktree_sandbox_root=(
+            None
+            if not str(parsed["git_worktree_sandbox_root"])
+            else _resolve_project_path(root, str(parsed["git_worktree_sandbox_root"]))
+        ),
+        git_executable=str(parsed["git_executable"]),
+        publish_worker_patch_artifacts=bool(parsed["publish_worker_patch_artifacts"]),
+        worker_patch_guide_agent_id=str(parsed["worker_patch_guide_agent_id"]),
+        worker_patch_target_task_id=str(parsed["worker_patch_target_task_id"]),
+        continuous_worker_binding_ledger_path=_resolve_project_path(
+            root,
+            str(parsed["worker_binding_ledger_path"]),
+        ),
+        continuous_worker_binding_event_log_path=_resolve_project_path(
+            root,
+            str(parsed["worker_binding_event_log_path"]),
+        ),
+        enable_continuous_worker_binding_lookup=bool(parsed["worker_binding_lookup"]),
+        opencode_session_ledger_path=_resolve_project_path(
+            root,
+            str(parsed["session_ledger_path"]),
+        ),
+        opencode_enable_session_lookup=bool(parsed["session_ledger_lookup"]),
+        runtime_provider="opencode",
+        codex_agent_id="agent:opencode-smoke-worker",
+        parallel_agent_id="agent:opencode-smoke-parallel-worker",
+        followup_agent_id="agent:opencode-smoke-followup",
+        waiting_agent_id="agent:opencode-smoke-waiting",
+        codex_lane_id="lane:opencode-smoke",
+        parallel_lane_id="lane:opencode-smoke-parallel",
+        followup_lane_id="lane:opencode-smoke",
+        trajectory_id=trajectory_id,
+    )
+    opencode_config = OpenCodeCliClientConfig(
+        executable=str(parsed["executable"]),
+        cwd=str(parsed["cwd"]),
+        model=str(parsed["model"]),
+        output_format=str(parsed["output_format"]),  # type: ignore[arg-type]
+        attach_url=str(parsed["attach_url"]),
+        session_id=str(parsed["session_id"]),
+        continue_session=bool(parsed["continue_session"]),
+        fork_session=bool(parsed["fork_session"]),
+    )
+    return request, opencode_config
 
 
 def _parse_leader_worker_delivery_common_args(
@@ -5592,6 +10459,79 @@ def _parse_guide_worker_planner_lane_spec(value: str, lane_spec_type):
             profile_kind=sandbox_kind,  # type: ignore[arg-type]
         ),
     )
+
+
+def _parse_runtime_provider_csv(value: str):
+    providers = tuple(
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    )
+    if not providers:
+        raise ValueError("--providers requires at least one provider")
+    allowed = {"fake", "qoder", "codex", "opencode"}
+    for provider in providers:
+        if provider not in allowed:
+            raise ValueError(
+                "--providers values must be fake, qoder, codex, or opencode; "
+                f"got {provider!r}"
+            )
+    normalized: list[str] = []
+    for provider in providers:
+        if provider not in normalized:
+            normalized.append(provider)
+    return tuple(normalized)
+
+
+def _parse_planner_lane_provider_overrides(values: list[str], *, providers: tuple[str, ...]) -> dict[str, str]:
+    overrides: dict[str, str] = {}
+    allowed = set(providers)
+    for value in values:
+        if "=" not in value:
+            raise ValueError("--planner-lane-provider must use LANE_ID=PROVIDER")
+        lane_id, provider = value.split("=", 1)
+        lane_id = lane_id.strip()
+        provider = provider.strip()
+        if not lane_id:
+            raise ValueError("--planner-lane-provider requires a non-empty LANE_ID")
+        if provider not in {"fake", "qoder", "codex", "opencode"}:
+            raise ValueError(
+                "--planner-lane-provider PROVIDER must be fake, qoder, codex, or opencode; "
+                f"got {provider!r}"
+            )
+        if provider not in allowed:
+            raise ValueError(
+                f"--planner-lane-provider for {lane_id!r} requests {provider!r}, "
+                f"but --providers is {', '.join(providers)}"
+            )
+        if lane_id in overrides:
+            raise ValueError(f"duplicate --planner-lane-provider for lane {lane_id!r}")
+        overrides[lane_id] = provider
+    return overrides
+
+
+def _apply_lane_provider_overrides(lane_specs: list[object], overrides: dict[str, str]) -> list[object]:
+    if not overrides:
+        return lane_specs
+    from dataclasses import replace
+
+    lane_ids = {getattr(spec, "lane_id", "") for spec in lane_specs}
+    unknown = sorted(set(overrides) - lane_ids)
+    if unknown:
+        raise ValueError(
+            "--planner-lane-provider references unknown lane(s): "
+            + ", ".join(unknown)
+        )
+    return [
+        replace(
+            spec,
+            worker_runtime_provider=overrides.get(
+                getattr(spec, "lane_id", ""),
+                getattr(spec, "worker_runtime_provider", ""),
+            ),
+        )
+        for spec in lane_specs
+    ]
 
 
 def cmd_scheduler_guide_worker_local_orchestration(args: list[str]) -> int:
@@ -7940,8 +12880,12 @@ _COMMANDS = {
     "check": cmd_check,
     "resources": cmd_resources,
     "codex": cmd_codex,
+    "opencode": cmd_opencode,
+    "provider": cmd_provider,
     "qoder": cmd_qoder,
+    "worker-binding": cmd_worker_binding,
     "scheduler": cmd_scheduler,
+    "doctor": cmd_doctor,
     "generate-instructions": cmd_generate_instructions,
     "pack": cmd_pack,
 }
@@ -7967,8 +12911,12 @@ def main() -> int:
             "  check [text]            Constraint/state check only\n"
             "  resources <sub>         Inspect MCP resources (list/read)\n"
             "  codex <sub>             Codex CLI host readiness helpers\n"
+            "  opencode <sub>          OpenCode CLI host readiness helpers\n"
+            "  provider <sub>          Mixed runtime provider host helpers\n"
             "  qoder <sub>             Qoder host readiness helpers\n"
+            "  worker-binding <sub>    Continuous worker binding helpers\n"
             "  scheduler <sub>         Scheduler operator helpers\n"
+            "  doctor                  Unified self-check diagnostics\n"
             "  generate-instructions   Generate agent instructions segment\n"
             "  pack <sub>              Pack management (list/install/remove/info)\n\n"
             "Global flags:\n"

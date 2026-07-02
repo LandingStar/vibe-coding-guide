@@ -1,0 +1,183 @@
+{
+  "schema_version": "monitoring-snapshot.v1",
+  "ok": true,
+  "next_action": "run live Codex concurrent worker smoke test",
+  "paths": {
+    "scheduler_snapshot_path": ".codex/scheduler/state.json",
+    "scheduler_event_log_path": ".codex/scheduler/events.jsonl",
+    "delivery_state_path": ".codex/scheduler/delivery-state.json",
+    "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+    "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+    "live_codex_smoke_report_path": ".codex/scheduler/smoke-report.json"
+  },
+  "scheduler": {
+    "task_state_counts": {
+      "complete": 3,
+      "ready": 1,
+      "waiting": 0,
+      "review_required": 0,
+      "proposed": 0,
+      "running": 0
+    },
+    "target_task_states": {
+      "T-001": "complete",
+      "T-002": "complete",
+      "T-003": "complete",
+      "T-004": "ready"
+    },
+    "waiting_task_ids": [],
+    "review_required_task_ids": [],
+    "completed_task_output_refs": [
+      { "task_id": "T-001", "ref_kind": "exchange_artifact", "ref_id": "art-001", "version": "v1" }
+    ]
+  },
+  "delivery": {
+    "state_counts": {
+      "delivered": 3,
+      "acknowledged": 3,
+      "pending": 0,
+      "review_required": 0,
+      "failed": 0
+    },
+    "actionable_pending_codex_delivery_count": 0,
+    "latest_records": [
+      {
+        "delivery_id": "D-003",
+        "source_key": "scheduler/T-003",
+        "decision_id": "dec-003",
+        "tick_id": "tick-003",
+        "dispatcher_id": "disp-001",
+        "event_kind": "delivery_acknowledged",
+        "agent_id": "worker-alpha",
+        "role": "lane-worker",
+        "next_action": "none",
+        "lane_id": "main",
+        "task_id": "T-003",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "acknowledged",
+        "created_at": "2026-06-28T13:00:00Z",
+        "updated_at": "2026-06-28T13:10:00Z",
+        "delivered_at": "2026-06-28T13:01:00Z",
+        "review_required_at": "",
+        "acknowledged_at": "2026-06-28T13:10:00Z",
+        "failed_at": "",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "sess-003",
+        "runtime_run_id": "run-003",
+        "invocation_id": "inv-003",
+        "delivery_attempt_count": 1,
+        "failure_kind": "",
+        "failure_detail": "",
+        "metadata": {}
+      }
+    ]
+  },
+  "runtimeInvocations": {
+    "counts": {
+      "record_count": 3,
+      "succeeded": 3,
+      "failed": 0,
+      "provider:codex": 3
+    },
+    "latest_records": [
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-003",
+        "provider": "codex",
+        "status": "succeeded",
+        "started_at": "2026-06-28T13:01:00Z",
+        "ended_at": "2026-06-28T13:05:00Z",
+        "task_id": "T-003",
+        "session_id": "sess-003",
+        "run_id": "run-003",
+        "agent_id": "worker-alpha",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 1,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T13:01:00Z",
+            "ended_at": "2026-06-28T13:05:00Z",
+            "status": "succeeded",
+            "retryable": false,
+            "error_kind": "",
+            "raw_error_type": "",
+            "summary": "completed",
+            "metadata": {}
+          }
+        ],
+        "final_error_kind": "",
+        "final_summary": "completed",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-codex-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      }
+    ],
+    "concurrency": {
+      "latestProviderCounts": { "codex": 3 },
+      "failedTaskIds": [],
+      "latestRecords": [
+        { "invocationId": "inv-003", "provider": "codex", "status": "succeeded", "taskId": "T-003", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T13:01:00Z", "endedAt": "2026-06-28T13:05:00Z" }
+      ],
+      "liveOverlapProven": false,
+      "overlapPairCount": 0
+    }
+  },
+  "artifacts": {
+    "output_artifact_refs": [],
+    "review_artifact_refs": [],
+    "worker_patch_artifact_refs": []
+  },
+  "liveCodexSmoke": {
+    "exists": false,
+    "ok": false,
+    "verdict": "unavailable",
+    "diagnostic": "live Codex smoke report not found",
+    "path": ".codex/scheduler/smoke-report.json",
+    "counts": {},
+    "firstConcurrentBatch": { "taskIds": [], "invocationIds": [] },
+    "overlap": { "proven": false, "pairs": [] }
+  },
+  "workerReports": {
+    "mode": "leader-owned-consumer",
+    "directWorkerTrajectoryMutationAllowed": false,
+    "consumerCommand": "doc-based-coding scheduler consume-worker-trajectory-report --report-path <path>",
+    "procedureDoc": "docs/worker-trajectory-update-reporting.md",
+    "schema": "docs/specs/subagent-report.schema.json",
+    "notes": [
+      "Workers must not call localTrajectory directly.",
+      "Trajectory updates go through Subagent Report.trajectory_update.",
+      "Leader audits and applies trajectory mutations after review."
+    ]
+  },
+  "operatorSignals": [
+    {
+      "severity": "warning",
+      "kind": "live_codex_smoke_missing",
+      "message": "Live Codex smoke report missing",
+      "suggestedAction": "run live Codex concurrent worker smoke test"
+    }
+  ],
+  "errors": [],
+  "authoritySplit": {
+    "readModelOnly": true,
+    "providerExecuted": false,
+    "schedulerStateMutated": false,
+    "schedulerEventLogMutated": false,
+    "dispatcherStateMutated": false,
+    "deliveryStateMutated": false,
+    "deliveryLogMutated": false,
+    "exchangeStoreMutated": false,
+    "runtimeInvocationLogMutated": false,
+    "localWorkTrajectoryMutated": false,
+    "rawTranscriptExposed": false
+  }
+}

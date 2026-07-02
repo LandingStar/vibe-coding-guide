@@ -1,0 +1,431 @@
+{
+  "schema_version": "monitoring-snapshot.v1",
+  "ok": true,
+  "next_action": "continue normal supervision",
+  "paths": {
+    "scheduler_snapshot_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-state.json",
+    "scheduler_event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-events.jsonl",
+    "delivery_state_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json",
+    "runtime_invocation_log_path": ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl",
+    "artifact_store_path": ".codex/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json",
+    "live_codex_smoke_report_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json"
+  },
+  "scheduler": {
+    "task_state_counts": {
+      "complete": 5,
+      "ready": 2,
+      "waiting": 1,
+      "review_required": 0,
+      "proposed": 0,
+      "running": 0
+    },
+    "target_task_states": {
+      "T-001": "complete",
+      "T-002": "complete",
+      "T-003": "complete",
+      "T-004": "complete",
+      "T-005": "complete",
+      "T-006": "ready",
+      "T-007": "ready",
+      "T-008": "waiting"
+    },
+    "waiting_task_ids": ["T-008"],
+    "review_required_task_ids": [],
+    "completed_task_output_refs": [
+      { "task_id": "T-001", "ref_kind": "exchange_artifact", "ref_id": "art-001", "version": "v1" },
+      { "task_id": "T-002", "ref_kind": "exchange_artifact", "ref_id": "art-002", "version": "v1" },
+      { "task_id": "T-003", "ref_kind": "exchange_artifact", "ref_id": "art-003", "version": "v1" },
+      { "task_id": "T-004", "ref_kind": "exchange_artifact", "ref_id": "art-004", "version": "v1" },
+      { "task_id": "T-005", "ref_kind": "exchange_artifact", "ref_id": "art-005", "version": "v1" }
+    ]
+  },
+  "delivery": {
+    "state_counts": {
+      "delivered": 5,
+      "acknowledged": 4,
+      "pending": 1,
+      "review_required": 0,
+      "failed": 0
+    },
+    "actionable_pending_codex_delivery_count": 1,
+    "latest_records": [
+      {
+        "delivery_id": "D-010",
+        "source_key": "scheduler/T-006",
+        "decision_id": "dec-010",
+        "tick_id": "tick-010",
+        "dispatcher_id": "disp-001",
+        "event_kind": "pending_synced",
+        "agent_id": "worker-alpha",
+        "role": "lane-worker",
+        "next_action": "deliver_to_runtime",
+        "lane_id": "main",
+        "task_id": "T-006",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "pending",
+        "created_at": "2026-06-28T14:30:00Z",
+        "updated_at": "2026-06-28T14:30:00Z",
+        "delivered_at": "",
+        "review_required_at": "",
+        "acknowledged_at": "",
+        "failed_at": "",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "",
+        "runtime_run_id": "",
+        "invocation_id": "",
+        "delivery_attempt_count": 0,
+        "failure_kind": "",
+        "failure_detail": "",
+        "metadata": {}
+      },
+      {
+        "delivery_id": "D-009",
+        "source_key": "scheduler/T-005",
+        "decision_id": "dec-009",
+        "tick_id": "tick-009",
+        "dispatcher_id": "disp-001",
+        "event_kind": "delivery_acknowledged",
+        "agent_id": "worker-beta",
+        "role": "lane-worker",
+        "next_action": "none",
+        "lane_id": "feat",
+        "task_id": "T-005",
+        "source": "scheduler",
+        "reason": "",
+        "delivery_state": "acknowledged",
+        "created_at": "2026-06-28T14:20:00Z",
+        "updated_at": "2026-06-28T14:25:00Z",
+        "delivered_at": "2026-06-28T14:21:00Z",
+        "review_required_at": "",
+        "acknowledged_at": "2026-06-28T14:25:00Z",
+        "failed_at": "",
+        "host_id": "codex-host-001",
+        "runtime_provider": "codex",
+        "runtime_session_id": "sess-009",
+        "runtime_run_id": "run-009",
+        "invocation_id": "inv-009",
+        "delivery_attempt_count": 1,
+        "failure_kind": "",
+        "failure_detail": "",
+        "metadata": {}
+      }
+    ]
+  },
+  "runtimeInvocations": {
+    "counts": {
+      "record_count": 10,
+      "succeeded": 9,
+      "failed": 1,
+      "provider:codex": 8,
+      "provider:opencode": 2
+    },
+    "latest_records": [
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-010",
+        "provider": "codex",
+        "status": "succeeded",
+        "started_at": "2026-06-28T14:28:00Z",
+        "ended_at": "2026-06-28T14:29:30Z",
+        "task_id": "T-005",
+        "session_id": "sess-010",
+        "run_id": "run-010",
+        "agent_id": "worker-beta",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 1,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T14:28:00Z",
+            "ended_at": "2026-06-28T14:29:30Z",
+            "status": "succeeded",
+            "retryable": false,
+            "error_kind": "",
+            "raw_error_type": "",
+            "summary": "completed writeback for T-005",
+            "metadata": {},
+            "stdout_bytes": 4096,
+            "stderr_bytes": 0
+          }
+        ],
+        "final_error_kind": "",
+        "final_summary": "completed writeback for T-005",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-codex-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      },
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-009",
+        "provider": "codex",
+        "status": "succeeded",
+        "started_at": "2026-06-28T14:27:00Z",
+        "ended_at": "2026-06-28T14:28:15Z",
+        "task_id": "T-004",
+        "session_id": "sess-009",
+        "run_id": "run-009",
+        "agent_id": "worker-alpha",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 1,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T14:27:00Z",
+            "ended_at": "2026-06-28T14:28:15Z",
+            "status": "succeeded",
+            "retryable": false,
+            "error_kind": "",
+            "raw_error_type": "",
+            "summary": "completed writeback for T-004",
+            "metadata": {},
+            "stdout_bytes": 3200,
+            "stderr_bytes": 0
+          }
+        ],
+        "final_error_kind": "",
+        "final_summary": "completed writeback for T-004",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-codex-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      },
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-008",
+        "provider": "codex",
+        "status": "succeeded",
+        "started_at": "2026-06-28T14:26:00Z",
+        "ended_at": "2026-06-28T14:27:20Z",
+        "task_id": "T-003",
+        "session_id": "sess-008",
+        "run_id": "run-008",
+        "agent_id": "worker-alpha",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 1,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T14:26:00Z",
+            "ended_at": "2026-06-28T14:27:20Z",
+            "status": "succeeded",
+            "retryable": false,
+            "error_kind": "",
+            "raw_error_type": "",
+            "summary": "completed writeback for T-003",
+            "metadata": {}
+          }
+        ],
+        "final_error_kind": "",
+        "final_summary": "completed writeback for T-003",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-codex-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      },
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-007",
+        "provider": "codex",
+        "status": "failed",
+        "started_at": "2026-06-28T14:24:00Z",
+        "ended_at": "2026-06-28T14:25:30Z",
+        "task_id": "T-003",
+        "session_id": "sess-007",
+        "run_id": "run-007",
+        "agent_id": "worker-alpha",
+        "runtime_surface": "codex-cli",
+        "attempt_count": 2,
+        "retry_policy": { "max_attempts": 3, "backoff_seconds": 5 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T14:24:00Z",
+            "ended_at": "2026-06-28T14:24:45Z",
+            "status": "failed",
+            "retryable": true,
+            "error_kind": "timeout",
+            "raw_error_type": "TimeoutError",
+            "summary": "codex CLI timed out after 45s",
+            "metadata": {}
+          },
+          {
+            "attempt_index": 2,
+            "started_at": "2026-06-28T14:25:00Z",
+            "ended_at": "2026-06-28T14:25:30Z",
+            "status": "failed",
+            "retryable": false,
+            "error_kind": "exit_code",
+            "raw_error_type": "ProcessError",
+            "summary": "codex CLI exited with code 1",
+            "metadata": {},
+            "stdout_bytes": 512,
+            "stderr_bytes": 256
+          }
+        ],
+        "final_error_kind": "exit_code",
+        "final_summary": "codex CLI exited with code 1 after 2 attempts",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-codex-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      },
+      {
+        "schema_version": "runtime-invocation-log.v1",
+        "invocation_id": "inv-006",
+        "provider": "opencode",
+        "status": "succeeded",
+        "started_at": "2026-06-28T14:22:00Z",
+        "ended_at": "2026-06-28T14:23:00Z",
+        "task_id": "T-002",
+        "session_id": "sess-006",
+        "run_id": "run-006",
+        "agent_id": "worker-gamma",
+        "runtime_surface": "opencode-cli",
+        "attempt_count": 1,
+        "retry_policy": { "max_attempts": 2, "backoff_seconds": 3 },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "started_at": "2026-06-28T14:22:00Z",
+            "ended_at": "2026-06-28T14:23:00Z",
+            "status": "succeeded",
+            "retryable": false,
+            "error_kind": "",
+            "raw_error_type": "",
+            "summary": "completed writeback for T-002",
+            "metadata": {}
+          }
+        ],
+        "final_error_kind": "",
+        "final_summary": "completed writeback for T-002",
+        "metadata": {},
+        "authority_split": {
+          "runtime_invocation_authority": "bounded-opencode-worker",
+          "raw_transcript_persisted": false,
+          "scheduler_state_mutated": false,
+          "exchange_store_mutated": false,
+          "local_work_trajectory_mutated": false
+        }
+      }
+    ],
+    "concurrency": {
+      "latestProviderCounts": {
+        "codex": 8,
+        "opencode": 2
+      },
+      "failedTaskIds": ["T-003"],
+      "latestRecords": [
+        { "invocationId": "inv-010", "provider": "codex", "status": "succeeded", "taskId": "T-005", "agentId": "worker-beta", "laneId": "feat", "startedAt": "2026-06-28T14:28:00Z", "endedAt": "2026-06-28T14:29:30Z" },
+        { "invocationId": "inv-009", "provider": "codex", "status": "succeeded", "taskId": "T-004", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T14:27:00Z", "endedAt": "2026-06-28T14:28:15Z" },
+        { "invocationId": "inv-008", "provider": "codex", "status": "succeeded", "taskId": "T-003", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T14:26:00Z", "endedAt": "2026-06-28T14:27:20Z" },
+        { "invocationId": "inv-007", "provider": "codex", "status": "failed", "taskId": "T-003", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T14:24:00Z", "endedAt": "2026-06-28T14:25:30Z" },
+        { "invocationId": "inv-006", "provider": "opencode", "status": "succeeded", "taskId": "T-002", "agentId": "worker-gamma", "laneId": "feat", "startedAt": "2026-06-28T14:22:00Z", "endedAt": "2026-06-28T14:23:00Z" }
+      ],
+      "liveOverlapProven": true,
+      "overlapPairCount": 2
+    }
+  },
+  "artifacts": {
+    "output_artifact_refs": [
+      { "ref_kind": "exchange_artifact", "ref_id": "art-001", "version": "v1" },
+      { "ref_kind": "exchange_artifact", "ref_id": "art-002", "version": "v1" }
+    ],
+    "review_artifact_refs": [],
+    "worker_patch_artifact_refs": []
+  },
+  "liveCodexSmoke": {
+    "exists": true,
+    "ok": true,
+    "verdict": "passed",
+    "diagnostic": "all assertions passed",
+    "path": ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json",
+    "counts": {
+      "total_tasks": 8,
+      "total_invocations": 10,
+      "lane_distinct_agents": 3
+    },
+    "firstConcurrentBatch": {
+      "taskIds": ["T-001", "T-002", "T-003"],
+      "invocationIds": ["inv-001", "inv-002", "inv-003"]
+    },
+    "overlap": {
+      "proven": true,
+      "pairs": [
+        {
+          "a": { "invocationId": "inv-001", "provider": "codex", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T14:00:00Z", "endedAt": "2026-06-28T14:02:00Z" },
+          "b": { "invocationId": "inv-002", "provider": "codex", "agentId": "worker-beta", "laneId": "feat", "startedAt": "2026-06-28T14:01:00Z", "endedAt": "2026-06-28T14:03:00Z" },
+          "overlapMs": 60000
+        },
+        {
+          "a": { "invocationId": "inv-009", "provider": "codex", "agentId": "worker-alpha", "laneId": "main", "startedAt": "2026-06-28T14:27:00Z", "endedAt": "2026-06-28T14:28:15Z" },
+          "b": { "invocationId": "inv-010", "provider": "codex", "agentId": "worker-beta", "laneId": "feat", "startedAt": "2026-06-28T14:28:00Z", "endedAt": "2026-06-28T14:29:30Z" },
+          "overlapMs": 15000
+        }
+      ],
+      "timingParseErrors": []
+    },
+    "residualGaps": []
+  },
+  "workerReports": {
+    "mode": "leader-owned-consumer",
+    "directWorkerTrajectoryMutationAllowed": false,
+    "consumerCommand": "doc-based-coding scheduler consume-worker-trajectory-report --report-path <path>",
+    "procedureDoc": "docs/worker-trajectory-update-reporting.md",
+    "schema": "docs/specs/subagent-report.schema.json",
+    "notes": [
+      "Workers must not call localTrajectory directly.",
+      "Trajectory updates go through Subagent Report.trajectory_update.",
+      "Leader audits and applies trajectory mutations after review."
+    ]
+  },
+  "operatorSignals": [
+    {
+      "severity": "info",
+      "kind": "pending_codex_delivery",
+      "message": "1 pending Codex delivery",
+      "suggestedAction": "run delivery supervisor to dispatch pending deliveries"
+    },
+    {
+      "severity": "ok",
+      "kind": "live_codex_overlap_proven",
+      "message": "Live Codex concurrent overlap proven (2 pairs)",
+      "suggestedAction": "no action required"
+    }
+  ],
+  "errors": [],
+  "authoritySplit": {
+    "readModelOnly": true,
+    "providerExecuted": false,
+    "schedulerStateMutated": false,
+    "schedulerEventLogMutated": false,
+    "dispatcherStateMutated": false,
+    "deliveryStateMutated": false,
+    "deliveryLogMutated": false,
+    "exchangeStoreMutated": false,
+    "runtimeInvocationLogMutated": false,
+    "localWorkTrajectoryMutated": false,
+    "rawTranscriptExposed": false
+  }
+}

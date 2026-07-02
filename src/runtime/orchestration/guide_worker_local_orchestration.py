@@ -1400,8 +1400,9 @@ def _validate_instructions(
         if worker_agent_id == request.guide_agent_id:
             raise ValueError(f"{prefix} worker_agent_id must differ from guide_agent_id")
         runtime_provider = instruction.worker_runtime_provider or "fake"
-        if runtime_provider not in {"fake", "qoder", "codex"}:
+        if runtime_provider not in {"fake", "qoder", "codex", "opencode"}:
             raise ValueError(
-                f"{prefix} worker_runtime_provider must be 'fake', 'qoder', or 'codex'; "
+                f"{prefix} worker_runtime_provider must be 'fake', 'qoder', 'codex', "
+                f"or 'opencode'; "
                 f"got {runtime_provider!r}"
             )

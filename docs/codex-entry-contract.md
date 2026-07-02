@@ -27,9 +27,12 @@ Codex 是当前平台明确支持的目标入口，而不是历史兼容路径�
 因此，当 Codex 侧出现接入问题时，优先检查 Interaction Adapter Layer：
 
 1. `AGENTS.md` 是否表达当前规则。
-2. `.codex/config.toml` 或 `codex mcp add` 是否注册了正确 MCP server。
-3. MCP server 是否通过 `tools/list` 暴露预期工具。
-4. CLI/validation 是否在目标 workspace 下运行。
+2. 目标项目是否已被 Codex 标记为 trusted；未 trusted 时，项目级
+   `.codex/config.toml` 不会进入有效配置，`codex mcp list` / `codex doctor`
+   会表现为 `MCP servers 0`。
+3. `.codex/config.toml` 或 `codex mcp add` 是否注册了正确 MCP server。
+4. MCP server 是否通过 `tools/list` 暴露预期工具。
+5. CLI/validation 是否在目标 workspace 下运行。
 
 除非问题已经被定位为 Core Contract 或 Portable Runtime 缺口，否则不应优先修改后端。
 
@@ -68,14 +71,20 @@ Codex 当前优先走项目级 MCP 注册：
 完成 instructions 与 MCP 注册后，最小验证建议是：
 
 1. 确认 `AGENTS.md` 已生成或刷新
-2. 确认 Codex 能看到 `doc-based-coding-mcp`
-3. 在目标仓库里执行最小命令验证，例如：
+2. 确认目标项目已经 trusted，且重启后的 Codex 会话能读取项目级
+   `.codex/config.toml`
+3. 确认 Codex 能看到 `doc-based-coding-mcp`，例如：
+   - `doc-based-coding doctor --profile codex`
+   - `codex -C <target-repo> mcp list`
+   - `codex -C <target-repo> doctor`
+4. 在目标仓库里执行最小命令验证，例如：
    - `doc-based-coding info`
    - `doc-based-coding validate`
 
 ### 4. 需要更深说明时跳哪里
 
 - 安装与 MCP 接入细节：`docs/installation-guide.md`
+- 统一自检/doctor contract：`docs/self-check-doctor-contract.md`
 - 宿主分层与边界：`docs/host-interaction-model.md`
 - 第一次进入仓库的总入口：`docs/starter-surface.md`
 

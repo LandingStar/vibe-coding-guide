@@ -3,7 +3,8 @@
 ## Local Work Trajectory
 
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
-- When MCP exposes `localTrajectory`, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` only for a distinct work context, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
+- Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put trajectory/status suggestions in their `Subagent Report.trajectory_update`, and the leader/main agent consumes the report before mutating Local Work Trajectory. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.
+- When MCP exposes `localTrajectory` to a leader/main/supervisor, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` only for a distinct work context, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
 - Do not wait for a user instruction such as "start trajectory"; do not ask the user to manually create trajectory nodes.
 - If `localTrajectory` is expected but unavailable, report the MCP/tool exposure problem explicitly. Use the repository-local trajectory API only when the current project rules allow local file mutation.
 - MCP path or host-environment configuration checks are not project work and must not be recorded into Local Work Trajectory unless the user explicitly says to track that environment task.
@@ -43,6 +44,7 @@ Dependency baseline 规则：
 - 主 agent 负责权威文档、集成和最终 write-back。
 - 子 agent 只处理被明确写入合同的窄切片。
 - 共享状态文档默认不交给子 agent 直接维护。
+- 子 agent / worker 不直接维护 Local Work Trajectory；其进度、阻塞、完成和建议推进动作必须写入 `Subagent Report.trajectory_update`，由主 agent / leader 审核后执行 `localTrajectory`。固定流程文档：`docs/worker-trajectory-update-reporting.md`。
 
 对话行为约束（始终有效，不因上下文压缩而失效）：
 

@@ -84,7 +84,8 @@ class LLMWorker:
             "\n## Instructions\n"
             "Return JSON only. Do not wrap the JSON in markdown fences or add any extra prose. "
             "The JSON object may contain only these keys: status, verification_results, "
-            "unresolved_items, assumptions, escalation_recommendation, artifact_payloads."
+            "unresolved_items, assumptions, escalation_recommendation, artifact_payloads, "
+            "trajectory_update."
         )
         parts.append(
             "\n## Response Contract\n"
@@ -94,6 +95,11 @@ class LLMWorker:
             "- assumptions: optional array of assumptions that need supervisor review\n"
             "- escalation_recommendation: none | review_by_supervisor | human_review\n"
             "- artifact_payloads: optional array with at most one object containing path, content, operation, content_type\n"
+            "- trajectory_update: optional object for worker progress/status suggestions to the leader; include lane_id, task_id, event_status, summary, suggested_action, and optional evidence_refs/leader_notes\n"
+            "- trajectory_update.event_status must be exactly one of: completed | partial | blocked | waiting | in_progress\n"
+            "- trajectory_update.suggested_action must be exactly one of: append | advance | block | wait | resume | close | none\n"
+            "- Do not call localTrajectory directly; use trajectory_update when the leader should update Local Work Trajectory\n"
+            "- Worker trajectory update procedure reference: docs/worker-trajectory-update-reporting.md\n"
             "- artifact_payloads.operation must be exactly one of: create | update | append\n"
             "- artifact_payloads.content_type must be exactly one of: markdown | json | yaml | text\n"
             "- Do not include report_id, contract_id, changed_artifacts, llm_response, or any other keys\n"
@@ -234,6 +240,13 @@ class LLMWorker:
                 "Downgraded report status to partial because the LLM attempted artifact_payloads but none passed output guard normalization."
             )
 
+        trajectory_update, trajectory_notes = LLMWorker._normalize_trajectory_update(
+            response_data.get("trajectory_update"),
+            contract_id,
+            status,
+        )
+        verification_results.extend(trajectory_notes)
+
         escalation = response_data.get("escalation_recommendation")
         if escalation not in _ALLOWED_ESCALATIONS:
             escalation = "none" if status == "completed" else "review_by_supervisor"
@@ -256,6 +269,8 @@ class LLMWorker:
             report["assumptions"] = assumptions
         if artifact_payloads:
             report["artifact_payloads"] = artifact_payloads
+        if trajectory_update:
+            report["trajectory_update"] = trajectory_update
         return report
 
     @staticmethod
@@ -380,6 +395,98 @@ class LLMWorker:
             "operation": operation,
             "content_type": normalized_content_type,
         }, notes
+
+    @staticmethod
+    def _normalize_trajectory_update(
+        value: Any,
+        contract_id: str,
+        report_status: str,
+    ) -> tuple[dict[str, Any] | None, list[str]]:
+        if value is None:
+            return None, []
+        if not isinstance(value, dict):
+            return None, [
+                "Ignored trajectory_update because the LLM response used a non-object shape."
+            ]
+
+        notes: list[str] = []
+        allowed_event_statuses = {
+            "completed",
+            "partial",
+            "blocked",
+            "waiting",
+            "in_progress",
+        }
+        allowed_actions = {
+            "append",
+            "advance",
+            "block",
+            "wait",
+            "resume",
+            "close",
+            "none",
+        }
+
+        lane_id = LLMWorker._clean_optional_string(value.get("lane_id"))
+        if not lane_id:
+            lane_id = LLMWorker._clean_optional_string(value.get("laneId")) or "lane:unspecified"
+            notes.append("Defaulted trajectory_update.lane_id because the LLM response omitted it.")
+
+        task_id = LLMWorker._clean_optional_string(value.get("task_id"))
+        if not task_id:
+            task_id = LLMWorker._clean_optional_string(value.get("taskId")) or contract_id
+            notes.append("Defaulted trajectory_update.task_id to the contract id.")
+
+        event_status = LLMWorker._clean_optional_string(value.get("event_status"))
+        if not event_status:
+            event_status = LLMWorker._clean_optional_string(value.get("eventStatus"))
+        if event_status not in allowed_event_statuses:
+            event_status = (
+                report_status
+                if report_status in {"completed", "partial", "blocked"}
+                else "in_progress"
+            )
+            notes.append("Defaulted trajectory_update.event_status to a schema-valid value.")
+
+        suggested_action = LLMWorker._clean_optional_string(value.get("suggested_action"))
+        if not suggested_action:
+            suggested_action = LLMWorker._clean_optional_string(value.get("suggestedAction"))
+        if suggested_action not in allowed_actions:
+            suggested_action = "advance" if event_status == "completed" else "none"
+            notes.append("Defaulted trajectory_update.suggested_action to a schema-valid value.")
+
+        summary = LLMWorker._clean_optional_string(value.get("summary"))
+        if not summary:
+            summary = f"Worker reported {event_status} for {task_id}."
+            notes.append("Defaulted trajectory_update.summary because the LLM response omitted it.")
+
+        update: dict[str, Any] = {
+            "lane_id": lane_id,
+            "task_id": task_id,
+            "event_status": event_status,
+            "summary": summary,
+            "suggested_action": suggested_action,
+        }
+
+        evidence_refs = LLMWorker._normalize_string_list(value.get("evidence_refs"))
+        if not evidence_refs:
+            evidence_refs = LLMWorker._normalize_string_list(value.get("evidenceRefs"))
+        if evidence_refs:
+            update["evidence_refs"] = evidence_refs
+
+        leader_notes = LLMWorker._normalize_string_list(value.get("leader_notes"))
+        if not leader_notes:
+            leader_notes = LLMWorker._normalize_string_list(value.get("leaderNotes"))
+        if leader_notes:
+            update["leader_notes"] = leader_notes
+
+        return update, notes
+
+    @staticmethod
+    def _clean_optional_string(value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        return value.strip()
 
     @staticmethod
     def _partial_report(contract_id: str, response_text: str, error_msg: str) -> dict:

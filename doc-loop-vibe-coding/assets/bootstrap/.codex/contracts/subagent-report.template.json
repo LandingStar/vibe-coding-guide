@@ -8,6 +8,19 @@
   "verification_results": [
     "<verification result>"
   ],
+  "trajectory_update": {
+    "lane_id": "<lane id>",
+    "task_id": "<task or contract id>",
+    "event_status": "<completed|partial|blocked|waiting|in_progress>",
+    "summary": "<worker progress/status for leader-owned trajectory integration>",
+    "suggested_action": "<append|advance|block|wait|resume|close|none>",
+    "evidence_refs": [
+      "<artifact path or evidence ref>"
+    ],
+    "leader_notes": [
+      "<note for leader before mutating Local Work Trajectory>"
+    ]
+  },
   "unresolved_items": [
     "<open item>"
   ],

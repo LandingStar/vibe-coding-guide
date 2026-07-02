@@ -1157,10 +1157,11 @@ def _agent_from_payload(value: object, artifact: ExchangeArtifact) -> AgentSpec:
             f"scheduler task submission {artifact.artifact_id!r} requires object field 'agent'"
         )
     provider = value.get("runtime_provider")
-    if provider not in ("fake", "qoder", "codex"):
+    if provider not in ("fake", "qoder", "codex", "opencode"):
         raise ValueError(
             f"scheduler task submission {artifact.artifact_id!r} has unsupported "
-            f"agent.runtime_provider {provider!r}; expected 'fake', 'qoder', or 'codex'"
+            f"agent.runtime_provider {provider!r}; expected 'fake', 'qoder', 'codex', "
+            "or 'opencode'"
         )
     agent_id = value.get("agent_id")
     if not isinstance(agent_id, str) or not agent_id:

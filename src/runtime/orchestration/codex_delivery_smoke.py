@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .codex_cli_client import CodexCliHostReadinessReport, CodexCliProcessClient
@@ -13,6 +13,7 @@ from .leader_worker_codex_delivery import (
     CodexDeliverySupervisorRequest,
     CodexDeliverySupervisorResult,
     run_codex_delivery_supervisor_once,
+    run_opencode_delivery_supervisor_once,
 )
 from .leader_worker_delivery import (
     DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH,
@@ -29,7 +30,8 @@ from .leader_worker_dispatcher import (
     LeaderWorkerDispatcherTickResult,
     run_leader_worker_dispatcher_tick,
 )
-from .runtime_adapter import AgentSpec, CodexCliClient
+from .opencode_cli_client import OpenCodeCliHostReadinessReport, OpenCodeCliProcessClient
+from .runtime_adapter import AgentSpec, CodexCliClient, OpenCodeCliClient, RuntimeProviderKind
 from .runtime_invocation_audit import (
     DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH,
     JsonlRuntimeInvocationLog,
@@ -97,8 +99,17 @@ class CodexDeliveryE2ESmokeRequest:
     publish_worker_patch_artifacts: bool = False
     worker_patch_guide_agent_id: str = "agent:guide"
     worker_patch_target_task_id: str = ""
+    opencode_session_ledger_path: str | Path = ".codex/runtime/opencode-session-ledger.json"
+    opencode_enable_session_lookup: bool = False
+    continuous_worker_binding_ledger_path: str | Path = ".codex/runtime/continuous-worker-bindings.json"
+    continuous_worker_binding_event_log_path: str | Path = ".codex/runtime/continuous-worker-binding-events.jsonl"
+    continuous_worker_delivery_lease_ledger_path: str | Path = ".codex/runtime/continuous-worker-delivery-leases.json"
+    continuous_worker_delivery_lease_event_log_path: str | Path = ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    continuous_worker_lane_ownership_ledger_path: str | Path = ".codex/runtime/continuous-worker-lane-ownerships.json"
+    enable_continuous_worker_binding_lookup: bool = False
     replace_existing_result_artifact: bool = False
     metadata: Mapping[str, object] = field(default_factory=dict)
+    runtime_provider: RuntimeProviderKind = "codex"
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +144,7 @@ class CodexDeliveryE2ESmokeResult:
 
     request: CodexDeliveryE2ESmokeRequest
     fixture: CodexDeliveryE2ESmokeFixtureResult
-    readiness: CodexCliHostReadinessReport | None
+    readiness: CodexCliHostReadinessReport | OpenCodeCliHostReadinessReport | None
     dispatcher_tick: LeaderWorkerDispatcherTickResult | None
     delivery_sync: LeaderWorkerDeliverySyncResult | None
     codex_delivery: CodexDeliverySupervisorResult | None
@@ -165,6 +176,7 @@ class CodexDeliveryE2ESmokeResult:
             "ok": self.ok,
             "stop_reason": self.stop_reason,
             "stop_detail": self.stop_detail,
+            "runtime_provider": self.request.runtime_provider,
             "target_task_id": self.request.target_task_id,
             "target_task_state": self.target_task_state,
             "target_output_artifact_ref": {
@@ -203,6 +215,18 @@ class CodexDeliveryE2ESmokeResult:
                 "codex_skipped": (
                     0 if self.codex_delivery is None else self.codex_delivery.skipped_count
                 ),
+                "provider_attempted": (
+                    0 if self.codex_delivery is None else self.codex_delivery.attempted_count
+                ),
+                "provider_acknowledged": (
+                    0 if self.codex_delivery is None else self.codex_delivery.executed_count
+                ),
+                "provider_failed": (
+                    0 if self.codex_delivery is None else self.codex_delivery.failed_count
+                ),
+                "provider_skipped": (
+                    0 if self.codex_delivery is None else self.codex_delivery.skipped_count
+                ),
                 "recovered_scheduler_events": (
                     0 if self.recovery is None else self.recovery.event_count
                 ),
@@ -219,7 +243,8 @@ class CodexDeliveryE2ESmokeResult:
                 None if self.codex_delivery is None else self.codex_delivery.to_json_dict()
             ),
             "authority_split": {
-                "workflow_surface": "host-owned-codex-delivery-e2e-smoke",
+                "workflow_surface": f"host-owned-{self.request.runtime_provider}-delivery-e2e-smoke",
+                "runtime_provider": self.request.runtime_provider,
                 "provider_executed": (
                     False if self.codex_delivery is None else self.codex_delivery.attempted_count > 0
                 ),
@@ -300,7 +325,7 @@ class CodexDeliveryBoundedLoopResult:
 
     request: CodexDeliveryBoundedLoopRequest
     fixture: CodexDeliveryE2ESmokeFixtureResult
-    readiness: CodexCliHostReadinessReport | None
+    readiness: CodexCliHostReadinessReport | OpenCodeCliHostReadinessReport | None
     iterations: tuple[CodexDeliveryBoundedLoopIteration, ...]
     recovery: SchedulerRecoveryResult | None
     ok: bool
@@ -362,6 +387,7 @@ class CodexDeliveryBoundedLoopResult:
         )
         return {
             "ok": self.ok,
+            "runtime_provider": self.request.smoke_request.runtime_provider,
             "stop_reason": self.stop_reason,
             "stop_detail": self.stop_detail,
             "max_ticks": self.request.max_ticks,
@@ -394,7 +420,10 @@ class CodexDeliveryBoundedLoopResult:
                 "serialized_writeback": True,
             },
             "authority_split": {
-                "workflow_surface": "host-owned-bounded-codex-supervisor-loop",
+                "workflow_surface": (
+                    f"host-owned-bounded-{self.request.smoke_request.runtime_provider}-supervisor-loop"
+                ),
+                "runtime_provider": self.request.smoke_request.runtime_provider,
                 "provider_executed": self.attempted_count > 0,
                 "process_parallel_execution": process_parallel_execution,
                 "serialized_writeback": True,
@@ -552,6 +581,164 @@ def run_codex_delivery_e2e_smoke(
     )
 
 
+def run_opencode_delivery_e2e_smoke(
+    request: CodexDeliveryE2ESmokeRequest,
+    *,
+    opencode_cli_client: OpenCodeCliClient,
+) -> CodexDeliveryE2ESmokeResult:
+    """Run the C1-equivalent OpenCode delivery E2E smoke."""
+
+    request = replace(request, runtime_provider="opencode")
+    _validate_fixture(request.fixture)
+    if request.runtime_invocation_max_attempts < 1:
+        raise ValueError("OpenCode delivery E2E smoke runtime attempts must be positive")
+    if request.runtime_invocation_backoff_seconds < 0:
+        raise ValueError("OpenCode delivery E2E smoke runtime backoff must be non-negative")
+    fixture = CodexDeliveryE2ESmokeFixtureResult(
+        initialized=False,
+        snapshot_path=Path(request.scheduler_snapshot_path),
+        event_log_path=Path(request.scheduler_event_log_path),
+        target_task_id=request.target_task_id,
+        fixture=request.fixture,
+        parallel_task_id=request.parallel_task_id,
+        followup_task_id=request.followup_task_id,
+        waiting_task_id=request.waiting_task_id,
+    )
+    readiness: OpenCodeCliHostReadinessReport | None = None
+    if request.require_host_ready and hasattr(opencode_cli_client, "host_readiness_report"):
+        readiness = opencode_cli_client.host_readiness_report()  # type: ignore[attr-defined]
+        if not readiness.ready:
+            return CodexDeliveryE2ESmokeResult(
+                request=request,
+                fixture=fixture,
+                readiness=readiness,
+                dispatcher_tick=None,
+                delivery_sync=None,
+                codex_delivery=None,
+                recovery=None,
+                ok=False,
+                stop_reason="opencode_not_ready",
+                stop_detail=readiness.summary,
+            )
+
+    fixture = _initialize_fixture_if_requested(request)
+    dispatcher_tick = run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=request.dispatcher_state_path,
+            dispatch_event_log_path=request.dispatch_event_log_path,
+            scheduler_snapshot_path=request.scheduler_snapshot_path,
+            scheduler_event_log_path=request.scheduler_event_log_path,
+            artifact_store_path=request.artifact_store_path,
+            dispatcher_id=request.dispatcher_id,
+            trajectory_id=request.trajectory_id,
+            leader_agent_id=request.leader_agent_id,
+            worker_agent_ids=_worker_agent_ids_for_fixture(request),
+            timestamp=request.timestamp,
+            strict_recovery=request.strict_recovery,
+            metadata=request.metadata,
+        )
+    )
+    delivery_sync = sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=request.delivery_state_path,
+            delivery_event_log_path=request.delivery_event_log_path,
+            dispatch_event_log_path=request.dispatch_event_log_path,
+            delivery_id="leader-worker-delivery",
+            dispatcher_id=request.dispatcher_id,
+            timestamp=request.timestamp,
+            host_id=request.host_id,
+            metadata=request.metadata,
+        )
+    )
+    opencode_delivery = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=request.delivery_state_path,
+            delivery_event_log_path=request.delivery_event_log_path,
+            scheduler_snapshot_path=request.scheduler_snapshot_path,
+            scheduler_event_log_path=request.scheduler_event_log_path,
+            runtime_invocation_log_path=request.runtime_invocation_log_path,
+            artifact_store_path=request.artifact_store_path,
+            consume_success_results=True,
+            replace_existing_result_artifact=request.replace_existing_result_artifact,
+            max_deliveries=1,
+            timestamp=request.timestamp,
+            host_id=request.host_id,
+            host_invocation_id=request.host_invocation_id,
+            requested_by="host:opencode-delivery-e2e-smoke",
+            reason="C1 host-owned OpenCode delivery E2E smoke",
+            grant_id=f"grant-{request.host_invocation_id}",
+            approved_by="host:opencode-delivery-e2e-smoke",
+            approved_at=request.timestamp,
+            allow_network=request.allow_network,
+            strict_recovery=request.strict_recovery,
+            runtime_invocation_max_attempts=request.runtime_invocation_max_attempts,
+            runtime_invocation_backoff_seconds=request.runtime_invocation_backoff_seconds,
+            enable_sandbox_preflight=request.enable_sandbox_preflight,
+            workspace_root=request.workspace_root,
+            scratch_root=request.scratch_root,
+            git_worktree_sandbox_root=request.git_worktree_sandbox_root,
+            git_executable=request.git_executable,
+            publish_worker_patch_artifacts=request.publish_worker_patch_artifacts,
+            worker_patch_guide_agent_id=request.worker_patch_guide_agent_id,
+            worker_patch_target_task_id=request.worker_patch_target_task_id,
+            opencode_session_ledger_path=request.opencode_session_ledger_path,
+            opencode_enable_session_lookup=request.opencode_enable_session_lookup,
+            continuous_worker_binding_ledger_path=request.continuous_worker_binding_ledger_path,
+            continuous_worker_binding_event_log_path=(
+                request.continuous_worker_binding_event_log_path
+            ),
+            continuous_worker_delivery_lease_ledger_path=(
+                request.continuous_worker_delivery_lease_ledger_path
+            ),
+            continuous_worker_delivery_lease_event_log_path=(
+                request.continuous_worker_delivery_lease_event_log_path
+            ),
+            continuous_worker_lane_ownership_ledger_path=(
+                request.continuous_worker_lane_ownership_ledger_path
+            ),
+            enable_continuous_worker_binding_lookup=(
+                request.enable_continuous_worker_binding_lookup
+            ),
+            metadata=request.metadata,
+        ),
+        opencode_cli_client=opencode_cli_client,
+    )
+    recovery = recover_scheduler_state(
+        request.scheduler_snapshot_path,
+        request.scheduler_event_log_path,
+        strict=request.strict_recovery,
+    )
+    task = recovery.recovered_state.tasks.get(request.target_task_id)
+    output_ref = None if task is None else task.output_artifact_ref
+    ok = bool(
+        opencode_delivery.ok
+        and opencode_delivery.executed_count == 1
+        and task is not None
+        and task.state == "complete"
+        and output_ref is not None
+        and output_ref.ref_id
+    )
+    return CodexDeliveryE2ESmokeResult(
+        request=request,
+        fixture=fixture,
+        readiness=readiness,
+        dispatcher_tick=dispatcher_tick,
+        delivery_sync=delivery_sync,
+        codex_delivery=opencode_delivery,
+        recovery=recovery,
+        target_task_state="" if task is None else task.state,
+        target_output_artifact_id="" if output_ref is None else output_ref.ref_id,
+        target_output_artifact_version="" if output_ref is None else output_ref.version,
+        ok=ok,
+        stop_reason="complete" if ok else "target_not_complete",
+        stop_detail=(
+            "target OpenCode task recovered as complete"
+            if ok
+            else "target OpenCode task did not recover as complete"
+        ),
+    )
+
+
 def run_bounded_codex_delivery_supervisor_loop(
     request: CodexDeliveryBoundedLoopRequest,
     *,
@@ -559,20 +746,62 @@ def run_bounded_codex_delivery_supervisor_loop(
 ) -> CodexDeliveryBoundedLoopResult:
     """Run a bounded C2 loop that chains activation through Codex consumption."""
 
+    request = replace(
+        request,
+        smoke_request=replace(request.smoke_request, runtime_provider="codex"),
+    )
+    return _run_bounded_delivery_supervisor_loop(
+        request,
+        runtime_client=codex_cli_client,
+    )
+
+
+def run_bounded_opencode_delivery_supervisor_loop(
+    request: CodexDeliveryBoundedLoopRequest,
+    *,
+    opencode_cli_client: OpenCodeCliClient,
+) -> CodexDeliveryBoundedLoopResult:
+    """Run a bounded host-owned loop that chains activation through OpenCode."""
+
+    request = replace(
+        request,
+        smoke_request=replace(request.smoke_request, runtime_provider="opencode"),
+    )
+    return _run_bounded_delivery_supervisor_loop(
+        request,
+        runtime_client=opencode_cli_client,
+    )
+
+
+def _run_bounded_delivery_supervisor_loop(
+    request: CodexDeliveryBoundedLoopRequest,
+    *,
+    runtime_client: CodexCliClient | OpenCodeCliClient,
+) -> CodexDeliveryBoundedLoopResult:
+    """Shared bounded delivery loop for host-owned CLI runtime providers."""
+
+    provider = request.smoke_request.runtime_provider
+    if provider not in {"codex", "opencode"}:
+        raise ValueError(
+            "bounded delivery supervisor loop supports runtime_provider "
+            f"'codex' or 'opencode'; got {provider!r}"
+        )
     _validate_fixture(request.smoke_request.fixture)
     if request.max_ticks < 0:
-        raise ValueError("bounded Codex supervisor loop max_ticks must be non-negative")
+        raise ValueError(f"bounded {provider} supervisor loop max_ticks must be non-negative")
     if request.max_deliveries < 0:
-        raise ValueError("bounded Codex supervisor loop max_deliveries must be non-negative")
+        raise ValueError(f"bounded {provider} supervisor loop max_deliveries must be non-negative")
     if request.max_runtime_failures < 0:
-        raise ValueError("bounded Codex supervisor loop max_runtime_failures must be non-negative")
+        raise ValueError(
+            f"bounded {provider} supervisor loop max_runtime_failures must be non-negative"
+        )
     if request.max_delivery_attempts_per_record < 1:
         raise ValueError(
-            "bounded Codex supervisor loop max_delivery_attempts_per_record must be positive"
+            f"bounded {provider} supervisor loop max_delivery_attempts_per_record must be positive"
         )
     if request.max_concurrent_deliveries < 1:
         raise ValueError(
-            "bounded Codex supervisor loop max_concurrent_deliveries must be positive"
+            f"bounded {provider} supervisor loop max_concurrent_deliveries must be positive"
         )
 
     smoke = request.smoke_request
@@ -586,9 +815,9 @@ def run_bounded_codex_delivery_supervisor_loop(
         followup_task_id=smoke.followup_task_id,
         waiting_task_id=smoke.waiting_task_id,
     )
-    readiness: CodexCliHostReadinessReport | None = None
-    if smoke.require_host_ready and hasattr(codex_cli_client, "host_readiness_report"):
-        readiness = codex_cli_client.host_readiness_report()  # type: ignore[attr-defined]
+    readiness: CodexCliHostReadinessReport | OpenCodeCliHostReadinessReport | None = None
+    if smoke.require_host_ready and hasattr(runtime_client, "host_readiness_report"):
+        readiness = runtime_client.host_readiness_report()  # type: ignore[attr-defined]
         if not readiness.ready:
             return CodexDeliveryBoundedLoopResult(
                 request=request,
@@ -597,7 +826,7 @@ def run_bounded_codex_delivery_supervisor_loop(
                 iterations=(),
                 recovery=None,
                 ok=False,
-                stop_reason="codex_not_ready",
+                stop_reason=f"{provider}_not_ready",
                 stop_detail=readiness.summary,
             )
 
@@ -677,43 +906,64 @@ def run_bounded_codex_delivery_supervisor_loop(
             stop_reason = "max_deliveries_reached"
             stop_detail = "max_deliveries reached"
             break
-        codex_delivery = run_codex_delivery_supervisor_once(
-            CodexDeliverySupervisorRequest(
-                delivery_state_path=smoke.delivery_state_path,
-                delivery_event_log_path=smoke.delivery_event_log_path,
-                scheduler_snapshot_path=smoke.scheduler_snapshot_path,
-                scheduler_event_log_path=smoke.scheduler_event_log_path,
-                runtime_invocation_log_path=smoke.runtime_invocation_log_path,
-                artifact_store_path=smoke.artifact_store_path,
-                consume_success_results=True,
-                replace_existing_result_artifact=smoke.replace_existing_result_artifact,
-                max_deliveries=remaining_deliveries,
-                max_concurrent_deliveries=request.max_concurrent_deliveries,
-                retry_failed_delivery=True,
-                max_delivery_attempts_per_record=request.max_delivery_attempts_per_record,
-                timestamp=smoke.timestamp,
-                host_id=smoke.host_id,
-                host_invocation_id=f"{smoke.host_invocation_id}:tick-{iteration_index:04d}",
-                requested_by="host:bounded-codex-supervisor-loop",
-                reason="C2 bounded host-owned Codex supervisor loop",
-                grant_id=f"grant-{smoke.host_invocation_id}:tick-{iteration_index:04d}",
-                approved_by="host:bounded-codex-supervisor-loop",
-                approved_at=smoke.timestamp,
-                allow_network=smoke.allow_network,
-                strict_recovery=smoke.strict_recovery,
-                runtime_invocation_max_attempts=smoke.runtime_invocation_max_attempts,
-                runtime_invocation_backoff_seconds=smoke.runtime_invocation_backoff_seconds,
-                enable_sandbox_preflight=smoke.enable_sandbox_preflight,
-                workspace_root=smoke.workspace_root,
-                scratch_root=smoke.scratch_root,
-                git_worktree_sandbox_root=smoke.git_worktree_sandbox_root,
-                git_executable=smoke.git_executable,
-                publish_worker_patch_artifacts=smoke.publish_worker_patch_artifacts,
-                worker_patch_guide_agent_id=smoke.worker_patch_guide_agent_id,
-                worker_patch_target_task_id=smoke.worker_patch_target_task_id,
-                metadata=smoke.metadata,
-            ),
-            codex_cli_client=codex_cli_client,
+        codex_delivery = _run_provider_delivery_supervisor_once(
+            provider=provider,
+            request=CodexDeliverySupervisorRequest(
+                    delivery_state_path=smoke.delivery_state_path,
+                    delivery_event_log_path=smoke.delivery_event_log_path,
+                    scheduler_snapshot_path=smoke.scheduler_snapshot_path,
+                    scheduler_event_log_path=smoke.scheduler_event_log_path,
+                    runtime_invocation_log_path=smoke.runtime_invocation_log_path,
+                    artifact_store_path=smoke.artifact_store_path,
+                    consume_success_results=True,
+                    replace_existing_result_artifact=smoke.replace_existing_result_artifact,
+                    max_deliveries=remaining_deliveries,
+                    max_concurrent_deliveries=request.max_concurrent_deliveries,
+                    retry_failed_delivery=True,
+                    max_delivery_attempts_per_record=request.max_delivery_attempts_per_record,
+                    timestamp=smoke.timestamp,
+                    host_id=smoke.host_id,
+                    host_invocation_id=f"{smoke.host_invocation_id}:tick-{iteration_index:04d}",
+                    requested_by=f"host:bounded-{provider}-supervisor-loop",
+                    reason=f"C2 bounded host-owned {provider} supervisor loop",
+                    grant_id=f"grant-{smoke.host_invocation_id}:tick-{iteration_index:04d}",
+                    approved_by=f"host:bounded-{provider}-supervisor-loop",
+                    approved_at=smoke.timestamp,
+                    allow_network=smoke.allow_network,
+                    strict_recovery=smoke.strict_recovery,
+                    runtime_invocation_max_attempts=smoke.runtime_invocation_max_attempts,
+                    runtime_invocation_backoff_seconds=smoke.runtime_invocation_backoff_seconds,
+                    enable_sandbox_preflight=smoke.enable_sandbox_preflight,
+                    workspace_root=smoke.workspace_root,
+                    scratch_root=smoke.scratch_root,
+                    git_worktree_sandbox_root=smoke.git_worktree_sandbox_root,
+                    git_executable=smoke.git_executable,
+                    publish_worker_patch_artifacts=smoke.publish_worker_patch_artifacts,
+                    worker_patch_guide_agent_id=smoke.worker_patch_guide_agent_id,
+                    worker_patch_target_task_id=smoke.worker_patch_target_task_id,
+                    continuous_worker_binding_ledger_path=(
+                        smoke.continuous_worker_binding_ledger_path
+                    ),
+                    continuous_worker_binding_event_log_path=(
+                        smoke.continuous_worker_binding_event_log_path
+                    ),
+                    continuous_worker_delivery_lease_ledger_path=(
+                        smoke.continuous_worker_delivery_lease_ledger_path
+                    ),
+                    continuous_worker_delivery_lease_event_log_path=(
+                        smoke.continuous_worker_delivery_lease_event_log_path
+                    ),
+                    continuous_worker_lane_ownership_ledger_path=(
+                        smoke.continuous_worker_lane_ownership_ledger_path
+                    ),
+                    enable_continuous_worker_binding_lookup=(
+                        smoke.enable_continuous_worker_binding_lookup
+                    ),
+                    opencode_session_ledger_path=smoke.opencode_session_ledger_path,
+                    opencode_enable_session_lookup=smoke.opencode_enable_session_lookup,
+                    metadata=smoke.metadata,
+                ),
+            runtime_client=runtime_client,
         )
         total_deliveries += codex_delivery.attempted_count
         total_failures += codex_delivery.failed_count
@@ -743,16 +993,16 @@ def run_bounded_codex_delivery_supervisor_loop(
             break
         if _all_targets_complete(recovery.recovered_state, _loop_target_task_ids(request)):
             stop_reason = "all_targets_complete"
-            stop_detail = "all target Codex tasks recovered as complete"
+            stop_detail = f"all target {provider} tasks recovered as complete"
             break
         if (
             dispatcher_tick.tick_record.decision_count == 0
             and delivery_sync.synced_count == 0
             and codex_delivery.attempted_count == 0
             and after_ready_count == before_ready_count
-        ):
+            ):
             stop_reason = "no_progress"
-            stop_detail = "no new readiness, dispatch, delivery, or Codex attempt"
+            stop_detail = f"no new readiness, dispatch, delivery, or {provider} attempt"
             break
 
     if recovery is None:
@@ -787,6 +1037,19 @@ def run_bounded_codex_delivery_supervisor_loop_with_process_client(
     )
 
 
+def run_bounded_opencode_delivery_supervisor_loop_with_process_client(
+    request: CodexDeliveryBoundedLoopRequest,
+    *,
+    opencode_cli_client: OpenCodeCliProcessClient,
+) -> CodexDeliveryBoundedLoopResult:
+    """Typed convenience wrapper for process-backed OpenCode loop callers."""
+
+    return run_bounded_opencode_delivery_supervisor_loop(
+        request,
+        opencode_cli_client=opencode_cli_client,
+    )
+
+
 def run_codex_delivery_e2e_smoke_with_process_client(
     request: CodexDeliveryE2ESmokeRequest,
     *,
@@ -798,6 +1061,38 @@ def run_codex_delivery_e2e_smoke_with_process_client(
         request,
         codex_cli_client=codex_cli_client,
     )
+
+
+def run_opencode_delivery_e2e_smoke_with_process_client(
+    request: CodexDeliveryE2ESmokeRequest,
+    *,
+    opencode_cli_client: OpenCodeCliProcessClient,
+) -> CodexDeliveryE2ESmokeResult:
+    """Typed convenience wrapper for process-backed OpenCode smoke callers."""
+
+    return run_opencode_delivery_e2e_smoke(
+        request,
+        opencode_cli_client=opencode_cli_client,
+    )
+
+
+def _run_provider_delivery_supervisor_once(
+    *,
+    provider: RuntimeProviderKind,
+    request: CodexDeliverySupervisorRequest,
+    runtime_client: CodexCliClient | OpenCodeCliClient,
+) -> CodexDeliverySupervisorResult:
+    if provider == "codex":
+        return run_codex_delivery_supervisor_once(
+            request,
+            codex_cli_client=runtime_client,  # type: ignore[arg-type]
+        )
+    if provider == "opencode":
+        return run_opencode_delivery_supervisor_once(
+            request,
+            opencode_cli_client=runtime_client,  # type: ignore[arg-type]
+        )
+    raise ValueError(f"unsupported bounded delivery runtime provider: {provider!r}")
 
 
 def _initialize_fixture_if_requested(
@@ -847,18 +1142,21 @@ def _fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> Scheduler
 
 
 def _simple_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> SchedulerState:
+    provider = request.runtime_provider
+    title_prefix = "OpenCode" if provider == "opencode" else "Codex CLI"
+    output_suffix = "opencode-result" if provider == "opencode" else "codex-result"
     return SchedulerState(
         tasks={
             request.target_task_id: ScheduledTask(
                 task_id=request.target_task_id,
-                title="Codex CLI C1 smoke worker",
+                title=f"{title_prefix} C1 smoke worker",
                 instruction=(
                     "Return one compact confirmation that this scheduler-owned "
-                    "Codex worker task executed. Do not edit repository files."
+                    f"{provider} worker task executed. Do not edit repository files."
                 ),
                 agent=AgentSpec(
                     agent_id=request.codex_agent_id,
-                    runtime_provider="codex",
+                    runtime_provider=provider,
                 ),
                 state="ready",
                 context_scope=ContextScope(
@@ -870,12 +1168,12 @@ def _simple_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> Sc
                     "Do not include secrets or raw credential material.",
                     "Do not modify source workspace files.",
                 ),
-                output_artifact_id=f"{request.target_task_id}:codex-result",
+                output_artifact_id=f"{request.target_task_id}:{output_suffix}",
             ),
             request.waiting_task_id: ScheduledTask(
                 task_id=request.waiting_task_id,
-                title="Waiting non-Codex control task",
-                instruction="Remain waiting during the C1 Codex smoke.",
+                title=f"Waiting non-{provider} control task",
+                instruction=f"Remain waiting during the C1 {provider} smoke.",
                 agent=AgentSpec(
                     agent_id=request.waiting_agent_id,
                     runtime_provider="fake",
@@ -888,22 +1186,22 @@ def _simple_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> Sc
                 input_artifact_refs=(
                     ExchangeReference(
                         ref_kind="exchange_artifact",
-                        ref_id=f"{request.target_task_id}:codex-result",
+                        ref_id=f"{request.target_task_id}:{output_suffix}",
                     ),
                 ),
                 blocked_reason=f"waiting for {request.target_task_id}",
             ),
             request.followup_task_id: ScheduledTask(
                 task_id=request.followup_task_id,
-                title="Codex CLI C2 follow-up worker",
+                title=f"{title_prefix} C2 follow-up worker",
                 instruction=(
                     "Return one compact confirmation that the follow-up "
-                    "scheduler-owned Codex worker task executed. Do not edit "
+                    f"scheduler-owned {provider} worker task executed. Do not edit "
                     "repository files."
                 ),
                 agent=AgentSpec(
                     agent_id=request.followup_agent_id,
-                    runtime_provider="codex",
+                    runtime_provider=provider,
                 ),
                 state="waiting",
                 context_scope=ContextScope(
@@ -915,7 +1213,7 @@ def _simple_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> Sc
                     "Do not include secrets or raw credential material.",
                     "Do not modify source workspace files.",
                 ),
-                output_artifact_id=f"{request.followup_task_id}:codex-result",
+                output_artifact_id=f"{request.followup_task_id}:{output_suffix}",
                 blocked_reason=f"waiting for {request.target_task_id}",
             ),
         },
@@ -932,18 +1230,21 @@ def _simple_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> Sc
 
 def _multilane_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) -> SchedulerState:
     state = _simple_fixture_scheduler_state(request)
+    provider = request.runtime_provider
+    title_prefix = "OpenCode" if provider == "opencode" else "Codex CLI"
+    output_suffix = "opencode-result" if provider == "opencode" else "codex-result"
     tasks = dict(state.tasks)
     tasks[request.parallel_task_id] = ScheduledTask(
         task_id=request.parallel_task_id,
-        title="Codex CLI C6 parallel-lane worker",
+        title=f"{title_prefix} C6 parallel-lane worker",
         instruction=(
             "Return one compact confirmation that this independent lane "
-            "scheduler-owned Codex worker task executed. Do not edit "
+            f"scheduler-owned {provider} worker task executed. Do not edit "
             "repository files."
         ),
         agent=AgentSpec(
             agent_id=request.parallel_agent_id,
-            runtime_provider="codex",
+            runtime_provider=provider,
         ),
         state="ready",
         context_scope=ContextScope(
@@ -955,7 +1256,7 @@ def _multilane_fixture_scheduler_state(request: CodexDeliveryE2ESmokeRequest) ->
             "Do not include secrets or raw credential material.",
             "Do not modify source workspace files.",
         ),
-        output_artifact_id=f"{request.parallel_task_id}:codex-result",
+        output_artifact_id=f"{request.parallel_task_id}:{output_suffix}",
     )
     return SchedulerState(
         tasks=tasks,
@@ -1015,6 +1316,23 @@ def _task_state_counts(state: SchedulerState) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+ProviderDeliveryE2ESmokeFixtureResult = CodexDeliveryE2ESmokeFixtureResult
+ProviderDeliveryE2ESmokeRequest = CodexDeliveryE2ESmokeRequest
+ProviderDeliveryE2ESmokeResult = CodexDeliveryE2ESmokeResult
+ProviderDeliveryBoundedLoopIteration = CodexDeliveryBoundedLoopIteration
+ProviderDeliveryBoundedLoopRequest = CodexDeliveryBoundedLoopRequest
+ProviderDeliveryBoundedLoopResult = CodexDeliveryBoundedLoopResult
+ProviderDeliveryBoundedLoopStopReason = CodexDeliveryBoundedLoopStopReason
+run_bounded_provider_delivery_supervisor_loop_for_codex = (
+    run_bounded_codex_delivery_supervisor_loop
+)
+run_bounded_provider_delivery_supervisor_loop_for_opencode = (
+    run_bounded_opencode_delivery_supervisor_loop
+)
+run_provider_delivery_e2e_smoke_for_codex = run_codex_delivery_e2e_smoke
+run_provider_delivery_e2e_smoke_for_opencode = run_opencode_delivery_e2e_smoke
+
+
 __all__ = [
     "DEFAULT_CODEX_DELIVERY_E2E_SMOKE_EVENT_LOG_RELATIVE_PATH",
     "DEFAULT_CODEX_DELIVERY_E2E_SMOKE_SNAPSHOT_RELATIVE_PATH",
@@ -1025,8 +1343,23 @@ __all__ = [
     "CodexDeliveryBoundedLoopRequest",
     "CodexDeliveryBoundedLoopResult",
     "CodexDeliveryBoundedLoopStopReason",
+    "ProviderDeliveryE2ESmokeFixtureResult",
+    "ProviderDeliveryE2ESmokeRequest",
+    "ProviderDeliveryE2ESmokeResult",
+    "ProviderDeliveryBoundedLoopIteration",
+    "ProviderDeliveryBoundedLoopRequest",
+    "ProviderDeliveryBoundedLoopResult",
+    "ProviderDeliveryBoundedLoopStopReason",
     "run_bounded_codex_delivery_supervisor_loop",
     "run_bounded_codex_delivery_supervisor_loop_with_process_client",
+    "run_bounded_opencode_delivery_supervisor_loop",
+    "run_bounded_opencode_delivery_supervisor_loop_with_process_client",
+    "run_bounded_provider_delivery_supervisor_loop_for_codex",
+    "run_bounded_provider_delivery_supervisor_loop_for_opencode",
     "run_codex_delivery_e2e_smoke",
     "run_codex_delivery_e2e_smoke_with_process_client",
+    "run_opencode_delivery_e2e_smoke",
+    "run_opencode_delivery_e2e_smoke_with_process_client",
+    "run_provider_delivery_e2e_smoke_for_codex",
+    "run_provider_delivery_e2e_smoke_for_opencode",
 ]

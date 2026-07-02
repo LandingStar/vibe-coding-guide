@@ -5,6 +5,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,7 @@ from src.runtime.orchestration import (
     JsonlRuntimeInvocationLog,
     LeaderWorkerDeliverySyncRequest,
     LeaderWorkerDispatcherTickRequest,
+    OpenCodeCliResult,
     RuntimeAttemptRecord,
     RuntimeInvocationRecord,
     RuntimeRetryPolicy,
@@ -85,6 +88,19 @@ class _SequenceCodexCliClient:
         index = len(self.requests) - 1
         if index >= len(self.results):
             raise AssertionError("Codex client was invoked more times than expected")
+        return self.results[index]
+
+
+class _SequenceOpenCodeCliClient:
+    def __init__(self, results: tuple[OpenCodeCliResult, ...]) -> None:
+        self.results = results
+        self.requests = ()
+
+    def exec(self, request) -> OpenCodeCliResult:
+        self.requests = self.requests + (request,)
+        index = len(self.requests) - 1
+        if index >= len(self.results):
+            raise AssertionError("OpenCode client was invoked more times than expected")
         return self.results[index]
 
 
@@ -527,6 +543,391 @@ def test_scheduler_codex_delivery_supervisor_help_describes_result_consumption()
     assert "does not mutate scheduler snapshots" in proc.stdout
 
 
+def test_scheduler_opencode_delivery_supervisor_help_describes_host_boundary() -> None:
+    proc = _run_cli(["scheduler", "opencode-delivery-supervisor-once", "--help"])
+
+    assert proc.returncode == 0
+    assert "--consume-success-results" in proc.stdout
+    assert "--opencode-transport cli|server-api" in proc.stdout
+    assert "--output-format text|json" in proc.stdout
+    assert "--attach-url URL" in proc.stdout
+    assert "--session-id ID" in proc.stdout
+    assert "--continue-session" in proc.stdout
+    assert "--server-api-base-url URL" in proc.stdout
+    assert "--server-api-session-id ID" in proc.stdout
+    assert "--server-api-timeout-seconds N" in proc.stdout
+    assert "--worker-binding-ledger-path PATH" in proc.stdout
+    assert "--no-worker-binding-lookup" in proc.stdout
+    assert "--session-ledger-path PATH" in proc.stdout
+    assert "--no-session-ledger-lookup" in proc.stdout
+    assert "--enable-sandbox-preflight" in proc.stdout
+    assert "--git-worktree-sandbox-root PATH" in proc.stdout
+    assert "--publish-worker-patch-artifacts" in proc.stdout
+    assert "--sandbox" not in proc.stdout
+    assert "--ask-for-approval" not in proc.stdout
+    assert "host-owned live OpenCode delivery supervisor pass" in proc.stdout
+    assert "task_completed scheduler event" in proc.stdout
+    assert "task_review_required" in proc.stdout
+    assert "delivery review_required" in proc.stdout
+    assert "worker_patch_review_proposal" in proc.stdout
+    assert "does not mutate scheduler snapshots" in proc.stdout
+    assert "expose MCP live-provider execution" in proc.stdout
+
+
+def test_scheduler_opencode_delivery_supervisor_cli_marks_missing_cli_failure(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    paths = _seed_codex_delivery_supervisor_cli_project(project, provider="opencode")
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server",),
+            timestamp="2026-06-29T09:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T09:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-once",
+            "--snapshot-path",
+            str(paths["snapshot"]),
+            "--event-log-path",
+            str(paths["event_log"]),
+            "--delivery-state-path",
+            ".codex/scheduler/delivery-state.json",
+            "--delivery-event-log-path",
+            ".codex/scheduler/delivery-events.jsonl",
+            "--runtime-invocation-log-path",
+            ".codex/runtime/opencode-delivery-invocations.jsonl",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--max-deliveries",
+            "1",
+            "--runtime-invocation-max-attempts",
+            "1",
+            "--timestamp",
+            "2026-06-29T09:00:02+00:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    runtime_records = JsonlRuntimeInvocationLog(
+        project / ".codex/runtime/opencode-delivery-invocations.jsonl"
+    ).read_all()
+
+    assert payload["ok"] is False
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["failed_count"] == 1
+    failed_record = next(record for record in payload["records"] if record["status"] == "failed")
+    assert failed_record["failure_kind"] == "cli_unavailable"
+    assert payload["authority_split"]["provider_executed"] is True
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert state is not None
+    assert _delivery_state_counts(state) == {"failed": 1, "pending": 2}
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].status == "failed"
+    assert runtime_records[0].final_error_kind == "cli_unavailable"
+    assert runtime_records[0].runtime_surface == "host-owned-opencode-delivery-supervisor-once"
+
+
+def test_scheduler_opencode_delivery_supervisor_cli_can_use_server_api_transport(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    paths = _seed_codex_delivery_supervisor_cli_project(project, provider="opencode")
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server",),
+            timestamp="2026-06-30T09:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T09:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            raw = self.rfile.read(int(self.headers.get("Content-Length", "0") or "0"))
+            payload = json.loads(raw.decode("utf-8")) if raw else {}
+            calls.append((self.path, payload))
+            if self.path == "/session":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"id":"session-created-cli"}')
+                return
+            if self.path == "/session/session-created-cli/message":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"message":{"content":"server api cli done"}}')
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        proc = _run_cli(
+            [
+                "scheduler",
+                "opencode-delivery-supervisor-once",
+                "--snapshot-path",
+                str(paths["snapshot"]),
+                "--event-log-path",
+                str(paths["event_log"]),
+                "--delivery-state-path",
+                ".codex/scheduler/delivery-state.json",
+                "--delivery-event-log-path",
+                ".codex/scheduler/delivery-events.jsonl",
+                "--runtime-invocation-log-path",
+                ".codex/runtime/opencode-server-api-delivery-invocations.jsonl",
+                "--opencode-transport",
+                "server-api",
+                "--server-api-base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--max-deliveries",
+                "1",
+                "--runtime-invocation-max-attempts",
+                "1",
+                "--timestamp",
+                "2026-06-30T09:00:02+00:00",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    payload = json.loads(proc.stdout)
+    runtime_records = JsonlRuntimeInvocationLog(
+        project / ".codex/runtime/opencode-server-api-delivery-invocations.jsonl"
+    ).read_all()
+
+    assert payload["ok"] is True
+    assert payload["executed_count"] == 1
+    assert [path for path, _payload in calls] == [
+        "/session",
+        "/session/session-created-cli/message",
+    ]
+    assert "Task ID: task-server" in str(calls[1][1])
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].status == "succeeded"
+    assert runtime_records[0].attempts[0].metadata["transport"] == "server-api"
+    assert runtime_records[0].attempts[0].metadata["created_session"] is True
+    assert runtime_records[0].attempts[0].metadata["session_id"] == "session-created-cli"
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "server_api_created"
+    )
+    assert runtime_records[0].attempts[0].metadata["session_persistence"] == (
+        "not_persisted_by_delivery"
+    )
+    assert runtime_records[0].attempts[0].metadata[
+        "server_api_created_session_persisted"
+    ] is False
+
+
+def test_scheduler_opencode_delivery_supervisor_server_api_explicit_session_skips_creation(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    paths = _seed_codex_delivery_supervisor_cli_project(project, provider="opencode")
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server",),
+            timestamp="2026-06-30T09:05:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T09:05:01+00:00",
+            host_id="host:test",
+        )
+    )
+
+    calls: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", "0") or "0"))
+            calls.append(self.path)
+            if self.path == "/session/session-explicit-cli/message":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"content":"explicit server api session done"}')
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        proc = _run_cli(
+            [
+                "scheduler",
+                "opencode-delivery-supervisor-once",
+                "--snapshot-path",
+                str(paths["snapshot"]),
+                "--event-log-path",
+                str(paths["event_log"]),
+                "--delivery-state-path",
+                ".codex/scheduler/delivery-state.json",
+                "--delivery-event-log-path",
+                ".codex/scheduler/delivery-events.jsonl",
+                "--runtime-invocation-log-path",
+                ".codex/runtime/opencode-server-api-explicit-invocations.jsonl",
+                "--opencode-transport",
+                "server-api",
+                "--server-api-base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--server-api-session-id",
+                "session-explicit-cli",
+                "--max-deliveries",
+                "1",
+                "--runtime-invocation-max-attempts",
+                "1",
+                "--timestamp",
+                "2026-06-30T09:05:02+00:00",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    runtime_records = JsonlRuntimeInvocationLog(
+        project / ".codex/runtime/opencode-server-api-explicit-invocations.jsonl"
+    ).read_all()
+
+    assert calls == ["/session/session-explicit-cli/message"]
+    assert runtime_records[0].attempts[0].metadata["transport"] == "server-api"
+    assert runtime_records[0].attempts[0].metadata["created_session"] is False
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "explicit_config"
+    )
+
+
+def test_scheduler_opencode_delivery_supervisor_rejects_codex_only_flags(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-once",
+            "--snapshot-path",
+            ".codex/scheduler/state.json",
+            "--event-log-path",
+            ".codex/scheduler/events.jsonl",
+            "--sandbox",
+            "workspace-write",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--sandbox is Codex-specific" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_supervisor_rejects_conflicting_session_options(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-once",
+            "--snapshot-path",
+            ".codex/scheduler/state.json",
+            "--event-log-path",
+            ".codex/scheduler/events.jsonl",
+            "--session-id",
+            "session-1",
+            "--continue-session",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "cannot use --session-id with --continue-session" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_supervisor_rejects_unknown_transport(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-once",
+            "--snapshot-path",
+            ".codex/scheduler/state.json",
+            "--event-log-path",
+            ".codex/scheduler/events.jsonl",
+            "--opencode-transport",
+            "telepathy",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--opencode-transport must be cli or server-api" in proc.stderr
+
+
 def test_scheduler_codex_delivery_supervisor_cli_requires_sandbox_for_patch_publish(
     tmp_path: Path,
 ) -> None:
@@ -550,6 +951,29 @@ def test_scheduler_codex_delivery_supervisor_cli_requires_sandbox_for_patch_publ
     assert "--publish-worker-patch-artifacts requires --enable-sandbox-preflight" in proc.stderr
 
 
+def test_scheduler_opencode_delivery_supervisor_cli_requires_sandbox_for_patch_publish(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-once",
+            "--snapshot-path",
+            ".codex/scheduler/state.json",
+            "--event-log-path",
+            ".codex/scheduler/events.jsonl",
+            "--publish-worker-patch-artifacts",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--publish-worker-patch-artifacts requires --enable-sandbox-preflight" in proc.stderr
+
+
 def test_scheduler_codex_delivery_e2e_smoke_help_describes_c1_boundary() -> None:
     proc = _run_cli(["scheduler", "codex-delivery-e2e-smoke", "--help"])
 
@@ -558,6 +982,30 @@ def test_scheduler_codex_delivery_e2e_smoke_help_describes_c1_boundary() -> None
     assert "--replace-existing-fixture" in proc.stdout
     assert "dispatcher tick, delivery sync" in proc.stdout
     assert "not the continuous supervisor loop" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_opencode_delivery_e2e_smoke_help_describes_c1_boundary() -> None:
+    proc = _run_cli(["scheduler", "opencode-delivery-e2e-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--initialize-fixture" in proc.stdout
+    assert "--replace-existing-fixture" in proc.stdout
+    assert "--output-format text|json" in proc.stdout
+    assert "--opencode-transport cli|server-api" in proc.stdout
+    assert "--attach-url URL" in proc.stdout
+    assert "--session-id ID" in proc.stdout
+    assert "--server-api-base-url URL" in proc.stdout
+    assert "--server-api-session-id ID" in proc.stdout
+    assert "--continue-session" in proc.stdout
+    assert "--fork-session" in proc.stdout
+    assert "--session-ledger-path PATH" in proc.stdout
+    assert "--no-session-ledger-lookup" in proc.stdout
+    assert "--sandbox" not in proc.stdout
+    assert "--ask-for-approval" not in proc.stdout
+    assert "dispatcher tick, delivery sync" in proc.stdout
+    assert "not the bounded supervisor loop" in proc.stdout
+    assert "does not start or manage opencode serve" in proc.stdout
     assert "does not mutate Local Work Trajectory" in proc.stdout
 
 
@@ -596,6 +1044,132 @@ def test_scheduler_codex_delivery_e2e_smoke_cli_fails_closed_when_cli_missing(
     assert not (project / ".codex/runtime/invocations.jsonl").exists()
 
 
+def test_scheduler_opencode_delivery_e2e_smoke_cli_fails_closed_when_cli_missing(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-e2e-smoke",
+            "--initialize-fixture",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--runtime-invocation-max-attempts",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["stop_reason"] == "opencode_not_ready"
+    assert payload["readiness"]["error_kind"] == "cli_unavailable"
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert not (
+        project / ".codex/scheduler/opencode-delivery-e2e-smoke-state.json"
+    ).exists()
+    assert not (project / ".codex/scheduler/leader-worker-dispatcher-state.json").exists()
+    assert not (project / ".codex/scheduler/leader-worker-delivery-state.json").exists()
+    assert not (
+        project / ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+    ).exists()
+
+
+def test_scheduler_opencode_delivery_e2e_smoke_can_use_server_api_transport(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    server, thread, calls = _start_fake_opencode_server_api()
+    try:
+        proc = _run_cli(
+            [
+                "scheduler",
+                "opencode-delivery-e2e-smoke",
+                "--initialize-fixture",
+                "--opencode-transport",
+                "server-api",
+                "--server-api-base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--runtime-invocation-max-attempts",
+                "1",
+                "--timestamp",
+                "2026-06-30T10:00:00+00:00",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    payload = json.loads(proc.stdout)
+    runtime_records = JsonlRuntimeInvocationLog(
+        project / ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+    ).read_all()
+
+    assert payload["ok"] is True
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["counts"]["provider_acknowledged"] == 1
+    assert payload["codex_delivery"]["executed_count"] == 1
+    assert [path for path, _payload in calls] == [
+        "/session",
+        "/session/session-created-1/message",
+    ]
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].attempts[0].metadata["transport"] == "server-api"
+    assert runtime_records[0].attempts[0].metadata["created_session"] is True
+
+
+def test_scheduler_opencode_delivery_e2e_smoke_rejects_codex_only_flags(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-e2e-smoke",
+            "--sandbox",
+            "workspace-write",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--sandbox is Codex-specific" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_e2e_smoke_rejects_invalid_fork_session(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-e2e-smoke",
+            "--fork-session",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--fork-session requires --session-id or --continue-session" in proc.stderr
+
+
 def test_scheduler_codex_delivery_supervisor_loop_help_describes_c2_boundary() -> None:
     proc = _run_cli(["scheduler", "codex-delivery-supervisor-loop", "--help"])
 
@@ -614,6 +1188,32 @@ def test_scheduler_codex_delivery_supervisor_loop_help_describes_c2_boundary() -
     assert "multi-lane fixture" in proc.stdout
     assert "review-only patch" in proc.stdout
     assert "not a background daemon" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_opencode_delivery_supervisor_loop_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "opencode-delivery-supervisor-loop", "--help"])
+
+    assert proc.returncode == 0
+    assert "--fixture simple|multilane" in proc.stdout
+    assert "--output-format text|json" in proc.stdout
+    assert "--opencode-transport cli|server-api" in proc.stdout
+    assert "--attach-url URL" in proc.stdout
+    assert "--session-id ID" in proc.stdout
+    assert "--server-api-base-url URL" in proc.stdout
+    assert "--server-api-session-id ID" in proc.stdout
+    assert "--continue-session" in proc.stdout
+    assert "--session-ledger-path PATH" in proc.stdout
+    assert "--no-session-ledger-lookup" in proc.stdout
+    assert "--max-concurrent-deliveries N" in proc.stdout
+    assert "--enable-sandbox-preflight" in proc.stdout
+    assert "--publish-worker-patch-artifacts" in proc.stdout
+    assert "--sandbox" not in proc.stdout
+    assert "--ask-for-approval" not in proc.stdout
+    assert "bounded host-owned loop for OpenCode CLI" in proc.stdout
+    assert "OpenCode delivery with result consumption" in proc.stdout
+    assert "review-only" in proc.stdout
+    assert "does not expose MCP live-provider execution" in proc.stdout
     assert "does not mutate Local Work Trajectory" in proc.stdout
 
 
@@ -656,6 +1256,94 @@ def test_scheduler_codex_delivery_supervisor_loop_cli_fails_closed_when_cli_miss
     assert not (project / ".codex/runtime/invocations.jsonl").exists()
 
 
+def test_scheduler_opencode_delivery_supervisor_loop_cli_fails_closed_when_cli_missing(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-loop",
+            "--initialize-fixture",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--runtime-invocation-max-attempts",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["stop_reason"] == "opencode_not_ready"
+    assert payload["readiness"]["error_kind"] == "cli_unavailable"
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert not (
+        project / ".codex/scheduler/opencode-delivery-supervisor-loop-state.json"
+    ).exists()
+    assert not (project / ".codex/runtime/opencode-delivery-loop-invocations.jsonl").exists()
+
+
+def test_scheduler_opencode_delivery_supervisor_loop_can_use_server_api_transport(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    server, thread, calls = _start_fake_opencode_server_api()
+    try:
+        proc = _run_cli(
+            [
+                "scheduler",
+                "opencode-delivery-supervisor-loop",
+                "--initialize-fixture",
+                "--opencode-transport",
+                "server-api",
+                "--server-api-base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--runtime-invocation-max-attempts",
+                "1",
+                "--max-ticks",
+                "3",
+                "--max-deliveries",
+                "2",
+                "--timestamp",
+                "2026-06-30T10:05:00+00:00",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    payload = json.loads(proc.stdout)
+    runtime_records = JsonlRuntimeInvocationLog(
+        project / ".codex/runtime/opencode-delivery-loop-invocations.jsonl"
+    ).read_all()
+
+    assert payload["ok"] is True
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["acknowledged_count"] == 2
+    assert payload["runtime_invocation_count"] == 2
+    assert [path for path, _payload in calls[:2]] == [
+        "/session",
+        "/session/session-created-1/message",
+    ]
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].attempts[0].metadata["transport"] == "server-api"
+    assert runtime_records[0].attempts[0].metadata["cli_surface"] == (
+        "opencode-delivery-supervisor-loop"
+    )
+
+
 def test_scheduler_codex_delivery_supervisor_loop_cli_rejects_invalid_concurrency(
     tmp_path: Path,
 ) -> None:
@@ -676,6 +1364,243 @@ def test_scheduler_codex_delivery_supervisor_loop_cli_rejects_invalid_concurrenc
     assert "--max-concurrent-deliveries must be positive" in proc.stderr
 
 
+def test_scheduler_opencode_delivery_supervisor_loop_cli_rejects_invalid_concurrency(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-loop",
+            "--max-concurrent-deliveries",
+            "0",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--max-concurrent-deliveries must be positive" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_supervisor_loop_rejects_codex_only_flags(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-loop",
+            "--sandbox",
+            "workspace-write",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--sandbox is Codex-specific" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_supervisor_loop_cli_requires_sandbox_for_patch_publish(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-loop",
+            "--publish-worker-patch-artifacts",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--publish-worker-patch-artifacts requires --enable-sandbox-preflight" in proc.stderr
+
+
+def test_scheduler_opencode_delivery_supervisor_loop_rejects_invalid_fork_session(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "opencode-delivery-supervisor-loop",
+            "--fork-session",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--fork-session requires --session-id or --continue-session" in proc.stderr
+
+
+def test_scheduler_live_codex_concurrent_worker_smoke_help_describes_c9_boundary() -> None:
+    proc = _run_cli(["scheduler", "live-codex-concurrent-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--fixture multilane" in proc.stdout
+    assert "--report-path PATH" in proc.stdout
+    assert "--max-concurrent-deliveries N" in proc.stdout
+    assert "C9 evidence smoke" in proc.stdout
+    assert "audited live process overlap" in proc.stdout
+    assert "scheduler batch parallelism" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_live_opencode_concurrent_worker_smoke_help_describes_boundary() -> None:
+    proc = _run_cli(["scheduler", "live-opencode-concurrent-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--fixture multilane" in proc.stdout
+    assert "--report-path PATH" in proc.stdout
+    assert "--output-format text|json" in proc.stdout
+    assert "--attach-url URL" in proc.stdout
+    assert "--session-id ID" in proc.stdout
+    assert "--max-concurrent-deliveries N" in proc.stdout
+    assert "--enable-sandbox-preflight" in proc.stdout
+    assert "--publish-worker-patch-artifacts" in proc.stdout
+    assert "--sandbox" not in proc.stdout
+    assert "--ask-for-approval" not in proc.stdout
+    assert "live evidence smoke" in proc.stdout
+    assert "audited live process overlap" in proc.stdout
+    assert "scheduler batch parallelism" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_live_codex_concurrent_worker_smoke_cli_fails_closed_when_cli_missing(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "live-codex-concurrent-worker-smoke",
+            "--executable",
+            "definitely-missing-dbc-codex",
+            "--runtime-invocation-max-attempts",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["verdict"] == "inconclusive"
+    assert payload["bounded_loop"]["stop_reason"] == "codex_not_ready"
+    assert payload["counts"]["attempted_live_codex_invocations"] == 0
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (
+        project / ".codex/scheduler/live-codex-concurrent-worker-smoke-state.json"
+    ).exists()
+    assert not (
+        project / ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
+    ).exists()
+    assert (
+        project / ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json"
+    ).exists()
+
+
+def test_scheduler_live_opencode_concurrent_worker_smoke_cli_fails_closed_when_cli_missing(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "live-opencode-concurrent-worker-smoke",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--runtime-invocation-max-attempts",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["verdict"] == "inconclusive"
+    assert payload["bounded_loop"]["stop_reason"] == "opencode_not_ready"
+    assert payload["counts"]["attempted_live_provider_invocations"] == 0
+    assert payload["counts"]["attempted_live_opencode_invocations"] == 0
+    assert payload["counts"]["attempted_live_codex_invocations"] == 0
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert not (
+        project / ".codex/scheduler/live-opencode-concurrent-worker-smoke-state.json"
+    ).exists()
+    assert not (
+        project / ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
+    ).exists()
+    assert (
+        project / ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json"
+    ).exists()
+
+
+def test_scheduler_live_codex_concurrent_worker_smoke_cli_rejects_serial_concurrency(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "live-codex-concurrent-worker-smoke",
+            "--max-concurrent-deliveries",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--max-concurrent-deliveries must be at least 2" in proc.stderr
+
+
+def test_scheduler_live_opencode_concurrent_worker_smoke_cli_rejects_serial_concurrency(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "live-opencode-concurrent-worker-smoke",
+            "--max-concurrent-deliveries",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--max-concurrent-deliveries must be at least 2" in proc.stderr
+
+
 def test_scheduler_codex_runtime_status_help_describes_read_only_boundary() -> None:
     proc = _run_cli(["scheduler", "inspect-codex-runtime-status", "--help"])
 
@@ -685,6 +1610,18 @@ def test_scheduler_codex_runtime_status_help_describes_read_only_boundary() -> N
     assert "--target-task-id ID" in proc.stdout
     assert "safe next_action clue" in proc.stdout
     assert "does not run Codex" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_opencode_runtime_status_help_describes_read_only_boundary() -> None:
+    proc = _run_cli(["scheduler", "inspect-opencode-runtime-status", "--help"])
+
+    assert proc.returncode == 0
+    assert "--snapshot-path PATH" in proc.stdout
+    assert "--event-log-path PATH" in proc.stdout
+    assert "--target-task-id ID" in proc.stdout
+    assert "safe next_action clue" in proc.stdout
+    assert "does not run OpenCode" in proc.stdout
     assert "does not mutate Local Work Trajectory" in proc.stdout
 
 
@@ -762,6 +1699,226 @@ def test_scheduler_codex_runtime_status_cli_reads_multilane_fixture(
         request.followup_task_id: "complete",
     }
     assert payload["authority_split"]["read_model_only"] is True
+
+
+def test_scheduler_opencode_runtime_status_cli_reads_multilane_fixture(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=project / ".codex/scheduler/opencode-status-state.json",
+        scheduler_event_log_path=project / ".codex/scheduler/opencode-status-events.jsonl",
+        artifact_store_path=project / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=project / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=project / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=project / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=project / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=project / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-29T14:20:00+00:00",
+        runtime_invocation_max_attempts=1,
+        runtime_provider="opencode",
+        target_task_id="opencode-status:worker",
+        parallel_task_id="opencode-status:parallel-worker",
+        waiting_task_id="opencode-status:waiting-non-opencode",
+        followup_task_id="opencode-status:followup",
+        codex_agent_id="agent:opencode-status-worker",
+        parallel_agent_id="agent:opencode-status-parallel-worker",
+        followup_agent_id="agent:opencode-status-followup",
+        waiting_agent_id="agent:opencode-status-waiting",
+        codex_lane_id="lane:opencode-status",
+        parallel_lane_id="lane:opencode-status-parallel",
+        followup_lane_id="lane:opencode-status",
+    )
+    from src.runtime.orchestration import run_bounded_opencode_delivery_supervisor_loop
+
+    run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=_SequenceOpenCodeCliClient(
+            (
+                OpenCodeCliResult(summary="lane a complete", output_text="lane a complete"),
+                OpenCodeCliResult(summary="lane b complete", output_text="lane b complete"),
+                OpenCodeCliResult(summary="followup complete", output_text="followup complete"),
+            )
+        ),
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-opencode-runtime-status",
+            "--snapshot-path",
+            ".codex/scheduler/opencode-status-state.json",
+            "--event-log-path",
+            ".codex/scheduler/opencode-status-events.jsonl",
+            "--delivery-state-path",
+            ".codex/scheduler/opencode-delivery-state.json",
+            "--runtime-invocation-log-path",
+            ".codex/runtime/opencode-invocations.jsonl",
+            "--artifact-store-path",
+            ".codex/orchestration/opencode-exchange-artifacts.json",
+            "--target-task-id",
+            request.target_task_id,
+            "--target-task-id",
+            request.parallel_task_id,
+            "--target-task-id",
+            request.followup_task_id,
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["next_action"] == "idle"
+    assert payload["scheduler"]["task_state_counts"]["complete"] == 3
+    assert payload["delivery"]["state_counts"]["acknowledged"] == 3
+    assert payload["delivery"]["actionable_pending_runtime_provider"] == "opencode"
+    assert payload["delivery"]["actionable_pending_delivery_count"] == 0
+    assert payload["delivery"]["actionable_pending_codex_delivery_count"] == 0
+    assert payload["runtime_invocations"]["counts"]["record_count"] == 3
+    assert payload["runtime_invocations"]["counts"]["provider:opencode"] == 3
+    assert payload["scheduler"]["target_task_states"] == {
+        request.target_task_id: "complete",
+        request.parallel_task_id: "complete",
+        request.followup_task_id: "complete",
+    }
+    assert payload["authority_split"]["read_model_only"] is True
+
+
+def test_scheduler_monitoring_snapshot_help_describes_backend_api_boundary() -> None:
+    proc = _run_cli(["scheduler", "inspect-monitoring-snapshot", "--help"])
+
+    assert proc.returncode == 0
+    assert "--snapshot-path PATH" in proc.stdout
+    assert "--event-log-path PATH" in proc.stdout
+    assert "--live-codex-smoke-report-path PATH" in proc.stdout
+    assert "backend API surface" in proc.stdout
+    assert "runtimeInvocations" in proc.stdout
+    assert "operatorSignals" in proc.stdout
+    assert "does not mutate Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_monitoring_snapshot_cli_reads_frontend_snapshot(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=project / ".codex/scheduler/monitor-state.json",
+        scheduler_event_log_path=project / ".codex/scheduler/monitor-events.jsonl",
+        artifact_store_path=project / ".codex/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=project / ".codex/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=project / ".codex/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=project / ".codex/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=project / ".codex/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=project / ".codex/runtime/monitor-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T12:40:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+            max_concurrent_deliveries=2,
+        ),
+        codex_cli_client=_SequenceCodexCliClient(
+            (
+                CodexCliResult(summary="lane a complete", output_text="lane a complete"),
+                CodexCliResult(summary="lane b complete", output_text="lane b complete"),
+                CodexCliResult(summary="followup complete", output_text="followup complete"),
+            )
+        ),
+    )
+    report_path = project / ".codex/scheduler/monitor-live-smoke-report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "ok": True,
+                "verdict": "passed",
+                "diagnostic": "live Codex invocation overlap proven",
+                "counts": {
+                    "worker_tasks": 3,
+                    "attempted_live_codex_invocations": 3,
+                    "completed_workers": 3,
+                    "failed_workers": 0,
+                    "skipped_or_waiting_workers": 0,
+                    "concurrent_batch_count": 1,
+                    "overlap_pair_count": 1,
+                },
+                "first_concurrent_batch": {
+                    "task_ids": [
+                        request.target_task_id,
+                        request.parallel_task_id,
+                    ],
+                    "invocation_ids": ["inv-a", "inv-b"],
+                },
+                "overlap": {
+                    "proven": True,
+                    "pairs": [
+                        {
+                            "first_task_id": request.target_task_id,
+                            "second_task_id": request.parallel_task_id,
+                        }
+                    ],
+                    "timing_parse_errors": [],
+                },
+                "residual_gaps": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "inspect-monitoring-snapshot",
+            "--snapshot-path",
+            ".codex/scheduler/monitor-state.json",
+            "--event-log-path",
+            ".codex/scheduler/monitor-events.jsonl",
+            "--delivery-state-path",
+            ".codex/scheduler/monitor-delivery-state.json",
+            "--runtime-invocation-log-path",
+            ".codex/runtime/monitor-invocations.jsonl",
+            "--artifact-store-path",
+            ".codex/orchestration/monitor-exchange-artifacts.json",
+            "--live-codex-smoke-report-path",
+            ".codex/scheduler/monitor-live-smoke-report.json",
+            "--target-task-id",
+            request.target_task_id,
+            "--target-task-id",
+            request.parallel_task_id,
+            "--target-task-id",
+            request.followup_task_id,
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["schema_version"] == "monitoring-snapshot.v1"
+    assert payload["scheduler"]["task_state_counts"]["complete"] == 3
+    assert payload["delivery"]["state_counts"]["acknowledged"] == 3
+    assert payload["runtimeInvocations"]["counts"]["record_count"] == 3
+    assert payload["liveCodexSmoke"]["ok"] is True
+    assert payload["liveCodexSmoke"]["verdict"] == "passed"
+    assert payload["runtimeInvocations"]["concurrency"]["liveOverlapProven"] is True
+    assert payload["workerReports"]["mode"] == "leader-owned-consumer"
+    assert payload["authoritySplit"]["readModelOnly"] is True
 
 
 def test_scheduler_sandbox_receipt_workflow_help_describes_explicit_cleanup() -> None:
@@ -975,7 +2132,87 @@ def test_codex_readiness_outputs_secret_safe_report() -> None:
     assert payload["cli_available"] is False
     assert payload["ready"] is False
     assert payload["error_kind"] == "cli_unavailable"
+    assert payload["mcp_exposure"]["diagnostic_status"] == "skipped"
+    assert payload["mcp_exposure"]["suspected_problem"] == "codex_cli_unavailable"
+    assert payload["mcp_exposure"]["mcp_list_ran"] is False
+    assert payload["mcp_exposure"]["doctor_check_id"] == "codex.mcp_exposure"
+    assert payload["mcp_exposure"]["authority_split"]["mcp_tool_called"] is False
+    assert payload["mcp_exposure"]["authority_split"]["codex_config_mutated"] is False
     assert "token" not in json.dumps(payload).lower()
+
+
+def test_doctor_codex_profile_outputs_self_check_report(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        "[mcp_servers.doc-based-coding]\n"
+        "command = \".venv\\\\Scripts\\\\doc-based-coding-mcp.exe\"\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_cli(["doctor", "--profile", "codex", "--project-root", str(project)])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["schema_version"] == "self-check-report/v1"
+    assert payload["profile"] == "codex"
+    assert payload["checks"][0]["check_id"] == "codex.mcp_exposure"
+    assert payload["checks"][0]["secret_safe"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["mcp_tool_called"] is False
+    assert "token" not in json.dumps(payload).lower()
+
+
+def test_doctor_empty_profile_returns_structured_skipped_report(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    proc = _run_cli(["doctor", "--profile", "vscode", "--project-root", str(project)])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["profile"] == "vscode"
+    assert payload["overall_status"] == "skipped"
+    assert payload["counts"] == {"ok": 0, "warning": 0, "failed": 0, "skipped": 0}
+    assert payload["checks"] == []
+
+
+def test_doctor_opencode_profile_outputs_cli_readiness(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    proc = _run_cli(["doctor", "--profile", "opencode", "--project-root", str(project)])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["profile"] == "opencode"
+    checks = {check["check_id"]: check for check in payload["checks"]}
+    assert set(checks) == {"opencode.cli_readiness", "opencode.server_api_readiness"}
+    assert checks["opencode.cli_readiness"]["authority_split"]["provider_executed"] is False
+    assert checks["opencode.server_api_readiness"]["authority_split"]["provider_executed"] is False
+    assert checks["opencode.server_api_readiness"]["authority_split"]["read_only"] is True
+    assert "token" not in json.dumps(payload).lower()
+
+
+def test_doctor_scheduler_profile_outputs_storage_visibility(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    proc = _run_cli(["doctor", "--profile", "scheduler", "--project-root", str(project)])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["profile"] == "scheduler"
+    assert payload["overall_status"] == "warning"
+    assert payload["checks"][0]["check_id"] == "scheduler.storage_visibility"
+    assert payload["checks"][0]["authority_split"]["provider_executed"] is False
+
+
+def test_doctor_rejects_unknown_profile() -> None:
+    proc = _run_cli(["doctor", "--profile", "moon"])
+
+    assert proc.returncode == 1
+    assert "Unknown doctor profile" in proc.stderr
 
 
 def test_codex_help_includes_host_owned_guide_worker_smoke() -> None:
@@ -985,6 +2222,987 @@ def test_codex_help_includes_host_owned_guide_worker_smoke() -> None:
     assert "readiness" in proc.stdout
     assert "guide-worker-smoke" in proc.stdout
     assert "Codex CLI host readiness helpers" in proc.stdout
+
+
+def test_top_level_help_includes_doctor() -> None:
+    proc = _run_cli(["--help"])
+
+    assert proc.returncode == 0
+    assert "doctor" in proc.stdout
+    assert "Unified self-check diagnostics" in proc.stdout
+
+
+def test_opencode_readiness_outputs_secret_safe_report() -> None:
+    proc = _run_cli(["opencode", "readiness", "--executable", "definitely-missing-dbc-opencode"])
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["executable"] == "definitely-missing-dbc-opencode"
+    assert payload["executable_resolved"] == ""
+    assert payload["cli_available"] is False
+    assert payload["ready"] is False
+    assert payload["error_kind"] == "cli_unavailable"
+    assert "token" not in json.dumps(payload).lower()
+
+
+def test_opencode_help_includes_host_owned_guide_worker_smoke() -> None:
+    proc = _run_cli(["opencode", "--help"])
+
+    assert proc.returncode == 0
+    assert "readiness" in proc.stdout
+    assert "serve-readiness" in proc.stdout
+    assert "guide-worker-smoke" in proc.stdout
+    assert "OpenCode CLI host readiness helpers" in proc.stdout
+
+
+def test_opencode_serve_readiness_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["opencode", "serve-readiness", "--help"])
+
+    assert proc.returncode == 0
+    assert "--attach-url URL" in proc.stdout
+    assert "--require-healthy" in proc.stdout
+    assert "opencode run --attach" in proc.stdout
+    assert "does not start, stop, restart, or supervise opencode serve" in proc.stdout
+    assert "secret values are never printed" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_opencode_server_api_readiness_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["opencode", "server-api-readiness", "--help"])
+
+    assert proc.returncode == 0
+    assert "--base-url URL" in proc.stdout
+    assert "--check-doc" in proc.stdout
+    assert "direct HTTP adapter use" in proc.stdout
+    assert "does not start, stop, restart, or supervise opencode serve" in proc.stdout
+    assert "does not run provider tasks" in proc.stdout
+    assert "secret values are never printed" in proc.stdout
+
+
+def test_opencode_server_api_readiness_cli_reads_health_and_doc(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/global/health":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"status":"ok"}')
+            elif self.path == "/doc":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(
+                    b'{"openapi":"3.1.0","info":{"title":"OpenCode API","version":"1.2.3"}}'
+                )
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        proc = _run_cli(
+            [
+                "opencode",
+                "server-api-readiness",
+                "--base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--check-doc",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ready"] is True
+    assert payload["healthy"] is True
+    assert payload["doc_available"] is True
+    assert payload["openapi_version"] == "3.1.0"
+    assert payload["api_title"] == "OpenCode API"
+    assert payload["authority_split"]["server_api_called"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+
+
+def test_opencode_serve_readiness_missing_cli_reports_no_health_probe(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "opencode",
+            "serve-readiness",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--require-healthy",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stderr == ""
+    payload = json.loads(proc.stdout)
+    assert payload["ready"] is False
+    assert payload["cli_available"] is False
+    assert payload["health_checked"] is False
+    assert payload["error_kind"] == "cli_unavailable"
+    assert payload["authority_split"]["server_started"] is False
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_opencode_serve_readiness_cli_reads_healthy_server(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/global/health":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"ok")
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        proc = _run_cli(
+            [
+                "opencode",
+                "serve-readiness",
+                "--executable",
+                sys.executable,
+                "--port",
+                str(server.server_port),
+                "--require-healthy",
+            ],
+            cwd=project,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ready"] is True
+    assert payload["cli_available"] is True
+    assert payload["health_checked"] is True
+    assert payload["healthy"] is True
+    assert payload["http_status"] == 200
+    assert payload["attach_url"] == f"http://127.0.0.1:{server.server_port}"
+    assert payload["authority_split"]["server_started"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_opencode_serve_lifecycle_help_describes_receipt_boundary() -> None:
+    proc = _run_cli(["opencode", "serve-lifecycle", "--help"])
+
+    assert proc.returncode == 0
+    assert "record" in proc.stdout
+    assert "inspect" in proc.stdout
+    assert "lifecycle receipts" in proc.stdout
+    assert "does not start, stop, restart, supervise" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_opencode_serve_lifecycle_cli_record_inspect_roundtrip(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    record = _run_cli(
+        [
+            "opencode",
+            "serve-lifecycle",
+            "record",
+            "--action",
+            "start",
+            "--status",
+            "observed",
+            "--executable",
+            "opencode",
+            "--hostname",
+            "127.0.0.1",
+            "--port",
+            "4096",
+            "--timestamp",
+            "2026-06-29T12:00:00+00:00",
+            "--pid",
+            "4242",
+            "--actor",
+            "host:test",
+            "--reason",
+            "external host started serve",
+        ],
+        cwd=project,
+    )
+    inspect = _run_cli(
+        [
+            "opencode",
+            "serve-lifecycle",
+            "inspect",
+            "--action",
+            "start",
+            "--latest-limit",
+            "1",
+        ],
+        cwd=project,
+    )
+
+    assert record.returncode == 0, record.stderr
+    record_payload = json.loads(record.stdout)
+    assert record_payload["receipt"]["action"] == "start"
+    assert record_payload["receipt"]["status"] == "observed"
+    assert record_payload["receipt"]["attach_url"] == "http://127.0.0.1:4096"
+    assert record_payload["receipt"]["pid"] == "4242"
+    assert record_payload["authority_split"]["serve_lifecycle_ledger_mutated"] is True
+    assert record_payload["authority_split"]["server_started"] is False
+    assert record_payload["authority_split"]["provider_executed"] is False
+    assert record_payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert inspect.returncode == 0, inspect.stderr
+    inspect_payload = json.loads(inspect.stdout)
+    assert inspect_payload["authority_split"]["serve_lifecycle_ledger_mutated"] is False
+    assert len(inspect_payload["receipts"]) == 1
+    assert inspect_payload["receipts"][0]["pid"] == "4242"
+    ledger = project / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+    assert ledger.exists()
+    ledger_text = ledger.read_text(encoding="utf-8").lower()
+    assert "transcript" not in ledger_text
+    assert "secret" not in ledger_text
+
+
+def test_opencode_serve_lifecycle_record_requires_action(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(["opencode", "serve-lifecycle", "record"], cwd=project)
+
+    assert proc.returncode == 1
+    assert "serve-lifecycle record requires --action" in proc.stderr
+
+
+def test_opencode_session_help_describes_receipt_boundary() -> None:
+    proc = _run_cli(["opencode", "session", "--help"])
+
+    assert proc.returncode == 0
+    assert "claim" in proc.stdout
+    assert "release" in proc.stdout
+    assert "inspect" in proc.stdout
+    assert "recover-stale" in proc.stdout
+    assert "does not create OpenCode sessions" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_opencode_session_cli_claim_inspect_release_roundtrip(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    claim = _run_cli(
+        [
+            "opencode",
+            "session",
+            "claim",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:client",
+            "--attach-url",
+            "http://127.0.0.1:4096",
+            "--session-id",
+            "session-client",
+            "--owner-agent-id",
+            "agent:guide",
+            "--lane-id",
+            "lane:client",
+            "--worker-agent-id",
+            "agent:client",
+            "--timestamp",
+            "2026-06-29T12:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect_active = _run_cli(["opencode", "session", "inspect"], cwd=project)
+    release = _run_cli(
+        [
+            "opencode",
+            "session",
+            "release",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:client",
+            "--timestamp",
+            "2026-06-29T12:30:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect_after = _run_cli(["opencode", "session", "inspect"], cwd=project)
+    inspect_all = _run_cli(
+        ["opencode", "session", "inspect", "--include-released"],
+        cwd=project,
+    )
+
+    assert claim.returncode == 0, claim.stderr
+    claim_payload = json.loads(claim.stdout)
+    assert claim_payload["binding"]["session_id"] == "session-client"
+    assert claim_payload["authority_split"]["session_ledger_mutated"] is True
+    assert claim_payload["authority_split"]["provider_executed"] is False
+    assert inspect_active.returncode == 0, inspect_active.stderr
+    assert len(json.loads(inspect_active.stdout)["bindings"]) == 1
+    assert release.returncode == 0, release.stderr
+    assert json.loads(release.stdout)["binding"]["status"] == "released"
+    assert inspect_after.returncode == 0, inspect_after.stderr
+    assert json.loads(inspect_after.stdout)["bindings"] == []
+    assert inspect_all.returncode == 0, inspect_all.stderr
+    all_payload = json.loads(inspect_all.stdout)
+    assert all_payload["bindings"][0]["status"] == "released"
+    ledger = project / ".codex/runtime/opencode-session-ledger.json"
+    assert ledger.exists()
+    assert "transcript" not in ledger.read_text(encoding="utf-8").lower()
+
+
+def test_opencode_session_cli_claim_conflict_without_replace(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    base = [
+        "opencode",
+        "session",
+        "claim",
+        "--scope-kind",
+        "agent",
+        "--scope-id",
+        "agent:worker",
+        "--attach-url",
+        "http://127.0.0.1:4096",
+    ]
+
+    first = _run_cli([*base, "--session-id", "session-a"], cwd=project)
+    second = _run_cli(
+        [*base, "--session-id", "session-b", "--no-replace-existing"],
+        cwd=project,
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 1
+    payload = json.loads(second.stdout)
+    assert payload["status"] == "conflict"
+    assert payload["binding"]["session_id"] == "session-a"
+    assert payload["authority_split"]["session_ledger_mutated"] is False
+
+
+def test_opencode_session_cli_recover_stale_expires_elapsed_binding(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    claim = _run_cli(
+        [
+            "opencode",
+            "session",
+            "claim",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--attach-url",
+            "http://127.0.0.1:4096",
+            "--session-id",
+            "session-server",
+            "--expires-at",
+            "2026-06-29T09:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    recover = _run_cli(
+        [
+            "opencode",
+            "session",
+            "recover-stale",
+            "--now",
+            "2026-06-29T10:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect_active = _run_cli(["opencode", "session", "inspect"], cwd=project)
+    inspect_all = _run_cli(
+        ["opencode", "session", "inspect", "--include-released"],
+        cwd=project,
+    )
+
+    assert claim.returncode == 0, claim.stderr
+    assert recover.returncode == 0, recover.stderr
+    payload = json.loads(recover.stdout)
+    active_payload = json.loads(inspect_active.stdout)
+    all_payload = json.loads(inspect_all.stdout)
+    assert payload["action"] == "recover-stale"
+    assert payload["checked_count"] == 1
+    assert payload["expired_count"] == 1
+    assert payload["authority_split"]["session_ledger_mutated"] is True
+    assert active_payload["bindings"] == []
+    assert all_payload["bindings"][0]["status"] == "expired"
+
+
+def test_opencode_session_recover_stale_cli_requires_now(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(["opencode", "session", "recover-stale"], cwd=project)
+
+    assert proc.returncode == 1
+    assert "recover-stale requires --now" in proc.stderr
+
+
+def test_worker_binding_help_describes_continuity_boundary() -> None:
+    proc = _run_cli(["worker-binding", "--help"])
+
+    assert proc.returncode == 0
+    assert "claim" in proc.stdout
+    assert "promote-server-api-session" in proc.stdout
+    assert "inspect-promotion-candidates" in proc.stdout
+    assert "lane-ownership" in proc.stdout
+    assert "release" in proc.stdout
+    assert "inspect" in proc.stdout
+    assert "recover-stale" in proc.stdout
+    assert "reuse a worker identity" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_worker_binding_lifecycle_subcommand_help() -> None:
+    for subcommand in (
+        "promote-server-api-session",
+        "inspect-promotion-candidates",
+        "lane-ownership",
+        "reuse",
+        "fork",
+        "compact",
+    ):
+        proc = _run_cli(["worker-binding", subcommand, "--help"])
+
+        assert proc.returncode == 0
+        assert "binding" in proc.stdout
+
+
+def test_worker_binding_cli_inspect_promotion_candidates_reads_runtime_log(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    log_path = project / ".codex/runtime/opencode-invocations.jsonl"
+    JsonlRuntimeInvocationLog(log_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-server-api",
+            provider="opencode",
+            status="succeeded",
+            started_at="2026-07-01T10:00:00+00:00",
+            ended_at="2026-07-01T10:00:01+00:00",
+            task_id="task-server",
+            agent_id="agent:server",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-01T10:00:00+00:00",
+                    ended_at="2026-07-01T10:00:01+00:00",
+                    status="succeeded",
+                    metadata={
+                        "transport": "server-api",
+                        "base_url": "http://127.0.0.1:4096",
+                        "session_id": "session-created-api",
+                        "created_session": True,
+                        "session_selector_source": "server_api_created",
+                    },
+                ),
+            ),
+            metadata={"lane_id": "lane:server"},
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "worker-binding",
+            "inspect-promotion-candidates",
+            "--runtime-invocation-log-path",
+            ".codex/runtime/opencode-invocations.jsonl",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["candidate_count"] == 1
+    candidate = payload["candidates"][0]
+    assert candidate["session_selector_source"] == "server_api_created"
+    assert candidate["attach_url"] == "http://127.0.0.1:4096"
+    assert candidate["session_id"] == "session-created-api"
+    assert candidate["suggested_command"][:3] == [
+        "doc-based-coding",
+        "worker-binding",
+        "promote-server-api-session",
+    ]
+    assert "--audit-ref" in candidate["suggested_command"]
+    assert "promote-server-api-session" in candidate["suggested_command_text"]
+    assert payload["authority_split"]["continuous_worker_binding_ledger_mutated"] is False
+    assert not (project / ".codex/runtime/continuous-worker-bindings.json").exists()
+
+
+def test_worker_binding_cli_inspect_promotion_candidates_help_describes_path_resolution() -> None:
+    proc = _run_cli(["worker-binding", "inspect-promotion-candidates", "--help"])
+
+    assert proc.returncode == 0
+    assert "Relative --runtime-invocation-log-path values are resolved" in proc.stdout
+    assert "detected project root/current workspace" in proc.stdout
+
+
+def test_worker_binding_cli_inspect_promotion_candidates_filters_non_created(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    log_path = project / ".codex/runtime/opencode-invocations.jsonl"
+    JsonlRuntimeInvocationLog(log_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-explicit",
+            provider="opencode",
+            status="succeeded",
+            started_at="2026-07-01T10:00:00+00:00",
+            ended_at="2026-07-01T10:00:01+00:00",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-01T10:00:00+00:00",
+                    ended_at="2026-07-01T10:00:01+00:00",
+                    status="succeeded",
+                    metadata={
+                        "base_url": "http://127.0.0.1:4096",
+                        "session_id": "session-explicit",
+                        "created_session": False,
+                        "session_selector_source": "explicit_config",
+                    },
+                ),
+            ),
+        )
+    )
+
+    proc = _run_cli(
+        [
+            "worker-binding",
+            "inspect-promotion-candidates",
+            "--runtime-invocation-log-path",
+            ".codex/runtime/opencode-invocations.jsonl",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["candidate_count"] == 0
+    assert payload["skip_reasons"]["not_server_api_created"] == 1
+
+
+def test_worker_binding_cli_promote_server_api_session_roundtrip(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    promote = _run_cli(
+        [
+            "worker-binding",
+            "promote-server-api-session",
+            "--worker-id",
+            "worker:server",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--lane-id",
+            "lane:server",
+            "--attach-url",
+            "http://127.0.0.1:4096/",
+            "--session-id",
+            "session-created-api",
+            "--compact-context-ref",
+            "dbc://context/server",
+            "--audit-ref",
+            "audit:server-api-created",
+            "--timestamp",
+            "2026-07-01T13:00:00+08:00",
+            "--expires-at",
+            "2026-07-01T14:00:00+08:00",
+        ],
+        cwd=project,
+    )
+    inspect_active = _run_cli(["worker-binding", "inspect"], cwd=project)
+
+    assert promote.returncode == 0, promote.stderr
+    payload = json.loads(promote.stdout)
+    assert payload["action"] == "promote_server_api_created_session"
+    assert payload["promotion_source"] == "server_api_created"
+    assert payload["binding_claimed"] is True
+    assert payload["binding"]["worker_id"] == "worker:server"
+    assert payload["binding"]["metadata"]["promotion_authority"] == "explicit_host_owned_claim"
+    assert payload["binding"]["active_session_selector"]["attach_url"] == "http://127.0.0.1:4096"
+    assert payload["binding"]["active_session_selector"]["session_id"] == "session-created-api"
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert inspect_active.returncode == 0, inspect_active.stderr
+    assert json.loads(inspect_active.stdout)["bindings"][0]["metadata"]["promotion_source"] == (
+        "server_api_created"
+    )
+    assert not (project / ".codex/runtime/opencode-session-ledger.json").exists()
+
+
+def test_worker_binding_cli_promote_claims_and_activates_lane_ownership(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    promote = _run_cli(
+        [
+            "worker-binding",
+            "promote-server-api-session",
+            "--worker-id",
+            "worker:server",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--lane-id",
+            "lane:server",
+            "--attach-url",
+            "http://127.0.0.1:4096/",
+            "--session-id",
+            "session-created-api",
+            "--audit-ref",
+            "audit:server-api-created",
+            "--timestamp",
+            "2026-07-01T13:00:00+08:00",
+            "--claim-lane-ownership",
+        ],
+        cwd=project,
+    )
+    inspect_claimed = _run_cli(
+        ["worker-binding", "lane-ownership", "inspect", "--lane-id", "lane:server"],
+        cwd=project,
+    )
+    activate = _run_cli(
+        [
+            "worker-binding",
+            "lane-ownership",
+            "activate",
+            "--binding-id",
+            "continuous-worker:lane:lane-server",
+            "--delivery-id",
+            "delivery:first-success",
+            "--task-id",
+            "task:first-success",
+            "--activated-at",
+            "2026-07-01T13:05:00+08:00",
+            "--audit-ref",
+            "audit:first-success",
+        ],
+        cwd=project,
+    )
+    inspect_active = _run_cli(
+        ["worker-binding", "lane-ownership", "inspect", "--binding-id", "continuous-worker:lane:lane-server"],
+        cwd=project,
+    )
+
+    assert promote.returncode == 0, promote.stderr
+    promote_payload = json.loads(promote.stdout)
+    assert promote_payload["binding_claimed"] is True
+    assert promote_payload["lane_ownership_claimed"] is True
+    ownership = promote_payload["lane_ownership_result"]["ownership"]
+    assert ownership["binding_id"] == "continuous-worker:lane:lane-server"
+    assert ownership["worker_id"] == "worker:server"
+    assert ownership["status"] == "claimed"
+    assert promote_payload["authority_split"]["provider_executed"] is False
+    assert promote_payload["authority_split"]["delivery_state_mutated"] is False
+    assert promote_payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    assert inspect_claimed.returncode == 0, inspect_claimed.stderr
+    claimed_payload = json.loads(inspect_claimed.stdout)
+    assert claimed_payload["ownerships"][0]["status"] == "claimed"
+    assert claimed_payload["authority_split"]["provider_executed"] is False
+
+    assert activate.returncode == 0, activate.stderr
+    activate_payload = json.loads(activate.stdout)
+    assert activate_payload["ownership"]["status"] == "active"
+    assert activate_payload["ownership"]["activated_at"] == "2026-07-01T13:05:00+08:00"
+    assert activate_payload["ownership"]["binding_id"] == "continuous-worker:lane:lane-server"
+    assert activate_payload["authority_split"]["delivery_state_mutated"] is False
+    assert activate_payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    assert inspect_active.returncode == 0, inspect_active.stderr
+    active_payload = json.loads(inspect_active.stdout)
+    assert active_payload["ownerships"][0]["status"] == "active"
+    ownership_ledger = project / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log = project / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    assert ownership_ledger.exists()
+    assert ownership_event_log.exists()
+    assert not (project / ".codex/runtime/opencode-session-ledger.json").exists()
+
+
+def test_worker_binding_cli_promote_server_api_session_rejects_invalid_source(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "worker-binding",
+            "promote-server-api-session",
+            "--worker-id",
+            "worker:server",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--attach-url",
+            "http://127.0.0.1:4096",
+            "--session-id",
+            "session-created-api",
+            "--session-selector-source",
+            "explicit_config",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "session_selector_source=server_api_created" in proc.stderr
+
+
+def test_worker_binding_cli_promote_server_api_session_requires_inputs(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(["worker-binding", "promote-server-api-session"], cwd=project)
+
+    assert proc.returncode == 1
+    assert "Missing required option(s)" in proc.stderr
+    assert "--worker-id" in proc.stderr
+    assert "--session-id" in proc.stderr
+
+
+def test_worker_binding_cli_claim_inspect_release_roundtrip(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    claim = _run_cli(
+        [
+            "worker-binding",
+            "claim",
+            "--worker-id",
+            "worker:server",
+            "--runtime-provider",
+            "opencode",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--lane-id",
+            "lane:server",
+            "--session-attach-url",
+            "http://127.0.0.1:4096",
+            "--session-id",
+            "session-server",
+            "--compact-context-ref",
+            "dbc://context/server",
+            "--audit-ref",
+            "audit:claim",
+            "--timestamp",
+            "2026-06-29T12:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect_active = _run_cli(["worker-binding", "inspect"], cwd=project)
+    release = _run_cli(
+        [
+            "worker-binding",
+            "release",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:server",
+            "--timestamp",
+            "2026-06-29T12:30:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect_after = _run_cli(["worker-binding", "inspect"], cwd=project)
+    inspect_all = _run_cli(
+        ["worker-binding", "inspect", "--include-inactive"],
+        cwd=project,
+    )
+
+    assert claim.returncode == 0, claim.stderr
+    claim_payload = json.loads(claim.stdout)
+    assert claim_payload["binding"]["worker_id"] == "worker:server"
+    assert claim_payload["binding"]["active_session_selector"]["session_id"] == "session-server"
+    assert claim_payload["authority_split"]["continuous_worker_binding_ledger_mutated"] is True
+    assert claim_payload["authority_split"]["provider_executed"] is False
+    assert len(claim_payload["events"]) == 1
+    assert inspect_active.returncode == 0, inspect_active.stderr
+    assert len(json.loads(inspect_active.stdout)["bindings"]) == 1
+    assert release.returncode == 0, release.stderr
+    assert json.loads(release.stdout)["binding"]["lifecycle_status"] == "released"
+    assert inspect_after.returncode == 0, inspect_after.stderr
+    assert json.loads(inspect_after.stdout)["bindings"] == []
+    assert inspect_all.returncode == 0, inspect_all.stderr
+    all_payload = json.loads(inspect_all.stdout)
+    assert all_payload["bindings"][0]["lifecycle_status"] == "released"
+    ledger = project / ".codex/runtime/continuous-worker-bindings.json"
+    event_log = project / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    assert ledger.exists()
+    assert event_log.exists()
+    ledger_payload = json.loads(ledger.read_text(encoding="utf-8"))
+    assert ledger_payload["authority_split"]["raw_transcript_persisted"] is False
+    assert "session-server" in ledger.read_text(encoding="utf-8")
+
+
+def test_worker_binding_cli_reuse_compact_fork_roundtrip(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    event_log = project / ".codex/runtime/continuous-worker-binding-events.jsonl"
+
+    claim = _run_cli(
+        [
+            "worker-binding",
+            "claim",
+            "--worker-id",
+            "worker:cli",
+            "--runtime-provider",
+            "opencode",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:cli",
+            "--session-attach-url",
+            "http://127.0.0.1:4096",
+            "--session-id",
+            "session-cli",
+            "--timestamp",
+            "2026-06-29T12:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    reuse = _run_cli(
+        [
+            "worker-binding",
+            "reuse",
+            "--binding-id",
+            "continuous-worker:lane:lane-cli",
+            "--task-id",
+            "task-cli",
+            "--agent-id",
+            "agent:cli",
+            "--lane-id",
+            "lane:cli",
+            "--audit-ref",
+            "audit:cli-reuse",
+            "--timestamp",
+            "2026-06-29T12:01:00+00:00",
+        ],
+        cwd=project,
+    )
+    compact = _run_cli(
+        [
+            "worker-binding",
+            "compact",
+            "--binding-id",
+            "continuous-worker:lane:lane-cli",
+            "--build-context-bundle",
+            "--summary",
+            "CLI worker compact context summary.",
+            "--key-decision",
+            "Continue on the same lane worker.",
+            "--current-state",
+            "ready for follow-up",
+            "--artifact-ref",
+            "server.js",
+            "--worker-report-ref",
+            "report:cli",
+            "--timestamp",
+            "2026-06-29T12:02:00+00:00",
+        ],
+        cwd=project,
+    )
+    fork = _run_cli(
+        [
+            "worker-binding",
+            "fork",
+            "--source-binding-id",
+            "continuous-worker:lane:lane-cli",
+            "--worker-id",
+            "worker:cli-fork",
+            "--scope-kind",
+            "lane",
+            "--scope-id",
+            "lane:cli-fork",
+            "--timestamp",
+            "2026-06-29T12:03:00+00:00",
+        ],
+        cwd=project,
+    )
+
+    assert claim.returncode == 0, claim.stderr
+    assert reuse.returncode == 0, reuse.stderr
+    assert compact.returncode == 0, compact.stderr
+    assert fork.returncode == 0, fork.stderr
+    reuse_payload = json.loads(reuse.stdout)
+    compact_payload = json.loads(compact.stdout)
+    fork_payload = json.loads(fork.stdout)
+    assert reuse_payload["binding"]["last_used_at"] == "2026-06-29T12:01:00+00:00"
+    assert compact_payload["binding"]["compact_context_ref"].startswith(
+        "dbc://continuous-worker-context/"
+    )
+    assert compact_payload["context_bundle"]["bundle"]["summary"] == (
+        "CLI worker compact context summary."
+    )
+    assert compact_payload["context_bundle"]["authority_split"]["raw_transcript_persisted"] is False
+    assert fork_payload["binding"]["active_session_selector"]["fork_session"] is True
+    event_text = event_log.read_text(encoding="utf-8")
+    assert "binding_reused" in event_text
+    assert "binding_compacted" in event_text
+    assert "binding_forked" in event_text
+    assert json.loads(claim.stdout)["authority_split"]["secret_value_persisted"] is False
+
+
+def test_provider_help_includes_mixed_provider_smoke() -> None:
+    proc = _run_cli(["provider", "--help"])
+
+    assert proc.returncode == 0
+    assert "guide-worker-smoke" in proc.stdout
+    assert "Mixed runtime provider host helpers" in proc.stdout
 
 
 def test_codex_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
@@ -1005,6 +3223,85 @@ def test_codex_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
     assert "not applied automatically" in proc.stdout
     assert "not an MCP real-provider execution surface" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
+
+
+def test_provider_guide_worker_smoke_help_describes_mixed_provider_boundary() -> None:
+    proc = _run_cli(["provider", "guide-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--providers codex,opencode" in proc.stdout
+    assert "--planner-lane-provider LANE_ID=codex|opencode|qoder|fake" in proc.stdout
+    assert "--codex-executable PATH" in proc.stdout
+    assert "--opencode-executable PATH" in proc.stdout
+    assert "--opencode-attach-url URL" in proc.stdout
+    assert "--opencode-session-id ID" in proc.stdout
+    assert "defaults to providers=codex,opencode" in proc.stdout
+    assert "--planner-lane-provider assign a provider per lane" in proc.stdout
+    assert "not an MCP real-provider execution surface" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_opencode_guide_worker_smoke_help_describes_host_owned_boundary() -> None:
+    proc = _run_cli(["opencode", "guide-worker-smoke", "--help"])
+
+    assert proc.returncode == 0
+    assert "--output-format text|json" in proc.stdout
+    assert "--attach-url URL" in proc.stdout
+    assert "--session-id ID" in proc.stdout
+    assert "--continue-session" in proc.stdout
+    assert "--fork-session" in proc.stdout
+    assert "--guide-task-title" in proc.stdout
+    assert "--planner-lane" in proc.stdout
+    assert "--git-worktree-sandbox-root PATH" in proc.stdout
+    assert "--sandbox-allocation-evidence-id ID" in proc.stdout
+    assert "--runtime-invocation-log-path PATH" in proc.stdout
+    assert "--runtime-invocation-max-attempts N" in proc.stdout
+    assert "host-owned live-provider guide-worker smoke surface for OpenCode CLI" in proc.stdout
+    assert "Runtime invocations are audited to compact JSONL" in proc.stdout
+    assert "worker patch artifacts and merge candidates" in proc.stdout
+    assert "not applied automatically" in proc.stdout
+    assert "not an MCP real-provider execution surface" in proc.stdout
+    assert "Local Work Trajectory" in proc.stdout
+
+
+def test_opencode_guide_worker_smoke_rejects_conflicting_session_options(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "opencode",
+            "guide-worker-smoke",
+            "--session-id",
+            "session-1",
+            "--continue-session",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "cannot use --session-id with --continue-session" in proc.stderr
+
+
+def test_provider_guide_worker_smoke_rejects_invalid_opencode_fork_session(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "provider",
+            "guide-worker-smoke",
+            "--opencode-fork-session",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "--opencode-fork-session requires --opencode-session-id or --opencode-continue-session" in proc.stderr
 
 
 def test_codex_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) -> None:
@@ -1038,6 +3335,106 @@ def test_codex_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) ->
     assert (
         project / ".codex/scheduler/evidence/codex-guide-worker-provider.json"
     ).exists() is False
+
+
+def test_opencode_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "opencode",
+            "guide-worker-smoke",
+            "--executable",
+            "definitely-missing-dbc-opencode",
+            "--snapshot-path",
+            ".codex/scheduler/opencode-guide-worker-provider-execution-state.json",
+            "--event-log-path",
+            ".codex/scheduler/opencode-guide-worker-provider-execution-events.jsonl",
+            "--evidence-path",
+            ".codex/scheduler/evidence/opencode-guide-worker-provider.json",
+            "--timestamp",
+            "2026-06-28T21:40:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stdout == ""
+    assert "cli_unavailable" in proc.stderr
+    assert (
+        project / ".codex/scheduler/opencode-guide-worker-provider-execution-state.json"
+    ).exists() is False
+    assert (
+        project / ".codex/scheduler/evidence/opencode-guide-worker-provider.json"
+    ).exists() is False
+
+
+def test_provider_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "provider",
+            "guide-worker-smoke",
+            "--codex-executable",
+            "definitely-missing-dbc-codex",
+            "--opencode-executable",
+            "definitely-missing-dbc-opencode",
+            "--planner-lane",
+            "lane:server=Server:server runtime validation",
+            "--planner-lane-provider",
+            "lane:server=codex",
+            "--planner-lane",
+            "lane:client=Client:client runtime validation",
+            "--planner-lane-provider",
+            "lane:client=opencode",
+            "--snapshot-path",
+            ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json",
+            "--event-log-path",
+            ".codex/scheduler/mixed-provider-guide-worker-smoke-events.jsonl",
+            "--evidence-path",
+            ".codex/scheduler/evidence/mixed-provider-guide-worker-smoke.json",
+            "--timestamp",
+            "2026-06-28T22:20:00+08:00",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert proc.stdout == ""
+    assert "cli_unavailable" in proc.stderr
+    assert (
+        project / ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json"
+    ).exists() is False
+    assert (
+        project / ".codex/scheduler/evidence/mixed-provider-guide-worker-smoke.json"
+    ).exists() is False
+
+
+def test_provider_guide_worker_smoke_rejects_lane_provider_not_in_registered_set(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "provider",
+            "guide-worker-smoke",
+            "--providers",
+            "codex,opencode",
+            "--planner-lane",
+            "lane:qoder=Qoder:qoder work",
+            "--planner-lane-provider",
+            "lane:qoder=qoder",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    assert "but --providers is codex, opencode" in proc.stderr
 
 
 def test_qoder_help_includes_host_owned_smoke() -> None:
@@ -4658,6 +7055,70 @@ def test_scheduler_project_requires_snapshot_path(tmp_path) -> None:
     assert "Missing required option(s): --snapshot-path" in proc.stderr
 
 
+def test_scheduler_consume_worker_trajectory_report_cli_starts_trajectory(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    report_path = project / ".codex" / "agent-output" / "report-worker.json"
+    _write_cli_worker_trajectory_report(report_path, suggested_action="append")
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "consume-worker-trajectory-report",
+            "--report-path",
+            ".codex/agent-output/report-worker.json",
+            "--caller-role",
+            "leader",
+            "--actor",
+            "agent:guide",
+            "--title",
+            "Worker server validation",
+            "--event-kind",
+            "validation",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["status"] == "consumed"
+    assert payload["consumed_action"] == "start"
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is True
+    trajectory_path = project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+    trajectory = json.loads(trajectory_path.read_text(encoding="utf-8"))
+    assert trajectory["events"]["event:001"]["title"] == "Worker server validation"
+    assert trajectory["events"]["event:001"]["metadata"]["worker_report_id"] == "report-cli-worker"
+
+
+def test_scheduler_consume_worker_trajectory_report_cli_rejects_worker_role(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    report_path = project / ".codex" / "agent-output" / "report-worker.json"
+    _write_cli_worker_trajectory_report(report_path, suggested_action="append")
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "consume-worker-trajectory-report",
+            "--report-path",
+            ".codex/agent-output/report-worker.json",
+            "--caller-role",
+            "worker",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["status"] == "denied"
+    assert "docs/worker-trajectory-update-reporting.md" in payload["errors"][0]
+    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+
+
 def test_scheduler_inspect_state_reports_missing_snapshot(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
@@ -5053,6 +7514,35 @@ def _store_cli_worker_patch_artifact(
     )
 
 
+def _write_cli_worker_trajectory_report(
+    report_path: Path,
+    *,
+    suggested_action: str,
+) -> None:
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(
+            {
+                "report_id": "report-cli-worker",
+                "contract_id": "contract-cli-worker",
+                "status": "completed",
+                "changed_artifacts": ["server.js"],
+                "verification_results": ["node --check server.js passed"],
+                "trajectory_update": {
+                    "lane_id": "lane:server",
+                    "task_id": "task/server",
+                    "event_status": "completed",
+                    "summary": "Worker server task finished.",
+                    "suggested_action": suggested_action,
+                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "leader_notes": ["Consume after leader review."],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def _seed_leader_worker_dispatcher_cli_project(project: Path) -> dict[str, Path]:
     (project / "design_docs").mkdir(parents=True)
     snapshot = project / ".codex/scheduler/state.json"
@@ -5103,7 +7593,11 @@ def _seed_leader_worker_dispatcher_cli_project(project: Path) -> dict[str, Path]
     }
 
 
-def _seed_codex_delivery_supervisor_cli_project(project: Path) -> dict[str, Path]:
+def _seed_codex_delivery_supervisor_cli_project(
+    project: Path,
+    *,
+    provider: str = "codex",
+) -> dict[str, Path]:
     (project / "design_docs").mkdir(parents=True)
     snapshot = project / ".codex/scheduler/state.json"
     event_log = project / ".codex/scheduler/events.jsonl"
@@ -5122,7 +7616,7 @@ def _seed_codex_delivery_supervisor_cli_project(project: Path) -> dict[str, Path
                     task_id="task-server",
                     title="Server",
                     instruction="Implement server",
-                    agent=AgentSpec(agent_id="agent:server", runtime_provider="codex"),
+                    agent=AgentSpec(agent_id="agent:server", runtime_provider=provider),
                     state="ready",
                     context_scope=ContextScope(context_id="ctx-server", lane_id="lane:server"),
                 ),
@@ -5152,6 +7646,39 @@ def _seed_codex_delivery_supervisor_cli_project(project: Path) -> dict[str, Path
         "delivery_log": delivery_log,
         "runtime_log": runtime_log,
     }
+
+
+def _start_fake_opencode_server_api():
+    calls: list[tuple[str, dict[str, object]]] = []
+    session_counter = {"value": 0}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            raw = self.rfile.read(int(self.headers.get("Content-Length", "0") or "0"))
+            payload = json.loads(raw.decode("utf-8")) if raw else {}
+            calls.append((self.path, payload))
+            if self.path == "/session":
+                session_counter["value"] += 1
+                session_id = f"session-created-{session_counter['value']}"
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"id": session_id}).encode("utf-8"))
+                return
+            if self.path.startswith("/session/") and self.path.endswith("/message"):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"message":{"content":"server api smoke done"}}')
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread, calls
 
 
 def _delivery_state_counts(state) -> dict[str, int]:
