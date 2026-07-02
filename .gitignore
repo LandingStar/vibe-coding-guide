@@ -37,6 +37,7 @@ tests/*
 !tests/test_doc_loop_prompts.py
 !tests/test_cli.py
 !tests/test_mcp_admission.py
+!tests/test_mcp_tools.py
 !tests/test_progress_graph_trajectory.py
 !tests/test_runtime_orchestration.py
 !tests/test_runtime_orchestration_agent_communication.py
@@ -63,4 +64,5 @@ debug.log
 .codex/decision-logs/
 .codex/handoffs/CURRENT.md
 .codex/handoffs/history/
+.codex/runtime/
 .codex/temporary-overrides.json

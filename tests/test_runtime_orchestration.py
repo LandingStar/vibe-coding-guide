@@ -7,6 +7,8 @@ import json
 import shutil
 import subprocess
 import threading
+import time
+import urllib.error
 from dataclasses import replace
 from pathlib import Path
 
@@ -66,8 +68,101 @@ from src.runtime.orchestration import (
     CodexDeliverySupervisorRequest,
     CodexDeliveryBoundedLoopRequest,
     CodexDeliveryE2ESmokeRequest,
+    ProviderDeliverySupervisorRecord,
+    ProviderDeliverySupervisorRequest,
+    ProviderDeliverySupervisorResult,
+    ProviderDeliveryBoundedLoopRequest,
+    ProviderDeliveryE2ESmokeRequest,
+    LiveCodexConcurrentWorkerSmokeRequest,
+    LiveOpenCodeConcurrentWorkerSmokeRequest,
+    MonitoringSnapshotRequest,
     CodexRuntimeStatusRequest,
+    OpenCodeRuntimeStatusRequest,
     CodexCliHostReadinessReport,
+    OpenCodeCliAgentRuntimeAdapter,
+    OpenCodeCliClientConfig,
+    OpenCodeHostSessionSelector,
+    OpenCodeCliProcessClient,
+    OpenCodeCliRequest,
+    OpenCodeCliResult,
+    OpenCodeCliRuntimeError,
+    OpenCodeCliHostReadinessReport,
+    OpenCodeServerApiClient,
+    OpenCodeServerApiClientConfig,
+    OpenCodeServeLifecycleInspectRequest,
+    OpenCodeServeLifecycleRecordRequest,
+    OpenCodeServeReadinessRequest,
+    OpenCodeSessionClaimRequest,
+    OpenCodeSessionInspectRequest,
+    OpenCodeSessionRecoverStaleRequest,
+    OpenCodeSessionReleaseRequest,
+    ContinuousWorkerBindingClaimRequest,
+    ContinuousWorkerBindingCompactRequest,
+    ContinuousWorkerBindingForkRequest,
+    ContinuousWorkerBindingInspectRequest,
+    ContinuousWorkerBindingRecoverStaleRequest,
+    ContinuousWorkerBindingReleaseRequest,
+    ContinuousWorkerBindingResolveRequest,
+    ContinuousWorkerBindingReuseRequest,
+    ContinuousWorkerBinding,
+    ContinuousWorkerCompactContextBuildRequest,
+    ContinuousWorkerSessionSelector,
+    ServerApiCreatedSessionPromotionRequest,
+    WorkerBindingPromotionCandidateReadbackRequest,
+    DeliveryLease,
+    DeliveryLeaseBeginRequest,
+    DeliveryLeaseCompleteRequest,
+    DeliveryLeaseFailRequest,
+    DeliveryLeaseInspectRequest,
+    DeliveryLeaseReleaseRequest,
+    DeliveryLeaseReserveRequest,
+    JsonlDeliveryLeaseEventLog,
+    JsonlContinuousWorkerBindingEventLog,
+    JsonlLaneOwnershipEventLog,
+    LaneOwnership,
+    LaneOwnershipActivateRequest,
+    LaneOwnershipClaimRequest,
+    LaneOwnershipInspectRequest,
+    LaneOwnershipReleaseRequest,
+    LaneOwnershipResumeRequest,
+    LaneOwnershipSuspendRequest,
+    LaneOwnershipTransferRequest,
+    active_delivery_lease_conflicts,
+    activate_lane_ownership,
+    begin_delivery_lease_run,
+    build_continuous_worker_compact_context_bundle,
+    claim_continuous_worker_binding,
+    claim_lane_ownership,
+    compact_continuous_worker_binding,
+    complete_delivery_lease,
+    continuous_worker_binding_from_json_dict,
+    delivery_lease_from_json_dict,
+    fail_delivery_lease_retryable,
+    fork_continuous_worker_binding,
+    inspect_delivery_leases,
+    inspect_lane_ownerships,
+    inspect_continuous_worker_bindings,
+    lane_ownership_allows_delivery,
+    lane_ownership_from_json_dict,
+    record_continuous_worker_binding_reuse,
+    promote_server_api_created_session_to_continuous_worker_binding,
+    inspect_worker_binding_promotion_candidates,
+    read_delivery_lease_ledger,
+    read_lane_ownership_ledger,
+    recover_stale_continuous_worker_bindings,
+    release_delivery_lease,
+    release_lane_ownership,
+    release_continuous_worker_binding,
+    resume_lane_ownership,
+    reserve_delivery_lease,
+    resolve_continuous_worker_binding,
+    selectable_lane_ownership_conflicts,
+    suspend_lane_ownership,
+    transfer_lane_ownership,
+    validate_no_active_delivery_lease_conflicts,
+    validate_no_selectable_lane_ownership_conflicts,
+    inspect_opencode_serve_lifecycle_receipts,
+    record_opencode_serve_lifecycle_receipt,
     LeaderWorkerDispatcherLoopRequest,
     LeaderWorkerDispatcherTickRequest,
     SandboxAllocation,
@@ -91,6 +186,7 @@ from src.runtime.orchestration import (
     QoderSDKHostReadinessReport,
     PermissionRequest,
     RuntimeCapabilities,
+    RuntimeProviderKind,
     RuntimeHostInvocation,
     RuntimeInvocationRecord,
     RuntimeProviderPermissionGrant,
@@ -135,6 +231,8 @@ from src.runtime.orchestration import (
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SupervisorAgentStorageBindingRequest,
     SupervisorStorageBindingEvidenceSummary,
+    WorkerTrajectoryReportConsumerRequest,
+    WorkerTrajectoryReportConsumerResult,
     acknowledge_leader_worker_delivery,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
@@ -153,6 +251,7 @@ from src.runtime.orchestration import (
     compact_runtime_invocation_log,
     consume_successful_codex_result,
     consume_worker_patch_review_decision,
+    consume_worker_trajectory_report,
     decide_agent_exchange_action_candidate,
     default_supervisor_storage_binding_evidence_path,
     default_sandbox_allocation_receipt_evidence_path,
@@ -182,12 +281,14 @@ from src.runtime.orchestration import (
     publish_supervisor_storage_binding_artifact_from_evidence,
     qoder_runtime_capabilities,
     codex_cli_runtime_capabilities,
+    opencode_cli_runtime_capabilities,
     qoder_query_result_from_response,
     project_group_item_delivery_signal,
     project_group_item_surface,
     recover_scheduler_state,
     read_leader_worker_dispatcher_state,
     read_leader_worker_delivery_state,
+    read_continuous_worker_compact_context_bundle,
     replay_scheduler_events,
     resolve_scheduler_merge_gate,
     resolve_task_permission_review,
@@ -207,9 +308,28 @@ from src.runtime.orchestration import (
     run_guide_worker_local_trajectory_orchestration,
     run_leader_worker_activation_pass,
     run_bounded_codex_delivery_supervisor_loop,
+    run_bounded_opencode_delivery_supervisor_loop,
+    run_bounded_provider_delivery_supervisor_loop_for_codex,
+    run_bounded_provider_delivery_supervisor_loop_for_opencode,
+    run_provider_delivery_supervisor_once_for_codex,
+    run_provider_delivery_supervisor_once_for_opencode,
+    run_provider_delivery_e2e_smoke_for_codex,
+    run_provider_delivery_e2e_smoke_for_opencode,
+    run_live_codex_concurrent_worker_smoke,
+    run_live_opencode_concurrent_worker_smoke,
+    inspect_monitoring_snapshot,
     run_codex_delivery_e2e_smoke,
+    run_opencode_delivery_e2e_smoke,
     run_codex_delivery_supervisor_once,
+    run_opencode_delivery_supervisor_once,
     inspect_codex_runtime_status,
+    inspect_opencode_runtime_status,
+    inspect_opencode_server_api_readiness,
+    inspect_opencode_serve_readiness,
+    claim_opencode_session_binding,
+    inspect_opencode_session_bindings,
+    recover_stale_opencode_session_bindings,
+    release_opencode_session_binding,
     run_leader_worker_dispatcher_loop,
     run_leader_worker_dispatcher_tick,
     run_with_runtime_invocation_audit,
@@ -250,6 +370,7 @@ from src.runtime.orchestration import (
 )
 from tools.progress_graph import (
     EvidencePublishToConsumerClosureRequest,
+    HostOwnedGuideWorkerProviderExecutionConfig,
     HostSandboxReceiptWorkflowRequest,
     SchedulerOperatorDogfoodClosureRequest,
     SchedulerOperatorWorkflowRequest,
@@ -258,6 +379,7 @@ from tools.progress_graph import (
     build_host_evidence_presentation,
     read_host_evidence_bundle,
     run_evidence_publish_to_consumer_closure,
+    run_host_owned_guide_worker_provider_execution,
     run_host_sandbox_receipt_workflow,
     run_scheduler_operator_dogfood_closure,
     run_scheduler_operator_workflow,
@@ -1875,6 +1997,18 @@ def test_codex_cli_capability_mapping_is_runtime_not_scheduler() -> None:
     assert capabilities.supports_transcript_inspection is False
 
 
+def test_opencode_cli_capability_mapping_is_runtime_not_scheduler() -> None:
+    capabilities = opencode_cli_runtime_capabilities()
+
+    assert capabilities.provider == "opencode"
+    assert capabilities.supports_sessions is True
+    assert capabilities.supports_streaming_events is False
+    assert capabilities.supports_subagents is True
+    assert capabilities.supports_mcp is False
+    assert capabilities.supports_permission_callback is True
+    assert capabilities.supports_transcript_inspection is False
+
+
 def test_runtime_adapter_registry_registers_and_resolves_by_provider() -> None:
     runtime = FakeAgentRuntimeAdapter(artifact_store=InMemoryArtifactVersionStore())
     registry = AgentRuntimeAdapterRegistry()
@@ -2120,6 +2254,196 @@ def test_runtime_registry_wiring_can_register_authorized_mock_codex_client() -> 
     assert result.config.codex_permission_grant.grant_id == "grant-codex"
 
 
+def test_runtime_registry_wiring_requires_explicit_opencode_permission() -> None:
+    with pytest.raises(ValueError, match="RuntimeProviderPermissionGrant"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(providers=("opencode",))
+        )
+
+
+def test_runtime_registry_wiring_validates_opencode_permission_grant() -> None:
+    with pytest.raises(ValueError, match="allow_process_spawn=True"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(
+                providers=("opencode",),
+                opencode_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-opencode",
+                    provider="opencode",
+                    approved_by="host:test",
+                    approved_at="2026-06-28T21:10:00+08:00",
+                ),
+            )
+        )
+
+
+def test_runtime_registry_wiring_requires_injected_opencode_client() -> None:
+    with pytest.raises(ValueError, match="injected OpenCodeCliClient"):
+        build_runtime_registry_from_config(
+            RuntimeRegistryWiringConfig(
+                providers=("opencode",),
+                opencode_permission_grant=RuntimeProviderPermissionGrant(
+                    grant_id="grant-opencode",
+                    provider="opencode",
+                    approved_by="host:test",
+                    approved_at="2026-06-28T21:10:00+08:00",
+                    allow_process_spawn=True,
+                ),
+            )
+        )
+
+
+def test_runtime_registry_wiring_can_register_authorized_mock_opencode_client() -> None:
+    client = _RecordingOpenCodeCliClient(OpenCodeCliResult(summary="configured opencode"))
+    result = build_runtime_registry_from_config(
+        RuntimeRegistryWiringConfig(
+            providers=("fake", "opencode", "fake"),
+            timestamp="2026-06-28T21:12:00+08:00",
+            host_invocation=RuntimeHostInvocation(
+                surface="host-authorized-adapter",
+                invocation_id="host-run-opencode",
+                requested_providers=("fake", "opencode"),
+                requested_by="host:test",
+                reason="mock opencode registry wiring test",
+            ),
+            opencode_permission_grant=RuntimeProviderPermissionGrant(
+                grant_id="grant-opencode",
+                provider="opencode",
+                approved_by="host:test",
+                approved_at="2026-06-28T21:10:00+08:00",
+                scope="scheduler-smoke",
+                allow_process_spawn=True,
+                allow_network=False,
+            ),
+        ),
+        opencode_cli_client=client,
+    )
+
+    assert result.registered_providers == ("fake", "opencode")
+    assert result.registry.has("fake") is True
+    assert result.registry.has("opencode") is True
+    assert result.config.opencode_permission_grant is not None
+    assert result.config.opencode_permission_grant.grant_id == "grant-opencode"
+
+
+def test_mixed_provider_planner_accepts_codex_and_opencode_workers(tmp_path) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    ledger_path = tmp_path / "admissions.json"
+    snapshot_path = tmp_path / "state.json"
+    event_log_path = tmp_path / "events.jsonl"
+    registry = AgentRuntimeAdapterRegistry()
+    registry.register(
+        CodexCliAgentRuntimeAdapter(
+            cli_client=_RecordingCodexCliClient(
+                CodexCliResult(summary="codex lane complete", output_text="codex done")
+            )
+        )
+    )
+    registry.register(
+        OpenCodeCliAgentRuntimeAdapter(
+            cli_client=_RecordingOpenCodeCliClient(
+                OpenCodeCliResult(
+                    summary="opencode lane complete",
+                    output_text="opencode done",
+                )
+            )
+        )
+    )
+
+    result = run_guide_worker_local_trajectory_orchestration(
+        GuideWorkerLocalOrchestrationRequest(
+            artifact_store_path=store_path,
+            admission_ledger_path=ledger_path,
+            snapshot_path=snapshot_path,
+            event_log_path=event_log_path,
+            planning_request=GuideWorkerPlanningRequest(
+                task_title="Mixed provider fixture",
+                task_summary="Split work across Codex and OpenCode.",
+                lane_specs=(
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:codex",
+                        label="Codex",
+                        focus="Codex lane work",
+                        worker_runtime_provider="codex",
+                    ),
+                    GuideWorkerPlannerLaneSpec(
+                        lane_id="lane:opencode",
+                        label="OpenCode",
+                        focus="OpenCode lane work",
+                        worker_runtime_provider="opencode",
+                    ),
+                ),
+            ),
+            max_parallel_lanes=2,
+            max_waves=1,
+            replace_existing=True,
+            allow_duplicate_admission=True,
+        ),
+        runtime_registry=registry,
+    )
+
+    payload = result.to_json_dict()
+    assert result.ok is True
+    assert payload["scenario"]["worker_runtime_providers"] == ["codex", "opencode"]
+    assert sorted(payload["run_task_ids"]) == [
+        "task/guide-worker-local-orchestration/codex",
+        "task/guide-worker-local-orchestration/opencode",
+    ]
+
+
+def test_mixed_provider_host_wrapper_fails_before_state_when_opencode_missing(
+    tmp_path: Path,
+) -> None:
+    snapshot_path = tmp_path / ".codex/scheduler/mixed-state.json"
+    event_log_path = tmp_path / ".codex/scheduler/mixed-events.jsonl"
+    evidence_path = tmp_path / ".codex/scheduler/evidence/mixed.json"
+    runtime_log_path = tmp_path / ".codex/runtime/invocations.jsonl"
+    opencode_client = OpenCodeCliProcessClient(
+        OpenCodeCliClientConfig(executable="definitely-missing-dbc-opencode"),
+        which=lambda _executable: None,
+    )
+
+    with pytest.raises(OpenCodeCliRuntimeError, match="cli_unavailable"):
+        run_host_owned_guide_worker_provider_execution(
+            tmp_path,
+            config=HostOwnedGuideWorkerProviderExecutionConfig(
+                evidence_id="mixed-provider-negative",
+                timestamp="2026-06-28T23:20:00+08:00",
+                snapshot_path=snapshot_path,
+                event_log_path=event_log_path,
+                evidence_output_path=evidence_path,
+                runtime_invocation_log_path=runtime_log_path,
+                providers=("codex", "opencode"),
+                planning_request=GuideWorkerPlanningRequest(
+                    task_title="Mixed provider negative readiness",
+                    task_summary="Codex is injected but OpenCode is missing.",
+                    lane_specs=(
+                        GuideWorkerPlannerLaneSpec(
+                            lane_id="lane:codex",
+                            label="Codex",
+                            focus="Codex lane",
+                            worker_runtime_provider="codex",
+                        ),
+                        GuideWorkerPlannerLaneSpec(
+                            lane_id="lane:opencode",
+                            label="OpenCode",
+                            focus="OpenCode lane",
+                            worker_runtime_provider="opencode",
+                        ),
+                    ),
+                ),
+            ),
+            codex_cli_client=_RecordingCodexCliClient(
+                CodexCliResult(summary="codex would be ready")
+            ),
+            opencode_cli_client=opencode_client,
+        )
+
+    assert snapshot_path.exists() is False
+    assert event_log_path.exists() is False
+    assert evidence_path.exists() is False
+    assert runtime_log_path.exists() is False
+
+
 def test_runtime_registry_wiring_rejects_empty_provider_set() -> None:
     with pytest.raises(ValueError, match="requires at least one provider"):
         build_runtime_registry_from_config(RuntimeRegistryWiringConfig(providers=()))
@@ -2249,6 +2573,68 @@ def test_codex_cli_adapter_uses_mock_client_and_returns_runtime_result() -> None
     assert result.permission_requests[0].target == "npm test"
 
 
+def test_opencode_cli_adapter_uses_mock_client_and_returns_runtime_result() -> None:
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(
+            summary="OpenCode completed bounded task.",
+            output_text="OpenCode result body.",
+            artifact_delta=ArtifactDelta(
+                artifact_id="task-o:artifact",
+                version="v2",
+                summary="changed generated files",
+                changed_refs=(
+                    ExchangeReference(ref_kind="file", ref_id="src/app.py", path="src/app.py"),
+                ),
+            ),
+            permission_requests=(
+                PermissionRequest(
+                    request_id="perm-1",
+                    request_kind="shell",
+                    run_id="pending",
+                    summary="OpenCode wants to run npm test",
+                    target="npm test",
+                ),
+            ),
+            metadata={"events": 2},
+        )
+    )
+    adapter = OpenCodeCliAgentRuntimeAdapter(
+        cli_client=client,
+        timestamp="2026-06-28T21:20:00+08:00",
+    )
+    agent = AgentSpec(
+        agent_id="agent:opencode",
+        runtime_provider="opencode",
+        model="anthropic/claude-sonnet-4",
+        tools=("read", "edit"),
+    )
+    session = adapter.start_session(agent)
+    task = TaskSpec(
+        task_id="task-o",
+        title="OpenCode task",
+        instruction="Run through mock opencode client.",
+        output_artifact_id="task-o:result",
+    )
+
+    result = adapter.run_task(session, task)
+
+    assert adapter.capabilities().provider == "opencode"
+    assert client.requests[0].agent == agent
+    assert client.requests[0].task == task
+    assert client.requests[0].session == session
+    assert client.requests[0].instruction == "Run through mock opencode client."
+    assert client.requests[0].output_artifact_id == "task-o:result"
+    assert result.run_handle.run_id == "opencode-run-1"
+    assert result.output_artifact.artifact_id == "task-o:artifact"
+    assert result.output_artifact.version == "v2"
+    assert result.artifact_delta.summary == "changed generated files"
+    assert part_types(result.output_artifact) == ("text", "structured", "artifact_delta")
+    assert result.output_artifact.parts[1].data["metadata"] == {"events": 2}
+    assert [event.event_kind for event in result.events] == ["task_started", "task_completed"]
+    assert result.permission_requests[0].request_kind == "shell"
+    assert result.permission_requests[0].target == "npm test"
+
+
 def test_codex_cli_process_client_prefers_task_runtime_workspace(tmp_path) -> None:
     captured: dict[str, object] = {}
     workspace = tmp_path / "worker-worktree"
@@ -2292,8 +2678,1960 @@ def test_codex_cli_process_client_prefers_task_runtime_workspace(tmp_path) -> No
     assert captured["cwd"] == str(workspace)
     command = captured["command"]
     assert isinstance(command, list)
+    assert command[0] == "/bin/codex"
     assert command[command.index("--cd") + 1] == str(workspace)
     assert result.metadata["cwd"] == str(workspace)
+
+
+def test_opencode_cli_process_client_prefers_task_runtime_workspace(tmp_path) -> None:
+    captured: dict[str, object] = {}
+    workspace = tmp_path / "worker-worktree"
+    workspace.mkdir()
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured["cwd"] = kwargs.get("cwd")
+        captured["input"] = kwargs.get("input")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"type":"message","text":"done from opencode workspace"}\n',
+            stderr="",
+        )
+
+    client = OpenCodeCliProcessClient(
+        OpenCodeCliClientConfig(executable="opencode", cwd=tmp_path / "source-root"),
+        runner=runner,
+        which=lambda executable: f"/bin/{executable}",
+    )
+    result = client.exec(
+        OpenCodeCliRequest(
+            agent=AgentSpec(agent_id="agent:opencode", runtime_provider="opencode"),
+            session=SessionHandle(
+                session_id="opencode-session-1",
+                provider="opencode",
+                agent_id="agent:opencode",
+            ),
+            task=TaskSpec(
+                task_id="task-o",
+                title="OpenCode sandbox task",
+                instruction="Run in the worker sandbox.",
+                runtime_workspace_root=str(workspace),
+                sandbox_provider="git-worktree",
+                sandbox_allocation_id="git-worktree:task-o:worktree",
+                visible_mounts=("src/app.py",),
+                scratch_path=".codex/scratch/task-o",
+            ),
+            instruction="Run in the worker sandbox.",
+        )
+    )
+
+    assert result.summary == "done from opencode workspace"
+    assert result.output_text == "done from opencode workspace"
+    assert captured["cwd"] == str(workspace)
+    assert captured["input"] is None
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[:2] == ["/bin/opencode", "run"]
+    assert command[command.index("--dir") + 1] == str(workspace)
+    assert command[command.index("--format") + 1] == "json"
+    assert "Runtime workspace root:" in command[-1]
+    assert result.metadata["cwd"] == str(workspace)
+
+
+def test_opencode_cli_process_client_can_attach_to_server_session(tmp_path) -> None:
+    captured: dict[str, object] = {}
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured["cwd"] = kwargs.get("cwd")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="done from attached opencode session\n",
+            stderr="",
+        )
+
+    client = OpenCodeCliProcessClient(
+        OpenCodeCliClientConfig(
+            executable="opencode",
+            cwd=tmp_path,
+            output_format="text",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-opencode-1",
+            fork_session=True,
+        ),
+        runner=runner,
+        which=lambda executable: f"/bin/{executable}",
+    )
+
+    result = client.exec(
+        OpenCodeCliRequest(
+            agent=AgentSpec(agent_id="agent:opencode", runtime_provider="opencode"),
+            session=SessionHandle(
+                session_id="dbc-opencode-session",
+                provider="opencode",
+                agent_id="agent:opencode",
+            ),
+            task=TaskSpec(
+                task_id="task-o-attach",
+                title="OpenCode attached task",
+                instruction="Run through an attached OpenCode server session.",
+            ),
+            instruction="Run through an attached OpenCode server session.",
+        )
+    )
+
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[:2] == ["/bin/opencode", "run"]
+    assert command[command.index("--attach") + 1] == "http://127.0.0.1:4096"
+    assert command[command.index("--session") + 1] == "session-opencode-1"
+    assert "--fork" in command
+    assert command[command.index("--format") + 1] == "default"
+    assert result.output_text == "done from attached opencode session"
+    assert result.metadata["attached_to_server"] is True
+    assert result.metadata["attach_url"] == "http://127.0.0.1:4096"
+    assert result.metadata["session_id"] == "session-opencode-1"
+    assert result.metadata["fork_session"] is True
+
+
+def test_opencode_cli_process_client_uses_host_session_selector(tmp_path) -> None:
+    captured: dict[str, object] = {}
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="done from ledger session\n",
+            stderr="",
+        )
+
+    client = OpenCodeCliProcessClient(
+        OpenCodeCliClientConfig(
+            executable="opencode",
+            cwd=tmp_path,
+            output_format="text",
+        ),
+        runner=runner,
+        which=lambda executable: f"/bin/{executable}",
+    )
+    result = client.exec(
+        OpenCodeCliRequest(
+            agent=AgentSpec(agent_id="agent:opencode", runtime_provider="opencode"),
+            session=SessionHandle(
+                session_id="dbc-opencode-session",
+                provider="opencode",
+                agent_id="agent:opencode",
+            ),
+            task=TaskSpec(
+                task_id="task-o-ledger",
+                title="OpenCode ledger task",
+                instruction="Run through a ledger-selected OpenCode session.",
+            ),
+            instruction="Run through a ledger-selected OpenCode session.",
+            host_session=OpenCodeHostSessionSelector(
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-ledger-1",
+                fork_session=True,
+                binding_id="opencode-session:lane:lane-server",
+                scope_kind="lane",
+                scope_id="lane:server",
+                ledger_path=".codex/runtime/opencode-session-ledger.json",
+            ),
+        )
+    )
+
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[command.index("--attach") + 1] == "http://127.0.0.1:4096"
+    assert command[command.index("--session") + 1] == "session-ledger-1"
+    assert "--fork" in command
+    assert result.metadata["session_selector_source"] == "session_ledger"
+    assert result.metadata["fork_session"] is True
+    assert result.metadata["host_session_selector"]["binding_id"] == (
+        "opencode-session:lane:lane-server"
+    )
+
+
+def test_opencode_cli_process_client_explicit_session_overrides_host_selector(
+    tmp_path,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        return subprocess.CompletedProcess(command, 0, stdout="done\n", stderr="")
+
+    client = OpenCodeCliProcessClient(
+        OpenCodeCliClientConfig(
+            executable="opencode",
+            cwd=tmp_path,
+            output_format="text",
+            attach_url="http://127.0.0.1:5099",
+            session_id="session-explicit",
+        ),
+        runner=runner,
+        which=lambda executable: f"/bin/{executable}",
+    )
+    result = client.exec(
+        OpenCodeCliRequest(
+            agent=AgentSpec(agent_id="agent:opencode", runtime_provider="opencode"),
+            session=SessionHandle(
+                session_id="dbc-opencode-session",
+                provider="opencode",
+                agent_id="agent:opencode",
+            ),
+            task=TaskSpec(
+                task_id="task-o-explicit",
+                title="OpenCode explicit task",
+                instruction="Run through explicit OpenCode session flags.",
+            ),
+            instruction="Run through explicit OpenCode session flags.",
+            host_session=OpenCodeHostSessionSelector(
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-ledger-1",
+            ),
+        )
+    )
+
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[command.index("--attach") + 1] == "http://127.0.0.1:5099"
+    assert command[command.index("--session") + 1] == "session-explicit"
+    assert result.metadata["session_selector_source"] == "explicit_config"
+
+
+def test_opencode_cli_process_client_validates_session_config() -> None:
+    with pytest.raises(ValueError, match="cannot set both session_id and continue_session"):
+        OpenCodeCliClientConfig(session_id="session-1", continue_session=True)
+
+    with pytest.raises(ValueError, match="fork_session requires session_id or continue_session"):
+        OpenCodeCliClientConfig(fork_session=True)
+
+
+def test_opencode_serve_readiness_reports_healthy_attach_target_without_secrets() -> None:
+    captured: dict[str, object] = {}
+
+    class Response:
+        status = 200
+
+    def opener(request, **kwargs):
+        captured["url"] = request.full_url
+        captured["authorization"] = request.headers.get("Authorization", "")
+        captured["timeout"] = kwargs.get("timeout")
+        return Response()
+
+    report = inspect_opencode_serve_readiness(
+        OpenCodeServeReadinessRequest(
+            executable="opencode",
+            attach_url="http://127.0.0.1:4096",
+            health_timeout_seconds=1.5,
+            require_healthy=True,
+            metadata={"surface": "test"},
+        ),
+        which=lambda executable: f"/bin/{executable}",
+        opener=opener,
+        environ={
+            "OPENCODE_SERVER_USERNAME": "operator",
+            "OPENCODE_SERVER_PASSWORD": "super-secret",
+        },
+    )
+    payload = report.to_json_dict()
+
+    assert report.ready is True
+    assert report.healthy is True
+    assert report.attach_url == "http://127.0.0.1:4096"
+    assert report.health_url == "http://127.0.0.1:4096/global/health"
+    assert captured["url"] == "http://127.0.0.1:4096/global/health"
+    assert captured["timeout"] == 1.5
+    assert str(captured["authorization"]).startswith("Basic ")
+    assert "super-secret" not in json.dumps(payload, sort_keys=True)
+    assert payload["auth_configured"] is True
+    assert payload["authority_split"]["server_started"] is False
+    assert payload["authority_split"]["secret_value_persisted"] is False
+
+
+def test_opencode_serve_readiness_fails_closed_when_cli_missing() -> None:
+    def opener(*args, **kwargs):
+        raise AssertionError("health check should not run without CLI")
+
+    report = inspect_opencode_serve_readiness(
+        OpenCodeServeReadinessRequest(executable="missing-opencode", require_healthy=True),
+        which=lambda executable: None,
+        opener=opener,
+    )
+    payload = report.to_json_dict()
+
+    assert report.ready is False
+    assert report.cli_available is False
+    assert report.health_checked is False
+    assert report.error_kind == "cli_unavailable"
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_opencode_serve_readiness_can_require_healthy_server() -> None:
+    def opener(*args, **kwargs):
+        raise TimeoutError("server did not answer")
+
+    soft = inspect_opencode_serve_readiness(
+        OpenCodeServeReadinessRequest(require_healthy=False),
+        which=lambda executable: f"/bin/{executable}",
+        opener=opener,
+    )
+    strict = inspect_opencode_serve_readiness(
+        OpenCodeServeReadinessRequest(require_healthy=True),
+        which=lambda executable: f"/bin/{executable}",
+        opener=opener,
+    )
+
+    assert soft.ready is True
+    assert soft.healthy is False
+    assert soft.error_kind == "server_unreachable"
+    assert strict.ready is False
+    assert strict.healthy is False
+    assert strict.error_kind == "server_unreachable"
+
+
+def test_opencode_server_api_readiness_reports_health_and_doc_without_secrets() -> None:
+    captured: list[str] = []
+
+    def opener(request, **kwargs):
+        captured.append(request.full_url)
+        if request.full_url.endswith("/global/health"):
+            return _JsonHttpResponse({"status": "ok", "version": "test"}, status=200)
+        if request.full_url.endswith("/doc"):
+            return _JsonHttpResponse(
+                {
+                    "openapi": "3.1.0",
+                    "info": {"title": "OpenCode API", "version": "1.2.3"},
+                },
+                status=200,
+            )
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    report = inspect_opencode_server_api_readiness(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        check_doc=True,
+        opener=opener,
+        environ={"OPENCODE_SERVER_PASSWORD": "secret-value"},
+    )
+    payload = report.to_json_dict()
+
+    assert report.ready is True
+    assert payload["healthy"] is True
+    assert payload["doc_available"] is True
+    assert payload["openapi_version"] == "3.1.0"
+    assert payload["api_title"] == "OpenCode API"
+    assert payload["auth_configured"] is True
+    assert payload["authority_split"]["server_api_called"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+    assert "secret-value" not in json.dumps(payload)
+    assert captured == [
+        "http://127.0.0.1:4096/global/health",
+        "http://127.0.0.1:4096/doc",
+    ]
+
+
+def test_opencode_server_api_readiness_reports_unreachable() -> None:
+    def opener(*args, **kwargs):
+        raise TimeoutError("server did not answer")
+
+    report = inspect_opencode_server_api_readiness(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    assert report.ready is False
+    assert report.error_kind == "server_unreachable"
+    assert report.to_json_dict()["authority_split"]["provider_executed"] is False
+
+
+def test_opencode_server_api_client_creates_session_and_sends_prompt() -> None:
+    calls: list[tuple[str, str, dict[str, object]]] = []
+
+    def opener(request, **kwargs):
+        payload = _request_json_payload(request)
+        calls.append((request.get_method(), request.full_url, payload))
+        if request.full_url.endswith("/session"):
+            return _JsonHttpResponse({"id": "session-created"})
+        if request.full_url.endswith("/session/session-created/message"):
+            return _JsonHttpResponse({"message": {"content": "server api done"}})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    result = client.exec(_opencode_server_api_request())
+
+    assert result.summary == "server api done"
+    assert result.output_text == "server api done"
+    assert result.metadata["transport"] == "server-api"
+    assert result.metadata["created_session"] is True
+    assert result.metadata["session_id"] == "session-created"
+    assert result.metadata["session_selector_source"] == "server_api_created"
+    assert result.metadata["session_persistence"] == "not_persisted_by_delivery"
+    assert result.metadata["server_api_created_session_persisted"] is False
+    assert result.metadata["server_api_created_session_persistence_authority"] == (
+        "explicit_host_owned_claim_required"
+    )
+    assert calls[0][0] == "POST"
+    assert calls[0][1] == "http://127.0.0.1:4096/session"
+    assert calls[1][1] == "http://127.0.0.1:4096/session/session-created/message"
+    assert "Task ID: task-opencode-api" in str(calls[1][2])
+
+
+def test_opencode_server_api_client_uses_explicit_session_without_creation() -> None:
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/session/session-explicit/message"):
+            return _JsonHttpResponse({"content": "explicit session done"})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(
+            base_url="http://127.0.0.1:4096",
+            session_id="session-explicit",
+        ),
+        opener=opener,
+    )
+
+    result = client.exec(_opencode_server_api_request())
+
+    assert result.summary == "explicit session done"
+    assert result.metadata["created_session"] is False
+    assert result.metadata["session_selector_source"] == "explicit_config"
+    assert result.metadata["session_persistence"] == "preexisting_selector"
+    assert result.metadata["server_api_created_session_persisted"] is False
+    assert calls == ["http://127.0.0.1:4096/session/session-explicit/message"]
+
+
+def test_opencode_server_api_client_maps_http_failure_to_runtime_error() -> None:
+    def opener(request, **kwargs):
+        if request.full_url.endswith("/session"):
+            return _JsonHttpResponse({"id": "session-created"})
+        raise urllib.error.HTTPError(
+            request.full_url,
+            401,
+            "unauthorized",
+            hdrs=None,
+            fp=None,
+        )
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    with pytest.raises(OpenCodeCliRuntimeError) as excinfo:
+        client.exec(_opencode_server_api_request())
+
+    assert excinfo.value.error_kind == "authentication_failed"
+    assert excinfo.value.raw_error_type == "HTTP401"
+
+
+def test_opencode_serve_lifecycle_receipts_record_and_inspect(tmp_path: Path) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+
+    recorded = record_opencode_serve_lifecycle_receipt(
+        OpenCodeServeLifecycleRecordRequest(
+            ledger_path=ledger_path,
+            action="start",
+            status="observed",
+            executable="opencode",
+            hostname="127.0.0.1",
+            port=4096,
+            timestamp="2026-06-29T12:00:00+00:00",
+            pid="4242",
+            actor="host:test",
+            reason="operator started OpenCode serve for worker session reuse",
+        )
+    )
+    inspected = inspect_opencode_serve_lifecycle_receipts(
+        OpenCodeServeLifecycleInspectRequest(
+            ledger_path=ledger_path,
+            action="start",
+            latest_limit=1,
+        )
+    )
+
+    assert recorded.ok is True
+    assert recorded.receipt is not None
+    assert recorded.receipt.action == "start"
+    assert recorded.receipt.status == "observed"
+    assert recorded.receipt.attach_url == "http://127.0.0.1:4096"
+    assert recorded.receipt.command_preview == (
+        "opencode",
+        "serve",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "4096",
+    )
+    assert recorded.to_json_dict()["authority_split"]["serve_lifecycle_ledger_mutated"] is True
+    assert recorded.to_json_dict()["authority_split"]["server_started"] is False
+    assert recorded.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert inspected.ok is True
+    assert inspected.ledger_mutated is False
+    assert len(inspected.receipts) == 1
+    assert inspected.receipts[0].pid == "4242"
+    payload = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "opencode-serve-lifecycle-ledger.v1"
+    assert "transcript" not in json.dumps(payload).lower()
+    assert "secret" not in json.dumps(payload).lower()
+
+
+def test_opencode_serve_lifecycle_receipts_validate_action_and_status(tmp_path: Path) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+
+    with pytest.raises(ValueError, match="action must be start"):
+        record_opencode_serve_lifecycle_receipt(
+            OpenCodeServeLifecycleRecordRequest(
+                ledger_path=ledger_path,
+                action="launch",  # type: ignore[arg-type]
+            )
+        )
+
+    with pytest.raises(ValueError, match="status must be planned"):
+        inspect_opencode_serve_lifecycle_receipts(
+            OpenCodeServeLifecycleInspectRequest(
+                ledger_path=ledger_path,
+                status="running",
+            )
+        )
+
+
+def test_opencode_session_ledger_claim_inspect_release_roundtrip(tmp_path: Path) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+
+    claimed = claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="ses_123",
+            owner_agent_id="agent:guide",
+            lane_id="lane:server",
+            worker_agent_id="agent:server",
+            reason="reuse server lane context",
+            timestamp="2026-06-29T10:00:00+00:00",
+        )
+    )
+    inspected = inspect_opencode_session_bindings(
+        OpenCodeSessionInspectRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+        )
+    )
+    released = release_opencode_session_binding(
+        OpenCodeSessionReleaseRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            timestamp="2026-06-29T11:00:00+00:00",
+        )
+    )
+    active_after_release = inspect_opencode_session_bindings(
+        OpenCodeSessionInspectRequest(ledger_path=ledger_path)
+    )
+    all_after_release = inspect_opencode_session_bindings(
+        OpenCodeSessionInspectRequest(ledger_path=ledger_path, include_released=True)
+    )
+
+    assert claimed.ok is True
+    assert claimed.binding is not None
+    assert claimed.binding.binding_id == "opencode-session:lane:lane-server"
+    assert claimed.binding.status == "active"
+    assert claimed.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert inspected.ok is True
+    assert len(inspected.bindings) == 1
+    assert inspected.bindings[0].session_id == "ses_123"
+    assert released.ok is True
+    assert released.binding is not None
+    assert released.binding.status == "released"
+    assert active_after_release.bindings == ()
+    assert len(all_after_release.bindings) == 1
+    assert all_after_release.bindings[0].status == "released"
+    payload = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "opencode-session-ledger.v1"
+    assert "transcript" not in json.dumps(payload).lower()
+
+
+def test_opencode_session_ledger_claim_conflict_without_replace(tmp_path: Path) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    first = claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="agent",
+            scope_id="agent:worker",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-a",
+        )
+    )
+    second = claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="agent",
+            scope_id="agent:worker",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-b",
+            replace_existing=False,
+        )
+    )
+
+    assert first.ok is True
+    assert second.ok is False
+    assert second.status == "conflict"
+    assert second.binding is not None
+    assert second.binding.session_id == "session-a"
+
+
+def test_opencode_session_recover_stale_expires_elapsed_binding(tmp_path: Path) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:expired",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-expired",
+            expires_at="2026-06-29T09:00:00+00:00",
+        )
+    )
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:active",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-active",
+            expires_at="2026-06-29T11:00:00+00:00",
+        )
+    )
+
+    recovered = recover_stale_opencode_session_bindings(
+        OpenCodeSessionRecoverStaleRequest(
+            ledger_path=ledger_path,
+            now="2026-06-29T10:00:00+00:00",
+            timestamp="2026-06-29T10:00:01+00:00",
+        )
+    )
+    active = inspect_opencode_session_bindings(
+        OpenCodeSessionInspectRequest(ledger_path=ledger_path)
+    )
+    all_bindings = inspect_opencode_session_bindings(
+        OpenCodeSessionInspectRequest(ledger_path=ledger_path, include_released=True)
+    )
+
+    assert recovered.ok is True
+    assert recovered.status == "expired_stale_bindings"
+    assert recovered.checked_count == 2
+    assert recovered.expired_count == 1
+    assert recovered.bindings[0].scope_id == "lane:expired"
+    assert recovered.stale_reasons[recovered.bindings[0].binding_id] == "expires_at elapsed"
+    assert [binding.scope_id for binding in active.bindings] == ["lane:active"]
+    expired = next(binding for binding in all_bindings.bindings if binding.scope_id == "lane:expired")
+    assert expired.status == "expired"
+    assert expired.metadata["stale_recovery_reason"] == "expires_at elapsed"
+
+
+def test_opencode_session_recover_stale_can_expire_unhealthy_binding(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-server",
+        )
+    )
+
+    recovered = recover_stale_opencode_session_bindings(
+        OpenCodeSessionRecoverStaleRequest(
+            ledger_path=ledger_path,
+            now="2026-06-29T10:00:00+00:00",
+            expire_unhealthy=True,
+        ),
+        health_inspector=lambda binding, request: "attach target unhealthy: server_unreachable",
+    )
+
+    assert recovered.ok is True
+    assert recovered.expired_count == 1
+    assert recovered.bindings[0].status == "expired"
+    assert recovered.stale_reasons[recovered.bindings[0].binding_id] == (
+        "attach target unhealthy: server_unreachable"
+    )
+
+
+def test_opencode_session_recover_stale_noops_without_matching_policy(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-server",
+            expires_at="2026-06-29T11:00:00+00:00",
+        )
+    )
+
+    recovered = recover_stale_opencode_session_bindings(
+        OpenCodeSessionRecoverStaleRequest(
+            ledger_path=ledger_path,
+            now="2026-06-29T10:00:00+00:00",
+        )
+    )
+
+    assert recovered.ok is True
+    assert recovered.status == "no_stale_bindings"
+    assert recovered.ledger_mutated is False
+    assert recovered.expired_count == 0
+
+
+def test_continuous_worker_binding_claim_inspect_release_roundtrip(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+
+    claimed = claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server-lane",
+            ),
+            compact_context_ref="dbc://context/worker-server-compact",
+            audit_refs=("audit:claim-server",),
+            timestamp="2026-06-29T09:00:00+00:00",
+            expires_at="2026-06-29T10:00:00+00:00",
+            reason="reuse server lane context",
+        )
+    )
+    inspected = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+        )
+    )
+    released = release_continuous_worker_binding(
+        ContinuousWorkerBindingReleaseRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            timestamp="2026-06-29T09:05:00+00:00",
+            reason="lane completed",
+        )
+    )
+    active_after_release = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(ledger_path=ledger_path)
+    )
+    all_after_release = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            include_inactive=True,
+        )
+    )
+    events = JsonlContinuousWorkerBindingEventLog(event_log_path).read_all()
+
+    assert claimed.ok is True
+    assert claimed.binding is not None
+    assert claimed.binding.worker_id == "worker:server"
+    assert claimed.binding.active_session_selector is not None
+    assert claimed.binding.active_session_selector.session_id == "session-server-lane"
+    assert claimed.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert inspected.bindings == (claimed.binding,)
+    assert released.ok is True
+    assert released.binding is not None
+    assert released.binding.lifecycle_status == "released"
+    assert active_after_release.bindings == ()
+    assert len(all_after_release.bindings) == 1
+    assert [event.event_kind for event in events] == [
+        "binding_claimed",
+        "binding_released",
+    ]
+    assert events[0].binding_id == claimed.binding.binding_id
+
+
+def test_server_api_created_session_promotion_claims_continuous_worker_binding(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    opencode_session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+
+    promoted = promote_server_api_created_session_to_continuous_worker_binding(
+        ServerApiCreatedSessionPromotionRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            attach_url="http://127.0.0.1:4096/",
+            session_id="session-created-api",
+            worker_id="worker:server",
+            scope_kind="lane",
+            scope_id="lane:server",
+            audit_refs=("audit:server-api-created",),
+            timestamp="2026-06-30T15:10:00+00:00",
+            expires_at="2026-06-30T16:10:00+00:00",
+            metadata={"source_delivery_id": "delivery:server-api"},
+        )
+    )
+    inspected = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+        )
+    )
+    events = JsonlContinuousWorkerBindingEventLog(event_log_path).read_all()
+
+    assert promoted.ok is True
+    assert promoted.status == "promoted"
+    assert promoted.binding_claimed is True
+    assert promoted.binding is not None
+    assert promoted.binding == inspected.bindings[0]
+    assert promoted.binding.runtime_provider == "opencode"
+    assert promoted.binding.lane_ids == ("lane:server",)
+    assert promoted.binding.metadata["promotion_source"] == "server_api_created"
+    assert promoted.binding.metadata["promotion_authority"] == "explicit_host_owned_claim"
+    assert promoted.binding.active_session_selector is not None
+    assert promoted.binding.active_session_selector.attach_url == "http://127.0.0.1:4096"
+    assert promoted.binding.active_session_selector.session_id == "session-created-api"
+    assert promoted.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert promoted.to_json_dict()["authority_split"]["delivery_state_mutated"] is False
+    assert promoted.to_json_dict()["authority_split"]["local_work_trajectory_mutated"] is False
+    assert [event.event_kind for event in events] == ["binding_claimed"]
+    assert events[0].metadata["promotion_source"] == "server_api_created"
+    assert events[0].metadata["session_selector_source"] == "server_api_created"
+    assert not opencode_session_ledger_path.exists()
+
+
+def test_server_api_created_session_promotion_supports_lane_group(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    promoted = promote_server_api_created_session_to_continuous_worker_binding(
+        ServerApiCreatedSessionPromotionRequest(
+            ledger_path=ledger_path,
+            event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-web",
+            worker_id="worker:web",
+            scope_kind="lane_group",
+            scope_id="lane-group:web",
+            lane_ids=("lane:client", "lane:server"),
+            timestamp="2026-06-30T15:11:00+00:00",
+        )
+    )
+
+    assert promoted.ok is True
+    assert promoted.binding is not None
+    assert promoted.binding.scope_kind == "lane_group"
+    assert promoted.binding.lane_ids == ("lane:client", "lane:server")
+    assert promoted.binding.owned_lane_ids == ("lane:client", "lane:server")
+
+
+@pytest.mark.parametrize(
+    "selector_source",
+    ["explicit_config", "session_ledger", "continuous_worker_binding", "none"],
+)
+def test_server_api_created_session_promotion_rejects_non_created_sources(
+    tmp_path: Path,
+    selector_source: str,
+) -> None:
+    with pytest.raises(ValueError, match="session_selector_source=server_api_created"):
+        promote_server_api_created_session_to_continuous_worker_binding(
+            ServerApiCreatedSessionPromotionRequest(
+                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                session_selector_source=selector_source,
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-created-api",
+                worker_id="worker:server",
+                scope_kind="lane",
+                scope_id="lane:server",
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "override"),
+    [
+        ("attach_url", {"attach_url": ""}),
+        ("session_id", {"session_id": ""}),
+        ("scope_id", {"scope_id": ""}),
+        ("worker_id", {"worker_id": ""}),
+    ],
+)
+def test_server_api_created_session_promotion_rejects_missing_required_fields(
+    tmp_path: Path,
+    field_name: str,
+    override: dict[str, object],
+) -> None:
+    payload = {
+        "ledger_path": tmp_path / ".codex/runtime/continuous-worker-bindings.json",
+        "event_log_path": tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "attach_url": "http://127.0.0.1:4096",
+        "session_id": "session-created-api",
+        "worker_id": "worker:server",
+        "scope_kind": "lane",
+        "scope_id": "lane:server",
+    }
+    payload.update(override)
+
+    with pytest.raises(ValueError, match=field_name):
+        promote_server_api_created_session_to_continuous_worker_binding(
+            ServerApiCreatedSessionPromotionRequest(**payload)  # type: ignore[arg-type]
+        )
+
+
+def test_server_api_created_session_promotion_rejects_lane_group_without_lanes(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="lane_ids"):
+        promote_server_api_created_session_to_continuous_worker_binding(
+            ServerApiCreatedSessionPromotionRequest(
+                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-web",
+                worker_id="worker:web",
+                scope_kind="lane_group",
+                scope_id="lane-group:web",
+            )
+        )
+
+
+def test_server_api_created_session_promotion_rejects_secret_metadata(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="raw transcript or secret value"):
+        promote_server_api_created_session_to_continuous_worker_binding(
+            ServerApiCreatedSessionPromotionRequest(
+                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-created-api",
+                worker_id="worker:server",
+                scope_kind="lane",
+                scope_id="lane:server",
+                metadata={"api_key": "should-not-persist"},
+            )
+        )
+
+
+def test_continuous_worker_binding_recover_stale_and_lane_group_resolution(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            worker_id="worker:ui-and-api",
+            runtime_provider="opencode",
+            scope_kind="lane_group",
+            scope_id="lane-group:web",
+            lane_ids=("lane:client", "lane:server"),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-web-group",
+            ),
+            timestamp="2026-06-29T09:10:00+00:00",
+            expires_at="2026-06-29T09:30:00+00:00",
+        )
+    )
+    before = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            lane_id="lane:server",
+        )
+    )
+    stale = recover_stale_continuous_worker_bindings(
+        ContinuousWorkerBindingRecoverStaleRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            now="2026-06-29T09:31:00+00:00",
+            timestamp="2026-06-29T09:31:01+00:00",
+        )
+    )
+    after = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            lane_id="lane:server",
+        )
+    )
+    all_bindings = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=ledger_path,
+            lane_id="lane:server",
+            include_inactive=True,
+        )
+    )
+
+    assert len(before.bindings) == 1
+    assert before.bindings[0].scope_kind == "lane_group"
+    assert stale.ok is True
+    assert stale.stale_count == 1
+    assert stale.bindings[0].lifecycle_status == "stale"
+    assert after.bindings == ()
+    assert all_bindings.bindings[0].lifecycle_status == "stale"
+
+
+def test_continuous_worker_binding_reuse_fork_compact_and_expiry_resolution(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    claimed = claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server",
+            ),
+            compact_context_ref="dbc://context/server-v1",
+            timestamp="2026-06-29T09:00:00+00:00",
+            expires_at="2026-06-29T10:00:00+00:00",
+        )
+    )
+
+    reused = record_continuous_worker_binding_reuse(
+        ContinuousWorkerBindingReuseRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id=claimed.binding.binding_id,  # type: ignore[union-attr]
+            task_id="task-server-1",
+            agent_id="agent:server",
+            lane_id="lane:server",
+            timestamp="2026-06-29T09:05:00+00:00",
+            audit_refs=("audit:delivery-1",),
+        )
+    )
+    compacted = compact_continuous_worker_binding(
+        ContinuousWorkerBindingCompactRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id=claimed.binding.binding_id,  # type: ignore[union-attr]
+            compact_context_ref="dbc://context/server-v2",
+            mailbox_cursor_ref="dbc://mailbox/server@42",
+            worker_report_refs=("report:server-1",),
+            audit_refs=("audit:compact-1",),
+            timestamp="2026-06-29T09:10:00+00:00",
+        )
+    )
+    forked = fork_continuous_worker_binding(
+        ContinuousWorkerBindingForkRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            source_binding_id=claimed.binding.binding_id,  # type: ignore[union-attr]
+            worker_id="worker:server-experiment",
+            scope_kind="lane",
+            scope_id="lane:server-experiment",
+            timestamp="2026-06-29T09:15:00+00:00",
+            audit_refs=("audit:fork-1",),
+        )
+    )
+    before_expiry = resolve_continuous_worker_binding(
+        ContinuousWorkerBindingResolveRequest(
+            ledger_path=ledger_path,
+            runtime_provider="opencode",
+            lane_id="lane:server",
+            timestamp="2026-06-29T09:59:00+00:00",
+        )
+    )
+    after_expiry = resolve_continuous_worker_binding(
+        ContinuousWorkerBindingResolveRequest(
+            ledger_path=ledger_path,
+            runtime_provider="opencode",
+            lane_id="lane:server",
+            timestamp="2026-06-29T10:01:00+00:00",
+        )
+    )
+    events = JsonlContinuousWorkerBindingEventLog(event_log_path).read_all()
+
+    assert reused.ok is True
+    assert reused.binding is not None
+    assert reused.binding.last_used_at == "2026-06-29T09:05:00+00:00"
+    assert "audit:delivery-1" in reused.binding.audit_refs
+    assert compacted.ok is True
+    assert compacted.binding is not None
+    assert compacted.binding.compact_context_ref == "dbc://context/server-v2"
+    assert compacted.binding.mailbox_cursor_ref == "dbc://mailbox/server@42"
+    assert compacted.binding.worker_report_refs == ("report:server-1",)
+    assert forked.ok is True
+    assert forked.binding is not None
+    assert forked.binding.scope_id == "lane:server-experiment"
+    assert forked.binding.active_session_selector is not None
+    assert forked.binding.active_session_selector.fork_session is True
+    assert forked.binding.metadata["forked_from_binding_id"] == claimed.binding.binding_id  # type: ignore[union-attr]
+    assert before_expiry.ok is True
+    assert before_expiry.binding is not None
+    assert before_expiry.binding.binding_id == claimed.binding.binding_id  # type: ignore[union-attr]
+    assert after_expiry.ok is False
+    assert after_expiry.status == "not_found"
+    assert [event.event_kind for event in events] == [
+        "binding_claimed",
+        "binding_reused",
+        "binding_compacted",
+        "binding_forked",
+    ]
+
+
+def test_continuous_worker_binding_archive_has_distinct_event(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            worker_id="worker:archive",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:archive",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                session_id="session-archive",
+            ),
+        )
+    )
+
+    archived = release_continuous_worker_binding(
+        ContinuousWorkerBindingReleaseRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:archive",
+            lifecycle_status="archived",
+            timestamp="2026-06-29T13:20:00+00:00",
+            reason="lane archived after merge",
+        )
+    )
+    events = JsonlContinuousWorkerBindingEventLog(event_log_path).read_all()
+
+    assert archived.ok is True
+    assert archived.binding is not None
+    assert archived.binding.lifecycle_status == "archived"
+    assert events[-1].event_kind == "binding_archived"
+    assert events[-1].next_status == "archived"
+
+
+def test_continuous_worker_ownership_schema_lane_ownership_round_trips() -> None:
+    ownership = LaneOwnership(
+        ownership_id="lane-ownership:server",
+        scope_kind="lane",
+        scope_id="lane:server",
+        lane_ids=("lane:server",),
+        binding_id="continuous-worker:lane:server",
+        worker_id="worker:server",
+        status="active",
+        created_at="2026-06-30T09:00:00+00:00",
+        activated_at="2026-06-30T09:05:00+00:00",
+        updated_at="2026-06-30T09:06:00+00:00",
+        reason="server lane first delivery succeeded",
+        audit_refs=("audit:ownership-activated",),
+    )
+
+    restored = lane_ownership_from_json_dict(ownership.to_json_dict())
+
+    assert restored == ownership
+    assert restored.to_json_dict()["authority_split"]["provider_executed"] is False
+
+
+def test_continuous_worker_lane_ownership_claim_inspect_roundtrip(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+
+    claimed = claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id="continuous-worker:lane:server",
+            worker_id="worker:server",
+            timestamp="2026-06-30T10:00:00+00:00",
+            requested_by="host:test",
+            audit_refs=("audit:claim",),
+            metadata={"source": "unit-test"},
+        )
+    )
+    inspected = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(ledger_path=ledger_path, lane_id="lane:server")
+    )
+    allows_delivery = lane_ownership_allows_delivery(
+        ledger_path,
+        binding_id="continuous-worker:lane:server",
+        lane_id="lane:server",
+    )
+    ledger = read_lane_ownership_ledger(ledger_path)
+    events = JsonlLaneOwnershipEventLog(event_log_path).read_all()
+
+    assert claimed.ok is True
+    assert claimed.ownership is not None
+    assert claimed.ownership.status == "claimed"
+    assert claimed.ownership.lane_ids == ("lane:server",)
+    assert inspected.ownerships == (claimed.ownership,)
+    assert inspected.selectable is True
+    assert allows_delivery is True
+    assert ledger.ownerships == (claimed.ownership,)
+    assert [event.event_kind for event in events] == ["lane_ownership_claimed"]
+    assert events[0].metadata["requested_by"] == "host:test"
+
+
+def test_continuous_worker_lane_ownership_lane_group_conflict_and_release(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+
+    group_claim = claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane_group",
+            scope_id="lane-group:web",
+            lane_ids=("lane:server", "lane:client"),
+            binding_id="continuous-worker:lane-group:web",
+            worker_id="worker:web",
+            timestamp="2026-06-30T10:01:00+00:00",
+        )
+    )
+    conflict = claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id="continuous-worker:lane:server",
+            worker_id="worker:server",
+            timestamp="2026-06-30T10:01:01+00:00",
+        )
+    )
+    release = release_lane_ownership(
+        LaneOwnershipReleaseRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane-group:web",
+            timestamp="2026-06-30T10:01:02+00:00",
+        )
+    )
+    lane_claim = claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id="continuous-worker:lane:server",
+            worker_id="worker:server",
+            timestamp="2026-06-30T10:01:03+00:00",
+        )
+    )
+    active = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(ledger_path=ledger_path, include_inactive=False)
+    )
+    all_records = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(ledger_path=ledger_path, include_inactive=True)
+    )
+
+    assert group_claim.ok is True
+    assert group_claim.ownership is not None
+    assert group_claim.ownership.lane_ids == ("lane:server", "lane:client")
+    assert conflict.ok is False
+    assert conflict.status == "conflict"
+    assert "lane ownership conflict: lane already has active owner" in conflict.message
+    assert "allowed=transferOwnership|releaseOwnership|suspendOwnership" in conflict.message
+    assert release.ok is True
+    assert release.ownership is not None
+    assert release.ownership.status == "released"
+    assert lane_claim.ok is True
+    assert tuple(item.binding_id for item in active.ownerships) == (
+        "continuous-worker:lane:server",
+    )
+    assert len(all_records.ownerships) == 2
+
+
+def test_continuous_worker_lane_ownership_lifecycle_transitions(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+
+    claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id="continuous-worker:lane:server",
+            worker_id="worker:server",
+            timestamp="2026-06-30T10:02:00+00:00",
+        )
+    )
+    activated = activate_lane_ownership(
+        LaneOwnershipActivateRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            activated_at="2026-06-30T10:02:01+00:00",
+            delivery_id="delivery:server",
+            task_id="task:server",
+        )
+    )
+    suspended = suspend_lane_ownership(
+        LaneOwnershipSuspendRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            timestamp="2026-06-30T10:02:02+00:00",
+            reason="waiting for dependency",
+        )
+    )
+    disallowed_while_suspended = lane_ownership_allows_delivery(
+        ledger_path,
+        binding_id="continuous-worker:lane:server",
+        lane_id="lane:server",
+    )
+    resumed = resume_lane_ownership(
+        LaneOwnershipResumeRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            timestamp="2026-06-30T10:02:03+00:00",
+        )
+    )
+    transferred = transfer_lane_ownership(
+        LaneOwnershipTransferRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            replacement_binding_id="continuous-worker:lane:server-v2",
+            timestamp="2026-06-30T10:02:04+00:00",
+        )
+    )
+    active = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(ledger_path=ledger_path, include_inactive=False)
+    )
+    events = JsonlLaneOwnershipEventLog(event_log_path).read_all()
+
+    assert activated.ok is True
+    assert activated.ownership is not None
+    assert activated.ownership.status == "active"
+    assert suspended.ok is True
+    assert suspended.ownership is not None
+    assert suspended.ownership.status == "suspended"
+    assert suspended.selectable is False
+    assert disallowed_while_suspended is False
+    assert resumed.ok is True
+    assert resumed.ownership is not None
+    assert resumed.ownership.status == "active"
+    assert transferred.ok is True
+    assert transferred.ownership is not None
+    assert transferred.ownership.status == "transferred"
+    assert transferred.ownership.replacement_binding_id == (
+        "continuous-worker:lane:server-v2"
+    )
+    assert transferred.selectable is False
+    assert active.ownerships == ()
+    assert [event.event_kind for event in events] == [
+        "lane_ownership_claimed",
+        "lane_ownership_activated",
+        "lane_ownership_suspended",
+        "lane_ownership_resumed",
+        "lane_ownership_transferred",
+    ]
+
+
+def test_continuous_worker_lane_ownership_conflict_helpers_and_delivery_allowance() -> None:
+    active = LaneOwnership(
+        ownership_id="lane-ownership:server",
+        scope_kind="lane",
+        scope_id="lane:server",
+        lane_ids=("lane:server",),
+        binding_id="continuous-worker:lane:server",
+        worker_id="worker:server",
+        status="active",
+    )
+    claimed_group = LaneOwnership(
+        ownership_id="lane-ownership:web",
+        scope_kind="lane_group",
+        scope_id="lane-group:web",
+        lane_ids=("lane:server", "lane:client"),
+        binding_id="continuous-worker:lane-group:web",
+        worker_id="worker:web",
+        status="claimed",
+    )
+    suspended = LaneOwnership(
+        ownership_id="lane-ownership:suspended",
+        scope_kind="lane",
+        scope_id="lane:suspended",
+        lane_ids=("lane:suspended",),
+        binding_id="continuous-worker:lane:suspended",
+        worker_id="worker:suspended",
+        status="suspended",
+    )
+
+    conflicts = selectable_lane_ownership_conflicts((active, claimed_group, suspended))
+
+    assert conflicts == ((active, claimed_group),)
+    with pytest.raises(
+        ValueError,
+        match="lane ownership conflict: lane already has active owner",
+    ):
+        validate_no_selectable_lane_ownership_conflicts((active, claimed_group))
+    validate_no_selectable_lane_ownership_conflicts((active, suspended))
+
+
+def test_continuous_worker_lane_ownership_rejects_secret_metadata(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="lane ownership rejected: raw transcript or secret value is not allowed",
+    ):
+        claim_lane_ownership(
+            LaneOwnershipClaimRequest(
+                ledger_path=tmp_path / "lane-ownerships.json",
+                event_log_path=tmp_path / "lane-ownership-events.jsonl",
+                scope_kind="lane",
+                scope_id="lane:server",
+                binding_id="continuous-worker:lane:server",
+                worker_id="worker:server",
+                metadata={"raw_transcript": "full provider transcript"},
+            )
+        )
+
+
+def test_continuous_worker_ownership_schema_delivery_lease_round_trips() -> None:
+    lease = DeliveryLease(
+        lease_id="lease:server-1",
+        binding_id="continuous-worker:lane:server",
+        task_id="task:server-1",
+        delivery_id="delivery:server-1",
+        status="running",
+        reserved_at="2026-06-30T09:00:00+00:00",
+        started_at="2026-06-30T09:00:03+00:00",
+        expires_at="2026-06-30T09:10:00+00:00",
+        result_ref="",
+        audit_refs=("audit:lease-started",),
+    )
+
+    restored = delivery_lease_from_json_dict(lease.to_json_dict())
+
+    assert restored == lease
+    assert restored.to_json_dict()["authority_split"]["scheduler_state_mutated"] is False
+
+
+def test_continuous_worker_ownership_schema_binding_fields_round_trip(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+
+    claimed = claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                session_id="session-server",
+            ),
+            generation=2,
+            parent_binding_id="continuous-worker:lane:server-parent",
+            owned_lane_ids=("lane:server",),
+            private_storage_ref="dbc://agent-home/continuous-worker/custom-server",
+            private_storage_policy_ref="dbc://agent-home-policy/custom-retain",
+            compact_policy_ref="dbc://compact-policy/server",
+            compact_policy_default="manual",
+            last_compact_at="2026-06-30T08:30:00+00:00",
+            compact_needed=True,
+            timestamp="2026-06-30T09:00:00+00:00",
+        )
+    )
+
+    assert claimed.binding is not None
+    payload = claimed.binding.to_json_dict()
+    restored = continuous_worker_binding_from_json_dict(payload)
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    restored_from_ledger = continuous_worker_binding_from_json_dict(
+        ledger["bindings"][0]
+    )
+
+    assert restored == claimed.binding
+    assert restored_from_ledger == claimed.binding
+    assert restored.generation == 2
+    assert restored.parent_binding_id == "continuous-worker:lane:server-parent"
+    assert restored.owned_lane_ids == ("lane:server",)
+    assert restored.private_storage_ref == "dbc://agent-home/continuous-worker/custom-server"
+    assert restored.private_storage_policy_ref == "dbc://agent-home-policy/custom-retain"
+    assert restored.compact_policy_ref == "dbc://compact-policy/server"
+    assert restored.compact_policy_default == "manual"
+    assert restored.last_compact_at == "2026-06-30T08:30:00+00:00"
+    assert restored.compact_needed is True
+
+
+def test_continuous_worker_ownership_schema_defaults_private_storage_and_auto_compact() -> None:
+    binding = ContinuousWorkerBinding(
+        binding_id="continuous-worker:lane:server",
+        worker_id="worker:server",
+        runtime_provider="opencode",
+        scope_kind="lane",
+        scope_id="lane:server",
+        lane_ids=("lane:server",),
+        active_session_selector=ContinuousWorkerSessionSelector(
+            provider="opencode",
+            session_id="session-server",
+        ),
+    )
+
+    assert binding.private_storage_ref == (
+        "dbc://agent-home/continuous-worker/continuous-worker:lane:server"
+    )
+    assert binding.private_storage_policy_ref.endswith(
+        "default-retain-after-owned-lanes-merge"
+    )
+    assert binding.compact_policy_default == "auto"
+    assert binding.owned_lane_ids == ("lane:server",)
+    assert "has_private_storage" not in binding.to_json_dict()
+
+
+def test_continuous_worker_ownership_schema_rejects_has_private_storage() -> None:
+    payload = {
+        "binding_id": "continuous-worker:lane:server",
+        "worker_id": "worker:server",
+        "runtime_provider": "opencode",
+        "scope_kind": "lane",
+        "scope_id": "lane:server",
+        "has_private_storage": True,
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="worker binding schema rejected: private storage is a derived invariant",
+    ):
+        continuous_worker_binding_from_json_dict(payload)
+
+
+def test_continuous_worker_ownership_schema_manual_compact_keeps_auto_fallback() -> None:
+    accepted = continuous_worker_binding_from_json_dict(
+        {
+            "binding_id": "continuous-worker:lane:server",
+            "worker_id": "worker:server",
+            "runtime_provider": "opencode",
+            "scope_kind": "lane",
+            "scope_id": "lane:server",
+            "compact_policy_default": "manual",
+            "metadata": {"manual_compact": "operator-triggered"},
+        }
+    )
+
+    assert accepted.compact_policy_default == "manual"
+    with pytest.raises(
+        ValueError,
+        match="compact policy rejected: manual compact cannot disable auto fallback",
+    ):
+        continuous_worker_binding_from_json_dict(
+            {
+                "binding_id": "continuous-worker:lane:server",
+                "worker_id": "worker:server",
+                "runtime_provider": "opencode",
+                "scope_kind": "lane",
+                "scope_id": "lane:server",
+                "compact_policy_default": "manual",
+                "metadata": {"auto_fallback_disabled": True},
+            }
+        )
+
+
+def test_continuous_worker_ownership_schema_accepts_llm_auto_as_future_policy_value() -> None:
+    binding = continuous_worker_binding_from_json_dict(
+        {
+            "binding_id": "continuous-worker:lane:research",
+            "worker_id": "worker:research",
+            "runtime_provider": "opencode",
+            "scope_kind": "lane",
+            "scope_id": "lane:research",
+            "compact_policy_default": "llm-auto",
+            "metadata": {"future_policy_slot": "no model invocation in schema slice"},
+        }
+    )
+
+    assert binding.compact_policy_default == "llm-auto"
+    assert binding.metadata["future_policy_slot"] == "no model invocation in schema slice"
+
+
+def test_continuous_worker_ownership_schema_rejects_raw_transcript_or_secret_like_fields() -> None:
+    with pytest.raises(
+        ValueError,
+        match="worker binding rejected: raw transcript or secret value is not allowed",
+    ):
+        continuous_worker_binding_from_json_dict(
+            {
+                "binding_id": "continuous-worker:lane:server",
+                "worker_id": "worker:server",
+                "runtime_provider": "opencode",
+                "scope_kind": "lane",
+                "scope_id": "lane:server",
+                "metadata": {"raw_transcript": "full provider output"},
+            }
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="delivery lease rejected: raw transcript or secret value is not allowed",
+    ):
+        delivery_lease_from_json_dict(
+            {
+                "lease_id": "lease:server",
+                "binding_id": "continuous-worker:lane:server",
+                "task_id": "task:server",
+                "delivery_id": "delivery:server",
+                "audit_refs": ("audit:lease",),
+                "metadata": {"failure_detail": "api_key=abc123"},
+            }
+        )
+
+
+def test_continuous_worker_ownership_schema_detects_active_delivery_lease_conflicts() -> None:
+    running = DeliveryLease(
+        lease_id="lease:server-running",
+        binding_id="continuous-worker:lane:server",
+        task_id="task:server-1",
+        delivery_id="delivery:server-1",
+        status="running",
+    )
+    reserved = DeliveryLease(
+        lease_id="lease:server-reserved",
+        binding_id="continuous-worker:lane:server",
+        task_id="task:server-2",
+        delivery_id="delivery:server-2",
+        status="reserved",
+    )
+    completed = DeliveryLease(
+        lease_id="lease:server-completed",
+        binding_id="continuous-worker:lane:server",
+        task_id="task:server-0",
+        delivery_id="delivery:server-0",
+        status="completed",
+    )
+
+    conflicts = active_delivery_lease_conflicts((running, completed, reserved))
+
+    assert conflicts == ((running, reserved),)
+    with pytest.raises(
+        ValueError,
+        match="delivery lease conflict: binding already has active lease",
+    ):
+        validate_no_active_delivery_lease_conflicts((running, reserved))
+    validate_no_active_delivery_lease_conflicts((running, completed))
+
+
+def test_continuous_worker_delivery_lease_ledger_round_trip_and_conflict(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+
+    reserved = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-1",
+            delivery_id="delivery:server-1",
+            reserved_at="2026-06-30T09:00:00+00:00",
+            audit_refs=("audit:reserve",),
+            metadata={"lane_id": "lane:server"},
+        )
+    )
+    conflict = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-2",
+            delivery_id="delivery:server-2",
+            reserved_at="2026-06-30T09:00:01+00:00",
+        )
+    )
+    ledger = read_delivery_lease_ledger(ledger_path)
+    events = JsonlDeliveryLeaseEventLog(event_log_path).read_all()
+
+    assert reserved.ok is True
+    assert reserved.lease is not None
+    assert reserved.lease.status == "reserved"
+    assert conflict.ok is False
+    assert conflict.status == "active_conflict"
+    assert len(ledger.leases) == 1
+    assert ledger.leases[0] == reserved.lease
+    assert [event.event_kind for event in events] == ["delivery_lease_reserved"]
+    assert events[0].metadata["lane_id"] == "lane:server"
+    assert ledger.to_json_dict()["authority_split"]["provider_executed"] is False
+
+
+def test_continuous_worker_delivery_lease_transitions_release_then_rereserve(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+
+    reserve = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-1",
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-1",
+            delivery_id="delivery:server-1",
+            reserved_at="2026-06-30T09:00:00+00:00",
+        )
+    )
+    begin = begin_delivery_lease_run(
+        DeliveryLeaseBeginRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-1",
+            started_at="2026-06-30T09:00:01+00:00",
+            audit_refs=("opencode-delivery:run-1",),
+        )
+    )
+    complete = complete_delivery_lease(
+        DeliveryLeaseCompleteRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-1",
+            completed_at="2026-06-30T09:00:05+00:00",
+            result_ref="opencode-delivery:run-1",
+        )
+    )
+    release = release_delivery_lease(
+        DeliveryLeaseReleaseRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-1",
+            released_at="2026-06-30T09:00:06+00:00",
+        )
+    )
+    second = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-2",
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-2",
+            delivery_id="delivery:server-2",
+            reserved_at="2026-06-30T09:00:07+00:00",
+        )
+    )
+    active = inspect_delivery_leases(
+        DeliveryLeaseInspectRequest(
+            ledger_path=ledger_path,
+            include_inactive=False,
+        )
+    )
+    events = JsonlDeliveryLeaseEventLog(event_log_path).read_all()
+
+    assert reserve.ok is True
+    assert begin.ok is True
+    assert complete.ok is True
+    assert release.ok is True
+    assert second.ok is True
+    assert release.lease is not None
+    assert release.lease.status == "released"
+    assert active.leases == (second.lease,)
+    assert [event.event_kind for event in events] == [
+        "delivery_lease_reserved",
+        "delivery_lease_started",
+        "delivery_lease_completed",
+        "delivery_lease_released",
+        "delivery_lease_reserved",
+    ]
+
+
+def test_continuous_worker_delivery_lease_failed_retryable_does_not_block_rereserve(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+
+    reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-failure",
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-1",
+            delivery_id="delivery:server-1",
+            reserved_at="2026-06-30T09:00:00+00:00",
+        )
+    )
+    failed = fail_delivery_lease_retryable(
+        DeliveryLeaseFailRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-failure",
+            failed_at="2026-06-30T09:00:05+00:00",
+            failure_kind="timeout",
+            result_ref="opencode-delivery:run-failure",
+        )
+    )
+    next_reserve = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=ledger_path,
+            event_log_path=event_log_path,
+            lease_id="lease:server-retry",
+            binding_id="continuous-worker:lane:server",
+            task_id="task:server-2",
+            delivery_id="delivery:server-2",
+            reserved_at="2026-06-30T09:00:06+00:00",
+        )
+    )
+
+    assert failed.ok is True
+    assert failed.lease is not None
+    assert failed.lease.status == "failed_retryable"
+    assert next_reserve.ok is True
+    assert next_reserve.lease is not None
+    assert next_reserve.lease.status == "reserved"
+
+
+def test_continuous_worker_delivery_lease_rejects_secret_metadata(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="delivery lease rejected: raw transcript or secret value is not allowed",
+    ):
+        reserve_delivery_lease(
+            DeliveryLeaseReserveRequest(
+                ledger_path=tmp_path / "leases.json",
+                event_log_path=tmp_path / "lease-events.jsonl",
+                binding_id="continuous-worker:lane:server",
+                task_id="task:server",
+                delivery_id="delivery:server",
+                metadata={"raw_transcript": "full provider transcript"},
+            )
+        )
+
+
+def test_continuous_worker_compact_context_bundle_is_project_owned(
+    tmp_path: Path,
+) -> None:
+    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    bundle_dir = tmp_path / ".codex/runtime/continuous-worker-contexts"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=ledger_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                session_id="session-server",
+            ),
+            mailbox_cursor_ref="dbc://mailbox/server@10",
+            worker_report_refs=("report:previous",),
+            audit_refs=("audit:claim",),
+            timestamp="2026-06-29T13:00:00+00:00",
+        )
+    )
+
+    built = build_continuous_worker_compact_context_bundle(
+        ContinuousWorkerCompactContextBuildRequest(
+            ledger_path=ledger_path,
+            bundle_dir_path=bundle_dir,
+            binding_id="continuous-worker:lane:lane-server",
+            timestamp="2026-06-29T13:10:00+00:00",
+            summary="Server worker finished the API skeleton and is ready for routing.",
+            key_decisions=("Keep server/client ports isolated.",),
+            current_state="waiting for route validation",
+            artifact_refs=("server.js", "TEST_REPORT.md"),
+            worker_report_refs=("report:latest",),
+            audit_refs=("audit:compact",),
+        )
+    )
+    loaded = read_continuous_worker_compact_context_bundle(built.bundle_path)
+
+    assert built.ok is True
+    assert built.compact_context_ref.startswith("dbc://continuous-worker-context/")
+    assert built.to_json_dict()["authority_split"]["raw_transcript_persisted"] is False
+    assert loaded.binding_id == "continuous-worker:lane:lane-server"
+    assert loaded.summary.startswith("Server worker finished")
+    assert loaded.mailbox_cursor_ref == "dbc://mailbox/server@10"
+    assert loaded.worker_report_refs == ("report:previous", "report:latest")
+    assert loaded.audit_refs == ("audit:claim", "audit:compact")
+
+
+def test_provider_generic_delivery_naming_aliases_remain_compatible() -> None:
+    assert ProviderDeliverySupervisorRequest is CodexDeliverySupervisorRequest
+    assert ProviderDeliverySupervisorRecord is not None
+    assert ProviderDeliverySupervisorResult is not None
+    assert ProviderDeliveryBoundedLoopRequest is CodexDeliveryBoundedLoopRequest
+    assert ProviderDeliveryE2ESmokeRequest is CodexDeliveryE2ESmokeRequest
+    assert (
+        run_bounded_provider_delivery_supervisor_loop_for_codex
+        is run_bounded_codex_delivery_supervisor_loop
+    )
+    assert (
+        run_bounded_provider_delivery_supervisor_loop_for_opencode
+        is run_bounded_opencode_delivery_supervisor_loop
+    )
+    assert run_provider_delivery_supervisor_once_for_codex is run_codex_delivery_supervisor_once
+    assert run_provider_delivery_supervisor_once_for_opencode is run_opencode_delivery_supervisor_once
+    assert run_provider_delivery_e2e_smoke_for_codex is run_codex_delivery_e2e_smoke
+    assert run_provider_delivery_e2e_smoke_for_opencode is run_opencode_delivery_e2e_smoke
+
+    request = ProviderDeliveryE2ESmokeRequest(runtime_provider="opencode")
+    supervisor_request = ProviderDeliverySupervisorRequest(
+        delivery_state_path=".codex/scheduler/delivery-state.json",
+        delivery_event_log_path=".codex/scheduler/delivery-events.jsonl",
+        scheduler_snapshot_path=".codex/scheduler/state.json",
+        scheduler_event_log_path=".codex/scheduler/events.jsonl",
+        runtime_provider="opencode",
+    )
+
+    assert request.runtime_provider == "opencode"
+    assert supervisor_request.runtime_provider == "opencode"
 
 
 def test_scheduler_runs_qoder_adapter_through_registry_with_mock_client(tmp_path) -> None:
@@ -2504,6 +4842,439 @@ def test_qoder_sdk_host_readiness_report_is_credential_safe_when_missing() -> No
     assert payload["ready"] is False
     assert payload["error_kind"] == "sdk_unavailable"
     assert "redaction-fixture-value" not in json.dumps(payload)
+
+
+def test_codex_mcp_exposure_skips_when_cli_missing(tmp_path: Path) -> None:
+    from src.runtime.orchestration import inspect_codex_mcp_exposure
+
+    project = tmp_path / "project"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        "[mcp_servers.doc_based_coding_governance]\n"
+        "command = \".venv\\\\Scripts\\\\doc-based-coding-mcp.exe\"\n",
+        encoding="utf-8",
+    )
+    user_config = tmp_path / "config.toml"
+
+    diagnostic = inspect_codex_mcp_exposure(
+        project,
+        executable="missing-codex",
+        user_config_path=user_config,
+        which=lambda executable: None,
+    )
+    payload = diagnostic.to_json_dict()
+
+    assert payload["diagnostic_status"] == "skipped"
+    assert payload["suspected_problem"] == "codex_cli_unavailable"
+    assert payload["project_config_exists"] is True
+    assert payload["project_trusted"] is None
+    assert payload["mcp_list_ran"] is False
+    assert payload["authority_split"]["secret_material_read"] is False
+
+
+def test_codex_mcp_exposure_reports_untrusted_project(tmp_path: Path) -> None:
+    from src.runtime.orchestration import inspect_codex_mcp_exposure
+
+    project = tmp_path / "project"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        "[mcp_servers.doc_based_coding_governance]\n"
+        "command = \".venv\\\\Scripts\\\\doc-based-coding-mcp.exe\"\n",
+        encoding="utf-8",
+    )
+    user_config = tmp_path / "config.toml"
+    user_config.write_text(
+        "[projects.'c:\\\\other']\ntrust_level = \"trusted\"\n",
+        encoding="utf-8",
+    )
+
+    def runner(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.\n",
+            stderr="",
+        )
+
+    diagnostic = inspect_codex_mcp_exposure(
+        project,
+        user_config_path=user_config,
+        runner=runner,
+        which=lambda executable: "C:/tools/codex.exe",
+    )
+    payload = diagnostic.to_json_dict()
+
+    assert payload["diagnostic_status"] == "warning"
+    assert payload["suspected_problem"] == "project_not_trusted"
+    assert payload["project_config_exists"] is True
+    assert payload["project_trusted"] is False
+    assert payload["mcp_servers_zero_hint"] is True
+    assert any("trusted" in item for item in payload["remediation"])
+    assert payload["doc_based_coding_server_visible"] is False
+
+
+def test_codex_mcp_exposure_reports_visible_enabled_server(tmp_path: Path) -> None:
+    from src.runtime.orchestration import inspect_codex_mcp_exposure
+
+    project = tmp_path / "project"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        "[mcp_servers.doc-based-coding]\n"
+        "command = \".venv\\\\Scripts\\\\doc-based-coding-mcp.exe\"\n",
+        encoding="utf-8",
+    )
+    user_config = tmp_path / "config.toml"
+    user_config.write_text(
+        f"[projects.'{str(project).lower()}']\ntrust_level = \"trusted\"\n",
+        encoding="utf-8",
+    )
+
+    def runner(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=(
+                "Name              Command                         Args  Env  Cwd  Status   Auth\n"
+                "doc-based-coding  .venv\\\\Scripts\\\\doc-based-coding-mcp.exe  -  -  .    enabled  Unsupported\n"
+            ),
+            stderr="",
+        )
+
+    diagnostic = inspect_codex_mcp_exposure(
+        project,
+        user_config_path=user_config,
+        runner=runner,
+        which=lambda executable: "C:/tools/codex.exe",
+    )
+    payload = diagnostic.to_json_dict()
+
+    assert payload["diagnostic_status"] == "ok"
+    assert payload["suspected_problem"] == ""
+    assert payload["project_trusted"] is True
+    assert payload["doc_based_coding_server_visible"] is True
+    assert payload["doc_based_coding_server_enabled"] is True
+    assert payload["authority_split"]["mcp_tool_called"] is False
+
+
+def test_self_check_registry_filters_profile_and_aggregates_status(tmp_path: Path) -> None:
+    from src.runtime.orchestration import (
+        SelfCheckContext,
+        SelfCheckDefinition,
+        SelfCheckRegistry,
+        SelfCheckResult,
+    )
+
+    registry = SelfCheckRegistry(
+        (
+            SelfCheckDefinition(
+                check_id="codex.ok",
+                profiles=("codex",),
+                title="Codex OK",
+                description="ok",
+                run=lambda context: SelfCheckResult(
+                    check_id="codex.ok",
+                    profiles=("codex",),
+                    title="Codex OK",
+                    status="ok",
+                    summary="ok",
+                ),
+            ),
+            SelfCheckDefinition(
+                check_id="runtime.warn",
+                profiles=("runtime",),
+                title="Runtime Warning",
+                description="warning",
+                run=lambda context: SelfCheckResult(
+                    check_id="runtime.warn",
+                    profiles=("runtime",),
+                    title="Runtime Warning",
+                    status="warning",
+                    summary="warning",
+                    remediation=("Fix runtime warning.",),
+                ),
+            ),
+        )
+    )
+    context = SelfCheckContext(project_root=tmp_path)
+
+    codex_report = registry.run("codex", context)
+    all_report = registry.run("all", context)
+    vscode_report = registry.run("vscode", context)
+
+    assert [check.check_id for check in codex_report.checks] == ["codex.ok"]
+    assert codex_report.overall_status == "ok"
+    assert all_report.overall_status == "warning"
+    assert all_report.counts == {"ok": 1, "warning": 1, "failed": 0, "skipped": 0}
+    assert all_report.next_actions == ("Fix runtime warning.",)
+    assert vscode_report.overall_status == "skipped"
+    assert vscode_report.counts == {"ok": 0, "warning": 0, "failed": 0, "skipped": 0}
+
+
+def test_self_check_registry_rejects_duplicate_and_unknown_profiles() -> None:
+    from src.runtime.orchestration import SelfCheckDefinition, SelfCheckRegistry, SelfCheckResult
+
+    definition = SelfCheckDefinition(
+        check_id="dup",
+        profiles=("codex",),
+        title="Duplicate",
+        description="duplicate",
+        run=lambda context: SelfCheckResult(
+            check_id="dup",
+            profiles=("codex",),
+            title="Duplicate",
+            status="ok",
+            summary="ok",
+        ),
+    )
+    registry = SelfCheckRegistry((definition,))
+
+    with pytest.raises(ValueError, match="Duplicate self-check id"):
+        registry.register(definition)
+    with pytest.raises(ValueError, match="unknown profile"):
+        SelfCheckRegistry(
+            (
+                SelfCheckDefinition(
+                    check_id="bad",
+                    profiles=("moon",),  # type: ignore[arg-type]
+                    title="Bad",
+                    description="bad",
+                    run=definition.run,
+                ),
+            )
+        )
+
+
+def test_doctor_exit_code_maps_failed_report_to_two(tmp_path: Path) -> None:
+    from src.runtime.orchestration import (
+        SelfCheckContext,
+        SelfCheckDefinition,
+        SelfCheckRegistry,
+        SelfCheckResult,
+        doctor_exit_code,
+    )
+
+    registry = SelfCheckRegistry(
+        (
+            SelfCheckDefinition(
+                check_id="codex.failed",
+                profiles=("codex",),
+                title="Codex Failed",
+                description="failed",
+                run=lambda context: SelfCheckResult(
+                    check_id="codex.failed",
+                    profiles=("codex",),
+                    title="Codex Failed",
+                    status="failed",
+                    summary="failed",
+                ),
+            ),
+        )
+    )
+
+    failed_report = registry.run("codex", SelfCheckContext(project_root=tmp_path))
+    assert failed_report.overall_status == "failed"
+    assert doctor_exit_code(failed_report) == 2
+
+
+def test_run_self_check_doctor_codex_profile_uses_injected_codex_mcp_check(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    project = tmp_path / "project"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "config.toml").write_text(
+        "[mcp_servers.doc-based-coding]\n"
+        "command = \".venv\\\\Scripts\\\\doc-based-coding-mcp.exe\"\n",
+        encoding="utf-8",
+    )
+    user_config = tmp_path / "config.toml"
+    user_config.write_text(
+        f"[projects.'{str(project).lower()}']\ntrust_level = \"trusted\"\n",
+        encoding="utf-8",
+    )
+
+    def runner(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=(
+                "Name              Command                         Args  Env  Cwd  Status   Auth\n"
+                "doc-based-coding  .venv\\\\Scripts\\\\doc-based-coding-mcp.exe  -  -  .    enabled  Unsupported\n"
+            ),
+            stderr="",
+        )
+
+    report = run_self_check_doctor(
+        project,
+        profile="codex",
+        user_config_path=user_config,
+        runner=runner,
+        which=lambda executable: "C:/tools/codex.exe",
+    )
+    payload = report.to_json_dict()
+
+    assert payload["schema_version"] == "self-check-report/v1"
+    assert payload["overall_status"] == "ok"
+    assert payload["counts"] == {"ok": 1, "warning": 0, "failed": 0, "skipped": 0}
+    assert payload["checks"][0]["check_id"] == "codex.mcp_exposure"
+    assert payload["checks"][0]["secret_safe"] is True
+    assert payload["checks"][0]["authority_split"]["mcp_tool_called"] is False
+    assert "token" not in json.dumps(payload).lower()
+
+
+def test_opencode_cli_readiness_self_check_uses_injected_which(tmp_path: Path) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    missing = run_self_check_doctor(
+        tmp_path,
+        profile="opencode",
+        which=lambda executable: None,
+    )
+    missing_payload = missing.to_json_dict()
+    assert missing_payload["overall_status"] == "skipped"
+    assert missing_payload["checks"][0]["check_id"] == "opencode.cli_readiness"
+    assert missing_payload["checks"][0]["suspected_problem"] == "cli_unavailable"
+
+    available = run_self_check_doctor(
+        tmp_path,
+        profile="opencode",
+        which=lambda executable: "C:/tools/opencode.exe",
+    )
+    available_payload = available.to_json_dict()
+    assert available_payload["overall_status"] == "ok"
+    assert available_payload["checks"][0]["status"] == "ok"
+    assert available_payload["checks"][0]["authority_split"]["provider_executed"] is False
+    assert "token" not in json.dumps(available_payload).lower()
+
+
+def test_opencode_server_api_readiness_self_check_uses_injected_opener(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/global/health"):
+            return _JsonHttpResponse({"status": "ok", "version": "test"}, status=200)
+        if request.full_url.endswith("/doc"):
+            return _JsonHttpResponse(
+                {
+                    "openapi": "3.1.0",
+                    "info": {"title": "OpenCode API", "version": "1.2.3"},
+                },
+                status=200,
+            )
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    report = run_self_check_doctor(
+        tmp_path,
+        profile="opencode",
+        which=lambda executable: "C:/tools/opencode.exe",
+        environment={"OPENCODE_SERVER_PASSWORD": "secret-value"},
+        metadata={
+            "opencode_server_api_base_url": "http://127.0.0.1:4096",
+            "opencode_server_api_check_doc": True,
+            "opencode_server_api_opener": opener,
+        },
+    )
+    payload = report.to_json_dict()
+    checks = {check["check_id"]: check for check in payload["checks"]}
+
+    assert payload["overall_status"] == "ok"
+    assert set(checks) == {"opencode.cli_readiness", "opencode.server_api_readiness"}
+    server_check = checks["opencode.server_api_readiness"]
+    assert server_check["status"] == "ok"
+    assert server_check["evidence"]["doc_available"] is True
+    assert server_check["evidence"]["api_title"] == "OpenCode API"
+    assert server_check["authority_split"]["provider_executed"] is False
+    assert server_check["authority_split"]["secret_material_read"] is False
+    assert calls == [
+        "http://127.0.0.1:4096/global/health",
+        "http://127.0.0.1:4096/doc",
+    ]
+    assert "secret-value" not in json.dumps(payload)
+
+
+def test_opencode_server_api_readiness_self_check_skips_unreachable(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    def opener(*args, **kwargs):
+        raise TimeoutError("server did not answer")
+
+    report = run_self_check_doctor(
+        tmp_path,
+        profile="runtime",
+        which=lambda executable: None,
+        metadata={"opencode_server_api_opener": opener},
+    )
+    payload = report.to_json_dict()
+    checks = {check["check_id"]: check for check in payload["checks"]}
+
+    assert checks["opencode.server_api_readiness"]["status"] == "skipped"
+    assert checks["opencode.server_api_readiness"]["suspected_problem"] == (
+        "server_unreachable"
+    )
+    assert checks["opencode.server_api_readiness"]["authority_split"][
+        "provider_executed"
+    ] is False
+
+
+def test_scheduler_storage_visibility_reports_missing_storage(tmp_path: Path) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    report = run_self_check_doctor(tmp_path, profile="scheduler")
+    payload = report.to_json_dict()
+
+    assert payload["overall_status"] == "warning"
+    assert payload["checks"][0]["check_id"] == "scheduler.storage_visibility"
+    assert payload["checks"][0]["suspected_problem"] == "scheduler_storage_missing"
+    assert payload["checks"][0]["authority_split"]["provider_executed"] is False
+
+
+def test_scheduler_storage_visibility_reads_default_snapshot_and_event_log(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import (
+        SchedulerState,
+        ScheduledTask,
+        AgentSpec,
+        ContextScope,
+        run_self_check_doctor,
+        write_scheduler_state_snapshot,
+    )
+
+    scheduler_dir = tmp_path / ".codex" / "scheduler"
+    snapshot = scheduler_dir / "state.json"
+    event_log = scheduler_dir / "events.jsonl"
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                "task-1": ScheduledTask(
+                    task_id="task-1",
+                    title="Task",
+                    instruction="Do work",
+                    agent=AgentSpec(agent_id="agent:one", runtime_provider="fake"),
+                    context_scope=ContextScope(context_id="ctx", lane_id="lane:main"),
+                )
+            }
+        ),
+        snapshot,
+    )
+    event_log.write_text('{"event_id":"event-1"}\n\n', encoding="utf-8")
+
+    report = run_self_check_doctor(tmp_path, profile="scheduler")
+    payload = report.to_json_dict()
+
+    assert payload["overall_status"] == "ok"
+    evidence = payload["checks"][0]["evidence"]
+    assert evidence["task_count"] == 1
+    assert evidence["event_log_line_count"] == 1
+    assert payload["checks"][0]["authority_split"]["read_only"] is True
 
 
 def test_qoder_sdk_query_client_fails_closed_when_auth_token_missing() -> None:
@@ -12628,6 +15399,16 @@ class _RecordingCodexCliClient:
         return self.result
 
 
+class _RecordingOpenCodeCliClient:
+    def __init__(self, result: OpenCodeCliResult) -> None:
+        self.result = result
+        self.requests: tuple[OpenCodeCliRequest, ...] = ()
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        self.requests = self.requests + (request,)
+        return self.result
+
+
 class _EditingCodexCliClient:
     def __init__(self, *, relative_path: str, content: str) -> None:
         self.relative_path = relative_path
@@ -12660,6 +15441,38 @@ class _EditingCodexCliClient:
         )
 
 
+class _EditingOpenCodeCliClient:
+    def __init__(self, *, relative_path: str, content: str) -> None:
+        self.relative_path = relative_path
+        self.content = content
+        self.requests: tuple[OpenCodeCliRequest, ...] = ()
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        self.requests = self.requests + (request,)
+        workspace = Path(request.task.runtime_workspace_root)
+        if not workspace:
+            raise AssertionError("editing OpenCode test client requires runtime workspace root")
+        target = workspace / self.relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(self.content, encoding="utf-8")
+        return OpenCodeCliResult(
+            summary=f"edited {self.relative_path}",
+            output_text=f"edited {self.relative_path}",
+            artifact_delta=ArtifactDelta(
+                artifact_id=request.output_artifact_id or f"{request.task.task_id}:opencode-result",
+                version="v1",
+                summary=f"edited {self.relative_path}",
+                changed_refs=(
+                    ExchangeReference(
+                        ref_kind="file",
+                        ref_id=self.relative_path,
+                        path=self.relative_path,
+                    ),
+                ),
+            ),
+        )
+
+
 class _SequenceCodexCliClient:
     def __init__(self, results: tuple[CodexCliResult, ...]) -> None:
         self.results = results
@@ -12670,6 +15483,19 @@ class _SequenceCodexCliClient:
         index = len(self.requests) - 1
         if index >= len(self.results):
             raise AssertionError("Codex client was invoked more times than expected")
+        return self.results[index]
+
+
+class _SequenceOpenCodeCliClient:
+    def __init__(self, results: tuple[OpenCodeCliResult, ...]) -> None:
+        self.results = results
+        self.requests: tuple[OpenCodeCliRequest, ...] = ()
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        self.requests = self.requests + (request,)
+        index = len(self.requests) - 1
+        if index >= len(self.results):
+            raise AssertionError("OpenCode client was invoked more times than expected")
         return self.results[index]
 
 
@@ -12691,6 +15517,26 @@ class _UnavailableCodexCliClient:
     def exec(self, request: CodexCliRequest) -> CodexCliResult:
         self.requests = self.requests + (request,)
         raise AssertionError("unavailable Codex client should not be invoked")
+
+
+class _UnavailableOpenCodeCliClient:
+    def __init__(self) -> None:
+        self.requests: tuple[OpenCodeCliRequest, ...] = ()
+
+    def host_readiness_report(self) -> OpenCodeCliHostReadinessReport:
+        return OpenCodeCliHostReadinessReport(
+            executable="missing-opencode",
+            executable_resolved="",
+            cli_available=False,
+            ready=False,
+            error_kind="cli_unavailable",
+            raw_error_type="MissingExecutable",
+            summary="OpenCode CLI executable is unavailable: missing-opencode",
+        )
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        self.requests = self.requests + (request,)
+        raise AssertionError("unavailable OpenCode client should not be invoked")
 
 
 class _FailingCodexCliClient:
@@ -12720,8 +15566,14 @@ class _SequenceCodexCliClientWithFailures:
 
 
 class _BarrierCodexCliClient:
-    def __init__(self, *, expected_concurrent_calls: int) -> None:
+    def __init__(
+        self,
+        *,
+        expected_concurrent_calls: int,
+        hold_after_barrier_seconds: float = 0.0,
+    ) -> None:
         self.expected_concurrent_calls = expected_concurrent_calls
+        self.hold_after_barrier_seconds = hold_after_barrier_seconds
         self.requests: tuple[CodexCliRequest, ...] = ()
         self.first_batch_task_ids: tuple[str, ...] = ()
         self.active_calls = 0
@@ -12743,9 +15595,80 @@ class _BarrierCodexCliClient:
         try:
             if wait_for_batch:
                 self._barrier.wait()
+                if self.hold_after_barrier_seconds:
+                    time.sleep(self.hold_after_barrier_seconds)
             return CodexCliResult(
                 summary=f"{request.task.task_id} complete",
                 output_text=f"{request.task.task_id} complete",
+            )
+        finally:
+            with self._lock:
+                self.active_calls -= 1
+
+
+class _BarrierOpenCodeCliClient:
+    def __init__(
+        self,
+        *,
+        expected_concurrent_calls: int,
+        hold_after_barrier_seconds: float = 0.0,
+    ) -> None:
+        self.expected_concurrent_calls = expected_concurrent_calls
+        self.hold_after_barrier_seconds = hold_after_barrier_seconds
+        self.requests: tuple[OpenCodeCliRequest, ...] = ()
+        self.first_batch_task_ids: tuple[str, ...] = ()
+        self.active_calls = 0
+        self.max_active_calls = 0
+        self._lock = threading.Lock()
+        self._barrier = threading.Barrier(expected_concurrent_calls, timeout=5.0)
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        wait_for_batch = False
+        with self._lock:
+            self.requests = self.requests + (request,)
+            self.active_calls += 1
+            self.max_active_calls = max(self.max_active_calls, self.active_calls)
+            if len(self.requests) <= self.expected_concurrent_calls:
+                self.first_batch_task_ids = self.first_batch_task_ids + (
+                    request.task.task_id,
+                )
+                wait_for_batch = True
+        try:
+            if wait_for_batch:
+                self._barrier.wait()
+                if self.hold_after_barrier_seconds:
+                    time.sleep(self.hold_after_barrier_seconds)
+            return OpenCodeCliResult(
+                summary=f"{request.task.task_id} complete",
+                output_text=f"{request.task.task_id} complete",
+            )
+        finally:
+            with self._lock:
+                self.active_calls -= 1
+
+
+class _BarrierFailingOpenCodeCliClient(_BarrierOpenCodeCliClient):
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        wait_for_batch = False
+        with self._lock:
+            self.requests = self.requests + (request,)
+            self.active_calls += 1
+            self.max_active_calls = max(self.max_active_calls, self.active_calls)
+            if len(self.requests) <= self.expected_concurrent_calls:
+                self.first_batch_task_ids = self.first_batch_task_ids + (
+                    request.task.task_id,
+                )
+                wait_for_batch = True
+        try:
+            if wait_for_batch:
+                self._barrier.wait()
+                if self.hold_after_barrier_seconds:
+                    time.sleep(self.hold_after_barrier_seconds)
+            raise OpenCodeCliRuntimeError(
+                error_kind="process_failed",
+                summary=f"{request.task.task_id} failed after overlap",
+                raw_error_type="SyntheticFailure",
+                retryable=False,
             )
         finally:
             with self._lock:
@@ -12960,6 +15883,134 @@ def test_runtime_invocation_log_inspection_and_compaction(tmp_path: Path) -> Non
     assert compacted.archived_count == 2
     assert compacted.retained_count == 1
     assert [record.invocation_id for record in JsonlRuntimeInvocationLog(log_path).read_all()] == ["inv-2"]
+
+
+def test_worker_binding_promotion_candidate_readback_from_runtime_invocation_log(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / ".codex/runtime/opencode-delivery-invocations.jsonl"
+    JsonlRuntimeInvocationLog(log_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-opencode-server-api",
+            provider="opencode",
+            status="succeeded",
+            started_at="2026-07-01T10:00:00+00:00",
+            ended_at="2026-07-01T10:00:01+00:00",
+            task_id="task-server",
+            agent_id="agent:server",
+            runtime_surface="opencode-delivery-supervisor",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-01T10:00:00+00:00",
+                    ended_at="2026-07-01T10:00:01+00:00",
+                    status="succeeded",
+                    metadata={
+                        "transport": "server-api",
+                        "base_url": "http://127.0.0.1:4096",
+                        "session_id": "session-created-api",
+                        "created_session": True,
+                        "session_selector_source": "server_api_created",
+                    },
+                ),
+            ),
+            metadata={
+                "lane_id": "lane:server",
+                "context_id": "ctx:server",
+                "session_selector_source": "none",
+            },
+        )
+    )
+
+    result = inspect_worker_binding_promotion_candidates(
+        WorkerBindingPromotionCandidateReadbackRequest(
+            runtime_invocation_log_path=log_path,
+        )
+    )
+
+    assert result.ok is True
+    assert result.exists is True
+    assert result.candidate_count == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "opencode"
+    assert candidate.session_selector_source == "server_api_created"
+    assert candidate.attach_url == "http://127.0.0.1:4096"
+    assert candidate.session_id == "session-created-api"
+    assert candidate.source_audit_ref.endswith(
+        "opencode-delivery-invocations.jsonl#inv-opencode-server-api:attempt-1"
+    )
+    assert candidate.suggested_worker_id == "worker:lane-server"
+    assert candidate.suggested_scope_kind == "lane"
+    assert candidate.suggested_scope_id == "lane:server"
+    assert "--audit-ref" in candidate.suggested_command
+    payload = result.to_json_dict()
+    assert payload["authority_split"]["continuous_worker_binding_ledger_mutated"] is False
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert payload["authority_split"]["raw_transcript_exposed"] is False
+    assert "transcript body" not in json.dumps(payload)
+    assert "secret-token" not in json.dumps(payload)
+    assert not (tmp_path / ".codex/runtime/continuous-worker-bindings.json").exists()
+
+
+def test_worker_binding_promotion_candidate_readback_filters_non_created_sources(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / ".codex/runtime/invocations.jsonl"
+    log = JsonlRuntimeInvocationLog(log_path)
+    log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-explicit",
+            provider="opencode",
+            status="succeeded",
+            started_at="2026-07-01T10:00:00+00:00",
+            ended_at="2026-07-01T10:00:01+00:00",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-01T10:00:00+00:00",
+                    ended_at="2026-07-01T10:00:01+00:00",
+                    status="succeeded",
+                    metadata={
+                        "base_url": "http://127.0.0.1:4096",
+                        "session_id": "session-explicit",
+                        "created_session": False,
+                        "session_selector_source": "explicit_config",
+                    },
+                ),
+            ),
+        )
+    )
+    log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-codex",
+            provider="codex",
+            status="succeeded",
+            started_at="2026-07-01T10:00:02+00:00",
+            ended_at="2026-07-01T10:00:03+00:00",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-01T10:00:02+00:00",
+                    ended_at="2026-07-01T10:00:03+00:00",
+                    status="succeeded",
+                    metadata={"session_selector_source": "server_api_created"},
+                ),
+            ),
+        )
+    )
+
+    result = inspect_worker_binding_promotion_candidates(
+        WorkerBindingPromotionCandidateReadbackRequest(runtime_invocation_log_path=log_path)
+    )
+
+    assert result.ok is True
+    assert result.candidate_count == 0
+    assert result.skipped_count == 2
+    assert result.skip_reasons["not_server_api_created"] == 1
+    assert result.skip_reasons["provider_not_opencode"] == 1
 
 
 def test_leader_worker_policy_recommends_single_lane_and_requires_multilane() -> None:
@@ -13333,6 +16384,1769 @@ def test_codex_delivery_supervisor_acknowledges_pending_codex_task(
     assert runtime_records[0].runtime_surface == "host-owned-codex-delivery-supervisor-once"
 
 
+def test_opencode_delivery_supervisor_acknowledges_pending_opencode_task(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T08:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T08:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-29T08:00:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-test",
+        ),
+        opencode_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert result.skipped_count == 2
+    assert result.attempted_count == 1
+    assert result.to_json_dict()["runtime_provider"] == "opencode"
+    assert result.to_json_dict()["authority_split"]["provider_executed"] is True
+    assert result.to_json_dict()["authority_split"]["workflow_surface"] == (
+        "host-owned-opencode-delivery-supervisor-once"
+    )
+    assert client.requests[0].task.task_id == "task-server"
+    assert client.requests[0].agent.runtime_provider == "opencode"
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
+    acknowledged = next(
+        record for record in state.records.values() if record.delivery_state == "acknowledged"
+    )
+    assert acknowledged.runtime_provider == "opencode"
+    assert acknowledged.runtime_session_id == "opencode-session-1"
+    assert acknowledged.runtime_run_id == "opencode-run-1"
+    assert acknowledged.invocation_id == (
+        "opencode-delivery:host-invocation:opencode-test:"
+        "opencode-session-1:task-server"
+    )
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].status == "succeeded"
+    assert runtime_records[0].runtime_surface == "host-owned-opencode-delivery-supervisor-once"
+
+
+def test_opencode_delivery_supervisor_uses_lane_session_ledger_binding(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-server-lane",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T08:05:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T08:05:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-29T08:05:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-ledger-test",
+            opencode_session_ledger_path=ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert client.requests[0].host_session is not None
+    assert client.requests[0].host_session.session_id == "session-server-lane"
+    assert client.requests[0].host_session.scope_kind == "lane"
+    assert client.requests[0].host_session.scope_id == "lane:server"
+    assert runtime_records[0].metadata["session_selector_source"] == "session_ledger"
+    assert runtime_records[0].metadata["opencode_session_scope_id"] == "lane:server"
+
+
+def test_opencode_delivery_supervisor_server_api_uses_lane_session_ledger_binding(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-server-api-lane",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T08:05:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T08:05:01+00:00",
+            host_id="host:test",
+        )
+    )
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/session/session-server-api-lane/message"):
+            return _JsonHttpResponse({"content": "server api ledger done"})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T08:05:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-server-api-ledger-test",
+            opencode_session_ledger_path=ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert calls == [
+        "http://127.0.0.1:4096/session/session-server-api-lane/message"
+    ]
+    assert runtime_records[0].metadata["session_selector_source"] == "session_ledger"
+    assert runtime_records[0].metadata["opencode_session_scope_id"] == "lane:server"
+    assert runtime_records[0].attempts[0].metadata["transport"] == "server-api"
+    assert runtime_records[0].attempts[0].metadata["created_session"] is False
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "session_ledger"
+    )
+
+
+def test_opencode_delivery_supervisor_prefers_task_binding_over_lane_binding(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-lane",
+        )
+    )
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=ledger_path,
+            scope_kind="task",
+            scope_id="task-server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-task",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T08:06:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T08:06:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=None,
+            max_deliveries=1,
+            timestamp="2026-06-29T08:06:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-task-ledger-test",
+            opencode_session_ledger_path=ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+
+    assert result.ok is True
+    assert client.requests[0].host_session is not None
+    assert client.requests[0].host_session.session_id == "session-task"
+    assert client.requests[0].host_session.scope_kind == "task"
+
+
+def test_opencode_delivery_supervisor_server_api_http_failure_uses_audit_path(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T08:06:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T08:06:01+00:00",
+            host_id="host:test",
+        )
+    )
+
+    def opener(request, **kwargs):
+        if request.full_url.endswith("/session"):
+            return _JsonHttpResponse({"id": "session-created"})
+        raise urllib.error.HTTPError(
+            request.full_url,
+            503,
+            "unavailable",
+            hdrs=None,
+            fp=None,
+        )
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T08:06:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-server-api-failure-test",
+            runtime_invocation_max_attempts=1,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is False
+    assert result.failed_count == 1
+    failed_record = next(record for record in result.records if record.status == "failed")
+    assert failed_record.failure_kind == "process_failed"
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].status == "failed"
+    assert runtime_records[0].final_error_kind == "process_failed"
+    assert runtime_records[0].attempts[0].raw_error_type == "HTTP503"
+
+
+def test_opencode_delivery_supervisor_server_api_uses_continuous_binding_before_session_ledger(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=session_ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-legacy-lane",
+        )
+    )
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server-api",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-server-api",
+            ),
+            compact_context_ref="dbc://context/server-api-worker-compact",
+            timestamp="2026-06-30T08:07:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T08:07:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T08:07:02+00:00",
+            host_id="host:test",
+        )
+    )
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/session/session-continuous-server-api/message"):
+            return _JsonHttpResponse({"content": "continuous server api done"})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T08:07:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-server-api-worker-binding-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_session_ledger_path=session_ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    binding_events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+
+    assert result.ok is True
+    assert calls == [
+        "http://127.0.0.1:4096/session/session-continuous-server-api/message"
+    ]
+    assert runtime_records[0].metadata["session_selector_source"] == (
+        "continuous_worker_binding"
+    )
+    assert runtime_records[0].metadata["continuous_worker_id"] == "worker:server-api"
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "continuous_worker_binding"
+    )
+    assert runtime_records[0].attempts[0].metadata["created_session"] is False
+    assert [event.event_kind for event in binding_events] == [
+        "binding_claimed",
+        "binding_reused",
+    ]
+
+
+def test_opencode_delivery_supervisor_server_api_explicit_session_disables_ledger_lookup(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=session_ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-legacy-lane",
+        )
+    )
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server-api",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-server-api",
+            ),
+            timestamp="2026-06-30T08:08:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T08:08:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T08:08:02+00:00",
+            host_id="host:test",
+        )
+    )
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/session/session-explicit-server-api/message"):
+            return _JsonHttpResponse({"content": "explicit server api done"})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(
+            base_url="http://127.0.0.1:4096",
+            session_id="session-explicit-server-api",
+        ),
+        opener=opener,
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T08:08:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-server-api-explicit-precedence-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_session_ledger_path=session_ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    binding_events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+
+    assert result.ok is True
+    assert calls == [
+        "http://127.0.0.1:4096/session/session-explicit-server-api/message"
+    ]
+    assert runtime_records[0].metadata["session_selector_source"] == "explicit_config"
+    assert runtime_records[0].metadata["continuous_worker_binding_id"] == ""
+    assert runtime_records[0].attempts[0].metadata["created_session"] is False
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "explicit_config"
+    )
+    assert [event.event_kind for event in binding_events] == ["binding_claimed"]
+
+
+def test_opencode_delivery_supervisor_server_api_created_session_does_not_write_ledgers(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T08:09:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T08:09:02+00:00",
+            host_id="host:test",
+        )
+    )
+    calls: list[str] = []
+
+    def opener(request, **kwargs):
+        calls.append(request.full_url)
+        if request.full_url.endswith("/session"):
+            return _JsonHttpResponse({"id": "session-created-unclaimed"})
+        if request.full_url.endswith("/session/session-created-unclaimed/message"):
+            return _JsonHttpResponse({"content": "created session done"})
+        raise AssertionError(f"unexpected URL: {request.full_url}")
+
+    client = OpenCodeServerApiClient(
+        OpenCodeServerApiClientConfig(base_url="http://127.0.0.1:4096"),
+        opener=opener,
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T08:09:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-server-api-created-unclaimed-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_session_ledger_path=session_ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert calls == [
+        "http://127.0.0.1:4096/session",
+        "http://127.0.0.1:4096/session/session-created-unclaimed/message",
+    ]
+    assert runtime_records[0].metadata["session_selector_source"] == "none"
+    assert runtime_records[0].attempts[0].metadata["session_selector_source"] == (
+        "server_api_created"
+    )
+    assert runtime_records[0].attempts[0].metadata["created_session"] is True
+    assert runtime_records[0].attempts[0].metadata["session_persistence"] == (
+        "not_persisted_by_delivery"
+    )
+    assert runtime_records[0].attempts[0].metadata[
+        "server_api_created_session_persisted"
+    ] is False
+    assert not session_ledger_path.exists()
+    assert not worker_ledger_path.exists()
+    assert not worker_event_log_path.exists()
+
+
+def test_opencode_delivery_supervisor_uses_continuous_worker_binding_before_session_ledger(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    claim_opencode_session_binding(
+        OpenCodeSessionClaimRequest(
+            ledger_path=session_ledger_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            attach_url="http://127.0.0.1:4096",
+            session_id="session-legacy-lane",
+        )
+    )
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-worker",
+            ),
+            compact_context_ref="dbc://context/server-worker-compact",
+            audit_refs=("audit:continuous-worker-claim",),
+            timestamp="2026-06-29T09:20:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T09:20:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T09:20:02+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-29T09:20:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-worker-binding-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_session_ledger_path=session_ledger_path,
+            opencode_enable_session_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert client.requests[0].host_session is not None
+    assert client.requests[0].host_session.session_id == "session-continuous-worker"
+    assert client.requests[0].host_session.selector_source == "continuous_worker_binding"
+    assert client.requests[0].host_session.worker_binding_id == (
+        "continuous-worker:lane:lane-server"
+    )
+    assert client.requests[0].host_session.compact_context_ref == (
+        "dbc://context/server-worker-compact"
+    )
+    assert runtime_records[0].metadata["session_selector_source"] == (
+        "continuous_worker_binding"
+    )
+    assert runtime_records[0].metadata["continuous_worker_id"] == "worker:server"
+    assert runtime_records[0].metadata["continuous_worker_compact_context_ref"] == (
+        "dbc://context/server-worker-compact"
+    )
+    binding_events = JsonlContinuousWorkerBindingEventLog(
+        worker_event_log_path
+    ).read_all()
+    lease_events = JsonlDeliveryLeaseEventLog(lease_event_log_path).read_all()
+    leases = inspect_delivery_leases(DeliveryLeaseInspectRequest(ledger_path=lease_ledger_path))
+
+    assert [event.event_kind for event in binding_events] == [
+        "binding_claimed",
+        "binding_reused",
+    ]
+    assert binding_events[-1].metadata["task_id"] == "task-server"
+    assert [event.event_kind for event in lease_events] == [
+        "delivery_lease_reserved",
+        "delivery_lease_started",
+        "delivery_lease_completed",
+    ]
+    assert len(leases.leases) == 1
+    assert leases.leases[0].binding_id == "continuous-worker:lane:lane-server"
+    assert leases.leases[0].status == "completed"
+
+
+def test_opencode_delivery_supervisor_carries_continuous_worker_context_refs(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    claimed = claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-worker",
+            ),
+            compact_context_ref="dbc://context/server-worker-v1",
+            audit_refs=("audit:continuous-worker-claim",),
+            timestamp="2026-07-01T14:00:00+00:00",
+        )
+    )
+    assert claimed.binding is not None
+    compacted = compact_continuous_worker_binding(
+        ContinuousWorkerBindingCompactRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            binding_id=claimed.binding.binding_id,
+            compact_context_ref="dbc://context/server-worker-v2",
+            mailbox_cursor_ref="dbc://mailbox/server@42",
+            worker_report_refs=("report:server-previous", "report:server-latest"),
+            audit_refs=("audit:continuous-worker-compact",),
+            timestamp="2026-07-01T14:00:01+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-07-01T14:00:02+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-07-01T14:00:03+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-07-01T14:00:04+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-context-carry-over-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_enable_session_lookup=False,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    host_session = client.requests[0].host_session
+
+    assert compacted.ok is True
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert host_session is not None
+    assert host_session.selector_source == "continuous_worker_binding"
+    assert host_session.worker_binding_id == claimed.binding.binding_id
+    assert host_session.compact_context_ref == "dbc://context/server-worker-v2"
+    assert host_session.mailbox_cursor_ref == "dbc://mailbox/server@42"
+    assert host_session.worker_report_refs == (
+        "report:server-previous",
+        "report:server-latest",
+    )
+    assert "audit:continuous-worker-compact" in host_session.audit_refs
+    assert host_session.to_metadata()["mailbox_cursor_ref"] == "dbc://mailbox/server@42"
+    assert host_session.to_metadata()["worker_report_refs"] == [
+        "report:server-previous",
+        "report:server-latest",
+    ]
+    assert runtime_records[0].metadata["session_selector_source"] == (
+        "continuous_worker_binding"
+    )
+    assert runtime_records[0].metadata["continuous_worker_compact_context_ref"] == (
+        "dbc://context/server-worker-v2"
+    )
+    assert runtime_records[0].metadata["continuous_worker_mailbox_cursor_ref"] == (
+        "dbc://mailbox/server@42"
+    )
+    assert runtime_records[0].metadata["continuous_worker_report_refs"] == [
+        "report:server-previous",
+        "report:server-latest",
+    ]
+
+
+def test_opencode_delivery_supervisor_hydrates_compact_context_bundle(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    context_bundle_dir = tmp_path / ".codex/runtime/continuous-worker-contexts"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    claimed = claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-worker",
+            ),
+            mailbox_cursor_ref="dbc://mailbox/server@42",
+            worker_report_refs=("report:server-previous",),
+            audit_refs=("audit:continuous-worker-claim",),
+            timestamp="2026-07-02T09:00:00+00:00",
+        )
+    )
+    assert claimed.binding is not None
+    built = build_continuous_worker_compact_context_bundle(
+        ContinuousWorkerCompactContextBuildRequest(
+            ledger_path=worker_ledger_path,
+            bundle_dir_path=context_bundle_dir,
+            binding_id=claimed.binding.binding_id,
+            timestamp="2026-07-02T09:00:01+00:00",
+            summary="Server worker already built the route skeleton.",
+            key_decisions=("Keep server and client ports isolated.",),
+            current_state="Needs route validation before merge.",
+            artifact_refs=("server.js", "TEST_REPORT.md"),
+            worker_report_refs=("report:server-latest",),
+            audit_refs=("audit:continuous-worker-compact",),
+        )
+    )
+    assert built.ok is True
+    compacted = compact_continuous_worker_binding(
+        ContinuousWorkerBindingCompactRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            binding_id=claimed.binding.binding_id,
+            compact_context_ref=built.compact_context_ref,
+            mailbox_cursor_ref="dbc://mailbox/server@42",
+            worker_report_refs=("report:server-latest",),
+            audit_refs=("audit:continuous-worker-compact",),
+            timestamp="2026-07-02T09:00:02+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-07-02T09:00:03+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-07-02T09:00:04+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-07-02T09:00:05+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-context-hydration-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_context_bundle_dir_path=context_bundle_dir,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_enable_session_lookup=False,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    hydrated_instruction = client.requests[0].instruction
+
+    assert compacted.ok is True
+    assert result.ok is True
+    assert "Continuous worker compact context:" in hydrated_instruction
+    assert "Summary: Server worker already built the route skeleton." in hydrated_instruction
+    assert "Current state: Needs route validation before merge." in hydrated_instruction
+    assert "- Keep server and client ports isolated." in hydrated_instruction
+    assert "- server.js" in hydrated_instruction
+    assert "Mailbox cursor ref: dbc://mailbox/server@42" in hydrated_instruction
+    assert "- report:server-previous" in hydrated_instruction
+    assert "- report:server-latest" in hydrated_instruction
+    assert f"Compact context ref: {built.compact_context_ref}" in hydrated_instruction
+    assert runtime_records[0].metadata["continuous_worker_compact_context_ref"] == (
+        built.compact_context_ref
+    )
+
+
+def test_opencode_delivery_supervisor_fails_closed_on_missing_compact_context_bundle(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-continuous-worker",
+            ),
+            compact_context_ref="dbc://continuous-worker-context/missing-context",
+            timestamp="2026-07-02T09:10:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-07-02T09:10:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-07-02T09:10:02+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="should not run", output_text="no")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-07-02T09:10:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-context-missing-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_context_bundle_dir_path=(
+                tmp_path / ".codex/runtime/continuous-worker-contexts"
+            ),
+            enable_continuous_worker_binding_lookup=True,
+            opencode_enable_session_lookup=False,
+            runtime_invocation_max_attempts=1,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+
+    assert result.ok is False
+    assert result.failed_count == 1
+    assert client.requests == ()
+    failed = next(record for record in result.records if record.status == "failed")
+    assert failed.failure_kind == "invalid_response"
+    assert "compact context hydration failed" in failed.failure_detail
+    assert runtime_records == ()
+
+
+def test_opencode_delivery_supervisor_consumes_active_promoted_lane_ownership(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    promoted = promote_server_api_created_session_to_continuous_worker_binding(
+        ServerApiCreatedSessionPromotionRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            attach_url="http://127.0.0.1:4096/",
+            session_id="session-promoted-server-api",
+            worker_id="worker:server",
+            scope_kind="lane",
+            scope_id="lane:server",
+            lane_ids=("lane:server",),
+            audit_refs=("audit:server-api-created",),
+            timestamp="2026-07-01T13:00:00+00:00",
+        )
+    )
+    assert promoted.ok is True
+    assert promoted.binding is not None
+    claimed = claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ownership_ledger_path,
+            event_log_path=ownership_event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id=promoted.binding.binding_id,
+            worker_id="worker:server",
+            timestamp="2026-07-01T13:00:01+00:00",
+            audit_refs=("audit:server-api-created",),
+        )
+    )
+    activated = activate_lane_ownership(
+        LaneOwnershipActivateRequest(
+            ledger_path=ownership_ledger_path,
+            event_log_path=ownership_event_log_path,
+            binding_id=promoted.binding.binding_id,
+            activated_at="2026-07-01T13:00:02+00:00",
+            delivery_id="delivery:first-success",
+            task_id="task:first-success",
+            audit_refs=("audit:first-success",),
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-07-01T13:00:03+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-07-01T13:00:04+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-07-01T13:00:05+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:active-ownership-consumption-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            continuous_worker_lane_ownership_ledger_path=ownership_ledger_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_enable_session_lookup=False,
+        ),
+        opencode_cli_client=client,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(paths["runtime_log"]).read_all()
+    binding_events = JsonlContinuousWorkerBindingEventLog(
+        worker_event_log_path
+    ).read_all()
+    ownerships = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(
+            ledger_path=ownership_ledger_path,
+            binding_id=promoted.binding.binding_id,
+        )
+    )
+    leases = inspect_delivery_leases(
+        DeliveryLeaseInspectRequest(ledger_path=lease_ledger_path)
+    )
+
+    assert claimed.ok is True
+    assert activated.ok is True
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert client.requests[0].host_session is not None
+    assert client.requests[0].host_session.session_id == "session-promoted-server-api"
+    assert client.requests[0].host_session.selector_source == "continuous_worker_binding"
+    assert client.requests[0].host_session.worker_binding_id == promoted.binding.binding_id
+    assert runtime_records[0].metadata["session_selector_source"] == (
+        "continuous_worker_binding"
+    )
+    assert runtime_records[0].metadata["continuous_worker_binding_id"] == (
+        promoted.binding.binding_id
+    )
+    assert runtime_records[0].metadata["continuous_worker_id"] == "worker:server"
+    assert ownerships.ownerships[0].status == "active"
+    assert [event.event_kind for event in binding_events] == [
+        "binding_claimed",
+        "binding_reused",
+    ]
+    assert leases.leases[0].binding_id == promoted.binding.binding_id
+    assert leases.leases[0].status == "completed"
+
+
+def test_opencode_bounded_loop_reuses_same_continuous_worker_across_lane_chain(
+    tmp_path: Path,
+) -> None:
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c2-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c2-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-29T11:20:00+00:00",
+        runtime_invocation_max_attempts=1,
+        host_id="host:opencode-continuous-loop-test",
+        host_invocation_id="host-owned-opencode-continuous-loop-test",
+        continuous_worker_binding_ledger_path=worker_ledger_path,
+        continuous_worker_binding_event_log_path=worker_event_log_path,
+        enable_continuous_worker_binding_lookup=True,
+    )
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:opencode-chain",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id=smoke_request.codex_lane_id,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-chain",
+            ),
+            timestamp="2026-06-29T11:19:00+00:00",
+        )
+    )
+    client = _SequenceOpenCodeCliClient(
+        (
+            OpenCodeCliResult(summary="first complete", output_text="first complete"),
+            OpenCodeCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+
+    result = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=client,
+    )
+    events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+    ledger = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(ledger_path=worker_ledger_path)
+    )
+
+    assert result.ok is True
+    assert tuple(request.host_session.session_id for request in client.requests) == (
+        "session-chain",
+        "session-chain",
+    )
+    assert tuple(request.host_session.worker_binding_id for request in client.requests) == (
+        "continuous-worker:lane:lane-codex-smoke",
+        "continuous-worker:lane:lane-codex-smoke",
+    )
+    assert [event.event_kind for event in events] == [
+        "binding_claimed",
+        "binding_reused",
+        "binding_reused",
+    ]
+    assert [event.metadata["task_id"] for event in events if event.event_kind == "binding_reused"] == [
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+    ]
+    assert ledger.bindings[0].last_used_at == "2026-06-29T11:20:00+00:00"
+
+
+def test_opencode_delivery_supervisor_marks_continuous_worker_binding_stale_on_retryable_failure(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server",
+            ),
+            timestamp="2026-06-29T11:30:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T11:30:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T11:30:02+00:00",
+            host_id="host:test",
+        )
+    )
+
+    class _TimeoutOpenCodeCliClient:
+        def exec(self, request) -> OpenCodeCliResult:
+            raise OpenCodeCliRuntimeError(
+                error_kind="timeout",
+                summary="timed out",
+                retryable=True,
+            )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-29T11:30:03+00:00",
+            runtime_invocation_max_attempts=1,
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-worker-binding-stale-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+        ),
+        opencode_cli_client=_TimeoutOpenCodeCliClient(),
+    )
+    bindings = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=worker_ledger_path,
+            include_inactive=True,
+        )
+    )
+    events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+    lease_events = JsonlDeliveryLeaseEventLog(lease_event_log_path).read_all()
+    leases = inspect_delivery_leases(DeliveryLeaseInspectRequest(ledger_path=lease_ledger_path))
+
+    assert result.ok is False
+    assert result.failed_count == 1
+    assert bindings.bindings[0].lifecycle_status == "stale"
+    assert [event.event_kind for event in events] == [
+        "binding_claimed",
+        "binding_marked_stale",
+    ]
+    assert [event.event_kind for event in lease_events] == [
+        "delivery_lease_reserved",
+        "delivery_lease_started",
+        "delivery_lease_failed_retryable",
+    ]
+    assert len(leases.leases) == 1
+    assert leases.leases[0].status == "failed_retryable"
+
+
+def test_opencode_delivery_supervisor_skips_binding_with_active_delivery_lease(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server",
+            ),
+            timestamp="2026-06-30T10:00:00+00:00",
+        )
+    )
+    reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=lease_ledger_path,
+            event_log_path=lease_event_log_path,
+            binding_id="continuous-worker:lane:lane-server",
+            task_id="task:already-running",
+            delivery_id="delivery:already-running",
+            reserved_at="2026-06-30T10:00:01+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T10:00:02+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T10:00:03+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="should not run", output_text="no")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T10:00:04+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-active-lease-skip-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+            continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+            enable_continuous_worker_binding_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+    lease_events = JsonlDeliveryLeaseEventLog(lease_event_log_path).read_all()
+
+    assert result.ok is True
+    assert result.executed_count == 0
+    assert len(client.requests) == 0
+    assert [event.event_kind for event in lease_events] == ["delivery_lease_reserved"]
+
+
+def test_opencode_delivery_supervisor_skips_binding_with_suspended_lane_ownership(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            event_log_path=worker_event_log_path,
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scope_kind="lane",
+            scope_id="lane:server",
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server",
+            ),
+            timestamp="2026-06-30T10:10:00+00:00",
+        )
+    )
+    claim_lane_ownership(
+        LaneOwnershipClaimRequest(
+            ledger_path=ownership_ledger_path,
+            event_log_path=ownership_event_log_path,
+            scope_kind="lane",
+            scope_id="lane:server",
+            binding_id="continuous-worker:lane:lane-server",
+            worker_id="worker:server",
+            timestamp="2026-06-30T10:10:01+00:00",
+        )
+    )
+    activated = activate_lane_ownership(
+        LaneOwnershipActivateRequest(
+            ledger_path=ownership_ledger_path,
+            event_log_path=ownership_event_log_path,
+            binding_id="continuous-worker:lane:lane-server",
+            activated_at="2026-06-30T10:10:02+00:00",
+            delivery_id="delivery:previous",
+            task_id="task:previous",
+        )
+    )
+    suspended = suspend_lane_ownership(
+        LaneOwnershipSuspendRequest(
+            ledger_path=ownership_ledger_path,
+            event_log_path=ownership_event_log_path,
+            binding_id="continuous-worker:lane:lane-server",
+            timestamp="2026-06-30T10:10:03+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-30T10:10:04+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-30T10:10:05+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="should not run", output_text="no")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            max_deliveries=1,
+            timestamp="2026-06-30T10:10:06+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-suspended-ownership-skip-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            continuous_worker_binding_event_log_path=worker_event_log_path,
+            continuous_worker_lane_ownership_ledger_path=ownership_ledger_path,
+            enable_continuous_worker_binding_lookup=True,
+        ),
+        opencode_cli_client=client,
+    )
+
+    assert activated.ok is True
+    assert suspended.ok is True
+    assert result.ok is True
+    assert result.executed_count == 0
+    assert len(client.requests) == 0
+
+
+def test_opencode_delivery_supervisor_worker_binding_blocks_same_session_parallel_batch(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="opencode",
+    )
+    state = read_scheduler_state_snapshot(paths["snapshot"])
+    client_task = state.tasks["task-client"]
+    write_scheduler_state_snapshot(
+        SchedulerState(
+            tasks={
+                **state.tasks,
+                "task-client": replace(client_task, state="ready", blocked_reason=""),
+            },
+            dependencies=state.dependencies,
+            run_records=state.run_records,
+            merge_gates=state.merge_gates,
+            edit_lease_lifecycle=state.edit_lease_lifecycle,
+        ),
+        paths["snapshot"],
+    )
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    claim_continuous_worker_binding(
+        ContinuousWorkerBindingClaimRequest(
+            ledger_path=worker_ledger_path,
+            worker_id="worker:web",
+            runtime_provider="opencode",
+            scope_kind="lane_group",
+            scope_id="lane-group:web",
+            lane_ids=("lane:server", "lane:client"),
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-web-worker",
+            ),
+            timestamp="2026-06-29T09:30:00+00:00",
+        )
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T09:30:01+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T09:30:02+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode delivery complete", output_text="ok")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=None,
+            max_deliveries=2,
+            max_concurrent_deliveries=2,
+            timestamp="2026-06-29T09:30:03+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-worker-binding-parallel-test",
+            continuous_worker_binding_ledger_path=worker_ledger_path,
+            enable_continuous_worker_binding_lookup=True,
+            opencode_enable_session_lookup=False,
+        ),
+        opencode_cli_client=client,
+    )
+    delivery_state = read_leader_worker_delivery_state(paths["delivery_state"])
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert len(client.requests) == 1
+    assert client.requests[0].host_session is not None
+    assert client.requests[0].host_session.worker_binding_id == (
+        "continuous-worker:lane_group:lane-group-web"
+    )
+    assert set(client.requests[0].host_session.worker_lane_ids) == {
+        "lane:client",
+        "lane:server",
+    }
+    assert delivery_state is not None
+    assert _state_counts_from_delivery_records(delivery_state) == {
+        "acknowledged": 1,
+        "pending": 3,
+    }
+
+
 def test_codex_result_consumer_stores_artifact_and_completion_event(
     tmp_path: Path,
 ) -> None:
@@ -13489,6 +18303,82 @@ def test_codex_delivery_supervisor_can_consume_success_result(
     assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
 
 
+def test_opencode_delivery_supervisor_can_consume_success_result(
+    tmp_path: Path,
+) -> None:
+    paths = _seed_leader_worker_dispatcher_inputs_with_provider(
+        tmp_path,
+        server_provider="opencode",
+        client_provider="fake",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T08:40:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T08:40:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode consumed", output_text="persisted")
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-29T08:40:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-consume-test",
+        ),
+        opencode_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    stored = JsonArtifactVersionStore(paths["artifact_store"]).get(
+        "task-server:opencode-result",
+        "v1",
+    )
+    scheduler_events = JsonlSchedulerEventLog(paths["event_log"]).read_all()
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    acknowledged_record = next(
+        record for record in result.records if record.status == "acknowledged"
+    )
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert acknowledged_record.result_consumption is not None
+    assert result.to_json_dict()["authority_split"]["scheduler_event_log_mutated"] is True
+    assert result.to_json_dict()["authority_split"]["exchange_store_mutated"] is True
+    assert stored.artifact.parts[0].text == "persisted"
+    assert scheduler_events[-1].event_kind == "task_completed"
+    assert scheduler_events[-1].task_id == "task-server"
+    assert recovery.recovered_state.tasks["task-server"].state == "complete"
+    assert recovery.recovered_state.tasks["task-server"].output_artifact_ref.ref_id == (
+        "task-server:opencode-result"
+    )
+    assert state is not None
+    assert _state_counts_from_delivery_records(state) == {"acknowledged": 1, "pending": 3}
+
+
 def test_codex_delivery_supervisor_publishes_git_worktree_patch_review(
     tmp_path: Path,
 ) -> None:
@@ -13586,6 +18476,110 @@ def test_codex_delivery_supervisor_publishes_git_worktree_patch_review(
     delivered = next(
         record for record in state.records.values() if record.delivery_state == "acknowledged"
     )
+    assert delivered.metadata["worker_patch_review"]["ref_id"] == "task-server:patch-review"
+
+
+def test_opencode_delivery_supervisor_publishes_git_worktree_patch_review(
+    tmp_path: Path,
+) -> None:
+    source_repo = _git_repo(tmp_path / "source")
+    paths = _seed_codex_delivery_supervisor_git_worktree_project(
+        tmp_path,
+        source_repo=source_repo,
+        provider="opencode",
+    )
+    run_leader_worker_dispatcher_tick(
+        LeaderWorkerDispatcherTickRequest(
+            dispatcher_state_path=paths["dispatcher_state"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            artifact_store_path=paths["artifact_store"],
+            worker_agent_ids=("agent:server", "agent:client"),
+            timestamp="2026-06-29T10:00:00+00:00",
+        )
+    )
+    sync_leader_worker_delivery_from_dispatch_log(
+        LeaderWorkerDeliverySyncRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            dispatch_event_log_path=paths["dispatch_log"],
+            timestamp="2026-06-29T10:00:01+00:00",
+            host_id="host:test",
+        )
+    )
+    client = _EditingOpenCodeCliClient(
+        relative_path="src/app.py",
+        content="print('opencode sandbox patch')\n",
+    )
+
+    result = run_opencode_delivery_supervisor_once(
+        CodexDeliverySupervisorRequest(
+            delivery_state_path=paths["delivery_state"],
+            delivery_event_log_path=paths["delivery_log"],
+            scheduler_snapshot_path=paths["snapshot"],
+            scheduler_event_log_path=paths["event_log"],
+            runtime_invocation_log_path=paths["runtime_log"],
+            artifact_store_path=paths["artifact_store"],
+            consume_success_results=True,
+            max_deliveries=1,
+            timestamp="2026-06-29T10:00:02+00:00",
+            host_id="host:opencode-test",
+            host_invocation_id="host-invocation:opencode-patch-review-test",
+            enable_sandbox_preflight=True,
+            workspace_root=source_repo,
+            git_worktree_sandbox_root=tmp_path / "sandboxes",
+            publish_worker_patch_artifacts=True,
+            worker_patch_target_task_id="task-server",
+        ),
+        opencode_cli_client=client,
+    )
+
+    state = read_leader_worker_delivery_state(paths["delivery_state"])
+    recovery = recover_scheduler_state(paths["snapshot"], paths["event_log"])
+    store = JsonArtifactVersionStore(paths["artifact_store"])
+    patch_record = store.get("task-server:patch-review", "v1")
+    output_record = store.get("task-server:opencode-result", "v1")
+    acknowledged = next(record for record in result.records if record.status == "acknowledged")
+    patch_payload = next(
+        part.data
+        for part in patch_record.artifact.parts
+        if part.part_type == "structured"
+    )
+    evidence = next(
+        part.data
+        for part in patch_record.artifact.parts
+        if part.part_type == "evidence"
+    )
+
+    assert result.ok is True
+    assert result.executed_count == 1
+    assert result.to_json_dict()["authority_split"]["worker_patch_review_artifacts_published"] is True
+    assert acknowledged.worker_patch_review is not None
+    assert acknowledged.worker_patch_review.artifact_id == "task-server:patch-review"
+    assert acknowledged.worker_patch_review.patch_state == "has_patch"
+    assert acknowledged.worker_patch_review.changed_paths == ("src/app.py",)
+    assert client.requests[0].agent.runtime_provider == "opencode"
+    assert client.requests[0].task.runtime_workspace_root
+    assert client.requests[0].task.sandbox_provider == "git-worktree"
+    assert client.requests[0].task.sandbox_allocation_id.startswith(
+        "git-worktree:task-server:"
+    )
+    assert "src/app.py" in client.requests[0].task.visible_mounts
+    assert output_record.artifact.parts[0].text == "edited src/app.py"
+    assert patch_payload["product_type"] == "worker_patch_review_proposal"
+    assert patch_payload["runtime_provider"] == "opencode"
+    assert patch_payload["sandbox_provider"] == "git-worktree"
+    assert patch_payload["patch_state"] == "has_patch"
+    assert patch_payload["changed_paths"] == ["src/app.py"]
+    assert "opencode sandbox patch" in evidence["git_diff"]
+    assert (source_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
+    assert recovery.recovered_state.tasks["task-server"].state == "complete"
+    assert state is not None
+    delivered = next(
+        record for record in state.records.values() if record.delivery_state == "acknowledged"
+    )
+    assert delivered.runtime_provider == "opencode"
     assert delivered.metadata["worker_patch_review"]["ref_id"] == "task-server:patch-review"
 
 
@@ -14256,6 +19250,114 @@ def test_codex_delivery_e2e_smoke_fails_closed_when_codex_not_ready(
     assert not Path(request.runtime_invocation_log_path).exists()
 
 
+def test_opencode_delivery_e2e_smoke_completes_one_opencode_task(
+    tmp_path: Path,
+) -> None:
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c1-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c1-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-29T12:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+        host_id="host:opencode-c1-test",
+        host_invocation_id="host-owned-opencode-c1-test",
+    )
+    client = _RecordingOpenCodeCliClient(
+        OpenCodeCliResult(summary="opencode e2e complete", output_text="opencode c1 complete")
+    )
+
+    result = run_opencode_delivery_e2e_smoke(request, opencode_cli_client=client)
+
+    recovery = recover_scheduler_state(
+        request.scheduler_snapshot_path,
+        request.scheduler_event_log_path,
+    )
+    delivery_state = read_leader_worker_delivery_state(request.delivery_state_path)
+    runtime_records = JsonlRuntimeInvocationLog(
+        request.runtime_invocation_log_path
+    ).read_all()
+    stored = JsonArtifactVersionStore(request.artifact_store_path).get(
+        f"{request.target_task_id}:opencode-result",
+        "v1",
+    )
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "complete"
+    assert result.fixture.initialized is True
+    assert result.dispatcher_tick is not None
+    assert result.delivery_sync is not None
+    assert result.codex_delivery is not None
+    assert result.codex_delivery.executed_count == 1
+    assert recovery.recovered_state.tasks[request.target_task_id].state == "complete"
+    assert (
+        recovery.recovered_state.tasks[request.target_task_id].agent.runtime_provider
+        == "opencode"
+    )
+    assert (
+        recovery.recovered_state.tasks[request.target_task_id].output_artifact_ref.ref_id
+        == f"{request.target_task_id}:opencode-result"
+    )
+    assert delivery_state is not None
+    assert _state_counts_from_delivery_records(delivery_state) == {
+        "acknowledged": 1,
+        "pending": 3,
+    }
+    assert len(client.requests) == 1
+    assert client.requests[0].agent.runtime_provider == "opencode"
+    assert runtime_records[0].provider == "opencode"
+    assert runtime_records[0].status == "succeeded"
+    assert stored.artifact.parts[0].text == "opencode c1 complete"
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["counts"]["provider_acknowledged"] == 1
+    assert payload["authority_split"]["workflow_surface"] == (
+        "host-owned-opencode-delivery-e2e-smoke"
+    )
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_opencode_delivery_e2e_smoke_fails_closed_when_opencode_not_ready(
+    tmp_path: Path,
+) -> None:
+    request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c1-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c1-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=False,
+        require_host_ready=True,
+    )
+    client = _UnavailableOpenCodeCliClient()
+
+    result = run_opencode_delivery_e2e_smoke(request, opencode_cli_client=client)
+    payload = result.to_json_dict()
+
+    assert result.ok is False
+    assert result.stop_reason == "opencode_not_ready"
+    assert result.readiness is not None
+    assert result.readiness.ready is False
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["dispatcher_state_mutated"] is False
+    assert payload["authority_split"]["delivery_state_mutated"] is False
+    assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
+    assert not Path(request.dispatcher_state_path).exists()
+    assert not Path(request.delivery_state_path).exists()
+    assert not Path(request.runtime_invocation_log_path).exists()
+
+
 def test_bounded_codex_delivery_supervisor_loop_completes_codex_chain(
     tmp_path: Path,
 ) -> None:
@@ -14316,6 +19418,75 @@ def test_bounded_codex_delivery_supervisor_loop_completes_codex_chain(
         smoke_request.followup_task_id: "complete",
     }
     assert payload["task_state_counts"]["complete"] == 2
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_opencode_bounded_delivery_supervisor_loop_completes_chain(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c2-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c2-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-06-29T11:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+        host_id="host:opencode-loop-test",
+        host_invocation_id="host-owned-opencode-loop-test",
+    )
+    client = _SequenceOpenCodeCliClient(
+        (
+            OpenCodeCliResult(summary="first complete", output_text="first complete"),
+            OpenCodeCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+
+    result = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(
+        smoke_request.runtime_invocation_log_path
+    ).read_all()
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "all_targets_complete"
+    assert result.tick_count == 2
+    assert result.acknowledged_count == 2
+    assert result.failed_count == 0
+    assert tuple(request.task.task_id for request in client.requests) == (
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+    )
+    assert all(request.agent.runtime_provider == "opencode" for request in client.requests)
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].agent.runtime_provider == "opencode"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].output_artifact_ref.ref_id == (
+        f"{smoke_request.followup_task_id}:opencode-result"
+    )
+    assert len(runtime_records) == 2
+    assert all(record.provider == "opencode" for record in runtime_records)
+    assert all(record.runtime_surface == "host-owned-opencode-delivery-supervisor-once" for record in runtime_records)
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
 
@@ -14511,7 +19682,10 @@ def test_bounded_codex_delivery_supervisor_loop_runs_lane_distinct_codex_concurr
         timestamp="2026-06-28T09:00:00+00:00",
         runtime_invocation_max_attempts=1,
     )
-    client = _BarrierCodexCliClient(expected_concurrent_calls=2)
+    client = _BarrierCodexCliClient(
+        expected_concurrent_calls=2,
+        hold_after_barrier_seconds=0.05,
+    )
 
     result = run_bounded_codex_delivery_supervisor_loop(
         CodexDeliveryBoundedLoopRequest(
@@ -14566,6 +19740,474 @@ def test_bounded_codex_delivery_supervisor_loop_runs_lane_distinct_codex_concurr
     assert payload["authority_split"]["process_parallel_execution"] is True
     assert payload["authority_split"]["serialized_writeback"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_opencode_bounded_delivery_supervisor_loop_runs_lane_distinct_concurrently(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c8-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-c8-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-c8-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-c8-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-c8-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-29T11:20:00+00:00",
+        runtime_invocation_max_attempts=1,
+        host_id="host:opencode-concurrent-test",
+        host_invocation_id="host-owned-opencode-concurrent-test",
+    )
+    client = _BarrierOpenCodeCliClient(
+        expected_concurrent_calls=2,
+        hold_after_barrier_seconds=0.05,
+    )
+
+    result = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+            max_concurrent_deliveries=2,
+        ),
+        opencode_cli_client=client,
+    )
+
+    recovery = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+    runtime_records = JsonlRuntimeInvocationLog(
+        smoke_request.runtime_invocation_log_path
+    ).read_all()
+    payload = result.to_json_dict()
+
+    assert result.ok is True
+    assert result.stop_reason == "all_targets_complete"
+    assert client.max_active_calls >= 2
+    assert tuple(sorted(client.first_batch_task_ids)) == tuple(
+        sorted((smoke_request.target_task_id, smoke_request.parallel_task_id))
+    )
+    assert tuple(request.task.task_id for request in client.requests[:2]) == (
+        smoke_request.target_task_id,
+        smoke_request.parallel_task_id,
+    )
+    assert recovery.recovered_state.tasks[smoke_request.target_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.parallel_task_id].state == "complete"
+    assert recovery.recovered_state.tasks[smoke_request.followup_task_id].state == "complete"
+    assert len(runtime_records) == 3
+    assert all(record.provider == "opencode" for record in runtime_records)
+    assert all(record.status == "succeeded" for record in runtime_records)
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["concurrency"]["requested_max_concurrent_deliveries"] == 2
+    assert payload["concurrency"]["process_parallel_execution"] is True
+    assert payload["concurrency"]["max_observed_concurrent_batch_size"] == 2
+    assert payload["concurrency"]["serialized_writeback"] is True
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["process_parallel_execution"] is True
+    assert payload["authority_split"]["serialized_writeback"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_live_codex_concurrent_worker_smoke_reports_audit_overlap(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c9-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c9-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/c9-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T10:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    report_path = tmp_path / ".codex/scheduler/c9-report.json"
+    client = _BarrierCodexCliClient(
+        expected_concurrent_calls=2,
+        hold_after_barrier_seconds=0.05,
+    )
+
+    result = run_live_codex_concurrent_worker_smoke(
+        LiveCodexConcurrentWorkerSmokeRequest(
+            loop_request=CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=4,
+                max_deliveries=4,
+                max_runtime_failures=1,
+                max_concurrent_deliveries=2,
+            ),
+            report_path=report_path,
+        ),
+        codex_cli_client=client,
+    )
+    payload = result.to_json_dict()
+    written = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert result.ok is True
+    assert payload["verdict"] == "passed"
+    assert payload["counts"]["worker_tasks"] == 3
+    assert payload["counts"]["attempted_live_codex_invocations"] == 3
+    assert payload["counts"]["completed_workers"] == 3
+    assert payload["counts"]["failed_workers"] == 0
+    assert payload["counts"]["skipped_or_waiting_workers"] == 0
+    assert payload["counts"]["overlap_pair_count"] >= 1
+    assert tuple(sorted(payload["first_concurrent_batch"]["task_ids"])) == tuple(
+        sorted((smoke_request.target_task_id, smoke_request.parallel_task_id))
+    )
+    assert payload["overlap"]["proven"] is True
+    assert payload["bounded_loop"]["concurrency"]["serialized_writeback"] is True
+    assert payload["authority_split"]["process_parallel_execution"] is True
+    assert payload["authority_split"]["serialized_writeback"] is True
+    assert payload["authority_split"]["worker_direct_local_trajectory_mutation"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["authority_split"]["raw_transcript_persisted"] is False
+    assert written["verdict"] == "passed"
+    assert written["overlap"]["proven"] is True
+
+
+def test_live_opencode_concurrent_worker_smoke_reports_audit_overlap(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c9-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-c9-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-29T10:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+        runtime_provider="opencode",
+        target_task_id="opencode-smoke:worker",
+        parallel_task_id="opencode-smoke:parallel-worker",
+        waiting_task_id="opencode-smoke:waiting-non-opencode",
+        followup_task_id="opencode-smoke:followup",
+        codex_agent_id="agent:opencode-smoke-worker",
+        parallel_agent_id="agent:opencode-smoke-parallel-worker",
+        followup_agent_id="agent:opencode-smoke-followup",
+        waiting_agent_id="agent:opencode-smoke-waiting",
+        codex_lane_id="lane:opencode-smoke",
+        parallel_lane_id="lane:opencode-smoke-parallel",
+        followup_lane_id="lane:opencode-smoke",
+        host_id="host:opencode-c9-test",
+        host_invocation_id="host-owned-opencode-c9-test",
+        trajectory_id="opencode-live-concurrent-worker-smoke",
+    )
+    report_path = tmp_path / ".codex/scheduler/opencode-c9-report.json"
+    client = _BarrierOpenCodeCliClient(
+        expected_concurrent_calls=2,
+        hold_after_barrier_seconds=0.05,
+    )
+
+    result = run_live_opencode_concurrent_worker_smoke(
+        LiveOpenCodeConcurrentWorkerSmokeRequest(
+            loop_request=CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=4,
+                max_deliveries=4,
+                max_runtime_failures=1,
+                max_concurrent_deliveries=2,
+            ),
+            report_path=report_path,
+        ),
+        opencode_cli_client=client,
+    )
+    payload = result.to_json_dict()
+    written = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert result.ok is True
+    assert payload["runtime_provider"] == "opencode"
+    assert payload["verdict"] == "passed"
+    assert payload["diagnostic"] == "live OpenCode invocation overlap proven"
+    assert payload["counts"]["worker_tasks"] == 3
+    assert payload["counts"]["attempted_live_provider_invocations"] == 3
+    assert payload["counts"]["attempted_live_opencode_invocations"] == 3
+    assert payload["counts"]["attempted_live_codex_invocations"] == 0
+    assert payload["counts"]["completed_workers"] == 3
+    assert payload["counts"]["failed_workers"] == 0
+    assert payload["counts"]["skipped_or_waiting_workers"] == 0
+    assert payload["counts"]["overlap_pair_count"] >= 1
+    assert tuple(sorted(payload["first_concurrent_batch"]["task_ids"])) == tuple(
+        sorted((smoke_request.target_task_id, smoke_request.parallel_task_id))
+    )
+    assert payload["overlap"]["proven"] is True
+    assert payload["bounded_loop"]["runtime_provider"] == "opencode"
+    assert payload["bounded_loop"]["concurrency"]["serialized_writeback"] is True
+    assert payload["authority_split"]["runtime_provider"] == "opencode"
+    assert payload["authority_split"]["workflow_surface"] == (
+        "host-owned-live-opencode-concurrent-worker-smoke"
+    )
+    assert payload["authority_split"]["process_parallel_execution"] is True
+    assert payload["authority_split"]["serialized_writeback"] is True
+    assert payload["authority_split"]["worker_direct_local_trajectory_mutation"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["authority_split"]["raw_transcript_persisted"] is False
+    assert written["runtime_provider"] == "opencode"
+    assert written["verdict"] == "passed"
+    assert written["overlap"]["proven"] is True
+
+
+def test_live_opencode_concurrent_worker_smoke_does_not_pass_failed_overlap(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-failed-c9-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-failed-c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-failed-c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-failed-c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-failed-c9-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-29T10:05:00+00:00",
+        runtime_invocation_max_attempts=1,
+        runtime_provider="opencode",
+        target_task_id="opencode-smoke:worker",
+        parallel_task_id="opencode-smoke:parallel-worker",
+        waiting_task_id="opencode-smoke:waiting-non-opencode",
+        followup_task_id="opencode-smoke:followup",
+        codex_agent_id="agent:opencode-smoke-worker",
+        parallel_agent_id="agent:opencode-smoke-parallel-worker",
+        followup_agent_id="agent:opencode-smoke-followup",
+        waiting_agent_id="agent:opencode-smoke-waiting",
+        codex_lane_id="lane:opencode-smoke",
+        parallel_lane_id="lane:opencode-smoke-parallel",
+        followup_lane_id="lane:opencode-smoke",
+        host_id="host:opencode-failed-c9-test",
+        host_invocation_id="host-owned-opencode-failed-c9-test",
+        trajectory_id="opencode-live-concurrent-worker-smoke",
+    )
+
+    result = run_live_opencode_concurrent_worker_smoke(
+        LiveOpenCodeConcurrentWorkerSmokeRequest(
+            loop_request=CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=2,
+                max_deliveries=2,
+                max_runtime_failures=1,
+                max_concurrent_deliveries=2,
+            ),
+            report_path=tmp_path / ".codex/scheduler/opencode-failed-c9-report.json",
+        ),
+        opencode_cli_client=_BarrierFailingOpenCodeCliClient(
+            expected_concurrent_calls=2,
+            hold_after_barrier_seconds=0.05,
+        ),
+    )
+    payload = result.to_json_dict()
+
+    assert result.overlap_proven is True
+    assert result.ok is False
+    assert payload["verdict"] == "inconclusive"
+    assert payload["overlap"]["proven"] is True
+    assert payload["counts"]["failed_workers"] == 2
+    assert payload["bounded_loop"]["ok"] is False
+    assert "bounded OpenCode supervisor loop did not complete successfully" in (
+        payload["diagnostic"]
+    )
+
+
+def test_live_codex_concurrent_worker_smoke_replace_fixture_clears_auxiliary_state(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c9-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/c9-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/c9-invocations.jsonl",
+        initialize_fixture=True,
+        replace_existing_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T10:10:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    request = LiveCodexConcurrentWorkerSmokeRequest(
+        loop_request=CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+            max_concurrent_deliveries=2,
+        ),
+        report_path=tmp_path / ".codex/scheduler/c9-report.json",
+    )
+
+    first = run_live_codex_concurrent_worker_smoke(
+        request,
+        codex_cli_client=_BarrierCodexCliClient(
+            expected_concurrent_calls=2,
+            hold_after_barrier_seconds=0.05,
+        ),
+    )
+    second_client = _BarrierCodexCliClient(
+        expected_concurrent_calls=2,
+        hold_after_barrier_seconds=0.05,
+    )
+    second = run_live_codex_concurrent_worker_smoke(
+        request,
+        codex_cli_client=second_client,
+    )
+
+    assert first.ok is True
+    assert second.ok is True
+    assert second.loop_result.iterations[0].dispatcher_tick.tick_record.decision_count >= 2
+    assert second_client.max_active_calls >= 2
+    assert len(JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()) == 3
+
+
+def test_monitoring_api_summarizes_live_codex_smoke_without_mutation(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/monitor-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/monitor-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/monitor-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T11:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    report_path = tmp_path / ".codex/scheduler/monitor-live-smoke-report.json"
+    run_live_codex_concurrent_worker_smoke(
+        LiveCodexConcurrentWorkerSmokeRequest(
+            loop_request=CodexDeliveryBoundedLoopRequest(
+                smoke_request=smoke_request,
+                max_ticks=4,
+                max_deliveries=4,
+                max_runtime_failures=1,
+                max_concurrent_deliveries=2,
+            ),
+            report_path=report_path,
+        ),
+        codex_cli_client=_BarrierCodexCliClient(
+            expected_concurrent_calls=2,
+            hold_after_barrier_seconds=0.05,
+        ),
+    )
+    event_count_before = len(
+        JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()
+    )
+    runtime_count_before = len(
+        JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()
+    )
+
+    snapshot = inspect_monitoring_snapshot(
+        MonitoringSnapshotRequest(
+            scheduler_snapshot_path=smoke_request.scheduler_snapshot_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            delivery_state_path=smoke_request.delivery_state_path,
+            runtime_invocation_log_path=smoke_request.runtime_invocation_log_path,
+            artifact_store_path=smoke_request.artifact_store_path,
+            live_codex_smoke_report_path=report_path,
+            target_task_ids=(
+                smoke_request.target_task_id,
+                smoke_request.parallel_task_id,
+                smoke_request.followup_task_id,
+            ),
+        )
+    )
+    payload = snapshot.to_json_dict()
+
+    assert snapshot.ok is True
+    assert payload["schema_version"] == "monitoring-snapshot.v1"
+    assert payload["scheduler"]["task_state_counts"]["complete"] == 3
+    assert payload["delivery"]["state_counts"]["acknowledged"] == 3
+    assert payload["runtimeInvocations"]["counts"]["record_count"] == 3
+    assert payload["runtimeInvocations"]["concurrency"]["liveOverlapProven"] is True
+    assert payload["liveCodexSmoke"]["ok"] is True
+    assert payload["liveCodexSmoke"]["verdict"] == "passed"
+    assert payload["workerReports"]["mode"] == "leader-owned-consumer"
+    assert any(
+        signal["kind"] == "live_codex_overlap_proven"
+        for signal in payload["operatorSignals"]
+    )
+    assert payload["authoritySplit"]["readModelOnly"] is True
+    assert payload["authoritySplit"]["localWorkTrajectoryMutated"] is False
+    assert len(JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()) == event_count_before
+    assert len(JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()) == runtime_count_before
+
+
+def test_monitoring_api_handles_missing_live_smoke_report(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/monitor-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/monitor-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/monitor-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-28T11:10:00+00:00",
+        runtime_invocation_max_attempts=1,
+    )
+    run_bounded_codex_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+            max_concurrent_deliveries=2,
+        ),
+        codex_cli_client=_BarrierCodexCliClient(
+            expected_concurrent_calls=2,
+            hold_after_barrier_seconds=0.05,
+        ),
+    )
+
+    snapshot = inspect_monitoring_snapshot(
+        MonitoringSnapshotRequest(
+            scheduler_snapshot_path=smoke_request.scheduler_snapshot_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            delivery_state_path=smoke_request.delivery_state_path,
+            runtime_invocation_log_path=smoke_request.runtime_invocation_log_path,
+            artifact_store_path=smoke_request.artifact_store_path,
+            live_codex_smoke_report_path=tmp_path / ".codex/scheduler/missing-report.json",
+        )
+    )
+    payload = snapshot.to_json_dict()
+
+    assert snapshot.ok is True
+    assert payload["liveCodexSmoke"]["exists"] is False
+    assert payload["liveCodexSmoke"]["verdict"] == "unavailable"
+    assert any(
+        signal["kind"] == "live_codex_smoke_missing"
+        for signal in payload["operatorSignals"]
+    )
 
 
 def test_codex_runtime_status_summarizes_multilane_loop_without_mutation(
@@ -14648,6 +20290,99 @@ def test_codex_runtime_status_summarizes_multilane_loop_without_mutation(
         f"{smoke_request.parallel_task_id}:codex-result",
         f"{smoke_request.followup_task_id}:codex-result",
     }
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert len(JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()) == event_count_before
+    assert len(JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()) == runtime_count_before
+
+
+def test_opencode_runtime_status_summarizes_multilane_loop_without_mutation(
+    tmp_path: Path,
+) -> None:
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-status-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-status-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        initialize_fixture=True,
+        fixture="multilane",
+        require_host_ready=False,
+        timestamp="2026-06-29T14:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+        runtime_provider="opencode",
+        target_task_id="opencode-status:worker",
+        parallel_task_id="opencode-status:parallel-worker",
+        waiting_task_id="opencode-status:waiting-non-opencode",
+        followup_task_id="opencode-status:followup",
+        codex_agent_id="agent:opencode-status-worker",
+        parallel_agent_id="agent:opencode-status-parallel-worker",
+        followup_agent_id="agent:opencode-status-followup",
+        waiting_agent_id="agent:opencode-status-waiting",
+        codex_lane_id="lane:opencode-status",
+        parallel_lane_id="lane:opencode-status-parallel",
+        followup_lane_id="lane:opencode-status",
+    )
+    client = _SequenceOpenCodeCliClient(
+        (
+            OpenCodeCliResult(summary="lane a complete", output_text="lane a complete"),
+            OpenCodeCliResult(summary="lane b complete", output_text="lane b complete"),
+            OpenCodeCliResult(summary="followup complete", output_text="followup complete"),
+        )
+    )
+    run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=4,
+            max_deliveries=4,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=client,
+    )
+    event_count_before = len(
+        JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()
+    )
+    runtime_count_before = len(
+        JsonlRuntimeInvocationLog(smoke_request.runtime_invocation_log_path).read_all()
+    )
+
+    status = inspect_opencode_runtime_status(
+        OpenCodeRuntimeStatusRequest(
+            scheduler_snapshot_path=smoke_request.scheduler_snapshot_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            delivery_state_path=smoke_request.delivery_state_path,
+            runtime_invocation_log_path=smoke_request.runtime_invocation_log_path,
+            artifact_store_path=smoke_request.artifact_store_path,
+            target_task_ids=(
+                smoke_request.target_task_id,
+                smoke_request.parallel_task_id,
+                smoke_request.followup_task_id,
+            ),
+        )
+    )
+    payload = status.to_json_dict()
+
+    assert status.ok is True
+    assert payload["runtime_provider"] == "opencode"
+    assert status.next_action == "idle"
+    assert status.scheduler_task_state_counts["complete"] == 3
+    assert status.target_task_states == {
+        smoke_request.target_task_id: "complete",
+        smoke_request.parallel_task_id: "complete",
+        smoke_request.followup_task_id: "complete",
+    }
+    assert status.delivery_state_counts["acknowledged"] == 3
+    assert status.actionable_pending_delivery_count == 0
+    assert status.actionable_pending_codex_delivery_count == 0
+    assert status.runtime_invocation_counts["record_count"] == 3
+    assert status.runtime_invocation_counts["succeeded"] == 3
+    assert status.runtime_invocation_counts["provider:opencode"] == 3
+    assert payload["delivery"]["actionable_pending_runtime_provider"] == "opencode"
+    assert payload["delivery"]["actionable_pending_delivery_count"] == 0
+    assert payload["delivery"]["actionable_pending_codex_delivery_count"] == 0
     assert payload["authority_split"]["read_model_only"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert len(JsonlSchedulerEventLog(smoke_request.scheduler_event_log_path).read_all()) == event_count_before
@@ -14962,6 +20697,7 @@ def _seed_codex_delivery_supervisor_git_worktree_project(
     tmp_path: Path,
     *,
     source_repo: Path,
+    provider: RuntimeProviderKind = "codex",
 ) -> dict[str, Path]:
     snapshot = tmp_path / ".codex/scheduler/state.json"
     event_log = tmp_path / ".codex/scheduler/events.jsonl"
@@ -14977,7 +20713,7 @@ def _seed_codex_delivery_supervisor_git_worktree_project(
         task_id="task-server",
         title="Server",
         instruction="Edit src/app.py inside the sandbox.",
-        agent=AgentSpec(agent_id="agent:server", runtime_provider="codex"),
+        agent=AgentSpec(agent_id="agent:server", runtime_provider=provider),
         state="ready",
         context_scope=ContextScope(
             context_id="ctx-server",
@@ -14998,13 +20734,13 @@ def _seed_codex_delivery_supervisor_git_worktree_project(
             mount_policy="lease-scoped",
         ),
         acceptance=("Edit only src/app.py.",),
-        output_artifact_id="task-server:codex-result",
+        output_artifact_id=f"task-server:{provider}-result",
     )
     client_task = ScheduledTask(
         task_id="task-client",
         title="Client",
         instruction="Wait for server completion.",
-        agent=AgentSpec(agent_id="agent:client", runtime_provider="codex"),
+        agent=AgentSpec(agent_id="agent:client", runtime_provider=provider),
         state="waiting",
         context_scope=ContextScope(context_id="ctx-client", lane_id="lane:client"),
         blocked_reason="waiting for task-server",
@@ -15063,3 +20799,190 @@ def _seed_codex_delivery_supervisor_git_worktree_project(
         "delivery_log": delivery_log,
         "runtime_log": runtime_log,
     }
+
+
+def test_worker_trajectory_report_consumer_starts_missing_trajectory_from_append(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import load_local_work_trajectory, trajectory_json_path
+
+    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="append")
+
+    result = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=tmp_path,
+            report_path=report_path,
+            caller_role="leader",
+            actor="agent:guide",
+            title="Server lane complete",
+            event_kind="validation",
+            guide_context="test-guide",
+        )
+    )
+
+    assert isinstance(result, WorkerTrajectoryReportConsumerResult)
+    assert result.ok is True
+    assert result.status == "consumed"
+    assert result.consumed_action == "start"
+    assert result.trajectory_created is True
+    assert result.active_event_ids == ("event:001",)
+    assert trajectory_json_path(tmp_path).exists()
+    payload = result.to_json_dict()
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is True
+    trajectory = load_local_work_trajectory(tmp_path)
+    event = trajectory.events["event:001"]
+    assert event.title == "Server lane complete"
+    assert event.kind == "validation"
+    assert event.metadata["worker_report_id"] == "report-worker-trajectory"
+    assert event.metadata["worker_task_id"] == "task/server"
+    assert event.metadata["worker_evidence_refs"] == ".codex/agent-output/report-worker.json"
+
+
+def test_worker_trajectory_report_consumer_rejects_worker_role_before_mutation(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import trajectory_json_path
+
+    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="append")
+
+    result = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=tmp_path,
+            report_path=report_path,
+            caller_role="worker",
+        )
+    )
+
+    assert result.ok is False
+    assert result.status == "denied"
+    assert "docs/worker-trajectory-update-reporting.md" in result.errors[0]
+    assert not trajectory_json_path(tmp_path).exists()
+
+
+def test_worker_trajectory_report_consumer_fails_invalid_report_without_mutation(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import trajectory_json_path
+
+    report_path = tmp_path / ".codex" / "agent-output" / "report-invalid.json"
+    _write_worker_trajectory_report(report_path, suggested_action="append")
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    payload["trajectory_update"]["localTrajectoryPayload"] = {"action": "advance"}
+    report_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=tmp_path,
+            report_path=report_path,
+            caller_role="leader",
+        )
+    )
+
+    assert result.ok is False
+    assert result.status == "validation_failed"
+    assert any("localTrajectoryPayload" in error for error in result.errors)
+    assert not trajectory_json_path(tmp_path).exists()
+
+
+def test_worker_trajectory_report_consumer_advances_existing_trajectory(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import load_local_work_trajectory, start_single_line_trajectory
+
+    start_single_line_trajectory(
+        tmp_path,
+        first_event_title="Implement server",
+        lane_label="server",
+        lane_id="lane:server",
+    )
+    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="advance")
+
+    result = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=tmp_path,
+            report_path=report_path,
+            caller_role="supervisor",
+            actor="agent:leader",
+        )
+    )
+
+    assert result.ok is True
+    assert result.status == "consumed"
+    assert result.consumed_action == "advance"
+    trajectory = load_local_work_trajectory(tmp_path)
+    assert trajectory.events["event:001"].status == "completed"
+
+
+def _write_worker_trajectory_report(
+    report_path: Path,
+    *,
+    suggested_action: str,
+) -> None:
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(
+            {
+                "report_id": "report-worker-trajectory",
+                "contract_id": "contract-worker-trajectory",
+                "status": "completed",
+                "changed_artifacts": ["server.js"],
+                "verification_results": ["npm test passed"],
+                "trajectory_update": {
+                    "lane_id": "lane:server",
+                    "task_id": "task/server",
+                    "event_status": "completed",
+                    "summary": "Server lane finished and validated.",
+                    "suggested_action": suggested_action,
+                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "leader_notes": ["Review validation before advancing."],
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+class _JsonHttpResponse:
+    def __init__(self, payload: object, *, status: int = 200) -> None:
+        self.status = status
+        self._payload = payload
+
+    def read(self) -> bytes:
+        return json.dumps(self._payload).encode("utf-8")
+
+
+def _request_json_payload(request) -> dict[str, object]:
+    raw = getattr(request, "data", None)
+    if not raw:
+        return {}
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8")
+    payload = json.loads(raw)
+    return payload if isinstance(payload, dict) else {"value": payload}
+
+
+def _opencode_server_api_request() -> OpenCodeCliRequest:
+    return OpenCodeCliRequest(
+        agent=AgentSpec(
+            agent_id="agent:opencode-api",
+            runtime_provider="opencode",
+            model="test-model",
+        ),
+        task=TaskSpec(
+            task_id="task-opencode-api",
+            title="OpenCode API task",
+            instruction="Use the direct server API.",
+            acceptance=("Return a compact result.",),
+        ),
+        session=SessionHandle(
+            session_id="runtime-session",
+            provider="opencode",
+            agent_id="agent:opencode-api",
+        ),
+        instruction="Use the direct server API.",
+        acceptance=("Return a compact result.",),
+    )

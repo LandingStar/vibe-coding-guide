@@ -40,6 +40,19 @@ EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI = "dbc://exchange-artifacts/bundle"
 AGENT_EXCHANGE_HISTORY_RESOURCE_URI = "dbc://agent-exchange/history"
 AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI = "dbc://agent-exchange/action-candidates"
 
+_EMPTY_PLANNING_GATE_MARKERS = {
+    "",
+    "(none)",
+    "-",
+    "—",
+    "none",
+    "n/a",
+    "无",
+    "无活跃",
+    "无活跃 gate",
+    "无活跃gate",
+}
+
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
     "artifactId": "artifact_id",
@@ -81,6 +94,65 @@ _SCHEDULER_SUBMISSION_KEY_ALIASES = {
     "dependencyKind": "dependency_kind",
     "requiredState": "required_state",
 }
+
+
+def _read_checklist_hot_state(project_root: Path) -> dict[str, str]:
+    checklist_path = project_root / "design_docs" / "Project Master Checklist.md"
+    if not checklist_path.exists():
+        return {}
+    try:
+        lines = checklist_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+
+    state = {
+        "current_phase": "",
+        "current_focus": "",
+        "active_planning_gate": "",
+        "latest_completed_planning_gate": "",
+    }
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("- Current Phase:"):
+            state["current_phase"] = _strip_markdown_value(
+                stripped.split(":", 1)[1]
+            )
+        elif stripped.startswith("- Current Focus:"):
+            state["current_focus"] = _strip_markdown_value(
+                stripped.split(":", 1)[1]
+            )
+        elif stripped.startswith("- Active Planning Gate:"):
+            state["active_planning_gate"] = _normalize_planning_gate_marker(
+                _checklist_value_or_next_line(lines, index)
+            )
+        elif stripped.startswith("- Latest Completed Planning Gate:"):
+            state["latest_completed_planning_gate"] = _normalize_planning_gate_marker(
+                _checklist_value_or_next_line(lines, index)
+            )
+    return {key: value for key, value in state.items() if value}
+
+
+def _checklist_value_or_next_line(lines: list[str], index: int) -> str:
+    value = lines[index].split(":", 1)[1].strip()
+    if value:
+        return _strip_markdown_value(value)
+    if index + 1 < len(lines):
+        return _strip_markdown_value(lines[index + 1].strip())
+    return ""
+
+
+def _strip_markdown_value(value: str) -> str:
+    cleaned = value.strip()
+    if cleaned.startswith("`") and cleaned.endswith("`") and len(cleaned) >= 2:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned.strip()
+
+
+def _normalize_planning_gate_marker(value: str) -> str:
+    cleaned = _strip_markdown_value(value)
+    if cleaned.lower() in _EMPTY_PLANNING_GATE_MARKERS:
+        return ""
+    return cleaned
 
 
 def _normalize_scheduler_submission_keys(value: Any) -> Any:
@@ -445,6 +517,7 @@ class GovernanceTools:
         target_endpoint_compound_path: str = "",
         source_graph_id: str = "",
         source_node_id: str = "",
+        caller_role: str = "",
     ) -> dict[str, Any]:
         """Mutate the agent-owned Local Work Trajectory artifact.
 
@@ -490,6 +563,29 @@ class GovernanceTools:
             trajectory_json_path,
             update_single_line_event,
         )
+
+        normalized_caller_role = caller_role.strip().lower().replace("-", "_")
+        denied_caller_roles = {
+            "worker",
+            "subagent",
+            "sub_agent",
+            "lane_worker",
+            "bounded_worker",
+            "child_worker",
+        }
+        if normalized_caller_role in denied_caller_roles:
+            return {
+                "ok": False,
+                "error": (
+                    "localTrajectory is leader/main/supervisor authority. "
+                    "Workers and subagents must report trajectory changes through "
+                    "Subagent Report.trajectory_update for leader consumption. "
+                    "Write the update in the worker report using docs/worker-trajectory-update-reporting.md."
+                ),
+                "action": action,
+                "callerRole": caller_role,
+                "trajectory_path": str(trajectory_json_path(self._project_root)),
+            }
 
         normalized_action = action.strip()
         allowed_actions = {"start", "append", "advance", "update", "block", "wait", "resume", "close", "addLane", "addLanes", "addCompound", "packRange", "packSubgraph", "appendChild", "advanceChild", "closeChild", "merge", "relate", "setAnchor"}
@@ -831,6 +927,63 @@ class GovernanceTools:
             "lane_count": len(trajectory.lanes),
             "metadata": dict(trajectory.metadata),
         }
+
+    def consume_worker_trajectory_report(
+        self,
+        *,
+        report_path: str,
+        caller_role: str = "leader",
+        actor: str = "leader",
+        current_event_id: str = "",
+        title: str = "",
+        event_kind: str = "task",
+        start_if_missing: bool = True,
+        trajectory_title: str = "Local Work Trajectory",
+        guide_context: str = "worker-trajectory-report-consumer",
+    ) -> dict[str, Any]:
+        """Consume Subagent Report.trajectory_update as leader-owned mutation."""
+
+        from ..runtime.orchestration import (
+            WorkerTrajectoryReportConsumerRequest,
+            consume_worker_trajectory_report,
+        )
+
+        if not report_path:
+            from tools.progress_graph import trajectory_json_path
+
+            return {
+                "ok": False,
+                "status": "validation_failed",
+                "error": "consumeWorkerTrajectoryReport requires reportPath.",
+                "report_path": "",
+                "trajectory_path": str(trajectory_json_path(self._project_root)),
+                "authority_split": {
+                    "source": "Subagent Report.trajectory_update",
+                    "leader_review_required": True,
+                    "worker_report_read": False,
+                    "schema_validated": False,
+                    "local_work_trajectory_mutated": False,
+                    "worker_direct_mutation_allowed": False,
+                    "provider_executed": False,
+                    "scheduler_state_mutated": False,
+                    "exchange_store_mutated": False,
+                },
+                "worker_report_procedure": "docs/worker-trajectory-update-reporting.md",
+            }
+
+        request = WorkerTrajectoryReportConsumerRequest(
+            project_root=self._project_root,
+            report_path=report_path,
+            caller_role=caller_role,
+            actor=actor,
+            current_event_id=current_event_id,
+            title=title,
+            event_kind=event_kind,
+            start_if_missing=start_if_missing,
+            trajectory_title=trajectory_title,
+            guide_context=guide_context,
+        )
+        return consume_worker_trajectory_report(request).to_json_dict()
 
     def scheduler_submit_tasks(
         self,
@@ -3513,11 +3666,26 @@ class GovernanceTools:
         constraints = self._pipeline.check_constraints()
 
         # Determine next action based on state
+        checklist_state = _read_checklist_hot_state(self._project_root)
+        active_planning_gate = constraints.active_planning_gate
+        current_phase = constraints.current_phase
+        state_source = "constraints"
+        if checklist_state:
+            current_phase = checklist_state.get("current_phase") or current_phase
+            checklist_active_gate = checklist_state.get("active_planning_gate", "")
+            if checklist_active_gate:
+                active_planning_gate = checklist_active_gate
+                state_source = "checklist"
+            elif checklist_state.get("latest_completed_planning_gate"):
+                active_planning_gate = ""
+                state_source = "checklist"
+
         action: dict[str, Any] = {
             "files_to_reread": constraints.files_to_reread,
-            "current_phase": constraints.current_phase,
-            "active_planning_gate": constraints.active_planning_gate,
+            "current_phase": current_phase,
+            "active_planning_gate": active_planning_gate,
             "runtime_enforcement_summary": constraints.runtime_enforcement_summary,
+            "state_source": state_source,
         }
 
         if constraints.has_violations:
@@ -3529,10 +3697,10 @@ class GovernanceTools:
                 "Resolve this before proceeding."
             )
             action["ask_user"] = False
-        elif constraints.active_planning_gate:
+        elif active_planning_gate:
             action["instruction"] = (
                 f"Continue working on the active planning gate: "
-                f"{constraints.active_planning_gate}. "
+                f"{active_planning_gate}. "
                 "Read the planning document and proceed with the current slice."
             )
             action["ask_user"] = False

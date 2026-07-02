@@ -26,3 +26,19 @@ include = ["src*", "tools*"]
     "baseline_graph.json",
     "coupling_annotations.json",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+    ".codex",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+    "node_modules",
+    "release",
+    "tmp",
+]

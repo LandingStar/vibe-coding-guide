@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from .exchange import (
@@ -18,7 +19,7 @@ from .exchange_store import (
     JsonlCoordinationEventLog,
 )
 
-RuntimeProviderKind = Literal["fake", "qoder", "codex"]
+RuntimeProviderKind = Literal["fake", "qoder", "codex", "opencode"]
 QoderRuntimeErrorKind = Literal[
     "sdk_unavailable",
     "authentication_failed",
@@ -30,6 +31,16 @@ QoderRuntimeErrorKind = Literal[
     "unknown",
 ]
 CodexCliRuntimeErrorKind = Literal[
+    "cli_unavailable",
+    "authentication_failed",
+    "permission_denied",
+    "timeout",
+    "process_failed",
+    "invalid_response",
+    "policy_cancelled",
+    "unknown",
+]
+OpenCodeCliRuntimeErrorKind = Literal[
     "cli_unavailable",
     "authentication_failed",
     "permission_denied",
@@ -111,6 +122,52 @@ class RunHandle:
     run_id: str
     session_id: str
     task_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class OpenCodeHostSessionSelector:
+    """Host-owned OpenCode attach/session selector for one runtime request."""
+
+    attach_url: str
+    session_id: str
+    continue_session: bool = False
+    fork_session: bool = False
+    binding_id: str = ""
+    scope_kind: str = ""
+    scope_id: str = ""
+    ledger_path: str = ""
+    selector_source: str = "session_ledger"
+    worker_binding_id: str = ""
+    worker_id: str = ""
+    worker_scope_kind: str = ""
+    worker_scope_id: str = ""
+    worker_lane_ids: tuple[str, ...] = ()
+    compact_context_ref: str = ""
+    mailbox_cursor_ref: str = ""
+    worker_report_refs: tuple[str, ...] = ()
+    audit_refs: tuple[str, ...] = ()
+
+    def to_metadata(self) -> dict[str, object]:
+        return {
+            "attach_url": self.attach_url,
+            "session_id": self.session_id,
+            "continue_session": self.continue_session,
+            "fork_session": self.fork_session,
+            "binding_id": self.binding_id,
+            "scope_kind": self.scope_kind,
+            "scope_id": self.scope_id,
+            "ledger_path": self.ledger_path,
+            "selector_source": self.selector_source,
+            "worker_binding_id": self.worker_binding_id,
+            "worker_id": self.worker_id,
+            "worker_scope_kind": self.worker_scope_kind,
+            "worker_scope_id": self.worker_scope_id,
+            "worker_lane_ids": list(self.worker_lane_ids),
+            "compact_context_ref": self.compact_context_ref,
+            "mailbox_cursor_ref": self.mailbox_cursor_ref,
+            "worker_report_refs": list(self.worker_report_refs),
+            "audit_refs": list(self.audit_refs),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +256,31 @@ class CodexCliRequest:
 @dataclass(frozen=True, slots=True)
 class CodexCliResult:
     """Minimal normalized result returned by a Codex CLI client seam."""
+
+    summary: str
+    output_text: str = ""
+    artifact_delta: ArtifactDelta | None = None
+    permission_requests: tuple[PermissionRequest, ...] = ()
+    metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class OpenCodeCliRequest:
+    """Stable request object passed to an OpenCode CLI client."""
+
+    agent: AgentSpec
+    task: TaskSpec
+    session: SessionHandle
+    instruction: str
+    acceptance: tuple[str, ...] = ()
+    input_artifact_refs: tuple[ExchangeReference, ...] = ()
+    output_artifact_id: str = ""
+    host_session: OpenCodeHostSessionSelector | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OpenCodeCliResult:
+    """Minimal normalized result returned by an OpenCode CLI client seam."""
 
     summary: str
     output_text: str = ""
@@ -315,6 +397,60 @@ class CodexCliRuntimeError(Exception):
         return ": ".join(parts)
 
 
+@dataclass(frozen=True, slots=True)
+class OpenCodeCliRuntimeError(Exception):
+    """Stable OpenCode CLI runtime error normalized before scheduler handling."""
+
+    error_kind: OpenCodeCliRuntimeErrorKind
+    summary: str
+    provider: RuntimeProviderKind = "opencode"
+    task_id: str = ""
+    session_id: str = ""
+    run_id: str = ""
+    retryable: bool = False
+    raw_error_type: str = ""
+
+    def with_context(
+        self,
+        *,
+        task_id: str = "",
+        session_id: str = "",
+        run_id: str = "",
+    ) -> "OpenCodeCliRuntimeError":
+        """Return this error with missing runtime context filled in."""
+
+        return OpenCodeCliRuntimeError(
+            error_kind=self.error_kind,
+            summary=self.summary,
+            provider=self.provider,
+            task_id=self.task_id or task_id,
+            session_id=self.session_id or session_id,
+            run_id=self.run_id or run_id,
+            retryable=self.retryable,
+            raw_error_type=self.raw_error_type,
+        )
+
+    def __str__(self) -> str:
+        parts = [
+            f"opencode cli runtime error [{self.error_kind}]",
+            self.summary,
+        ]
+        context = []
+        if self.task_id:
+            context.append(f"task_id={self.task_id}")
+        if self.session_id:
+            context.append(f"session_id={self.session_id}")
+        if self.run_id:
+            context.append(f"run_id={self.run_id}")
+        if self.raw_error_type:
+            context.append(f"raw_error_type={self.raw_error_type}")
+        if context:
+            parts.append(f"({', '.join(context)})")
+        if self.retryable:
+            parts.append("retryable=true")
+        return ": ".join(parts)
+
+
 def qoder_query_result_from_response(response: Any) -> QoderQueryResult:
     """Convert a response-like mapping into ``QoderQueryResult``.
 
@@ -375,6 +511,19 @@ class CodexCliClient(Protocol):
 
     def exec(self, request: CodexCliRequest) -> CodexCliResult:
         """Run one bounded Codex CLI task and return a normalized result."""
+        ...
+
+
+class OpenCodeCliClient(Protocol):
+    """Mockable seam for OpenCode CLI execution.
+
+    A process-backed wrapper should live behind this protocol. The adapter must
+    not spawn OpenCode directly; host wiring owns process construction
+    authority.
+    """
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        """Run one bounded OpenCode CLI task and return a normalized result."""
         ...
 
 
@@ -917,6 +1066,332 @@ class CodexCliAgentRuntimeAdapter:
         )
 
 
+class OpenCodeCliAgentRuntimeAdapter:
+    """OpenCode CLI runtime adapter backed by a mockable CLI client."""
+
+    def __init__(
+        self,
+        *,
+        cli_client: OpenCodeCliClient,
+        timestamp: str = "1970-01-01T00:00:00+00:00",
+        session_ledger_path: str | Path = "",
+        enable_session_lookup: bool = False,
+        continuous_worker_binding_ledger_path: str | Path = "",
+        enable_continuous_worker_binding_lookup: bool = False,
+        continuous_worker_context_bundle_dir_path: str | Path = "",
+    ) -> None:
+        self.cli_client = cli_client
+        self.timestamp = timestamp
+        self.session_ledger_path = Path(session_ledger_path) if session_ledger_path else None
+        self.enable_session_lookup = enable_session_lookup
+        self.continuous_worker_binding_ledger_path = (
+            Path(continuous_worker_binding_ledger_path)
+            if continuous_worker_binding_ledger_path
+            else None
+        )
+        self.enable_continuous_worker_binding_lookup = (
+            enable_continuous_worker_binding_lookup
+        )
+        self.continuous_worker_context_bundle_dir_path = (
+            Path(continuous_worker_context_bundle_dir_path)
+            if continuous_worker_context_bundle_dir_path
+            else None
+        )
+        self._session_counter = 0
+        self._run_counter = 0
+        self._sessions: dict[str, AgentSpec] = {}
+        self._lock = threading.Lock()
+
+    def capabilities(self) -> RuntimeCapabilities:
+        return opencode_cli_runtime_capabilities()
+
+    def start_session(self, agent: AgentSpec) -> SessionHandle:
+        if agent.runtime_provider != "opencode":
+            raise ValueError("OpenCodeCliAgentRuntimeAdapter requires agent.runtime_provider='opencode'")
+        with self._lock:
+            self._session_counter += 1
+            session = SessionHandle(
+                session_id=f"opencode-session-{self._session_counter}",
+                provider="opencode",
+                agent_id=agent.agent_id,
+            )
+            self._sessions[session.session_id] = agent
+        return session
+
+    def run_task(self, session: SessionHandle, task: TaskSpec) -> RuntimeRunResult:
+        if session.provider != "opencode":
+            raise ValueError("OpenCodeCliAgentRuntimeAdapter can only run opencode sessions")
+        with self._lock:
+            agent = self._sessions.get(session.session_id)
+        if agent is None:
+            raise ValueError(f"unknown OpenCode CLI runtime session: {session.session_id!r}")
+
+        with self._lock:
+            self._run_counter += 1
+            run = RunHandle(
+                run_id=f"opencode-run-{self._run_counter}",
+                session_id=session.session_id,
+                task_id=task.task_id,
+            )
+        started = RunEvent(
+            event_id=f"{run.run_id}:started",
+            event_kind="task_started",
+            run_id=run.run_id,
+            task_id=task.task_id,
+            timestamp=self.timestamp,
+            summary=f"Started OpenCode CLI task {task.task_id}.",
+        )
+        host_session = self._resolve_host_session(agent, task)
+        request = OpenCodeCliRequest(
+            agent=agent,
+            task=task,
+            session=session,
+            instruction=self._hydrate_instruction(task.instruction, host_session),
+            acceptance=task.acceptance,
+            input_artifact_refs=task.input_artifact_refs,
+            output_artifact_id=task.output_artifact_id,
+            host_session=host_session,
+        )
+        try:
+            cli_result = self.cli_client.exec(request)
+        except OpenCodeCliRuntimeError as exc:
+            raise exc.with_context(
+                task_id=task.task_id,
+                session_id=session.session_id,
+                run_id=run.run_id,
+            ) from exc
+        except Exception as exc:
+            raise OpenCodeCliRuntimeError(
+                error_kind="unknown",
+                summary=str(exc) or "OpenCode CLI client failed with an unknown error.",
+                task_id=task.task_id,
+                session_id=session.session_id,
+                run_id=run.run_id,
+                raw_error_type=type(exc).__name__,
+            ) from exc
+        output_id = task.output_artifact_id or f"{task.task_id}:opencode-result"
+        output_version = "v1"
+        cli_summary = cli_result.summary or f"OpenCode CLI completed task {task.task_id}."
+        raw_delta = cli_result.artifact_delta
+        delta = ArtifactDelta(
+            artifact_id=(raw_delta.artifact_id if raw_delta and raw_delta.artifact_id else output_id),
+            version=(raw_delta.version if raw_delta and raw_delta.version else output_version),
+            summary=(raw_delta.summary if raw_delta and raw_delta.summary else cli_summary),
+            changed_refs=raw_delta.changed_refs if raw_delta else (),
+        )
+        output = ExchangeArtifact(
+            artifact_id=delta.artifact_id,
+            kind="result",
+            intent="inform",
+            producer=session.agent_id,
+            scope=task.scope,
+            created_at=self.timestamp,
+            version=delta.version,
+            parts=(
+                ExchangePayloadPart(
+                    part_type="text",
+                    text=cli_result.output_text or cli_summary,
+                ),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "task_id": task.task_id,
+                        "runtime_provider": "opencode",
+                        "summary": cli_summary,
+                        "metadata": cli_result.metadata,
+                    },
+                ),
+                ExchangePayloadPart(
+                    part_type="artifact_delta",
+                    data={
+                        "summary": delta.summary,
+                        "changed_refs": [
+                            {
+                                "ref_kind": ref.ref_kind,
+                                "ref_id": ref.ref_id,
+                                "version": ref.version,
+                                "path": ref.path,
+                                "label": ref.label,
+                            }
+                            for ref in delta.changed_refs
+                        ],
+                    },
+                ),
+            ),
+        )
+        completed = RunEvent(
+            event_id=f"{run.run_id}:completed",
+            event_kind="task_completed",
+            run_id=run.run_id,
+            task_id=task.task_id,
+            timestamp=self.timestamp,
+            artifact_id=output.artifact_id,
+            artifact_version=output.version,
+            summary=cli_summary,
+        )
+        return RuntimeRunResult(
+            run_handle=run,
+            output_artifact=output,
+            artifact_delta=delta,
+            events=(started, completed),
+            permission_requests=cli_result.permission_requests,
+        )
+
+    def _resolve_host_session(
+        self,
+        agent: AgentSpec,
+        task: TaskSpec,
+    ) -> OpenCodeHostSessionSelector | None:
+        continuous_selector = self._resolve_continuous_worker_host_session(agent, task)
+        if continuous_selector is not None:
+            return continuous_selector
+        if not self.enable_session_lookup or self.session_ledger_path is None:
+            return None
+        from .opencode_session_ledger import read_opencode_session_ledger
+
+        ledger = read_opencode_session_ledger(self.session_ledger_path)
+        candidates = (
+            ("task", task.task_id),
+            ("agent", agent.agent_id),
+            ("lane", task.scope.lane_id),
+        )
+        for scope_kind, scope_id in candidates:
+            if not scope_id:
+                continue
+            for binding in ledger.bindings:
+                if binding.status != "active":
+                    continue
+                if binding.scope_kind == scope_kind and binding.scope_id == scope_id:
+                    return OpenCodeHostSessionSelector(
+                        attach_url=binding.attach_url,
+                        session_id=binding.session_id,
+                        binding_id=binding.binding_id,
+                        scope_kind=binding.scope_kind,
+                        scope_id=binding.scope_id,
+                        ledger_path=str(self.session_ledger_path),
+                        selector_source="session_ledger",
+                    )
+        return None
+
+    def _resolve_continuous_worker_host_session(
+        self,
+        agent: AgentSpec,
+        task: TaskSpec,
+    ) -> OpenCodeHostSessionSelector | None:
+        if (
+            not self.enable_continuous_worker_binding_lookup
+            or self.continuous_worker_binding_ledger_path is None
+        ):
+            return None
+        from .continuous_worker_binding import (
+            ContinuousWorkerBindingResolveRequest,
+            resolve_continuous_worker_binding,
+        )
+
+        result = resolve_continuous_worker_binding(
+            ContinuousWorkerBindingResolveRequest(
+                ledger_path=self.continuous_worker_binding_ledger_path,
+                runtime_provider="opencode",
+                task_id=task.task_id,
+                agent_id=agent.agent_id,
+                lane_id=task.scope.lane_id,
+                timestamp=self.timestamp,
+            )
+        )
+        binding = result.binding
+        if binding is None or binding.active_session_selector is None:
+            return None
+        selector = binding.active_session_selector
+        return OpenCodeHostSessionSelector(
+            attach_url=selector.attach_url,
+            session_id=selector.session_id,
+            continue_session=selector.continue_session,
+            fork_session=selector.fork_session,
+            binding_id=binding.binding_id,
+            scope_kind=binding.scope_kind,
+            scope_id=binding.scope_id,
+            ledger_path=str(self.continuous_worker_binding_ledger_path),
+            selector_source="continuous_worker_binding",
+            worker_binding_id=binding.binding_id,
+            worker_id=binding.worker_id,
+            worker_scope_kind=binding.scope_kind,
+            worker_scope_id=binding.scope_id,
+            worker_lane_ids=binding.lane_ids,
+            compact_context_ref=binding.compact_context_ref,
+            mailbox_cursor_ref=binding.mailbox_cursor_ref,
+            worker_report_refs=binding.worker_report_refs,
+            audit_refs=binding.audit_refs,
+        )
+
+    def _hydrate_instruction(
+        self,
+        instruction: str,
+        host_session: OpenCodeHostSessionSelector | None,
+    ) -> str:
+        if host_session is None or not host_session.compact_context_ref:
+            return instruction
+        if not host_session.compact_context_ref.startswith(
+            "dbc://continuous-worker-context/"
+        ):
+            return instruction
+        bundle = self._read_compact_context_bundle(host_session.compact_context_ref)
+        sections = [instruction, "", "Continuous worker compact context:"]
+        if bundle.summary:
+            sections.append(f"Summary: {bundle.summary}")
+        if bundle.current_state:
+            sections.append(f"Current state: {bundle.current_state}")
+        if bundle.key_decisions:
+            sections.append("Key decisions:")
+            sections.extend(f"- {item}" for item in bundle.key_decisions)
+        if bundle.artifact_refs:
+            sections.append("Artifact refs:")
+            sections.extend(f"- {item}" for item in bundle.artifact_refs)
+        if bundle.mailbox_cursor_ref:
+            sections.append(f"Mailbox cursor ref: {bundle.mailbox_cursor_ref}")
+        if bundle.worker_report_refs:
+            sections.append("Worker report refs:")
+            sections.extend(f"- {item}" for item in bundle.worker_report_refs)
+        sections.extend(
+            [
+                f"Compact context ref: {host_session.compact_context_ref}",
+                "Use this as project-owned continuity context. Do not treat it as a raw transcript.",
+            ]
+        )
+        return "\n".join(sections)
+
+    def _read_compact_context_bundle(self, compact_context_ref: str):
+        from .continuous_worker_context import (
+            DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH,
+            read_continuous_worker_compact_context_bundle,
+        )
+
+        bundle_id = compact_context_ref.removeprefix(
+            "dbc://continuous-worker-context/"
+        )
+        bundle_dir = self.continuous_worker_context_bundle_dir_path or Path(
+            DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH
+        )
+        bundle_path = bundle_dir / f"{_safe_compact_context_bundle_id(bundle_id)}.json"
+        try:
+            return read_continuous_worker_compact_context_bundle(bundle_path)
+        except Exception as exc:
+            raise OpenCodeCliRuntimeError(
+                error_kind="invalid_response",
+                summary=(
+                    "OpenCode continuous worker compact context hydration failed: "
+                    f"{exc}"
+                ),
+                raw_error_type=type(exc).__name__,
+                retryable=False,
+            ) from exc
+
+
+def _safe_compact_context_bundle_id(value: str) -> str:
+    safe = value.replace("\\", "/").strip("/").replace("/", "-").replace(":", "-")
+    safe = safe.replace("+", "-").replace(".", "-")
+    return safe or "context"
+
+
 def qoder_runtime_capabilities() -> RuntimeCapabilities:
     """Return the currently expected Qoder runtime capability mapping."""
 
@@ -940,6 +1415,20 @@ def codex_cli_runtime_capabilities() -> RuntimeCapabilities:
         supports_streaming_events=True,
         supports_subagents=False,
         supports_mcp=True,
+        supports_permission_callback=True,
+        supports_transcript_inspection=False,
+    )
+
+
+def opencode_cli_runtime_capabilities() -> RuntimeCapabilities:
+    """Return the currently expected OpenCode CLI runtime capability mapping."""
+
+    return RuntimeCapabilities(
+        provider="opencode",
+        supports_sessions=True,
+        supports_streaming_events=False,
+        supports_subagents=True,
+        supports_mcp=False,
         supports_permission_callback=True,
         supports_transcript_inspection=False,
     )

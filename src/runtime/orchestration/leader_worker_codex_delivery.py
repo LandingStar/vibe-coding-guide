@@ -37,7 +37,11 @@ from .runtime_adapter import (
     CodexCliClient,
     CodexCliRequest,
     CodexCliResult,
+    OpenCodeCliClient,
+    OpenCodeCliRequest,
+    OpenCodeCliResult,
     PermissionRequest,
+    RuntimeProviderKind,
     RuntimeRunResult,
     TaskSpec,
 )
@@ -67,6 +71,16 @@ from .scheduler import (
 from .scheduler_store import recover_scheduler_state
 from .worker_patch_review import build_worker_patch_review_artifact
 
+DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH = (
+    ".codex/runtime/continuous-worker-delivery-leases.json"
+)
+DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH = (
+    ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+)
+DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH = (
+    ".codex/runtime/continuous-worker-lane-ownerships.json"
+)
+
 CodexDeliverySupervisorRecordStatus = Literal[
     "acknowledged",
     "review_required",
@@ -84,6 +98,12 @@ class _PreparedCodexDelivery:
     preflight: OrchestrationPreflightBundle | None = None
     batch_id: str = ""
     batch_size: int = 1
+    continuous_worker_binding_id: str = ""
+    continuous_worker_id: str = ""
+    continuous_worker_delivery_lease_id: str = ""
+    continuous_worker_delivery_lease_ledger_path: str | Path = ""
+    continuous_worker_delivery_lease_event_log_path: str | Path = ""
+    delivery_timestamp: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +127,7 @@ class CodexDeliverySupervisorRequest:
     delivery_event_log_path: str | Path
     scheduler_snapshot_path: str | Path
     scheduler_event_log_path: str | Path
+    runtime_provider: RuntimeProviderKind = "codex"
     runtime_invocation_log_path: str | Path | None = DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH
     artifact_store_path: str | Path | None = DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
     consume_success_results: bool = False
@@ -142,6 +163,15 @@ class CodexDeliverySupervisorRequest:
     publish_worker_patch_artifacts: bool = False
     worker_patch_guide_agent_id: str = "agent:guide"
     worker_patch_target_task_id: str = ""
+    opencode_session_ledger_path: str | Path = ".codex/runtime/opencode-session-ledger.json"
+    opencode_enable_session_lookup: bool = False
+    continuous_worker_binding_ledger_path: str | Path = ".codex/runtime/continuous-worker-bindings.json"
+    continuous_worker_binding_event_log_path: str | Path = ".codex/runtime/continuous-worker-binding-events.jsonl"
+    continuous_worker_context_bundle_dir_path: str | Path = ".codex/runtime/continuous-worker-contexts"
+    continuous_worker_delivery_lease_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH
+    continuous_worker_delivery_lease_event_log_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH
+    continuous_worker_lane_ownership_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH
+    enable_continuous_worker_binding_lookup: bool = False
     metadata: Mapping[str, object] = field(default_factory=dict)
 
 
@@ -283,6 +313,7 @@ class CodexDeliverySupervisorResult:
     def to_json_dict(self) -> dict[str, object]:
         return {
             "ok": self.ok,
+            "runtime_provider": self.request.runtime_provider,
             "delivery_state_path": str(self.delivery_state_path),
             "delivery_event_log_path": str(self.delivery_event_log_path),
             "scheduler_snapshot_path": str(self.scheduler_snapshot_path),
@@ -325,7 +356,7 @@ class CodexDeliverySupervisorResult:
                 "lane_distinct_batches": True,
             },
             "authority_split": {
-                "workflow_surface": "host-owned-codex-delivery-supervisor-once",
+                "workflow_surface": _delivery_surface(self.request.runtime_provider),
                 "runtime_registry_authority": "host_runtime_wiring",
                 "provider_executed": self.attempted_count > 0,
                 "process_parallel_execution": any(
@@ -373,15 +404,47 @@ def run_codex_delivery_supervisor_once(
     Scheduler task lifecycle state is intentionally not mutated in this gate.
     """
 
+    request = replace(request, runtime_provider="codex")
+    return _run_delivery_supervisor_once(request, runtime_client=codex_cli_client)
+
+
+def run_opencode_delivery_supervisor_once(
+    request: CodexDeliverySupervisorRequest,
+    *,
+    opencode_cli_client: OpenCodeCliClient,
+) -> CodexDeliverySupervisorResult:
+    """Run one bounded OpenCode delivery supervisor pass.
+
+    This uses the same leader-worker delivery state machine as Codex while
+    selecting the OpenCode runtime adapter, audit provider, and host grant.
+    """
+
+    request = replace(request, runtime_provider="opencode")
+    return _run_delivery_supervisor_once(request, runtime_client=opencode_cli_client)
+
+
+def _run_delivery_supervisor_once(
+    request: CodexDeliverySupervisorRequest,
+    *,
+    runtime_client: CodexCliClient | OpenCodeCliClient,
+) -> CodexDeliverySupervisorResult:
+    provider = request.runtime_provider
+    if provider not in {"codex", "opencode"}:
+        raise ValueError(
+            "leader-worker delivery supervisor supports runtime_provider "
+            f"'codex' or 'opencode'; got {provider!r}"
+        )
     if request.max_deliveries < 0:
-        raise ValueError("codex delivery supervisor max_deliveries must be non-negative")
+        raise ValueError(
+            f"{provider} delivery supervisor max_deliveries must be non-negative"
+        )
     if request.max_concurrent_deliveries < 1:
         raise ValueError(
-            "codex delivery supervisor max_concurrent_deliveries must be positive"
+            f"{provider} delivery supervisor max_concurrent_deliveries must be positive"
         )
     if request.max_delivery_attempts_per_record < 1:
         raise ValueError(
-            "codex delivery supervisor max_delivery_attempts_per_record must be positive"
+            f"{provider} delivery supervisor max_delivery_attempts_per_record must be positive"
         )
     if request.publish_worker_patch_artifacts and not request.enable_sandbox_preflight:
         raise ValueError(
@@ -412,10 +475,15 @@ def run_codex_delivery_supervisor_once(
         scheduler_log_path,
         strict=request.strict_recovery,
     )
-    runtime_client: CodexCliClient = codex_cli_client
+    opencode_has_explicit_session_selector = (
+        provider == "opencode"
+        and _opencode_client_has_explicit_session_selector(runtime_client)
+    )
+    audited_client: CodexCliClient | OpenCodeCliClient = runtime_client
     if invocation_log_path is not None:
-        runtime_client = _AuditedCodexCliClient(
-            inner=runtime_client,
+        audited_client = _audited_runtime_client(
+            provider=provider,
+            inner=audited_client,
             log=JsonlRuntimeInvocationLog(invocation_log_path),
             retry_policy=retry_policy,
             host_invocation_id=request.host_invocation_id,
@@ -423,28 +491,51 @@ def run_codex_delivery_supervisor_once(
     host_invocation = RuntimeHostInvocation(
         surface="host-authorized-adapter",
         invocation_id=request.host_invocation_id,
-        requested_providers=("codex",),
+        requested_providers=(provider,),
         requested_by=request.requested_by,
         reason=request.reason,
     )
-    wiring = build_runtime_registry_from_config(
-        RuntimeRegistryWiringConfig(
-            providers=("codex",),
-            timestamp=request.timestamp,
-            host_invocation=host_invocation,
-            codex_permission_grant=RuntimeProviderPermissionGrant(
-                grant_id=request.grant_id,
-                provider="codex",
-                approved_by=request.approved_by,
-                approved_at=request.approved_at or request.timestamp,
-                scope=request.grant_scope,
-                allow_process_spawn=True,
-                allow_network=request.allow_network,
-            ),
-        ),
-        codex_cli_client=runtime_client,
+    grant = RuntimeProviderPermissionGrant(
+        grant_id=request.grant_id,
+        provider=provider,
+        approved_by=request.approved_by,
+        approved_at=request.approved_at or request.timestamp,
+        scope=request.grant_scope,
+        allow_process_spawn=True,
+        allow_network=request.allow_network,
     )
-    runtime = wiring.registry.get("codex")
+    config_kwargs: dict[str, object] = {
+        "providers": (provider,),
+        "timestamp": request.timestamp,
+        "host_invocation": host_invocation,
+    }
+    client_kwargs: dict[str, object] = {}
+    if provider == "codex":
+        config_kwargs["codex_permission_grant"] = grant
+        client_kwargs["codex_cli_client"] = audited_client
+    else:
+        config_kwargs["opencode_permission_grant"] = grant
+        config_kwargs["opencode_session_ledger_path"] = request.opencode_session_ledger_path
+        config_kwargs["opencode_enable_session_lookup"] = (
+            request.opencode_enable_session_lookup
+            and not opencode_has_explicit_session_selector
+        )
+        config_kwargs["continuous_worker_binding_ledger_path"] = (
+            request.continuous_worker_binding_ledger_path
+        )
+        config_kwargs["continuous_worker_context_bundle_dir_path"] = (
+            request.continuous_worker_context_bundle_dir_path
+        )
+        config_kwargs["enable_continuous_worker_binding_lookup"] = (
+            request.enable_continuous_worker_binding_lookup
+            and not opencode_has_explicit_session_selector
+        )
+        client_kwargs["opencode_cli_client"] = audited_client
+    wiring = build_runtime_registry_from_config(
+        RuntimeRegistryWiringConfig(**config_kwargs),  # type: ignore[arg-type]
+        **client_kwargs,  # type: ignore[arg-type]
+    )
+    runtime = wiring.registry.get(provider)
     sandbox_registry = (
         _sandbox_registry_for_request(request)
         if request.enable_sandbox_preflight
@@ -459,6 +550,7 @@ def run_codex_delivery_supervisor_once(
     result_records: list[CodexDeliverySupervisorRecord] = []
     prepared: list[_PreparedCodexDelivery] = []
     selected_lane_ids: set[str] = set()
+    selected_worker_binding_ids: set[str] = set()
     batch_limit = min(request.max_deliveries, request.max_concurrent_deliveries)
     batch_id = f"{request.host_invocation_id}:batch-0001"
     for record in candidate_records:
@@ -471,6 +563,7 @@ def run_codex_delivery_supervisor_once(
             record,
             scheduler_state=recovery.recovered_state,
             task=task,
+            runtime_provider=provider,
         )
         if skip_reason:
             result_records.append(_skipped_record(record, skip_reason))
@@ -480,6 +573,7 @@ def run_codex_delivery_supervisor_once(
             record,
             scheduler_state=recovery.recovered_state,
             task=task,
+            runtime_provider=provider,
         )
         if precondition_failure:
             result_records.append(
@@ -503,20 +597,56 @@ def run_codex_delivery_supervisor_once(
         if request.max_concurrent_deliveries > 1:
             if lane_id in selected_lane_ids:
                 continue
+        worker_binding = (
+            None
+            if opencode_has_explicit_session_selector
+            else _resolve_continuous_worker_binding_for_task(request, task)
+        )
+        worker_binding_id = "" if worker_binding is None else worker_binding.binding_id
+        if worker_binding_id and not _continuous_worker_lane_ownership_allows_delivery(
+            request,
+            worker_binding_id,
+            lane_id,
+        ):
+            continue
+        if worker_binding_id and _continuous_worker_binding_has_active_delivery_lease(
+            request,
+            worker_binding_id,
+        ):
+            continue
+        if request.max_concurrent_deliveries > 1 and worker_binding_id:
+            if worker_binding_id in selected_worker_binding_ids:
+                continue
         try:
-            prepared.append(
-                _prepare_codex_delivery(
+            prepared_item = _prepare_codex_delivery(
+                request=request,
+                record=record,
+                task=task,
+                scheduler_state=recovery.recovered_state,
+                sandbox_registry=sandbox_registry,
+                batch_id=batch_id,
+                batch_size=1,
+                continuous_worker_binding_id=worker_binding_id,
+                continuous_worker_id="" if worker_binding is None else worker_binding.worker_id,
+            )
+            if worker_binding_id:
+                lease = _reserve_continuous_worker_delivery_lease(
                     request=request,
                     record=record,
                     task=task,
-                    scheduler_state=recovery.recovered_state,
-                    sandbox_registry=sandbox_registry,
-                    batch_id=batch_id,
-                    batch_size=1,
+                    binding_id=worker_binding_id,
                 )
-            )
+                if lease is None:
+                    continue
+                prepared_item = replace(
+                    prepared_item,
+                    continuous_worker_delivery_lease_id=lease.lease_id,
+                )
+            prepared.append(prepared_item)
             if request.max_concurrent_deliveries > 1:
                 selected_lane_ids.add(lane_id)
+                if worker_binding_id:
+                    selected_worker_binding_ids.add(worker_binding_id)
         except Exception as exc:
             result_records.append(
                 _fail_delivery_record(
@@ -542,6 +672,7 @@ def run_codex_delivery_supervisor_once(
         outcomes = _run_codex_runtime_delivery_batch(
             prepared,
             runtime=runtime,
+            provider=provider,
             concurrent=request.max_concurrent_deliveries > 1 and observed_batch_size > 1,
         )
         for outcome in outcomes:
@@ -581,6 +712,9 @@ def _prepare_codex_delivery(
     sandbox_registry: SandboxProviderRegistry | None,
     batch_id: str,
     batch_size: int,
+    continuous_worker_binding_id: str = "",
+    continuous_worker_id: str = "",
+    continuous_worker_delivery_lease_id: str = "",
 ) -> _PreparedCodexDelivery:
     runtime_task = task_to_runtime_spec(task)
     preflight: OrchestrationPreflightBundle | None = None
@@ -602,6 +736,16 @@ def _prepare_codex_delivery(
         retry_attempt=record.delivery_state == "failed",
         batch_id=batch_id,
         batch_size=batch_size,
+        continuous_worker_binding_id=continuous_worker_binding_id,
+        continuous_worker_id=continuous_worker_id,
+        continuous_worker_delivery_lease_id=continuous_worker_delivery_lease_id,
+        continuous_worker_delivery_lease_ledger_path=(
+            request.continuous_worker_delivery_lease_ledger_path
+        ),
+        continuous_worker_delivery_lease_event_log_path=(
+            request.continuous_worker_delivery_lease_event_log_path
+        ),
+        delivery_timestamp=request.timestamp,
     )
 
 
@@ -609,13 +753,17 @@ def _run_codex_runtime_delivery_batch(
     prepared: list[_PreparedCodexDelivery],
     *,
     runtime,
+    provider: RuntimeProviderKind = "codex",
     concurrent: bool,
 ) -> tuple[_RuntimeDeliveryOutcome, ...]:
     if not concurrent:
-        return tuple(_run_codex_runtime_delivery(item, runtime=runtime) for item in prepared)
+        return tuple(
+            _run_codex_runtime_delivery(item, runtime=runtime, provider=provider)
+            for item in prepared
+        )
     with ThreadPoolExecutor(max_workers=len(prepared)) as executor:
         futures = [
-            executor.submit(_run_codex_runtime_delivery, item, runtime=runtime)
+            executor.submit(_run_codex_runtime_delivery, item, runtime=runtime, provider=provider)
             for item in prepared
         ]
         return tuple(future.result() for future in futures)
@@ -625,6 +773,7 @@ def _run_codex_runtime_delivery(
     prepared: _PreparedCodexDelivery,
     *,
     runtime,
+    provider: RuntimeProviderKind = "codex",
 ) -> _RuntimeDeliveryOutcome:
     session = None
     invocation_id = ""
@@ -634,6 +783,11 @@ def _run_codex_runtime_delivery(
             prepared.batch_id.rsplit(":batch-", 1)[0],
             session.session_id,
             prepared.task.task_id,
+            provider=provider,
+        )
+        _begin_continuous_worker_delivery_lease(
+            prepared=prepared,
+            invocation_id=invocation_id,
         )
         run_result = runtime.run_task(session, prepared.runtime_task)
     except Exception as exc:
@@ -676,6 +830,15 @@ def _consume_codex_runtime_delivery_outcome(
     run_result = outcome.run_result
     process_parallel = prepared.batch_size > 1
     if run_result is None:
+        _fail_continuous_worker_delivery_lease(
+            prepared=prepared,
+            outcome=outcome,
+        )
+        _mark_continuous_worker_binding_after_failure(
+            request=request,
+            prepared=prepared,
+            outcome=outcome,
+        )
         return replace(
             _fail_delivery_record(
                 request=request,
@@ -694,6 +857,16 @@ def _consume_codex_runtime_delivery_outcome(
             concurrent_batch_size=prepared.batch_size,
             process_parallel_execution=process_parallel,
         )
+
+    _complete_continuous_worker_delivery_lease(
+        prepared=prepared,
+        outcome=outcome,
+    )
+    _record_continuous_worker_binding_after_success(
+        request=request,
+        prepared=prepared,
+        outcome=outcome,
+    )
 
     result_consumption: CodexResultConsumerResult | None = None
     permission_review: CodexPermissionReviewConsumerResult | None = None
@@ -760,7 +933,7 @@ def _consume_codex_runtime_delivery_outcome(
                 target_state="review_required",
                 timestamp=request.timestamp,
                 host_id=request.host_id,
-                runtime_provider="codex",
+                runtime_provider=request.runtime_provider,
                 runtime_session_id=run_result.run_handle.session_id,
                 runtime_run_id=run_result.run_handle.run_id,
                 invocation_id=outcome.invocation_id,
@@ -834,7 +1007,7 @@ def _consume_codex_runtime_delivery_outcome(
                     failure_kind="result_consumer_failed",
                     failure_detail=(
                         "consume_success_results requires artifact_store_path "
-                        "so the Codex output artifact can be stored durably"
+                        f"so the {request.runtime_provider} output artifact can be stored durably"
                     ),
                     runtime_session_id=run_result.run_handle.session_id,
                     runtime_run_id=run_result.run_handle.run_id,
@@ -887,7 +1060,7 @@ def _consume_codex_runtime_delivery_outcome(
             target_state="acknowledged",
             timestamp=request.timestamp,
             host_id=request.host_id,
-            runtime_provider="codex",
+            runtime_provider=request.runtime_provider,
             runtime_session_id=run_result.run_handle.session_id,
             runtime_run_id=run_result.run_handle.run_id,
             invocation_id=outcome.invocation_id,
@@ -953,7 +1126,7 @@ class _AuditedCodexCliClient:
             task_id=request.task.task_id,
             session_id=request.session.session_id,
             agent_id=request.agent.agent_id,
-            runtime_surface="host-owned-codex-delivery-supervisor-once",
+            runtime_surface=_delivery_surface("codex"),
             metadata={
                 "host_invocation_id": self.host_invocation_id,
                 "lane_id": request.task.scope.lane_id,
@@ -963,11 +1136,427 @@ class _AuditedCodexCliClient:
         )
 
 
+class _AuditedOpenCodeCliClient:
+    """Host-owned audit/retry wrapper around the OpenCode CLI client seam."""
+
+    def __init__(
+        self,
+        *,
+        inner: OpenCodeCliClient,
+        log: JsonlRuntimeInvocationLog,
+        retry_policy: RuntimeRetryPolicy,
+        host_invocation_id: str,
+    ) -> None:
+        self.inner = inner
+        self.log = log
+        self.retry_policy = retry_policy
+        self.host_invocation_id = host_invocation_id
+
+    def exec(self, request: OpenCodeCliRequest) -> OpenCodeCliResult:
+        host_session = request.host_session
+        selector_source = _opencode_client_session_selector_source(self.inner, request)
+        return run_with_runtime_invocation_audit(
+            invocation_id=_runtime_invocation_id(
+                self.host_invocation_id,
+                request.session.session_id,
+                request.task.task_id,
+                provider="opencode",
+            ),
+            provider="opencode",
+            operation=lambda: self.inner.exec(request),
+            log=self.log,
+            retry_policy=self.retry_policy,
+            task_id=request.task.task_id,
+            session_id=request.session.session_id,
+            agent_id=request.agent.agent_id,
+            runtime_surface=_delivery_surface("opencode"),
+            metadata={
+                "host_invocation_id": self.host_invocation_id,
+                "lane_id": request.task.scope.lane_id,
+                "context_id": request.task.scope.context_id,
+                "session_selector_source": selector_source,
+                "opencode_session_binding_id": (
+                    "" if host_session is None else host_session.binding_id
+                ),
+                "opencode_session_scope_kind": (
+                    "" if host_session is None else host_session.scope_kind
+                ),
+                "opencode_session_scope_id": (
+                    "" if host_session is None else host_session.scope_id
+                ),
+                "continuous_worker_binding_id": (
+                    "" if host_session is None else host_session.worker_binding_id
+                ),
+                "continuous_worker_id": (
+                    "" if host_session is None else host_session.worker_id
+                ),
+                "continuous_worker_scope_kind": (
+                    "" if host_session is None else host_session.worker_scope_kind
+                ),
+                "continuous_worker_scope_id": (
+                    "" if host_session is None else host_session.worker_scope_id
+                ),
+                "continuous_worker_lane_ids": (
+                    [] if host_session is None else list(host_session.worker_lane_ids)
+                ),
+                "continuous_worker_compact_context_ref": (
+                    "" if host_session is None else host_session.compact_context_ref
+                ),
+                "continuous_worker_mailbox_cursor_ref": (
+                    "" if host_session is None else host_session.mailbox_cursor_ref
+                ),
+                "continuous_worker_report_refs": (
+                    [] if host_session is None else list(host_session.worker_report_refs)
+                ),
+                "continuous_worker_audit_refs": (
+                    [] if host_session is None else list(host_session.audit_refs)
+                ),
+                "opencode_attached_to_server": (
+                    False if host_session is None else bool(host_session.attach_url)
+                ),
+                "run_id_available_at_client_seam": False,
+            },
+        )
+
+
+def _audited_runtime_client(
+    *,
+    provider: RuntimeProviderKind,
+    inner: CodexCliClient | OpenCodeCliClient,
+    log: JsonlRuntimeInvocationLog,
+    retry_policy: RuntimeRetryPolicy,
+    host_invocation_id: str,
+) -> CodexCliClient | OpenCodeCliClient:
+    if provider == "codex":
+        return _AuditedCodexCliClient(
+            inner=inner,  # type: ignore[arg-type]
+            log=log,
+            retry_policy=retry_policy,
+            host_invocation_id=host_invocation_id,
+        )
+    if provider == "opencode":
+        return _AuditedOpenCodeCliClient(
+            inner=inner,  # type: ignore[arg-type]
+            log=log,
+            retry_policy=retry_policy,
+            host_invocation_id=host_invocation_id,
+        )
+    raise ValueError(f"unsupported audited runtime provider: {provider!r}")
+
+
+def _opencode_client_has_explicit_session_selector(
+    client: CodexCliClient | OpenCodeCliClient,
+) -> bool:
+    config = getattr(client, "config", None)
+    if config is None:
+        inner = getattr(client, "inner", None)
+        if inner is not None:
+            return _opencode_client_has_explicit_session_selector(inner)
+        return False
+    return bool(
+        getattr(config, "attach_url", "")
+        or getattr(config, "session_id", "")
+        or getattr(config, "continue_session", False)
+        or getattr(config, "fork_session", False)
+    )
+
+
+def _opencode_client_session_selector_source(
+    client: OpenCodeCliClient,
+    request: OpenCodeCliRequest,
+) -> str:
+    if _opencode_client_has_explicit_session_selector(client):
+        return "explicit_config"
+    if request.host_session is not None:
+        return request.host_session.selector_source or "session_ledger"
+    return "none"
+
+
+def _resolve_continuous_worker_binding_for_task(
+    request: CodexDeliverySupervisorRequest,
+    task: ScheduledTask,
+):
+    if (
+        request.runtime_provider != "opencode"
+        or not request.enable_continuous_worker_binding_lookup
+    ):
+        return None
+    from .continuous_worker_binding import (
+        ContinuousWorkerBindingResolveRequest,
+        resolve_continuous_worker_binding,
+    )
+
+    result = resolve_continuous_worker_binding(
+        ContinuousWorkerBindingResolveRequest(
+            ledger_path=request.continuous_worker_binding_ledger_path,
+            runtime_provider="opencode",
+            task_id=task.task_id,
+            agent_id=task.agent.agent_id,
+            lane_id=task.context_scope.lane_id,
+            timestamp=request.timestamp,
+        )
+    )
+    return result.binding
+
+
+def _continuous_worker_binding_has_active_delivery_lease(
+    request: CodexDeliverySupervisorRequest,
+    binding_id: str,
+) -> bool:
+    if (
+        request.runtime_provider != "opencode"
+        or not request.enable_continuous_worker_binding_lookup
+        or not binding_id
+    ):
+        return False
+    from .continuous_worker_binding import binding_has_active_delivery_lease
+
+    return binding_has_active_delivery_lease(
+        request.continuous_worker_delivery_lease_ledger_path,
+        binding_id,
+    )
+
+
+def _continuous_worker_lane_ownership_allows_delivery(
+    request: CodexDeliverySupervisorRequest,
+    binding_id: str,
+    lane_id: str,
+) -> bool:
+    if (
+        request.runtime_provider != "opencode"
+        or not request.enable_continuous_worker_binding_lookup
+        or not binding_id
+        or not lane_id
+    ):
+        return True
+    from .continuous_worker_binding import lane_ownership_allows_delivery
+
+    return lane_ownership_allows_delivery(
+        request.continuous_worker_lane_ownership_ledger_path,
+        binding_id=binding_id,
+        lane_id=lane_id,
+    )
+
+
+def _reserve_continuous_worker_delivery_lease(
+    *,
+    request: CodexDeliverySupervisorRequest,
+    record: LeaderWorkerDeliveryRecord,
+    task: ScheduledTask,
+    binding_id: str,
+):
+    if (
+        request.runtime_provider != "opencode"
+        or not request.enable_continuous_worker_binding_lookup
+        or not binding_id
+    ):
+        return None
+    from .continuous_worker_binding import (
+        DeliveryLeaseReserveRequest,
+        reserve_delivery_lease,
+    )
+
+    result = reserve_delivery_lease(
+        DeliveryLeaseReserveRequest(
+            ledger_path=request.continuous_worker_delivery_lease_ledger_path,
+            event_log_path=request.continuous_worker_delivery_lease_event_log_path,
+            binding_id=binding_id,
+            task_id=task.task_id,
+            delivery_id=record.delivery_id,
+            reserved_at=request.timestamp,
+            reason="continuous worker binding selected for delivery",
+            audit_refs=(request.host_invocation_id,),
+            metadata={
+                "host_invocation_id": request.host_invocation_id,
+                "source_key": record.source_key,
+                "lane_id": task.context_scope.lane_id,
+                "agent_id": task.agent.agent_id,
+            },
+        )
+    )
+    return result.lease if result.ok else None
+
+
+def _begin_continuous_worker_delivery_lease(
+    *,
+    prepared: _PreparedCodexDelivery,
+    invocation_id: str,
+) -> None:
+    if not prepared.continuous_worker_delivery_lease_id:
+        return
+    from .continuous_worker_binding import (
+        DeliveryLeaseBeginRequest,
+        begin_delivery_lease_run,
+    )
+
+    result = begin_delivery_lease_run(
+        DeliveryLeaseBeginRequest(
+            ledger_path=prepared.continuous_worker_delivery_lease_ledger_path,
+            event_log_path=prepared.continuous_worker_delivery_lease_event_log_path,
+            lease_id=prepared.continuous_worker_delivery_lease_id,
+            binding_id=prepared.continuous_worker_binding_id,
+            started_at=prepared.delivery_timestamp,
+            audit_refs=(invocation_id,) if invocation_id else (),
+            metadata={
+                "invocation_id": invocation_id,
+                "task_id": prepared.task.task_id,
+                "delivery_record_id": prepared.record.delivery_id,
+            },
+        )
+    )
+    if not result.ok:
+        raise RuntimeError(result.message)
+
+
+def _complete_continuous_worker_delivery_lease(
+    *,
+    prepared: _PreparedCodexDelivery,
+    outcome: _RuntimeDeliveryOutcome,
+) -> None:
+    if not prepared.continuous_worker_delivery_lease_id:
+        return
+    from .continuous_worker_binding import (
+        DeliveryLeaseCompleteRequest,
+        complete_delivery_lease,
+    )
+
+    complete_delivery_lease(
+        DeliveryLeaseCompleteRequest(
+            ledger_path=prepared.continuous_worker_delivery_lease_ledger_path,
+            event_log_path=prepared.continuous_worker_delivery_lease_event_log_path,
+            lease_id=prepared.continuous_worker_delivery_lease_id,
+            binding_id=prepared.continuous_worker_binding_id,
+            completed_at=prepared.delivery_timestamp,
+            result_ref=outcome.invocation_id,
+            audit_refs=(outcome.invocation_id,) if outcome.invocation_id else (),
+            metadata={
+                "runtime_session_id": outcome.session_id,
+                "runtime_run_id": outcome.run_id,
+                "delivery_record_id": prepared.record.delivery_id,
+                "task_id": prepared.task.task_id,
+            },
+        )
+    )
+
+
+def _fail_continuous_worker_delivery_lease(
+    *,
+    prepared: _PreparedCodexDelivery,
+    outcome: _RuntimeDeliveryOutcome,
+) -> None:
+    if not prepared.continuous_worker_delivery_lease_id:
+        return
+    from .continuous_worker_binding import (
+        DeliveryLeaseFailRequest,
+        fail_delivery_lease_retryable,
+        fail_delivery_lease_terminal,
+    )
+
+    fail_request = DeliveryLeaseFailRequest(
+        ledger_path=prepared.continuous_worker_delivery_lease_ledger_path,
+        event_log_path=prepared.continuous_worker_delivery_lease_event_log_path,
+        lease_id=prepared.continuous_worker_delivery_lease_id,
+        binding_id=prepared.continuous_worker_binding_id,
+        failed_at=prepared.delivery_timestamp,
+        failure_kind=outcome.failure_kind or "unknown",
+        result_ref=outcome.invocation_id,
+        audit_refs=(outcome.invocation_id,) if outcome.invocation_id else (),
+        metadata={
+            "retryable": outcome.retryable,
+            "raw_error_type": outcome.raw_error_type,
+            "runtime_session_id": outcome.session_id,
+            "runtime_run_id": outcome.run_id,
+            "delivery_record_id": prepared.record.delivery_id,
+            "task_id": prepared.task.task_id,
+        },
+    )
+    if outcome.retryable:
+        fail_delivery_lease_retryable(fail_request)
+    else:
+        fail_delivery_lease_terminal(fail_request)
+
+
+def _record_continuous_worker_binding_after_success(
+    *,
+    request: CodexDeliverySupervisorRequest,
+    prepared: _PreparedCodexDelivery,
+    outcome: _RuntimeDeliveryOutcome,
+) -> None:
+    if request.runtime_provider != "opencode" or not prepared.continuous_worker_binding_id:
+        return
+    from .continuous_worker_binding import (
+        ContinuousWorkerBindingReuseRequest,
+        record_continuous_worker_binding_reuse,
+    )
+
+    record_continuous_worker_binding_reuse(
+        ContinuousWorkerBindingReuseRequest(
+            ledger_path=request.continuous_worker_binding_ledger_path,
+            event_log_path=request.continuous_worker_binding_event_log_path,
+            binding_id=prepared.continuous_worker_binding_id,
+            task_id=prepared.task.task_id,
+            agent_id=prepared.task.agent.agent_id,
+            lane_id=prepared.task.context_scope.lane_id,
+            timestamp=request.timestamp,
+            audit_refs=(outcome.invocation_id,) if outcome.invocation_id else (),
+            metadata={
+                "runtime_session_id": outcome.session_id,
+                "runtime_run_id": outcome.run_id,
+                "delivery_record_id": prepared.record.delivery_id,
+                "source_key": prepared.record.source_key,
+            },
+        )
+    )
+
+
+def _mark_continuous_worker_binding_after_failure(
+    *,
+    request: CodexDeliverySupervisorRequest,
+    prepared: _PreparedCodexDelivery,
+    outcome: _RuntimeDeliveryOutcome,
+) -> None:
+    if request.runtime_provider != "opencode" or not prepared.continuous_worker_binding_id:
+        return
+    if not _failure_may_invalidate_continuous_worker_binding(outcome):
+        return
+    from .continuous_worker_binding import (
+        ContinuousWorkerBindingReleaseRequest,
+        release_continuous_worker_binding,
+    )
+
+    release_continuous_worker_binding(
+        ContinuousWorkerBindingReleaseRequest(
+            ledger_path=request.continuous_worker_binding_ledger_path,
+            event_log_path=request.continuous_worker_binding_event_log_path,
+            binding_id=prepared.continuous_worker_binding_id,
+            lifecycle_status="stale",
+            timestamp=request.timestamp,
+            reason=(
+                "runtime delivery failed through continuous worker binding: "
+                f"{outcome.failure_kind}"
+            ),
+        )
+    )
+
+
+def _failure_may_invalidate_continuous_worker_binding(
+    outcome: _RuntimeDeliveryOutcome,
+) -> bool:
+    return outcome.retryable or outcome.failure_kind in {
+        "timeout",
+        "process_failed",
+        "cli_unavailable",
+        "authentication_failed",
+        "unknown",
+    }
+
+
 def _skip_reason_for_record(
     record: LeaderWorkerDeliveryRecord,
     *,
     scheduler_state: SchedulerState,
     task: ScheduledTask | None,
+    runtime_provider: RuntimeProviderKind = "codex",
 ) -> str:
     if record.event_kind != "task_ready" or record.next_action != "run_agent":
         return (
@@ -978,8 +1567,11 @@ def _skip_reason_for_record(
         return ""
     if task.agent.agent_id != record.agent_id:
         return ""
-    if task.agent.runtime_provider != "codex":
-        return f"task runtime provider is {task.agent.runtime_provider!r}, not 'codex'"
+    if task.agent.runtime_provider != runtime_provider:
+        return (
+            f"task runtime provider is {task.agent.runtime_provider!r}, "
+            f"not {runtime_provider!r}"
+        )
     if task.state == "complete":
         return "task already recovered as complete"
     return ""
@@ -1003,6 +1595,7 @@ def _precondition_failure_for_record(
     *,
     scheduler_state: SchedulerState,
     task: ScheduledTask | None,
+    runtime_provider: RuntimeProviderKind = "codex",
 ) -> str:
     if task is None:
         return f"scheduler task not found for delivery record task_id={record.task_id!r}"
@@ -1018,7 +1611,7 @@ def _precondition_failure_for_record(
         if decision.state == "admissible":
             return ""
         return f"task is not currently admissible: {decision.state} {decision.reason}".strip()
-    return f"task is not ready for Codex delivery: {task.state}"
+    return f"task is not ready for {runtime_provider} delivery: {task.state}"
 
 
 def _sandbox_registry_for_request(
@@ -1123,7 +1716,7 @@ def _fail_delivery_record(
             target_state="failed",
             timestamp=request.timestamp,
             host_id=request.host_id,
-            runtime_provider="codex",
+            runtime_provider=request.runtime_provider,
             runtime_session_id=runtime_session_id,
             runtime_run_id=runtime_run_id,
             invocation_id=invocation_id,
@@ -1159,7 +1752,8 @@ def _ack_metadata(
     worker_patch_review: CodexDeliveryWorkerPatchReviewPublication | None = None,
 ) -> dict[str, object]:
     metadata: dict[str, object] = {
-        "runner": "host-owned-codex-delivery-supervisor-once",
+        "runner": _delivery_surface(request.runtime_provider),
+        "runtime_provider": request.runtime_provider,
         "host_invocation_id": request.host_invocation_id,
         "delivery_record_id": record.delivery_id,
         "scheduler_snapshot_path": str(request.scheduler_snapshot_path),
@@ -1214,17 +1808,23 @@ def _runtime_invocation_id(
     host_invocation_id: str,
     session_id: str,
     task_id: str,
+    *,
+    provider: RuntimeProviderKind = "codex",
 ) -> str:
     return ":".join(
         part
         for part in (
-            "codex-delivery",
+            f"{provider}-delivery",
             host_invocation_id,
             session_id,
             task_id,
         )
         if part
     )
+
+
+def _delivery_surface(provider: RuntimeProviderKind) -> str:
+    return f"host-owned-{provider}-delivery-supervisor-once"
 
 
 def _safe_failure_detail(value: str, *, limit: int = 500) -> str:
@@ -1263,11 +1863,28 @@ def _permission_request_to_json_dict(
     }
 
 
+ProviderDeliveryWorkerPatchReviewPublication = CodexDeliveryWorkerPatchReviewPublication
+ProviderDeliverySupervisorRecord = CodexDeliverySupervisorRecord
+ProviderDeliverySupervisorRecordStatus = CodexDeliverySupervisorRecordStatus
+ProviderDeliverySupervisorRequest = CodexDeliverySupervisorRequest
+ProviderDeliverySupervisorResult = CodexDeliverySupervisorResult
+run_provider_delivery_supervisor_once_for_codex = run_codex_delivery_supervisor_once
+run_provider_delivery_supervisor_once_for_opencode = run_opencode_delivery_supervisor_once
+
+
 __all__ = [
     "CodexDeliveryWorkerPatchReviewPublication",
     "CodexDeliverySupervisorRecord",
     "CodexDeliverySupervisorRecordStatus",
     "CodexDeliverySupervisorRequest",
     "CodexDeliverySupervisorResult",
+    "ProviderDeliveryWorkerPatchReviewPublication",
+    "ProviderDeliverySupervisorRecord",
+    "ProviderDeliverySupervisorRecordStatus",
+    "ProviderDeliverySupervisorRequest",
+    "ProviderDeliverySupervisorResult",
     "run_codex_delivery_supervisor_once",
+    "run_opencode_delivery_supervisor_once",
+    "run_provider_delivery_supervisor_once_for_codex",
+    "run_provider_delivery_supervisor_once_for_opencode",
 ]

@@ -1,67 +1,34 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Guide-worker local trajectory orchestration MVP",
-  "recorded_at": "2026-06-24T21:43:19.889073+00:00",
-  "source_graph_id": "local-work",
+  "title": "2026-07-02 gate 提交暂存预演",
+  "recorded_at": "2026-07-02T12:01:34.134173+00:00",
+  "source_graph_id": "",
   "source_node_id": "",
-  "guide_context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes",
+  "guide_context": "design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md + design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md + design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md",
   "metadata": {
     "projection": "single-lane-lifecycle",
-    "lane_mode": "multi",
+    "lane_mode": "single",
     "lifecycle_version": "1"
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Guide-worker local trajectory orchestration MVP",
-    "lane_count": 4,
-    "event_count": 25,
-    "relation_count": 24,
-    "source_graph_id": "local-work",
+    "title": "2026-07-02 gate 提交暂存预演",
+    "lane_count": 1,
+    "event_count": 2,
+    "relation_count": 1,
+    "source_graph_id": "",
     "source_node_id": ""
   },
   "lanes": {
-    "lane:codex-worker-sandbox-writeback": {
-      "id": "lane:codex-worker-sandbox-writeback",
-      "label": "Codex Sandbox Writeback",
-      "status": "done",
-      "summary": "Additional local work lane.",
-      "metadata": {
-        "line_kind": "single",
-        "created_at": "2026-06-24T13:15:52.435465+00:00",
-        "source": "single-line-lifecycle"
-      }
-    },
     "lane:main": {
       "id": "lane:main",
-      "label": "orchestration",
+      "label": "commit-prep",
       "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "Implement guide-worker collaboration on one Local Work Trajectory, then limited parallelism across different lanes"
-      }
-    },
-    "lane:parallel-wave-executor": {
-      "id": "lane:parallel-wave-executor",
-      "label": "Parallel Wave Executor",
-      "status": "done",
-      "summary": "Additional local work lane.",
-      "metadata": {
-        "line_kind": "single",
-        "created_at": "2026-06-24T04:15:56.925790+00:00",
-        "source": "single-line-lifecycle"
-      }
-    },
-    "lane:provider-worker-mapping": {
-      "id": "lane:provider-worker-mapping",
-      "label": "Provider Worker Mapping",
-      "status": "done",
-      "summary": "Additional local work lane.",
-      "metadata": {
-        "line_kind": "single",
-        "created_at": "2026-06-24T04:35:56.778752+00:00",
-        "source": "single-line-lifecycle"
+        "context": "design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md + design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md + design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md"
       }
     }
   },
@@ -69,372 +36,31 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Scope current guide-worker and lane-parallel implementation slice",
-      "kind": "start",
+      "title": "整理并暂存 2026-07-02 gate 文件列表",
+      "kind": "review",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-06-23T13:21:35.143984+00:00",
-        "activated_at": "2026-06-23T13:21:35.143984+00:00",
+        "created_at": "2026-07-02T11:58:08.201987+00:00",
+        "activated_at": "2026-07-02T11:58:08.201987+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-06-23T13:27:15.587045+00:00"
-      }
-    },
-    "event:008": {
-      "id": "event:008",
-      "lane_id": "lane:parallel-wave-executor",
-      "title": "Implement provider-backed lane wave executor contract",
-      "kind": "task",
-      "status": "completed",
-      "order": 1,
-      "summary": "Start a separate implementation lane for the next orchestration slice: add a bounded lane-distinct wave executor with deterministic scheduler-state merge, using fake/mock runtime validation first.",
-      "metadata": {
-        "created_at": "2026-06-24T04:15:56.925790+00:00",
-        "activated_at": "2026-06-24T04:15:56.925790+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T04:34:05.315683+00:00"
-      }
-    },
-    "event:009": {
-      "id": "event:009",
-      "lane_id": "lane:provider-worker-mapping",
-      "title": "Map guide-worker instructions to injected provider runtimes",
-      "kind": "task",
-      "status": "completed",
-      "order": 1,
-      "summary": "Start a narrow host-authorized runtime mapping slice: allow guide-worker instructions to declare worker runtime provider, validate through injected mock Qoder registry, and keep MCP fake-only.",
-      "metadata": {
-        "created_at": "2026-06-24T04:35:56.778752+00:00",
-        "activated_at": "2026-06-24T04:35:56.778752+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T04:44:35.911180+00:00"
-      }
-    },
-    "event:017": {
-      "id": "event:017",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Codex worker sandbox writeback policy",
-      "kind": "decision",
-      "status": "completed",
-      "order": 1,
-      "summary": "Open a distinct implementation lane for Codex worker sandbox/writeback/merge policy after the Codex CLI runtime provider seam.",
-      "metadata": {
-        "created_at": "2026-06-24T13:15:52.435465+00:00",
-        "activated_at": "2026-06-24T13:15:52.435465+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T13:19:34.763902+00:00"
+        "completed_at": "2026-07-02T12:01:22.976725+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Write contract-first planning gate for guide-worker lane orchestration",
-      "kind": "decision",
-      "status": "completed",
-      "order": 2,
-      "summary": "Define the minimum contract for guide-generated worker instructions and finite cross-lane parallel waves before code changes.",
-      "metadata": {
-        "created_at": "2026-06-23T13:27:36.354486+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-23T13:50:17.726107+00:00",
-        "completed_at": "2026-06-24T03:45:25.584522+00:00"
-      }
-    },
-    "event:010": {
-      "id": "event:010",
-      "lane_id": "lane:provider-worker-mapping",
-      "title": "Defer live host-owned guide-worker provider wrapper",
-      "kind": "decision",
-      "status": "completed",
-      "order": 2,
-      "summary": "Superseded by event:011: the host-owned guide-worker provider wrapper was implemented in a later narrow gate, so this earlier defer decision is retained as historical context rather than an active pending item.",
-      "metadata": {
-        "created_at": "2026-06-24T04:46:27.412050+00:00",
-        "source": "single-line-lifecycle",
-        "updated_at": "2026-06-24T06:02:20.371054+00:00",
-        "completed_at": "2026-06-24T06:02:33.054532+00:00"
-      }
-    },
-    "event:018": {
-      "id": "event:018",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Implement Codex worker sandbox receipt bridge",
-      "kind": "task",
-      "status": "completed",
-      "order": 2,
-      "summary": "Add worker sandboxProfile intake/planning, host git-worktree sandbox registration, sandbox allocation evidence output, and compact writeback receipts for guide-worker provider execution.",
-      "metadata": {
-        "created_at": "2026-06-24T13:19:44.874294+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T14:04:10.658931+00:00"
-      }
-    },
-    "event:003": {
-      "id": "event:003",
-      "lane_id": "lane:main",
-      "title": "Validate guide-worker local orchestration MVP",
+      "title": "完成 staged diff 与目标测试复核",
       "kind": "validation",
       "status": "completed",
-      "order": 3,
-      "summary": "Run compile, focused runtime/CLI tests, adjacent guide-worker tests, prompt tests, and change analysis.",
+      "order": 2,
+      "summary": "暂存 14 个 2026-07-02 gate 直接文件；git diff --cached --check 通过；compact hydration 目标测试 3 passed；next_action 目标测试 5 passed；repo-root smoke 52 passed, 1 skipped。tests/test_mcp_tools.py 已加入 .gitignore 测试白名单后纳入暂存。",
       "metadata": {
-        "created_at": "2026-06-24T03:42:45.377814+00:00",
+        "created_at": "2026-07-02T12:01:12.038811+00:00",
         "source": "single-line-lifecycle",
-        "activated_at": "2026-06-24T03:45:25.584522+00:00",
-        "completed_at": "2026-06-24T03:50:12.113607+00:00"
-      }
-    },
-    "event:011": {
-      "id": "event:011",
-      "lane_id": "lane:provider-worker-mapping",
-      "title": "Host-owned guide-worker provider wrapper",
-      "kind": "task",
-      "status": "completed",
-      "order": 3,
-      "summary": "Continue after provider runtime mapping: implement a host-owned execution wrapper for guide-worker worker providers, keeping MCP fake-only while allowing injected provider execution with compact evidence.",
-      "metadata": {
-        "created_at": "2026-06-24T04:50:56.628989+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T06:01:46.114883+00:00"
-      }
-    },
-    "event:019": {
-      "id": "event:019",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Open worker patch review integration gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 3,
-      "summary": "Continue the active guide-worker/Codex CLI objective after sandbox receipts: define the bounded contract for exporting worker sandbox changes as patch/review products and connecting them to explicit merge review without auto-merge.",
-      "metadata": {
-        "created_at": "2026-06-24T14:10:37.539578+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T14:49:04.737307+00:00"
-      }
-    },
-    "event:004": {
-      "id": "event:004",
-      "lane_id": "lane:main",
-      "title": "Expose guide-worker local orchestration through MCP and structured instructions",
-      "kind": "task",
-      "status": "completed",
-      "order": 4,
-      "summary": "Implementation plan: add a host-owned guide-worker provider execution wrapper under tools/progress_graph, keep MCP fake-only, expose a CLI wrapper with credential-safe Qoder config, and validate through injected mock Qoder client plus CLI negative/help tests.",
-      "metadata": {
-        "created_at": "2026-06-24T03:52:42.958993+00:00",
-        "source": "single-line-lifecycle",
-        "updated_at": "2026-06-24T04:56:56.973591+00:00",
-        "activated_at": "2026-06-24T05:53:50.874589+00:00",
-        "completed_at": "2026-06-24T06:03:14.972582+00:00"
-      }
-    },
-    "event:015": {
-      "id": "event:015",
-      "lane_id": "lane:provider-worker-mapping",
-      "title": "Open Codex CLI worker runtime planning gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 4,
-      "summary": "Begin Codex CLI worker runtime provider planning and implementation audit.",
-      "metadata": {
-        "created_at": "2026-06-24T12:32:36.508432+00:00",
-        "source": "single-line-lifecycle",
-        "resumed_at": "2026-06-24T12:32:46.558674+00:00",
-        "activated_at": "2026-06-24T12:32:46.558674+00:00",
-        "completed_at": "2026-06-24T13:06:27.599943+00:00"
-      }
-    },
-    "event:020": {
-      "id": "event:020",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Open worker patch apply/reject policy gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 4,
-      "summary": "Continue after worker patch review artifacts: define explicit patch proposal accept/reject semantics, conflict-check behavior, and cleanup-after-review boundaries without automatic merge or MCP live-provider expansion.",
-      "metadata": {
-        "created_at": "2026-06-24T14:55:29.929738+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T15:23:25.989750+00:00"
-      }
-    },
-    "event:005": {
-      "id": "event:005",
-      "lane_id": "lane:main",
-      "title": "Expose guide-worker orchestration through MCP",
-      "kind": "task",
-      "status": "completed",
-      "order": 5,
-      "summary": "Open the next narrow slice: add a Codex-facing MCP wrapper for the guide-worker local trajectory orchestration helper, including structured worker instruction intake and fake-runtime guard.",
-      "metadata": {
-        "created_at": "2026-06-24T03:56:18.727369+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-24T06:03:14.972582+00:00",
-        "completed_at": "2026-06-24T06:03:26.357209+00:00"
-      }
-    },
-    "event:016": {
-      "id": "event:016",
-      "lane_id": "lane:provider-worker-mapping",
-      "title": "Commit Codex CLI worker runtime provider slice",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 5,
-      "summary": "Stage only the Codex CLI worker runtime provider files, commit the completed provider seam, and leave sandbox/writeback/merge policy as the next gate.",
-      "metadata": {
-        "created_at": "2026-06-24T13:11:21.278363+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T13:12:18.462576+00:00"
-      }
-    },
-    "event:021": {
-      "id": "event:021",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Open multi-worker patch composition preflight gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 5,
-      "summary": "Continue after single worker patch check/apply/reject: define a non-mutating preflight for multiple worker patch proposals, including ordering and conflict detection, without automatic merge, cleanup, or UI binding.",
-      "metadata": {
-        "created_at": "2026-06-24T15:32:24.974724+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T15:56:04.786952+00:00"
-      }
-    },
-    "event:006": {
-      "id": "event:006",
-      "lane_id": "lane:main",
-      "title": "Validate guide-worker MCP surface",
-      "kind": "validation",
-      "status": "completed",
-      "order": 6,
-      "summary": "Focused validation passed: py_compile, runtime/MCP/CLI guide-worker tests, scheduler MCP prompt tests, doc-loop validator, and git diff whitespace check.",
-      "metadata": {
-        "created_at": "2026-06-24T04:13:44.373153+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-24T06:03:26.357209+00:00",
-        "completed_at": "2026-06-24T06:03:37.841241+00:00"
-      }
-    },
-    "event:022": {
-      "id": "event:022",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Prepare post-composition preflight direction analysis",
-      "kind": "decision",
-      "status": "completed",
-      "order": 6,
-      "summary": "After committing the multi-worker patch composition preflight, prepare a narrow direction-analysis surface for the next orchestration slice rather than opening a broad implementation gate directly.",
-      "metadata": {
-        "created_at": "2026-06-24T16:05:46.130039+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T16:12:14.827200+00:00"
-      }
-    },
-    "event:007": {
-      "id": "event:007",
-      "lane_id": "lane:main",
-      "title": "Write back guide-worker MCP slice",
-      "kind": "writeback",
-      "status": "completed",
-      "order": 7,
-      "summary": "Updated planning gate, Checklist, Phase Map, scheduler MCP smoke prompts, bootstrap prompt, and MCP Tool Surface Audit for schedulerGuideWorkerLocalOrchestration.",
-      "metadata": {
-        "created_at": "2026-06-24T04:13:52.434446+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-24T06:03:37.841241+00:00",
-        "completed_at": "2026-06-24T06:03:46.293401+00:00"
-      }
-    },
-    "event:023": {
-      "id": "event:023",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Open Host UX worker patch review binding gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 7,
-      "summary": "Resume the Host UX worker patch review binding slice: contract gate first, then backend/UI/test binding for readback, check/reject, and composition preflight without source apply.",
-      "metadata": {
-        "created_at": "2026-06-24T16:16:55.538325+00:00",
-        "source": "single-line-lifecycle",
-        "resumed_at": "2026-06-24T16:24:21.502437+00:00",
-        "activated_at": "2026-06-24T16:24:21.502437+00:00",
-        "completed_at": "2026-06-24T21:18:33.096447+00:00"
-      }
-    },
-    "event:012": {
-      "id": "event:012",
-      "lane_id": "lane:main",
-      "title": "Open autonomous guide instruction planning gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 8,
-      "summary": "Next slice after host-owned guide-worker provider wrapper: add a narrow deterministic guide policy that derives concrete worker instructions from a higher-level local trajectory task while preserving fake-only MCP and lane-limited wave execution.",
-      "metadata": {
-        "created_at": "2026-06-24T07:17:04.627005+00:00",
-        "source": "single-line-lifecycle",
-        "activated_at": "2026-06-24T08:15:46.641223+00:00",
-        "completed_at": "2026-06-24T08:17:08.901956+00:00"
-      }
-    },
-    "event:024": {
-      "id": "event:024",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Bind Host UX worker patch review actions",
-      "kind": "task",
-      "status": "completed",
-      "order": 8,
-      "summary": "Implement the Host UX worker patch review binding: worker patch proposal readback, check/reject actions through accepted disposition plus consumer, and multi-select non-mutating composition preflight, followed by focused tests and screenshot validation.",
-      "metadata": {
-        "created_at": "2026-06-24T21:18:47.501840+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T21:32:52.430877+00:00"
-      }
-    },
-    "event:013": {
-      "id": "event:013",
-      "lane_id": "lane:main",
-      "title": "Open guide-worker execution closure planning gate",
-      "kind": "decision",
-      "status": "completed",
-      "order": 9,
-      "summary": "Begin the guide-worker execution closure slice: document and implement host-owned execution over planner-derived lane workers plus per-worker execution receipts.",
-      "metadata": {
-        "created_at": "2026-06-24T10:11:37.368763+00:00",
-        "source": "single-line-lifecycle",
-        "resumed_at": "2026-06-24T10:14:39.686903+00:00",
-        "activated_at": "2026-06-24T10:14:39.686903+00:00",
-        "completed_at": "2026-06-24T12:14:10.008141+00:00"
-      }
-    },
-    "event:025": {
-      "id": "event:025",
-      "lane_id": "lane:codex-worker-sandbox-writeback",
-      "title": "Audit guide-worker Codex CLI objective completion",
-      "kind": "validation",
-      "status": "completed",
-      "order": 9,
-      "summary": "Validate the persisted objective against current implementation evidence: single Local Work Trajectory guide-worker collaboration, lane-distinct limited parallelism, and Codex CLI backend agent runtime.",
-      "metadata": {
-        "created_at": "2026-06-24T21:38:00.164192+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-06-24T21:43:19.889073+00:00"
-      }
-    },
-    "event:014": {
-      "id": "event:014",
-      "lane_id": "lane:main",
-      "title": "Fix planned execution default instruction precedence",
-      "kind": "task",
-      "status": "completed",
-      "order": 10,
-      "summary": "Implementation and validation resumed for the planned execution default instruction precedence correction.",
-      "metadata": {
-        "created_at": "2026-06-24T12:20:08.156088+00:00",
-        "source": "single-line-lifecycle",
-        "resumed_at": "2026-06-24T12:26:42.774244+00:00",
-        "activated_at": "2026-06-24T12:26:42.774244+00:00",
-        "completed_at": "2026-06-24T12:26:52.447894+00:00"
+        "activated_at": "2026-07-02T12:01:22.976725+00:00",
+        "completed_at": "2026-07-02T12:01:34.134173+00:00"
       }
     }
   },
@@ -447,213 +73,7 @@
       "metadata": {
         "source": "single-line-lifecycle"
       }
-    },
-    {
-      "source_event_id": "event:002",
-      "target_event_id": "event:003",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:003",
-      "target_event_id": "event:004",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:004",
-      "target_event_id": "event:005",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:005",
-      "target_event_id": "event:006",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:006",
-      "target_event_id": "event:007",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:007",
-      "target_event_id": "event:008",
-      "kind": "proposes_new_line",
-      "summary": "Created lane lane:parallel-wave-executor",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:007",
-      "target_event_id": "event:009",
-      "kind": "proposes_new_line",
-      "summary": "Created lane lane:provider-worker-mapping",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:009",
-      "target_event_id": "event:010",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:010",
-      "target_event_id": "event:011",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:007",
-      "target_event_id": "event:012",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:012",
-      "target_event_id": "event:013",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:013",
-      "target_event_id": "event:014",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:011",
-      "target_event_id": "event:015",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:015",
-      "target_event_id": "event:016",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:016",
-      "target_event_id": "event:017",
-      "kind": "proposes_new_line",
-      "summary": "Created lane lane:codex-worker-sandbox-writeback",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:017",
-      "target_event_id": "event:018",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:018",
-      "target_event_id": "event:019",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:019",
-      "target_event_id": "event:020",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:020",
-      "target_event_id": "event:021",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:021",
-      "target_event_id": "event:022",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:022",
-      "target_event_id": "event:023",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:023",
-      "target_event_id": "event:024",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
-    },
-    {
-      "source_event_id": "event:024",
-      "target_event_id": "event:025",
-      "kind": "sequence",
-      "summary": "",
-      "metadata": {
-        "source": "single-line-lifecycle"
-      }
     }
-  ]
+  ],
+  "child_trajectories": {}
 }

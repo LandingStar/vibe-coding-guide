@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
@@ -11,6 +12,8 @@ from .runtime_adapter import (
     CodexCliAgentRuntimeAdapter,
     CodexCliClient,
     FakeAgentRuntimeAdapter,
+    OpenCodeCliAgentRuntimeAdapter,
+    OpenCodeCliClient,
     QoderAgentRuntimeAdapter,
     QoderQueryClient,
     RuntimeProviderKind,
@@ -71,7 +74,13 @@ class RuntimeRegistryWiringConfig:
     timestamp: str = ""
     qoder_permission_grant: RuntimeProviderPermissionGrant | None = None
     codex_permission_grant: RuntimeProviderPermissionGrant | None = None
+    opencode_permission_grant: RuntimeProviderPermissionGrant | None = None
     host_invocation: RuntimeHostInvocation | None = None
+    opencode_session_ledger_path: str | Path = ""
+    opencode_enable_session_lookup: bool = False
+    continuous_worker_binding_ledger_path: str | Path = ""
+    enable_continuous_worker_binding_lookup: bool = False
+    continuous_worker_context_bundle_dir_path: str | Path = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +99,7 @@ def build_runtime_registry_from_config(
     coordination_event_log: JsonlCoordinationEventLog | None = None,
     qoder_query_client: QoderQueryClient | None = None,
     codex_cli_client: CodexCliClient | None = None,
+    opencode_cli_client: OpenCodeCliClient | None = None,
 ) -> RuntimeRegistryWiringResult:
     """Build an instance-scoped runtime registry from explicit host config.
 
@@ -144,6 +154,31 @@ def build_runtime_registry_from_config(
                 )
             )
             continue
+        if provider == "opencode":
+            _validate_opencode_permission_grant(active_config.opencode_permission_grant)
+            if opencode_cli_client is None:
+                raise ValueError(
+                    "runtime provider 'opencode' requires an injected OpenCodeCliClient; "
+                    "the orchestration layer must not spawn OpenCode CLI directly"
+                )
+            registry.register(
+                OpenCodeCliAgentRuntimeAdapter(
+                    cli_client=opencode_cli_client,
+                    timestamp=active_config.timestamp,
+                    session_ledger_path=active_config.opencode_session_ledger_path,
+                    enable_session_lookup=active_config.opencode_enable_session_lookup,
+                    continuous_worker_binding_ledger_path=(
+                        active_config.continuous_worker_binding_ledger_path
+                    ),
+                    enable_continuous_worker_binding_lookup=(
+                        active_config.enable_continuous_worker_binding_lookup
+                    ),
+                    continuous_worker_context_bundle_dir_path=(
+                        active_config.continuous_worker_context_bundle_dir_path
+                    ),
+                )
+            )
+            continue
         raise ValueError(f"unsupported runtime provider in registry wiring: {provider!r}")
 
     return RuntimeRegistryWiringResult(
@@ -158,7 +193,7 @@ def _normalize_providers(
 ) -> tuple[RuntimeProviderKind, ...]:
     normalized: list[RuntimeProviderKind] = []
     for provider in providers:
-        if provider not in ("fake", "qoder", "codex"):
+        if provider not in ("fake", "qoder", "codex", "opencode"):
             raise ValueError(f"unsupported runtime provider in registry wiring: {provider!r}")
         if provider not in normalized:
             normalized.append(provider)
@@ -242,5 +277,31 @@ def _validate_codex_permission_grant(
         raise ValueError(
             "codex permission grant must set allow_process_spawn=True before "
             "a CodexCliClient can be registered"
+        )
+    return grant
+
+
+def _validate_opencode_permission_grant(
+    grant: RuntimeProviderPermissionGrant | None,
+) -> RuntimeProviderPermissionGrant:
+    if grant is None:
+        raise ValueError(
+            "runtime provider 'opencode' requires a RuntimeProviderPermissionGrant; "
+            "process-spawning runtime providers must be host-authorized before registry construction"
+        )
+    if grant.provider != "opencode":
+        raise ValueError(
+            f"runtime provider 'opencode' requires an opencode permission grant; got {grant.provider!r}"
+        )
+    if not grant.grant_id:
+        raise ValueError("opencode permission grant requires grant_id")
+    if not grant.approved_by:
+        raise ValueError("opencode permission grant requires approved_by")
+    if not grant.approved_at:
+        raise ValueError("opencode permission grant requires approved_at")
+    if not grant.allow_process_spawn:
+        raise ValueError(
+            "opencode permission grant must set allow_process_spawn=True before "
+            "an OpenCodeCliClient can be registered"
         )
     return grant

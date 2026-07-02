@@ -26,15 +26,132 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-06-28`
+- Snapshot Date: `2026-07-01`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `C8 Codex concurrent delivery gate completed`
+- Current Focus: `Next-action state source sync completed`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
-- Latest Completed Slice: `Codex Concurrent Delivery Gate`
+  `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`
+- Latest Completed Slice: `Next Action State Source Sync`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`,
+  `src/mcp/tools.py`,
+  `tests/test_mcp_tools.py`,
+  `design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md`,
+  `src/runtime/orchestration/runtime_adapter.py`,
+  `src/runtime/orchestration/runtime_wiring.py`,
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`,
+  `tests/test_runtime_orchestration.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md`,
+  `pyproject.toml`,
+  `design_docs/stages/planning-gate/2026-07-01-continuous-worker-context-carry-over-smoke.md`,
+  `src/runtime/orchestration/runtime_adapter.py`,
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`,
+  `tests/test_runtime_orchestration.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-01-active-lane-ownership-delivery-consumption-smoke.md`,
+  `tests/test_runtime_orchestration.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-to-lane-ownership-activation.md`,
+  `src/__main__.py`,
+  `tests/test_cli.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-candidate-path-ux.md`,
+  `src/__main__.py`,
+  `tests/test_cli.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-01-worker-binding-server-api-promotion-readback-closure.md`,
+  `src/runtime/orchestration/worker_binding_promotion_readback.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/__main__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-cli-surface.md`,
+  `src/__main__.py`,
+  `tests/test_cli.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-30-server-api-created-session-promotion-api.md`,
+  `src/runtime/orchestration/continuous_worker_binding.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-lane-ownership-tooling.md`,
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-delivery-lease-minimum.md`,
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-schema-alignment.md`,
+  `src/runtime/orchestration/continuous_worker_binding.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`,
+  `src/runtime/orchestration/codex_delivery_smoke.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-transition-contract.md`,
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-state-machine-draft.md`,
+  `design_docs/agent-home-and-scratch-space-design-record.md`,
+  `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-stage-live-smoke-closure.md`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-readiness-doctor-alignment.md`,
+  `src/runtime/orchestration/self_check.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
+  `docs/self-check-doctor-contract.md`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-session-ledger-binding-alignment.md`,
+  `src/runtime/orchestration/opencode_server_api_client.py`,
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-30-opencode-loop-e2e-server-api-transport-parity.md`,
+  `design_docs/stages/planning-gate/2026-06-30-opencode-delivery-supervisor-once-server-api-transport.md`,
+  `src/__main__.py`,
+  `tests/test_cli.py`,
+  `tests/test_runtime_orchestration.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-direct-server-api-adapter.md`,
+  `src/runtime/orchestration/opencode_server_api_client.py`,
+  `design_docs/stages/planning-gate/2026-06-29-doctor-opencode-scheduler-checks.md`,
+  `docs/self-check-doctor-contract.md`,
+  `docs/installation-guide.md`,
+  `src/runtime/orchestration/self_check.py`,
+  `design_docs/stages/planning-gate/2026-06-29-provider-generic-delivery-naming-cleanup.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-serve-lifecycle-receipts.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-stale-session-binding-recovery.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-time-session-lookup.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-durable-session-ledger.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-serve-readiness-contract.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-e2e-smoke-parity.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-runtime-status-readback-parity.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-attach-session-bridge.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-sandbox-patch-review-parity.md`,
+  `design_docs/stages/planning-gate/2026-06-29-live-opencode-concurrent-worker-smoke.md`,
+  `src/runtime/orchestration/live_codex_concurrent_worker_smoke.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/__main__.py`,
+  `tests/test_cli.py`,
+  `tests/test_runtime_orchestration.py`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-bounded-supervisor-loop-parity.md`,
+  `src/runtime/orchestration/codex_delivery_smoke.py`,
+  `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-supervisor-once-parity.md`,
+  `src/runtime/orchestration/leader_worker_codex_delivery.py`,
+  `design_docs/stages/planning-gate/2026-06-28-mixed-provider-guide-worker-smoke.md`,
+  `src/runtime/orchestration/guide_worker_local_orchestration.py`,
+  `src/runtime/orchestration/scheduler_submission.py`,
+  `design_docs/stages/planning-gate/2026-06-28-opencode-runtime-provider-adapter-smoke.md`,
+  `src/runtime/orchestration/opencode_cli_client.py`,
+  `design_docs/pi-agent-adapter-research-notes.md`,
+  `design_docs/stages/planning-gate/2026-06-28-monitoring-ui-backend-api.md`,
+  `src/runtime/orchestration/monitoring_api.py`,
+  `docs/monitoring-ui-backend-api.md`,
+  `design_docs/monitoring-ui-frontend-expectations.md`,
+  `design_docs/stages/planning-gate/2026-06-28-live-codex-concurrent-worker-smoke.md`,
+  `src/runtime/orchestration/live_codex_concurrent_worker_smoke.py`,
+  `design_docs/stages/planning-gate/2026-06-28-leader-consumes-worker-trajectory-update.md`,
+  `src/runtime/orchestration/worker_trajectory_report_consumer.py`,
+  `design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md`,
+  `docs/worker-trajectory-update-reporting.md`,
   `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`,
   `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`,
   `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`,
@@ -60,6 +177,53 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`
+1. `design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md`
+1. `design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md`
+1. `design_docs/stages/planning-gate/2026-07-01-continuous-worker-context-carry-over-smoke.md`
+1. `design_docs/stages/planning-gate/2026-07-01-active-lane-ownership-delivery-consumption-smoke.md`
+1. `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-to-lane-ownership-activation.md`
+1. `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-candidate-path-ux.md`
+1. `design_docs/stages/planning-gate/2026-07-01-worker-binding-server-api-promotion-readback-closure.md`
+1. `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-cli-surface.md`
+1. `design_docs/stages/planning-gate/2026-06-30-server-api-created-session-promotion-api.md`
+1. `design_docs/stages/planning-gate/2026-06-30-continuous-worker-lane-ownership-tooling.md`
+1. `design_docs/stages/planning-gate/2026-06-30-continuous-worker-delivery-lease-minimum.md`
+1. `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-schema-alignment.md`
+1. `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-transition-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-state-machine-draft.md`
+1. `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-stage-live-smoke-closure.md`
+1. `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-readiness-doctor-alignment.md`
+1. `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-session-ledger-binding-alignment.md`
+1. `design_docs/stages/planning-gate/2026-06-30-opencode-loop-e2e-server-api-transport-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-30-opencode-delivery-supervisor-once-server-api-transport.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-direct-server-api-adapter.md`
+1. `design_docs/stages/planning-gate/2026-06-29-doctor-opencode-scheduler-checks.md`
+1. `docs/self-check-doctor-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-29-provider-generic-delivery-naming-cleanup.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-serve-lifecycle-receipts.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-stale-session-binding-recovery.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-time-session-lookup.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-durable-session-ledger.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-serve-readiness-contract.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-e2e-smoke-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-runtime-status-readback-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-attach-session-bridge.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-sandbox-patch-review-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-29-live-opencode-concurrent-worker-smoke.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-bounded-supervisor-loop-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-supervisor-once-parity.md`
+1. `design_docs/stages/planning-gate/2026-06-28-mixed-provider-guide-worker-smoke.md`
+1. `design_docs/stages/planning-gate/2026-06-28-opencode-runtime-provider-adapter-smoke.md`
+1. `docs/opencode-host-provisioning-check-guide.md`
+1. `design_docs/pi-agent-adapter-research-notes.md`
+1. `design_docs/stages/planning-gate/2026-06-28-monitoring-ui-backend-api.md`
+1. `docs/monitoring-ui-backend-api.md`
+1. `design_docs/monitoring-ui-frontend-expectations.md`
+1. `design_docs/stages/planning-gate/2026-06-28-live-codex-concurrent-worker-smoke.md`
+1. `design_docs/stages/planning-gate/2026-06-28-leader-consumes-worker-trajectory-update.md`
+1. `design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md`
+1. `docs/worker-trajectory-update-reporting.md`
 1. `design_docs/stages/planning-gate/2026-06-28-codex-concurrent-delivery-gate.md`
 1. `design_docs/stages/planning-gate/2026-06-27-codex-runtime-status-readback.md`
 1. `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`
@@ -98,6 +262,839 @@ Historical recovery beyond this list should use:
 - `design_docs/history/Project Master Checklist Archive 2026-06-22.md`
 
 ## Active Work
+
+### OpenCode Direct Server/API Adapter
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-direct-server-api-adapter.md`
+- `design_docs/stages/planning-gate/2026-06-30-opencode-delivery-supervisor-once-server-api-transport.md`
+- `design_docs/stages/planning-gate/2026-06-30-opencode-loop-e2e-server-api-transport-parity.md`
+- `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-session-ledger-binding-alignment.md`
+- `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-readiness-doctor-alignment.md`
+- `design_docs/stages/planning-gate/2026-06-30-opencode-server-api-stage-live-smoke-closure.md`
+
+Current implementation surface:
+
+- Runtime:
+  `OpenCodeServerApiClientConfig`,
+  `OpenCodeServerApiReadinessReport`,
+  `OpenCodeServerApiClient`,
+  and `inspect_opencode_server_api_readiness()`.
+- CLI:
+  `doc-based-coding opencode server-api-readiness`;
+  `doc-based-coding scheduler opencode-delivery-supervisor-once
+  --opencode-transport server-api`;
+  `doc-based-coding scheduler opencode-delivery-e2e-smoke
+  --opencode-transport server-api`;
+  `doc-based-coding scheduler opencode-delivery-supervisor-loop
+  --opencode-transport server-api`.
+
+Behavior:
+
+- Talks to a host-owned running `opencode serve` HTTP server.
+- Reuses the existing `OpenCodeCliClient.exec(OpenCodeCliRequest) ->
+  OpenCodeCliResult` seam so the scheduler runtime contract stays stable.
+- Readiness checks health and optional `/doc` OpenAPI discovery.
+- Once delivery, E2E smoke, and bounded supervisor loop can explicitly select
+  `cli` or `server-api` transport. The default remains `cli`.
+- Server/API delivery can reuse request `host_session` from continuous-worker
+  or session-ledger lookup, or create an API session when no selector exists.
+- Session selector precedence is explicit server/API session id, then
+  continuous worker binding, then OpenCode session ledger, then
+  server/API-created session.
+- Server/API-created sessions are metadata-only delivery results and are not
+  automatically written to either the OpenCode session ledger or the continuous
+  worker binding ledger.
+- Unified doctor now includes `opencode.server_api_readiness` in `opencode`
+  and `runtime` profiles. The check is read-only and reports an unreachable
+  server/API endpoint as skipped with remediation.
+- Stage closure uses automated local HTTP fixture evidence plus manual
+  live-smoke guidance because dbc does not own `opencode serve` lifecycle.
+- The direct adapter does not start/stop/supervise `opencode serve`, expose
+  live provider execution through MCP, persist raw transcripts, or mutate Local
+  Work Trajectory.
+
+Validation:
+
+- Focused runtime direct server/API tests passed: `5 passed, 403 deselected`.
+- Focused CLI server-api-readiness/help tests passed:
+  `3 passed, 162 deselected`.
+- Focused once delivery server/API runtime tests passed:
+  `15 passed, 395 deselected`.
+- Focused OpenCode CLI/server-api delivery surface tests passed:
+  `22 passed, 148 deselected`.
+- Focused session/binding alignment runtime tests passed:
+  `22 passed, 391 deselected`.
+- Focused server/API doctor/runtime tests passed:
+  `8 passed, 407 deselected`.
+- Focused doctor/CLI tests passed:
+  `9 passed, 161 deselected`.
+- `python -m src doctor --profile opencode` passed on this host:
+  CLI readiness `ok`, server/API readiness `skipped` because no default
+  endpoint was reachable.
+- `py_compile` passed for touched runtime/CLI/test files.
+
+Remaining follow-up:
+
+- Design continuous worker session/lane ownership policy for long-lived
+  OpenCode worker contexts.
+
+### Doctor OpenCode And Scheduler Checks
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-doctor-opencode-scheduler-checks.md`
+
+Current implementation surface:
+
+- Doctor check: `opencode.cli_readiness`, profiles `opencode` and `runtime`.
+- Doctor check: `scheduler.storage_visibility`, profile `scheduler`.
+- CLI profile set includes `codex`, `opencode`, `vscode`, `runtime`,
+  `scheduler`, `mcp`, and `all`.
+
+Behavior:
+
+- OpenCode check is read-only CLI availability/readiness inspection only.
+- Scheduler check is read-only storage visibility inspection only.
+- No provider task is run and no scheduler state is mutated.
+
+Validation:
+
+- Focused runtime doctor tests passed: `9 passed, 394 deselected`.
+- Focused CLI doctor/readiness tests passed: `7 passed, 156 deselected`.
+- `doctor --profile all` passed with expected aggregate warning because this
+  development workspace has `.codex/scheduler/` but no default scheduler
+  snapshot/event-log artifacts.
+
+Remaining follow-up:
+
+- Remaining OpenCode work after this gate is still direct server/API adapter.
+
+### Provider-Generic Delivery Naming Cleanup
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-provider-generic-delivery-naming-cleanup.md`
+
+Current implementation surface:
+
+- Runtime aliases:
+  `ProviderDeliverySupervisorRequest`,
+  `ProviderDeliverySupervisorResult`,
+  `ProviderDeliverySupervisorRecord`,
+  `ProviderDeliveryBoundedLoopRequest`, and
+  `ProviderDeliveryE2ESmokeRequest`.
+- Helper aliases:
+  `run_provider_delivery_supervisor_once_for_codex()`,
+  `run_provider_delivery_supervisor_once_for_opencode()`,
+  `run_provider_delivery_e2e_smoke_for_codex()`, and
+  `run_provider_delivery_e2e_smoke_for_opencode()`.
+
+Behavior:
+
+- Adds provider-generic public names for delivery products that are already
+  provider-parametric.
+- Keeps historical `CodexDelivery...` names and JSON compatibility fields.
+- Does not change scheduler/delivery/runtime behavior.
+
+Validation:
+
+- Focused provider-generic delivery naming/runtime tests passed:
+  `22 passed, 362 deselected`.
+- Wider OpenCode runtime parity matrix passed:
+  `18 passed, 366 deselected`.
+- Wider OpenCode CLI parity matrix passed:
+  `28 passed, 125 deselected`.
+
+Remaining follow-up:
+
+- Remaining OpenCode work after this gate is direct server/API adapter, only
+  after lifecycle semantics remain stable.
+
+### OpenCode Serve Lifecycle Receipts
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-serve-lifecycle-receipts.md`
+
+Current implementation surface:
+
+- Runtime:
+  `OpenCodeServeLifecycleRecordRequest`,
+  `OpenCodeServeLifecycleInspectRequest`,
+  `record_opencode_serve_lifecycle_receipt()`, and
+  `inspect_opencode_serve_lifecycle_receipts()`.
+- CLI:
+  `doc-based-coding opencode serve-lifecycle record|inspect`.
+
+Behavior:
+
+- Records host-owned `opencode serve` lifecycle facts into an append-only
+  ledger under `.codex/runtime/opencode-serve-lifecycle-ledger.json`.
+- Does not start, stop, restart, supervise, or health-monitor `opencode serve`.
+- Does not run providers, mutate scheduler/delivery/runtime invocation state,
+  mutate Local Work Trajectory, or persist raw transcript/secret values.
+
+Validation:
+
+- Focused runtime serve lifecycle/readiness tests passed:
+  `5 passed, 378 deselected`.
+- Focused CLI serve lifecycle/readiness tests passed:
+  `6 passed, 147 deselected`.
+- Doc-loop validator passed.
+
+Remaining follow-up:
+
+- Remaining OpenCode work after this gate is direct server adapter, only after
+  lifecycle semantics stabilize, and provider-generic naming cleanup.
+
+### OpenCode Stale Session Binding Recovery
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-stale-session-binding-recovery.md`
+
+Current implementation surface:
+
+- Runtime:
+  `OpenCodeSessionRecoverStaleRequest` and
+  `recover_stale_opencode_session_bindings()`.
+- CLI:
+  `doc-based-coding opencode session recover-stale`.
+
+Behavior:
+
+- Explicitly expires active OpenCode session ledger bindings whose `expires_at`
+  is not later than `--now`.
+- Optional `--expire-unhealthy` probes attach targets through the existing
+  credential-safe serve readiness helper.
+- Mutates only the session ledger; does not create replacement sessions,
+  restart servers, run workers, mutate scheduler/delivery state, or mutate
+  Local Work Trajectory.
+
+Validation:
+
+- Focused runtime session recovery tests passed:
+  `5 passed, 376 deselected`.
+- Focused CLI session tests passed:
+  `5 passed, 145 deselected`.
+
+Remaining follow-up:
+
+- Remaining OpenCode work is direct server adapter and provider-generic naming
+  cleanup.
+
+### OpenCode Delivery-Time Session Lookup
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-time-session-lookup.md`
+
+Current implementation surface:
+
+- Runtime:
+  `OpenCodeHostSessionSelector`,
+  `OpenCodeCliRequest.host_session`,
+  `OpenCodeCliAgentRuntimeAdapter(..., session_ledger_path, enable_session_lookup)`,
+  and OpenCode delivery request wiring.
+- CLI:
+  OpenCode delivery once, E2E smoke, bounded loop, and live concurrent smoke
+  accept `--session-ledger-path` and `--no-session-ledger-lookup`.
+
+Behavior:
+
+- OpenCode delivery commands default to active session ledger lookup when no
+  explicit attach/session flags are passed.
+- Lookup precedence is `task`, then `agent`, then `lane`.
+- Explicit `--attach-url`, `--session-id`, `--continue-session`, or
+  `--fork-session` remains higher priority than the ledger.
+- Runtime invocation audit records selector source and compact binding scope
+  metadata without raw transcript or secret persistence.
+
+Validation:
+
+- Focused runtime lookup tests passed:
+  `6 passed, 372 deselected`.
+- Focused CLI help/session tests passed:
+  `6 passed, 142 deselected`.
+
+Remaining follow-up:
+
+- Remaining OpenCode work is direct server adapter and provider-generic naming
+  cleanup.
+
+### OpenCode Serve Readiness Contract
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-serve-readiness-contract.md`
+
+Current implementation surface:
+
+- Runtime:
+  `OpenCodeServeReadinessRequest`,
+  `OpenCodeServeReadinessReport`, and
+  `inspect_opencode_serve_readiness()`
+- CLI:
+  `doc-based-coding opencode serve-readiness`
+
+Behavior:
+
+- Inspect host-owned OpenCode `serve` attach targets for later
+  `opencode run --attach` worker execution.
+- Defaults to `http://127.0.0.1:4096/global/health`.
+- Supports strict `--require-healthy` and basic-auth env var names without
+  printing secret values.
+- Reports that dbc did not start, stop, restart, supervise, run providers,
+  mutate scheduler state, or mutate Local Work Trajectory.
+
+Validation:
+
+- Runtime serve readiness tests passed:
+  `3 passed, 369 deselected`.
+- CLI serve readiness tests passed:
+  `3 passed, 142 deselected`.
+
+Remaining follow-up:
+
+- Serve lifecycle receipts and session binding policy are complete. Remaining
+  OpenCode work is direct server adapter and provider-generic naming cleanup.
+
+### OpenCode Delivery E2E Smoke Parity
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-e2e-smoke-parity.md`
+
+Current implementation surface:
+
+- Runtime:
+  `run_opencode_delivery_e2e_smoke()` and
+  `run_opencode_delivery_e2e_smoke_with_process_client()`
+- CLI:
+  `doc-based-coding scheduler opencode-delivery-e2e-smoke`
+
+Behavior:
+
+- OpenCode now has the same C1 delivery/result-consumer smoke command level as
+  Codex.
+- The command can initialize one narrow scheduler fixture, run dispatcher tick,
+  delivery sync, OpenCode delivery, result consumption, and scheduler recovery.
+- OpenCode-specific host options include `--output-format`, `--attach-url`,
+  `--session-id`, `--continue-session`, and `--fork-session`.
+- Codex-only `--sandbox` and `--ask-for-approval` are rejected.
+- Default OpenCode E2E evidence paths are separate from Codex C1 and OpenCode
+  bounded-loop paths.
+
+Validation:
+
+- Runtime E2E parity tests passed:
+  `4 passed, 365 deselected`.
+- CLI E2E parity tests passed:
+  `6 passed, 136 deselected`.
+- Neighbor OpenCode supervisor/status regression tests passed:
+  `9 passed, 360 deselected` and `17 passed, 125 deselected`.
+
+Remaining follow-up:
+
+- Serve lifecycle receipts and session binding policy are complete. Remaining
+  OpenCode work is direct server adapter and provider-generic naming cleanup.
+
+### OpenCode Runtime Status Readback Parity
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-runtime-status-readback-parity.md`
+
+Current implementation surface:
+
+- Runtime readback:
+  `ProviderRuntimeStatusRequest`,
+  `ProviderRuntimeStatus`,
+  `inspect_provider_runtime_status()`,
+  and `inspect_opencode_runtime_status()`
+- CLI:
+  `doc-based-coding scheduler inspect-opencode-runtime-status`
+
+Behavior:
+
+- OpenCode now has the same non-mutating scheduler/delivery/runtime status
+  readback surface as Codex.
+- The readback reports scheduler task states, delivery state counts, compact
+  runtime invocation counts, result/review/worker-patch artifact refs, safe
+  `next_action`, and authority split.
+- Actionable pending delivery counts are filtered by
+  `runtime_provider="opencode"`.
+- Existing Codex status readback remains compatible.
+
+Validation:
+
+- Provider status runtime tests passed:
+  `2 passed, 365 deselected`.
+- Provider status CLI tests passed:
+  `4 passed, 134 deselected`.
+
+Remaining follow-up:
+
+- Serve lifecycle receipts and session binding policy are complete. Remaining
+  OpenCode work is direct server adapter and provider-generic naming cleanup.
+
+### OpenCode Attach Session Bridge
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-attach-session-bridge.md`
+
+Current implementation surface:
+
+- Runtime process client:
+  `OpenCodeCliProcessClient`
+- Config:
+  `OpenCodeCliClientConfig.attach_url`,
+  `session_id`,
+  `continue_session`,
+  and `fork_session`
+- CLI:
+  `doc-based-coding opencode guide-worker-smoke`,
+  `doc-based-coding provider guide-worker-smoke`,
+  `doc-based-coding scheduler opencode-delivery-supervisor-once`,
+  `doc-based-coding scheduler opencode-delivery-supervisor-loop`,
+  and `doc-based-coding scheduler live-opencode-concurrent-worker-smoke`
+
+Behavior:
+
+- OpenCode execution surfaces can attach to a host-owned OpenCode server or
+  select/fork a host-owned session through explicit CLI flags.
+- Invalid session combinations fail closed.
+- Result metadata records attach/session/fork facts without raw transcript or
+  secret persistence.
+- This is not dbc-owned `opencode serve` lifecycle management and not a direct
+  HTTP/server adapter.
+
+Validation:
+
+- Focused OpenCode CLI client attach/session tests passed:
+  `3 passed, 363 deselected`.
+- Focused OpenCode CLI surface/session option tests passed:
+  `8 passed, 128 deselected`.
+
+Remaining follow-up:
+
+- Serve lifecycle receipts and session binding policy are complete. Remaining
+  OpenCode work is direct server adapter and provider-generic naming cleanup.
+
+### OpenCode Sandbox Patch Review Parity
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-sandbox-patch-review-parity.md`
+
+Current implementation surface:
+
+- CLI:
+  `doc-based-coding scheduler opencode-delivery-supervisor-once`,
+  `doc-based-coding scheduler opencode-delivery-supervisor-loop`,
+  and `doc-based-coding scheduler live-opencode-concurrent-worker-smoke`
+- Runtime:
+  `run_opencode_delivery_supervisor_once()` and
+  `run_bounded_opencode_delivery_supervisor_loop()`
+- Shared review product:
+  `worker_patch_review_proposal`
+
+Behavior:
+
+- OpenCode delivery surfaces accept explicit sandbox preflight and review-only
+  worker patch publication options.
+- OpenCode reuses the provider-parametric git-worktree sandbox preflight and
+  worker patch review artifact pipeline.
+- Published patch proposals record `runtime_provider="opencode"`.
+- OpenCode still rejects Codex CLI-specific `--sandbox` and
+  `--ask-for-approval`.
+- Patch application remains an explicit operator/review action, not runtime
+  provider authority.
+
+Validation:
+
+- OpenCode/Codex git-worktree patch review runtime tests passed:
+  `2 passed, 362 deselected`.
+- OpenCode delivery/loop/live CLI tests passed:
+  `12 passed, 120 deselected`.
+- Wider OpenCode delivery runtime tests passed:
+  `6 passed, 358 deselected`.
+- Py compile for touched runtime/CLI/tests passed.
+
+Remaining follow-up:
+
+- OpenCode one-shot worker-runtime parity now includes review-only sandbox
+  patch proposal publication. Serve lifecycle receipts and session binding
+  policy are complete. Remaining OpenCode work is direct server adapter and
+  provider-generic naming cleanup.
+
+### Live OpenCode Concurrent Worker Smoke
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-live-opencode-concurrent-worker-smoke.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/live_codex_concurrent_worker_smoke.py`
+- CLI:
+  `doc-based-coding scheduler live-opencode-concurrent-worker-smoke`
+
+Behavior:
+
+- Seeds a repeatable multi-lane OpenCode fixture with two independent workers
+  and one dependent follow-up worker.
+- Runs the bounded OpenCode supervisor with explicit lane-distinct
+  concurrency.
+- Reads compact runtime invocation audit and computes live process overlap from
+  `started_at` / `ended_at` intervals.
+- Writes a final report with worker counts, concurrent batch membership,
+  overlap verdict, serialized writeback evidence, provider-specific counts,
+  and authority split.
+- Keeps OpenCode host options explicit and rejects Codex CLI-specific
+  sandbox/approval flags.
+
+Validation:
+
+- Focused runtime tests passed: `4 passed, 359 deselected`.
+- Focused CLI tests passed: `6 passed, 124 deselected`.
+- Py compile for touched runtime/CLI/tests passed.
+- Live host smoke passed in a temporary project workspace with `3` attempted
+  OpenCode invocations, `3` completed workers, `0` failed workers, and one
+  proven overlap pair between `opencode-smoke:worker` and
+  `opencode-smoke:parallel-worker`.
+
+Remaining follow-up:
+
+- OpenCode basic Codex-level worker-runtime parity is now covered. Serve
+  lifecycle receipts and session binding policy are complete. Remaining
+  OpenCode work is direct server adapter and provider-generic naming cleanup.
+
+### OpenCode Bounded Supervisor Loop Parity
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-bounded-supervisor-loop-parity.md`
+
+Current implementation surface:
+
+- CLI:
+  `doc-based-coding scheduler opencode-delivery-supervisor-loop`
+- Runtime:
+  `run_bounded_opencode_delivery_supervisor_loop()`
+- Shared state machine:
+  dispatcher, delivery sync, ready marking, result consumption, retry,
+  lane-distinct concurrency, and serialized writeback
+
+Boundary:
+
+- This is a host-owned OpenCode bounded loop surface.
+- It reuses the provider-parametric bounded delivery loop instead of forking
+  the Codex loop implementation.
+- MCP real-provider execution remains closed.
+- Codex CLI-specific sandbox and approval flags are intentionally not accepted;
+  review-only sandbox preflight and patch publication are covered by the later
+  OpenCode sandbox patch review parity gate.
+
+Validation:
+
+- OpenCode/Codex bounded loop runtime tests passed:
+  `7 passed, 354 deselected`.
+- OpenCode/Codex bounded loop CLI tests passed:
+  `7 passed, 120 deselected`.
+
+Remaining follow-up:
+
+- Live OpenCode concurrent worker smoke, serve lifecycle receipts, and session
+  binding policy are complete. Remaining OpenCode work is direct server
+  adapter and provider-generic naming cleanup.
+
+### OpenCode Delivery Supervisor Once Parity
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-29-opencode-delivery-supervisor-once-parity.md`
+
+Current implementation surface:
+
+- CLI:
+  `doc-based-coding scheduler opencode-delivery-supervisor-once`
+- Runtime:
+  `run_opencode_delivery_supervisor_once()`
+- Host options:
+  `--executable`, `--cwd`, `--model`, `--output-format text|json`
+
+Boundary:
+
+- This is a host-owned OpenCode delivery-once surface over synced
+  leader-worker delivery records.
+- It reuses the provider-parametric delivery state machine and compact runtime
+  invocation audit.
+- MCP real-provider execution remains closed.
+- Codex-only sandbox and approval CLI flags are intentionally not accepted.
+
+Validation:
+
+- OpenCode/Codex delivery runtime tests passed: `4 passed, 355 deselected`.
+- OpenCode/Codex delivery CLI tests passed: `9 passed, 114 deselected`.
+
+Remaining follow-up:
+
+- Live OpenCode concurrent worker smoke, bounded loop parity, serve lifecycle
+  receipts, and session binding policy are complete. Remaining OpenCode work is
+  direct server adapter and provider-generic naming cleanup.
+
+### Mixed Provider Guide-Worker Smoke
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-mixed-provider-guide-worker-smoke.md`
+
+Current implementation surface:
+
+- CLI:
+  `doc-based-coding provider guide-worker-smoke`
+- Default provider set:
+  `codex,opencode`
+- Per-lane provider assignment:
+  `--planner-lane-provider LANE_ID=codex|opencode|qoder|fake`
+
+Boundary:
+
+- This is a host-owned mixed-provider smoke surface.
+- Existing `codex`, `opencode`, and `qoder` single-provider smoke commands are
+  unchanged.
+- MCP real-provider execution remains closed.
+
+Validation:
+
+- Mixed/OpenCode runtime tests passed: `9 passed, 348 deselected`.
+- Mixed/OpenCode CLI tests passed: `8 passed, 112 deselected`.
+
+### OpenCode Runtime Provider Adapter Smoke
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-opencode-runtime-provider-adapter-smoke.md`
+
+Current implementation surface:
+
+- Runtime process client:
+  `src/runtime/orchestration/opencode_cli_client.py`
+- Runtime provider:
+  `runtime_provider="opencode"` via `OpenCodeCliAgentRuntimeAdapter`
+- CLI:
+  `doc-based-coding opencode readiness`
+  and `doc-based-coding opencode guide-worker-smoke`
+- Host provisioning doc:
+  `docs/opencode-host-provisioning-check-guide.md`
+- Pi follow-up research note:
+  `design_docs/pi-agent-adapter-research-notes.md`
+
+Boundary:
+
+- OpenCode is a host-owned worker runtime provider, not the scheduler core.
+- First slice uses one-shot `opencode run`; `opencode serve`, OpenCode
+  subagent orchestration, MCP live-provider execution, and continuous worker
+  sessions remain future gates.
+
+Validation:
+
+- Focused OpenCode runtime tests passed: `7 passed, 348 deselected`.
+- Focused OpenCode CLI tests passed: `4 passed, 112 deselected`.
+- Adjacent runtime provider tests passed: `22 passed, 333 deselected`.
+- Adjacent CLI help/smoke tests passed: `8 passed, 108 deselected`.
+- Doc-loop validator passed.
+
+### Live Codex Concurrent Worker Smoke
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-live-codex-concurrent-worker-smoke.md`
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/live_codex_concurrent_worker_smoke.py`
+- CLI:
+  `doc-based-coding scheduler live-codex-concurrent-worker-smoke`
+
+Behavior:
+
+- Seeds a repeatable multi-lane Codex fixture with two independent workers and
+  one dependent fan-in worker.
+- Runs the bounded Codex supervisor with explicit lane-distinct concurrency.
+- Reads compact runtime invocation audit and computes live process overlap from
+  `started_at` / `ended_at` intervals.
+- Writes a final C9 report with worker counts, concurrent batch membership,
+  overlap verdict, serialized writeback evidence, and authority split.
+- Clears only its own C9 smoke auxiliary state when replacing the fixture, so
+  repeated smoke runs do not inherit stale dispatcher/delivery state.
+
+Validation:
+
+- Focused runtime tests passed: `2 passed, 344 deselected`.
+- Focused CLI tests passed: `3 passed, 107 deselected`.
+- Adjacent Codex delivery CLI tests passed: `9 passed, 101 deselected`.
+- Live test-workspace smoke passed in
+  `C:\Users\16329\OneDrive\Desktop\tmp\dbc-test` with
+  `3` live Codex invocations, `3` completed workers, and one proven overlap
+  pair between `codex-smoke:worker` and
+  `codex-smoke:parallel-worker`.
+
+### Monitoring UI Backend/API
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-monitoring-ui-backend-api.md`
+
+Current scope:
+
+- Built a backend/read-model API before frontend visual work.
+- Kept frontend/backend separated.
+- Documented API usage and frontend UI expectations for another UI session.
+
+Current implementation surface:
+
+- Runtime helper/module:
+  `src/runtime/orchestration/monitoring_api.py`
+- CLI:
+  `doc-based-coding scheduler inspect-monitoring-snapshot`
+- API doc:
+  `docs/monitoring-ui-backend-api.md`
+- Frontend handoff requirements:
+  `design_docs/monitoring-ui-frontend-expectations.md`
+
+Validation:
+
+- Focused monitoring runtime tests passed: `2 passed, 346 deselected`.
+- Focused monitoring CLI tests passed: `2 passed, 110 deselected`.
+- Adjacent C9/monitoring runtime tests passed: `5 passed, 343 deselected`.
+- Adjacent C9/monitoring/Codex supervisor CLI tests passed:
+  `8 passed, 104 deselected`.
+- Doc-loop validator passed.
+
+### Leader Consumes Worker Trajectory Update
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-leader-consumes-worker-trajectory-update.md`
+
+Current implementation surface:
+
+- Runtime consumer:
+  `src/runtime/orchestration/worker_trajectory_report_consumer.py`
+- CLI:
+  `doc-based-coding scheduler consume-worker-trajectory-report`
+- MCP:
+  `consumeWorkerTrajectoryReport`
+- Worker report procedure:
+  `docs/worker-trajectory-update-reporting.md`
+
+Behavior:
+
+- Leader/main/supervisor/guide callers can consume a schema-valid worker
+  `Subagent Report.trajectory_update`.
+- Worker/subagent caller roles are rejected before mutation and directed to
+  `docs/worker-trajectory-update-reporting.md`.
+- First-version consumption supports only `append`, `advance`, `block`, `wait`,
+  `resume`, `close`, and `none`.
+- `append` can create the first lifecycle-owned Local Work Trajectory event
+  when no trajectory exists or the lifecycle artifact is explicitly empty.
+- Complex pack, merge, relate, anchor, and child trajectory operations remain
+  leader-authored `localTrajectory` decisions.
+
+Validation:
+
+- `py_compile` passed for touched runtime/CLI/MCP/tests.
+- Focused runtime consumer tests passed: `4 passed, 340 deselected`.
+- Focused CLI consumer tests passed: `2 passed, 105 deselected`.
+- Focused MCP consumer tests passed: `1 passed, 32 deselected`.
+- Focused worker trajectory reporting prompt/doc test passed:
+  `1 passed, 23 deselected`.
+- Doc-loop validator passed.
+
+### Local Trajectory Worker Report Ownership Guard
+
+Status: `completed`
+
+Planning gate:
+
+- `design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md`
+
+Current implementation surface:
+
+- Worker report schema:
+  `docs/specs/subagent-report.schema.json`
+- Worker report procedure:
+  `docs/worker-trajectory-update-reporting.md`
+- MCP tool guard:
+  `src/mcp/tools.py`, `src/mcp/server.py`
+- Worker prompting / normalization:
+  `src/workers/llm_worker.py`,
+  `.codex/prompts/doc-loop/04-subagent-contract.md`
+
+Behavior:
+
+- Workers/subagents report progress, completion, waiting, blocking, or
+  suggested trajectory actions through `Subagent Report.trajectory_update`.
+- Leader/main/supervisor remains the direct `localTrajectory` mutation
+  authority.
+- MCP `localTrajectory` rejects explicit worker/subagent `callerRole` values
+  before mutation and points to `docs/worker-trajectory-update-reporting.md`.
+- Existing leader/main calls remain compatible when `callerRole` is omitted.
+
+Validation:
+
+- `py_compile` passed for touched runtime/prompt/test modules.
+- Focused MCP Local Trajectory tests passed: `17 passed, 92 deselected`.
+- Focused Subagent Report schema tests passed: `3 passed, 22 deselected`.
+- Focused LLM worker prompt/report tests passed: `4 passed, 39 deselected`.
+- Instruction generator tests passed: `31 passed`.
+- Focused doc-loop prompt tests passed: `4 passed, 19 deselected`.
+- Doc-loop validator passed.
 
 ### Codex Concurrent Delivery Gate
 
@@ -1080,16 +2077,75 @@ Validation:
 - [x] Complete Codex permission/review outcome consumer.
 - [x] Complete Codex interruption recovery and retry policy.
 - [x] Complete Codex delivery sandbox patch review closure.
+- [x] Complete OpenCode live concurrent worker smoke parity.
+- [x] Complete OpenCode sandbox patch review parity.
+- [x] Complete OpenCode attach/session bridge.
+- [x] Complete OpenCode runtime status readback parity.
+- [x] Complete OpenCode durable session ledger and delivery-time lookup.
+- [x] Complete OpenCode stale session binding recovery/expiry policy.
+- [x] Complete OpenCode `serve` lifecycle receipt contract.
+- [x] Add first OpenCode direct server/API adapter and read-only readiness
+  surface.
+- [x] Bind OpenCode server/API transport into
+  `opencode-delivery-supervisor-once` behind explicit `cli|server-api`
+  transport selection.
+- [x] Bind OpenCode server/API transport into bounded loop and E2E smoke
+  delivery surfaces.
+- [x] Align OpenCode server/API-created sessions with session ledger and
+  continuous-worker binding policy.
+- [x] Add readiness/doctor/provisioning self-check alignment for OpenCode
+  server/API transport.
+- [x] Run or document live/manual smoke closure for OpenCode server/API
+  transport.
+- [x] Complete continuous worker ownership state-machine transition contract
+  for lane ownership, worker binding, delivery lease, private storage
+  invariants, and compact defaults. Source:
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-transition-contract.md`.
+- [x] Complete continuous worker session/lane ownership schema alignment for
+  long-lived OpenCode worker contexts. Source:
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-schema-alignment.md`.
+- [x] Implement continuous worker Delivery Lease Minimum: durable compact lease
+  ledger or equivalent audit-backed mechanism so one binding cannot be selected
+  by two concurrent deliveries.
+- [x] Complete continuous worker Lane Ownership Tooling: durable lane ownership
+  ledger/API for claim, activate, inspect, suspend, resume, transfer, and
+  release, plus compact audit evidence. Source:
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-lane-ownership-tooling.md`.
+- [x] Implement Server/API-created session promotion API: explicit host-owned
+  promotion from OpenCode `server_api_created` session metadata into a durable
+  continuous worker binding. Source:
+  `design_docs/stages/planning-gate/2026-06-30-server-api-created-session-promotion-api.md`.
+- [x] Add worker-binding promotion CLI surface:
+  `doc-based-coding worker-binding promote-server-api-session`. Source:
+  `design_docs/stages/planning-gate/2026-07-01-worker-binding-promotion-cli-surface.md`.
+- [x] Add provider-generic delivery naming aliases while preserving
+  `CodexDelivery...` compatibility names.
+- [x] Add OpenCode CLI readiness and scheduler storage visibility to the
+  unified doctor framework.
 - [x] Complete Codex multi-lane continuous progress fixture.
 - [x] Complete Codex runtime status readback and close the first stable
   continuous-use target in
   `design_docs/codex-cli-stable-worker-runtime-continuous-use-target.md`.
 - [x] Complete Codex concurrent delivery gate for opt-in process-level
   lane-distinct runtime invocation parallelism.
+- [x] Complete leader-side consumption of worker
+  `Subagent Report.trajectory_update` into Local Work Trajectory.
 - [ ] Later design configurable continuous-worker lane memory: keep current
   lane-node execution stateless with explicit artifact/dependency context for
   now, but design a future option where one worker can continuously own one
   lane or a tightly coupled lane group with auditable memory/checkpoint policy.
+- [ ] Later align continuous workers with agent-private storage: continuous
+  workers should receive a private/specialized folder by default for notes,
+  rules, documents, and capability material, while non-continuous workers still
+  require an explicit request/approval path. By default, this private folder
+  should be retained after the worker's owned lanes fully merge so it can
+  support later analysis and framework improvement. Source design record:
+  `design_docs/agent-home-and-scratch-space-design-record.md`.
+- [ ] Later design `llm-auto` continuous-worker compact policy: a smaller model
+  may judge compact timing from worker outputs and sent/received exchange
+  products, but hard thresholds must still force compact and retain forced-
+  compact windows for later policy improvement. Source draft:
+  `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-transition-contract.md`.
 - [ ] For later gates, consider persistent monitoring UI, distributed worker
   leases, live Codex process resume, live-provider throughput validation, or
   automatic log compaction as separate product slices.
