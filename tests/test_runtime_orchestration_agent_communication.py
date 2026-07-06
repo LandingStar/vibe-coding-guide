@@ -320,7 +320,7 @@ def test_agent_exchange_reply_creates_causal_artifact_visible_in_mailboxes(tmp_p
     assert reply.parts[-1].log.action == "exchange_artifact_replied"
     assert [item.artifact_id for item in client_mailbox.outbox] == ["ex-answer"]
     assert [item.artifact_id for item in guide_mailbox.inbox] == ["ex-answer"]
-    assert not (tmp_path / ".codex" / "scheduler").exists()
+    assert not (tmp_path / ".dbc" / "scheduler").exists()
 
 
 def test_agent_exchange_transition_updates_exact_version_and_is_idempotent(tmp_path) -> None:

@@ -143,7 +143,7 @@ def _write_mcp_worker_trajectory_report(
                     "event_status": "completed",
                     "summary": "Worker server task finished.",
                     "suggested_action": suggested_action,
-                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "evidence_refs": [".dbc/agent-output/report-worker.json"],
                     "leader_notes": ["Consume after leader review."],
                 },
             }
@@ -153,10 +153,10 @@ def _write_mcp_worker_trajectory_report(
 
 
 def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: Path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     _write_submission_artifact(
         store_path,
         artifact_id="submission:mcp-admit",
@@ -197,9 +197,9 @@ def test_governance_tools_admit_exchange_artifact_uses_ledger_policy(tmp_path: P
 def test_governance_tools_admit_exchange_artifact_can_mark_consumed(
     tmp_path: Path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     _write_submission_artifact(
         store_path,
         artifact_id="submission:mcp-consume",
@@ -228,9 +228,9 @@ def test_governance_tools_admit_exchange_artifact_can_mark_consumed(
 def test_governance_tools_scheduler_binding_reference_inspect_is_read_only(
     tmp_path: Path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     _write_binding_ref_submission_artifacts(store_path)
     tools = GovernanceTools(tmp_path, dry_run=True)
 
@@ -256,7 +256,7 @@ def test_governance_tools_scheduler_binding_reference_inspect_is_read_only(
     assert "submission:missing" in missing["errors"][0]
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_mcp_local_trajectory_rejects_worker_role_with_report_path(
@@ -297,13 +297,13 @@ def test_mcp_local_trajectory_rejects_worker_role_with_report_path(
         assert payload["callerRole"] == "worker"
 
     asyncio.run(exercise_server())
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
     tmp_path: Path,
 ) -> None:
-    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
     _write_mcp_worker_trajectory_report(report_path, suggested_action="append")
     server = create_server(tmp_path, dry_run=True)
 
@@ -322,7 +322,7 @@ def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
                 params=CallToolRequestParams(
                     name="consumeWorkerTrajectoryReport",
                     arguments={
-                        "reportPath": ".codex/agent-output/report-worker.json",
+                        "reportPath": ".dbc/agent-output/report-worker.json",
                         "callerRole": "worker",
                     },
                 )
@@ -338,7 +338,7 @@ def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
                 params=CallToolRequestParams(
                     name="consumeWorkerTrajectoryReport",
                     arguments={
-                        "reportPath": ".codex/agent-output/report-worker.json",
+                        "reportPath": ".dbc/agent-output/report-worker.json",
                         "callerRole": "leader",
                         "actor": "agent:guide",
                         "title": "MCP worker report consumed",
@@ -354,7 +354,7 @@ def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
 
     asyncio.run(exercise_server())
     trajectory = json.loads(
-        (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").read_text(
+        (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").read_text(
             encoding="utf-8"
         )
     )
@@ -362,9 +362,9 @@ def test_mcp_consume_worker_trajectory_report_routes_and_guards_roles(
 
 
 def test_mcp_server_exposes_and_routes_admit_exchange_artifact(tmp_path: Path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     _write_submission_artifact(
         store_path,
         artifact_id="submission:server-admit",
@@ -501,7 +501,7 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_workflow(tmp_path: Pat
 
 
 def test_mcp_scheduler_operator_workflow_inspects_binding_refs(tmp_path: Path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     _write_binding_ref_submission_artifacts(
         store_path,
         artifact_id="submission:mcp-operator-binding",
@@ -544,8 +544,8 @@ def test_mcp_scheduler_operator_workflow_inspects_binding_refs(tmp_path: Path) -
 def test_mcp_scheduler_operator_workflow_writes_binding_summary_to_ledger(
     tmp_path: Path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     _write_binding_ref_submission_artifacts(
         store_path,
         artifact_id="submission:mcp-ledger-binding",
@@ -589,7 +589,7 @@ def test_mcp_scheduler_operator_workflow_writes_binding_summary_to_ledger(
 def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     seed_scheduler_operator_binding_consumer_dogfood_fixture(
         tmp_path,
         created_at="2026-06-22T02:30:00+08:00",
@@ -641,7 +641,7 @@ def test_mcp_scheduler_operator_workflow_consumes_binding_consumer_fixture(
         assert summary["checked_ref_count"] == 1
         assert summary["tasks"][0]["task_id"] == "dogfood:binding-consumer"
         assert summary["raw_evidence_json_read"] is False
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -701,7 +701,7 @@ def test_mcp_server_exposes_and_routes_scheduler_operator_dogfood_closure(
         assert payload["authority_split"]["admission_ledger_mutated"] is True
         assert payload["authority_split"]["provider_executed"] is True
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -732,13 +732,13 @@ def test_mcp_scheduler_operator_dogfood_closure_rejects_live_provider(
         assert payload["authority_split"]["provider_executed"] is False
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
         assert not (
-            tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+            tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         ).exists()
         assert not (
-            tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+            tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
         ).exists()
         assert not (
-            tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+            tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
         ).exists()
 
     asyncio.run(exercise_server())
@@ -746,10 +746,10 @@ def test_mcp_scheduler_operator_dogfood_closure_rejects_live_provider(
 
 def _guide_worker_mcp_paths(tmp_path: Path) -> dict[str, str]:
     return {
-        "artifactStorePath": str(tmp_path / ".codex" / "orchestration" / "gw-artifacts.json"),
-        "admissionLedgerPath": str(tmp_path / ".codex" / "orchestration" / "gw-ledger.json"),
-        "snapshotPath": str(tmp_path / ".codex" / "scheduler" / "gw-state.json"),
-        "eventLogPath": str(tmp_path / ".codex" / "scheduler" / "gw-events.jsonl"),
+        "artifactStorePath": str(tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json"),
+        "admissionLedgerPath": str(tmp_path / ".dbc" / "orchestration" / "gw-ledger.json"),
+        "snapshotPath": str(tmp_path / ".dbc" / "scheduler" / "gw-state.json"),
+        "eventLogPath": str(tmp_path / ".dbc" / "scheduler" / "gw-events.jsonl"),
     }
 
 
@@ -841,7 +841,7 @@ def test_mcp_server_exposes_and_routes_scheduler_guide_worker_local_orchestratio
         assert payload["authority_split"]["true_process_parallelism"] is True
         assert payload["authority_split"]["wave_executor_mode"] == "threaded"
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -909,7 +909,7 @@ def test_mcp_scheduler_guide_worker_local_orchestration_plans_lanes(
         assert payload["planned_worker_instructions"][1]["sandbox_profile"][
             "profile_id"
         ] == "server-shared"
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -993,8 +993,8 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_live_provider(
         assert payload["authority_split"]["scheduler_state_mutated"] is False
         assert payload["authority_split"]["provider_executed"] is False
         assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
-        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+        assert not (tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".dbc" / "scheduler" / "gw-state.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1031,8 +1031,8 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_worker_qoder_pro
         assert "qoder" in payload["error"]
         assert payload["authority_split"]["exchange_store_mutated"] is False
         assert payload["authority_split"]["scheduler_state_mutated"] is False
-        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
-        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+        assert not (tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".dbc" / "scheduler" / "gw-state.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1072,8 +1072,8 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_planner_qoder_pr
         assert "qoder" in payload["error"]
         assert payload["authority_split"]["exchange_store_mutated"] is False
         assert payload["authority_split"]["scheduler_state_mutated"] is False
-        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
-        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+        assert not (tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".dbc" / "scheduler" / "gw-state.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1110,8 +1110,8 @@ def test_mcp_scheduler_guide_worker_local_orchestration_rejects_worker_codex_pro
         assert "codex" in payload["error"]
         assert payload["authority_split"]["exchange_store_mutated"] is False
         assert payload["authority_split"]["scheduler_state_mutated"] is False
-        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
-        assert not (tmp_path / ".codex" / "scheduler" / "gw-state.json").exists()
+        assert not (tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".dbc" / "scheduler" / "gw-state.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1157,7 +1157,7 @@ def test_mcp_scheduler_guide_worker_local_orchestration_explicit_instructions_ig
         assert payload["submitted_task_ids"] == ["task/mcp/explicit"]
         assert payload["planning"]["worker_count"] == 1
         assert payload["authority_split"]["provider_executed"] is True
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1192,7 +1192,7 @@ def test_mcp_scheduler_guide_worker_local_orchestration_reports_instruction_erro
         assert "workerInstructions[0].instruction" in payload["error"]
         assert payload["authority_split"]["exchange_store_mutated"] is False
         assert payload["authority_split"]["scheduler_state_mutated"] is False
-        assert not (tmp_path / ".codex" / "orchestration" / "gw-artifacts.json").exists()
+        assert not (tmp_path / ".dbc" / "orchestration" / "gw-artifacts.json").exists()
 
     asyncio.run(exercise_server())
 
@@ -1200,7 +1200,7 @@ def test_mcp_scheduler_guide_worker_local_orchestration_reports_instruction_erro
 def test_mcp_server_exposes_and_routes_storage_binding_artifact_publish(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex" / "scheduler" / "evidence" / "binding.json"
+    evidence_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "binding.json"
     binding = build_supervisor_agent_storage_binding(
         SupervisorAgentStorageBindingRequest(
             supervisor_id="supervisor:mcp",
@@ -1213,7 +1213,7 @@ def test_mcp_server_exposes_and_routes_storage_binding_artifact_publish(
             created_at="2026-06-22T08:40:00+00:00",
         ),
         SchedulerState(),
-        source_snapshot_path=tmp_path / ".codex" / "scheduler" / "scheduler-state.json",
+        source_snapshot_path=tmp_path / ".dbc" / "scheduler" / "scheduler-state.json",
     )
     write_supervisor_storage_binding_evidence(
         build_supervisor_storage_binding_evidence(
@@ -1278,12 +1278,12 @@ def test_mcp_server_exposes_and_routes_storage_binding_artifact_publish(
         assert payload["authority_split"]["agent_home_directory_created"] is False
         assert payload["authority_split"]["scratch_directories_created"] is False
         assert payload["authority_split"]["raw_binding_payload_embedded_in_exchange"] is False
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
     asyncio.run(exercise_server())
 
     stored = JsonArtifactVersionStore(
-        tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     ).get("artifact:mcp-binding", "v4")
     assert stored.artifact.parts[0].data["product_type"] == (
         SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE
@@ -1401,8 +1401,8 @@ def test_governance_tools_scheduler_lifecycle_control_and_run_once(tmp_path: Pat
     assert rejected["ok"] is False
     assert rejected["runtime_provider"] == "qoder"
     assert "runtimeProvider='fake' only" in rejected["error"]
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
 def test_governance_tools_scheduler_lifecycle_harness_policy_surface(tmp_path: Path) -> None:
@@ -1480,8 +1480,8 @@ def test_governance_tools_scheduler_lifecycle_harness_policy_surface(tmp_path: P
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-harness-mcp"].state == "complete"
     assert ran["authority_split"]["scheduler_projection_refreshed"] is False
     assert ran["authority_split"]["local_work_trajectory_mutated"] is False
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
 def test_governance_tools_scheduler_lifecycle_harness_retries_policy_stop_reason(tmp_path: Path) -> None:
@@ -1631,8 +1631,8 @@ def test_governance_tools_scheduler_daemon_supervisor_step_surface(tmp_path: Pat
     assert read_scheduler_state_snapshot(snapshot_path).tasks["task-supervisor-mcp"].state == "complete"
     assert ran["authority_split"]["scheduler_projection_refreshed"] is False
     assert ran["authority_split"]["local_work_trajectory_mutated"] is False
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
 
 def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(tmp_path: Path) -> None:
@@ -1889,8 +1889,8 @@ def test_governance_tools_scheduler_cleanup_receipts_cleans_git_worktree(
     allocation = _allocated_git_worktree(tmp_path, repo)
     receipt = allocation.git_worktree_receipt
     assert receipt is not None
-    input_path = tmp_path / ".codex" / "scheduler" / "evidence" / "allocation.json"
-    output_path = tmp_path / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    input_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "allocation.json"
+    output_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "cleanup.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -1903,8 +1903,8 @@ def test_governance_tools_scheduler_cleanup_receipts_cleans_git_worktree(
     tools = GovernanceTools(tmp_path, dry_run=True)
 
     payload = tools.scheduler_cleanup_receipts(
-        input_evidence_path=".codex/scheduler/evidence/allocation.json",
-        output_evidence_path=".codex/scheduler/evidence/cleanup.json",
+        input_evidence_path=".dbc/scheduler/evidence/allocation.json",
+        output_evidence_path=".dbc/scheduler/evidence/cleanup.json",
         output_evidence_id="cleanup",
         timestamp="2026-06-21T06:45:00+08:00",
     )
@@ -1920,7 +1920,7 @@ def test_governance_tools_scheduler_cleanup_receipts_cleans_git_worktree(
     assert cleaned.cleanup_required is False
     assert summary.metadata["surface"] == "mcp:schedulerCleanupReceipts"
     assert not Path(receipt.worktree_path).exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_mcp_server_exposes_and_routes_scheduler_cleanup_receipts(tmp_path: Path) -> None:
@@ -1928,8 +1928,8 @@ def test_mcp_server_exposes_and_routes_scheduler_cleanup_receipts(tmp_path: Path
     allocation = _allocated_git_worktree(tmp_path, repo)
     receipt = allocation.git_worktree_receipt
     assert receipt is not None
-    input_path = tmp_path / ".codex" / "scheduler" / "evidence" / "allocation.json"
-    output_path = tmp_path / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    input_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "allocation.json"
+    output_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "cleanup.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -1956,8 +1956,8 @@ def test_mcp_server_exposes_and_routes_scheduler_cleanup_receipts(tmp_path: Path
                 params=CallToolRequestParams(
                     name="schedulerCleanupReceipts",
                     arguments={
-                        "inputEvidencePath": ".codex/scheduler/evidence/allocation.json",
-                        "outputEvidencePath": ".codex/scheduler/evidence/cleanup.json",
+                        "inputEvidencePath": ".dbc/scheduler/evidence/allocation.json",
+                        "outputEvidencePath": ".dbc/scheduler/evidence/cleanup.json",
                         "outputEvidenceId": "cleanup",
                         "timestamp": "2026-06-21T06:55:00+08:00",
                     },
@@ -1982,10 +1982,10 @@ def test_mcp_server_exposes_and_routes_scheduler_sandbox_receipt_workflow(
     tmp_path: Path,
 ) -> None:
     repo = _git_repo(tmp_path)
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
-    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
-    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+    allocation_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
+    cleanup_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
     task = ScheduledTask(
         task_id="task-1",
         title="MCP workflow task",
@@ -2047,15 +2047,15 @@ def test_mcp_server_exposes_and_routes_scheduler_sandbox_receipt_workflow(
                     name="schedulerSandboxReceiptWorkflow",
                     arguments={
                         "mode": "daemon-loop",
-                        "snapshotPath": ".codex/scheduler/scheduler-state.json",
-                        "eventLogPath": ".codex/scheduler/scheduler-events.jsonl",
+                        "snapshotPath": ".dbc/scheduler/scheduler-state.json",
+                        "eventLogPath": ".dbc/scheduler/scheduler-events.jsonl",
                         "workspaceRoot": "repo",
                         "gitWorktreeSandboxRoot": "sandboxes",
                         "allocationEvidenceId": "workflow-loop-allocation",
-                        "allocationEvidencePath": ".codex/scheduler/evidence/workflow-loop-allocation.json",
+                        "allocationEvidencePath": ".dbc/scheduler/evidence/workflow-loop-allocation.json",
                         "cleanup": True,
                         "cleanupEvidenceId": "workflow-loop-cleanup",
-                        "cleanupEvidencePath": ".codex/scheduler/evidence/workflow-loop-cleanup.json",
+                        "cleanupEvidencePath": ".dbc/scheduler/evidence/workflow-loop-cleanup.json",
                         "timestamp": "2026-06-21T09:50:00+08:00",
                     },
                 )
@@ -2081,7 +2081,7 @@ def test_mcp_server_exposes_and_routes_scheduler_sandbox_receipt_workflow(
     assert cleaned.git_worktree_receipt is not None
     assert cleaned.git_worktree_receipt.cleanup_state == "completed"
     assert not Path(cleaned.git_worktree_receipt.worktree_path).exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_governance_tools_scheduler_sandbox_receipt_workflow_rejects_cleanup_output_without_cleanup(
@@ -2091,12 +2091,12 @@ def test_governance_tools_scheduler_sandbox_receipt_workflow_rejects_cleanup_out
 
     payload = tools.scheduler_sandbox_receipt_workflow(
         mode="run-once",
-        snapshot_path=".codex/scheduler/scheduler-state.json",
-        event_log_path=".codex/scheduler/scheduler-events.jsonl",
+        snapshot_path=".dbc/scheduler/scheduler-state.json",
+        event_log_path=".dbc/scheduler/scheduler-events.jsonl",
         workspace_root="repo",
         git_worktree_sandbox_root="sandboxes",
         allocation_evidence_id="workflow-allocation",
-        cleanup_evidence_path=".codex/scheduler/evidence/workflow-cleanup.json",
+        cleanup_evidence_path=".dbc/scheduler/evidence/workflow-cleanup.json",
     )
 
     assert payload["ok"] is False
@@ -2138,7 +2138,7 @@ def _allocated_git_worktree(project: Path, repo: Path):
                 acquired_at="2026-06-21T06:00:00+08:00",
             ),
             workspace_root=str(repo),
-            scratch_path=".codex/scratch/task-1",
+            scratch_path=".dbc/scratch/task-1",
             required_mounts=("README.md",),
         )
     )

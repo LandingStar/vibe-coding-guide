@@ -6,14 +6,14 @@
       "version": "0.9.1",
       "kind": "project-local",
       "content_hash": "sha256:ee7fcab03d4bd33d1b5b06377503d24d6fba76f5f6080860314b49d96321253b",
-      "locked_at": "2026-07-06T00:25:59.534742+00:00"
+      "locked_at": "2026-07-06T00:50:11.552232+00:00"
     },
     "doc-loop-vibe-coding": {
       "name": "doc-loop-vibe-coding",
       "version": "0.9.8",
       "kind": "official-instance",
-      "content_hash": "sha256:1b857164dff177beb6847b140a86f7b9c2642646fc257f1ad9a939a49d9071d7",
-      "locked_at": "2026-07-06T00:25:59.588664+00:00"
+      "content_hash": "sha256:814c23e421d0749357168ebda0063523db60b2ff7af8dafa2f8e9828168e6753",
+      "locked_at": "2026-07-06T00:50:11.603434+00:00"
     }
   }
 }

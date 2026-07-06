@@ -183,7 +183,7 @@ def test_scheduler_help_includes_exchange_artifact_admission() -> None:
 def test_scheduler_inspect_runtime_invocations_cli_reads_compact_log(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    log_path = project / ".codex" / "runtime" / "invocations.jsonl"
+    log_path = project / ".dbc" / "runtime" / "invocations.jsonl"
     JsonlRuntimeInvocationLog(log_path).append(
         RuntimeInvocationRecord(
             invocation_id="inv-cli",
@@ -218,8 +218,8 @@ def test_scheduler_inspect_runtime_invocations_cli_reads_compact_log(tmp_path) -
 def test_scheduler_inspect_leader_worker_activation_cli_projects_state(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "state.json"
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "state.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -295,9 +295,9 @@ def test_scheduler_leader_worker_dispatcher_tick_cli_persists_state(tmp_path) ->
             "--artifact-store-path",
             str(paths["artifact_store"]),
             "--dispatcher-state-path",
-            ".codex/scheduler/dispatcher-state.json",
+            ".dbc/scheduler/dispatcher-state.json",
             "--dispatch-event-log-path",
-            ".codex/scheduler/dispatcher-events.jsonl",
+            ".dbc/scheduler/dispatcher-events.jsonl",
             "--worker-agent-id",
             "agent:server",
             "--worker-agent-id",
@@ -313,8 +313,8 @@ def test_scheduler_leader_worker_dispatcher_tick_cli_persists_state(tmp_path) ->
     assert payload["ok"] is True
     assert payload["decision_count"] == 4
     assert payload["authority_split"]["provider_executed"] is False
-    assert (project / ".codex/scheduler/dispatcher-state.json").exists()
-    assert (project / ".codex/scheduler/dispatcher-events.jsonl").exists()
+    assert (project / ".dbc/scheduler/dispatcher-state.json").exists()
+    assert (project / ".dbc/scheduler/dispatcher-events.jsonl").exists()
 
 
 def test_scheduler_leader_worker_dispatcher_loop_cli_stops_after_dedup(tmp_path) -> None:
@@ -332,9 +332,9 @@ def test_scheduler_leader_worker_dispatcher_loop_cli_stops_after_dedup(tmp_path)
             "--artifact-store-path",
             str(paths["artifact_store"]),
             "--dispatcher-state-path",
-            ".codex/scheduler/dispatcher-state.json",
+            ".dbc/scheduler/dispatcher-state.json",
             "--dispatch-event-log-path",
-            ".codex/scheduler/dispatcher-events.jsonl",
+            ".dbc/scheduler/dispatcher-events.jsonl",
             "--worker-agent-id",
             "agent:server",
             "--worker-agent-id",
@@ -367,9 +367,9 @@ def test_scheduler_leader_worker_delivery_cli_sync_ack_and_inspect(tmp_path) -> 
             "--artifact-store-path",
             str(paths["artifact_store"]),
             "--dispatcher-state-path",
-            ".codex/scheduler/dispatcher-state.json",
+            ".dbc/scheduler/dispatcher-state.json",
             "--dispatch-event-log-path",
-            ".codex/scheduler/dispatcher-events.jsonl",
+            ".dbc/scheduler/dispatcher-events.jsonl",
             "--worker-agent-id",
             "agent:server",
             "--worker-agent-id",
@@ -391,11 +391,11 @@ def test_scheduler_leader_worker_delivery_cli_sync_ack_and_inspect(tmp_path) -> 
             "scheduler",
             "leader-worker-delivery-sync",
             "--dispatch-event-log-path",
-            ".codex/scheduler/dispatcher-events.jsonl",
+            ".dbc/scheduler/dispatcher-events.jsonl",
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
             "--delivery-event-log-path",
-            ".codex/scheduler/delivery-events.jsonl",
+            ".dbc/scheduler/delivery-events.jsonl",
             "--host-id",
             "host:test",
             "--timestamp",
@@ -411,9 +411,9 @@ def test_scheduler_leader_worker_delivery_cli_sync_ack_and_inspect(tmp_path) -> 
             "scheduler",
             "leader-worker-delivery-ack",
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
             "--delivery-event-log-path",
-            ".codex/scheduler/delivery-events.jsonl",
+            ".dbc/scheduler/delivery-events.jsonl",
             "--source-key",
             source_key,
             "--target-state",
@@ -443,7 +443,7 @@ def test_scheduler_leader_worker_delivery_cli_sync_ack_and_inspect(tmp_path) -> 
             "scheduler",
             "inspect-leader-worker-delivery",
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
         ],
         cwd=project,
     )
@@ -488,11 +488,11 @@ def test_scheduler_codex_delivery_supervisor_cli_marks_missing_cli_failure(
             "--event-log-path",
             str(paths["event_log"]),
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
             "--delivery-event-log-path",
-            ".codex/scheduler/delivery-events.jsonl",
+            ".dbc/scheduler/delivery-events.jsonl",
             "--runtime-invocation-log-path",
-            ".codex/runtime/invocations.jsonl",
+            ".dbc/runtime/invocations.jsonl",
             "--executable",
             "definitely-missing-dbc-codex",
             "--max-deliveries",
@@ -609,11 +609,11 @@ def test_scheduler_opencode_delivery_supervisor_cli_marks_missing_cli_failure(
             "--event-log-path",
             str(paths["event_log"]),
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
             "--delivery-event-log-path",
-            ".codex/scheduler/delivery-events.jsonl",
+            ".dbc/scheduler/delivery-events.jsonl",
             "--runtime-invocation-log-path",
-            ".codex/runtime/opencode-delivery-invocations.jsonl",
+            ".dbc/runtime/opencode-delivery-invocations.jsonl",
             "--executable",
             "definitely-missing-dbc-opencode",
             "--max-deliveries",
@@ -631,7 +631,7 @@ def test_scheduler_opencode_delivery_supervisor_cli_marks_missing_cli_failure(
     payload = json.loads(proc.stdout)
     state = read_leader_worker_delivery_state(paths["delivery_state"])
     runtime_records = JsonlRuntimeInvocationLog(
-        project / ".codex/runtime/opencode-delivery-invocations.jsonl"
+        project / ".dbc/runtime/opencode-delivery-invocations.jsonl"
     ).read_all()
 
     assert payload["ok"] is False
@@ -711,11 +711,11 @@ def test_scheduler_opencode_delivery_supervisor_cli_can_use_server_api_transport
                 "--event-log-path",
                 str(paths["event_log"]),
                 "--delivery-state-path",
-                ".codex/scheduler/delivery-state.json",
+                ".dbc/scheduler/delivery-state.json",
                 "--delivery-event-log-path",
-                ".codex/scheduler/delivery-events.jsonl",
+                ".dbc/scheduler/delivery-events.jsonl",
                 "--runtime-invocation-log-path",
-                ".codex/runtime/opencode-server-api-delivery-invocations.jsonl",
+                ".dbc/runtime/opencode-server-api-delivery-invocations.jsonl",
                 "--opencode-transport",
                 "server-api",
                 "--server-api-base-url",
@@ -736,7 +736,7 @@ def test_scheduler_opencode_delivery_supervisor_cli_can_use_server_api_transport
     assert proc.returncode == 0, proc.stderr or proc.stdout
     payload = json.loads(proc.stdout)
     runtime_records = JsonlRuntimeInvocationLog(
-        project / ".codex/runtime/opencode-server-api-delivery-invocations.jsonl"
+        project / ".dbc/runtime/opencode-server-api-delivery-invocations.jsonl"
     ).read_all()
 
     assert payload["ok"] is True
@@ -818,11 +818,11 @@ def test_scheduler_opencode_delivery_supervisor_server_api_explicit_session_skip
                 "--event-log-path",
                 str(paths["event_log"]),
                 "--delivery-state-path",
-                ".codex/scheduler/delivery-state.json",
+                ".dbc/scheduler/delivery-state.json",
                 "--delivery-event-log-path",
-                ".codex/scheduler/delivery-events.jsonl",
+                ".dbc/scheduler/delivery-events.jsonl",
                 "--runtime-invocation-log-path",
-                ".codex/runtime/opencode-server-api-explicit-invocations.jsonl",
+                ".dbc/runtime/opencode-server-api-explicit-invocations.jsonl",
                 "--opencode-transport",
                 "server-api",
                 "--server-api-base-url",
@@ -844,7 +844,7 @@ def test_scheduler_opencode_delivery_supervisor_server_api_explicit_session_skip
 
     assert proc.returncode == 0, proc.stderr or proc.stdout
     runtime_records = JsonlRuntimeInvocationLog(
-        project / ".codex/runtime/opencode-server-api-explicit-invocations.jsonl"
+        project / ".dbc/runtime/opencode-server-api-explicit-invocations.jsonl"
     ).read_all()
 
     assert calls == ["/session/session-explicit-cli/message"]
@@ -866,9 +866,9 @@ def test_scheduler_opencode_delivery_supervisor_rejects_codex_only_flags(
             "scheduler",
             "opencode-delivery-supervisor-once",
             "--snapshot-path",
-            ".codex/scheduler/state.json",
+            ".dbc/scheduler/state.json",
             "--event-log-path",
-            ".codex/scheduler/events.jsonl",
+            ".dbc/scheduler/events.jsonl",
             "--sandbox",
             "workspace-write",
         ],
@@ -890,9 +890,9 @@ def test_scheduler_opencode_delivery_supervisor_rejects_conflicting_session_opti
             "scheduler",
             "opencode-delivery-supervisor-once",
             "--snapshot-path",
-            ".codex/scheduler/state.json",
+            ".dbc/scheduler/state.json",
             "--event-log-path",
-            ".codex/scheduler/events.jsonl",
+            ".dbc/scheduler/events.jsonl",
             "--session-id",
             "session-1",
             "--continue-session",
@@ -915,9 +915,9 @@ def test_scheduler_opencode_delivery_supervisor_rejects_unknown_transport(
             "scheduler",
             "opencode-delivery-supervisor-once",
             "--snapshot-path",
-            ".codex/scheduler/state.json",
+            ".dbc/scheduler/state.json",
             "--event-log-path",
-            ".codex/scheduler/events.jsonl",
+            ".dbc/scheduler/events.jsonl",
             "--opencode-transport",
             "telepathy",
         ],
@@ -939,9 +939,9 @@ def test_scheduler_codex_delivery_supervisor_cli_requires_sandbox_for_patch_publ
             "scheduler",
             "codex-delivery-supervisor-once",
             "--snapshot-path",
-            ".codex/scheduler/state.json",
+            ".dbc/scheduler/state.json",
             "--event-log-path",
-            ".codex/scheduler/events.jsonl",
+            ".dbc/scheduler/events.jsonl",
             "--publish-worker-patch-artifacts",
         ],
         cwd=project,
@@ -962,9 +962,9 @@ def test_scheduler_opencode_delivery_supervisor_cli_requires_sandbox_for_patch_p
             "scheduler",
             "opencode-delivery-supervisor-once",
             "--snapshot-path",
-            ".codex/scheduler/state.json",
+            ".dbc/scheduler/state.json",
             "--event-log-path",
-            ".codex/scheduler/events.jsonl",
+            ".dbc/scheduler/events.jsonl",
             "--publish-worker-patch-artifacts",
         ],
         cwd=project,
@@ -1038,10 +1038,10 @@ def test_scheduler_codex_delivery_e2e_smoke_cli_fails_closed_when_cli_missing(
     assert payload["authority_split"]["delivery_state_mutated"] is False
     assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
-    assert not (project / ".codex/scheduler/codex-delivery-e2e-smoke-state.json").exists()
-    assert not (project / ".codex/scheduler/leader-worker-dispatcher-state.json").exists()
-    assert not (project / ".codex/scheduler/leader-worker-delivery-state.json").exists()
-    assert not (project / ".codex/runtime/invocations.jsonl").exists()
+    assert not (project / ".dbc/scheduler/codex-delivery-e2e-smoke-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-dispatcher-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-delivery-state.json").exists()
+    assert not (project / ".dbc/runtime/invocations.jsonl").exists()
 
 
 def test_scheduler_opencode_delivery_e2e_smoke_cli_fails_closed_when_cli_missing(
@@ -1076,12 +1076,12 @@ def test_scheduler_opencode_delivery_e2e_smoke_cli_fails_closed_when_cli_missing
     assert payload["authority_split"]["scheduler_snapshot_mutated"] is False
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
     assert not (
-        project / ".codex/scheduler/opencode-delivery-e2e-smoke-state.json"
+        project / ".dbc/scheduler/opencode-delivery-e2e-smoke-state.json"
     ).exists()
-    assert not (project / ".codex/scheduler/leader-worker-dispatcher-state.json").exists()
-    assert not (project / ".codex/scheduler/leader-worker-delivery-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-dispatcher-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-delivery-state.json").exists()
     assert not (
-        project / ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+        project / ".dbc/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
     ).exists()
 
 
@@ -1115,7 +1115,7 @@ def test_scheduler_opencode_delivery_e2e_smoke_can_use_server_api_transport(
     assert proc.returncode == 0, proc.stderr or proc.stdout
     payload = json.loads(proc.stdout)
     runtime_records = JsonlRuntimeInvocationLog(
-        project / ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+        project / ".dbc/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
     ).read_all()
 
     assert payload["ok"] is True
@@ -1250,10 +1250,10 @@ def test_scheduler_codex_delivery_supervisor_loop_cli_fails_closed_when_cli_miss
     assert payload["authority_split"]["dispatcher_state_mutated"] is False
     assert payload["authority_split"]["delivery_state_mutated"] is False
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
-    assert not (project / ".codex/scheduler/codex-delivery-e2e-smoke-state.json").exists()
-    assert not (project / ".codex/scheduler/leader-worker-dispatcher-state.json").exists()
-    assert not (project / ".codex/scheduler/leader-worker-delivery-state.json").exists()
-    assert not (project / ".codex/runtime/invocations.jsonl").exists()
+    assert not (project / ".dbc/scheduler/codex-delivery-e2e-smoke-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-dispatcher-state.json").exists()
+    assert not (project / ".dbc/scheduler/leader-worker-delivery-state.json").exists()
+    assert not (project / ".dbc/runtime/invocations.jsonl").exists()
 
 
 def test_scheduler_opencode_delivery_supervisor_loop_cli_fails_closed_when_cli_missing(
@@ -1287,9 +1287,9 @@ def test_scheduler_opencode_delivery_supervisor_loop_cli_fails_closed_when_cli_m
     assert payload["authority_split"]["delivery_state_mutated"] is False
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
     assert not (
-        project / ".codex/scheduler/opencode-delivery-supervisor-loop-state.json"
+        project / ".dbc/scheduler/opencode-delivery-supervisor-loop-state.json"
     ).exists()
-    assert not (project / ".codex/runtime/opencode-delivery-loop-invocations.jsonl").exists()
+    assert not (project / ".dbc/runtime/opencode-delivery-loop-invocations.jsonl").exists()
 
 
 def test_scheduler_opencode_delivery_supervisor_loop_can_use_server_api_transport(
@@ -1326,7 +1326,7 @@ def test_scheduler_opencode_delivery_supervisor_loop_can_use_server_api_transpor
     assert proc.returncode == 0, proc.stderr or proc.stdout
     payload = json.loads(proc.stdout)
     runtime_records = JsonlRuntimeInvocationLog(
-        project / ".codex/runtime/opencode-delivery-loop-invocations.jsonl"
+        project / ".dbc/runtime/opencode-delivery-loop-invocations.jsonl"
     ).read_all()
 
     assert payload["ok"] is True
@@ -1506,10 +1506,10 @@ def test_scheduler_live_codex_concurrent_worker_smoke_cli_fails_closed_when_cli_
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert not (
-        project / ".codex/scheduler/live-codex-concurrent-worker-smoke-state.json"
+        project / ".dbc/scheduler/live-codex-concurrent-worker-smoke-state.json"
     ).exists()
     assert not (
-        project / ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
+        project / ".dbc/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
     ).exists()
     assert not (
         project / ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json"
@@ -1554,10 +1554,10 @@ def test_scheduler_live_opencode_concurrent_worker_smoke_cli_fails_closed_when_c
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert not (
-        project / ".codex/scheduler/live-opencode-concurrent-worker-smoke-state.json"
+        project / ".dbc/scheduler/live-opencode-concurrent-worker-smoke-state.json"
     ).exists()
     assert not (
-        project / ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
+        project / ".dbc/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
     ).exists()
     assert not (
         project / ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json"
@@ -1637,14 +1637,14 @@ def test_scheduler_codex_runtime_status_cli_reads_multilane_fixture(
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=project / ".codex/scheduler/c7-state.json",
-        scheduler_event_log_path=project / ".codex/scheduler/c7-events.jsonl",
-        artifact_store_path=project / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=project / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=project / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=project / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=project / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=project / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=project / ".dbc/scheduler/c7-state.json",
+        scheduler_event_log_path=project / ".dbc/scheduler/c7-events.jsonl",
+        artifact_store_path=project / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=project / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=project / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=project / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=project / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=project / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -1672,15 +1672,15 @@ def test_scheduler_codex_runtime_status_cli_reads_multilane_fixture(
             "scheduler",
             "inspect-codex-runtime-status",
             "--snapshot-path",
-            ".codex/scheduler/c7-state.json",
+            ".dbc/scheduler/c7-state.json",
             "--event-log-path",
-            ".codex/scheduler/c7-events.jsonl",
+            ".dbc/scheduler/c7-events.jsonl",
             "--delivery-state-path",
-            ".codex/scheduler/delivery-state.json",
+            ".dbc/scheduler/delivery-state.json",
             "--runtime-invocation-log-path",
-            ".codex/runtime/invocations.jsonl",
+            ".dbc/runtime/invocations.jsonl",
             "--artifact-store-path",
-            ".codex/orchestration/exchange-artifacts.json",
+            ".dbc/orchestration/exchange-artifacts.json",
             "--target-task-id",
             request.target_task_id,
             "--target-task-id",
@@ -1713,14 +1713,14 @@ def test_scheduler_opencode_runtime_status_cli_reads_multilane_fixture(
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=project / ".codex/scheduler/opencode-status-state.json",
-        scheduler_event_log_path=project / ".codex/scheduler/opencode-status-events.jsonl",
-        artifact_store_path=project / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=project / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=project / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=project / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=project / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=project / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=project / ".dbc/scheduler/opencode-status-state.json",
+        scheduler_event_log_path=project / ".dbc/scheduler/opencode-status-events.jsonl",
+        artifact_store_path=project / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=project / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=project / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=project / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=project / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=project / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -1762,15 +1762,15 @@ def test_scheduler_opencode_runtime_status_cli_reads_multilane_fixture(
             "scheduler",
             "inspect-opencode-runtime-status",
             "--snapshot-path",
-            ".codex/scheduler/opencode-status-state.json",
+            ".dbc/scheduler/opencode-status-state.json",
             "--event-log-path",
-            ".codex/scheduler/opencode-status-events.jsonl",
+            ".dbc/scheduler/opencode-status-events.jsonl",
             "--delivery-state-path",
-            ".codex/scheduler/opencode-delivery-state.json",
+            ".dbc/scheduler/opencode-delivery-state.json",
             "--runtime-invocation-log-path",
-            ".codex/runtime/opencode-invocations.jsonl",
+            ".dbc/runtime/opencode-invocations.jsonl",
             "--artifact-store-path",
-            ".codex/orchestration/opencode-exchange-artifacts.json",
+            ".dbc/orchestration/opencode-exchange-artifacts.json",
             "--target-task-id",
             request.target_task_id,
             "--target-task-id",
@@ -1819,14 +1819,14 @@ def test_scheduler_monitoring_snapshot_cli_reads_frontend_snapshot(
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=project / ".codex/scheduler/monitor-state.json",
-        scheduler_event_log_path=project / ".codex/scheduler/monitor-events.jsonl",
-        artifact_store_path=project / ".codex/orchestration/monitor-exchange-artifacts.json",
-        dispatcher_state_path=project / ".codex/scheduler/monitor-dispatcher-state.json",
-        dispatch_event_log_path=project / ".codex/scheduler/monitor-dispatcher-events.jsonl",
-        delivery_state_path=project / ".codex/scheduler/monitor-delivery-state.json",
-        delivery_event_log_path=project / ".codex/scheduler/monitor-delivery-events.jsonl",
-        runtime_invocation_log_path=project / ".codex/runtime/monitor-invocations.jsonl",
+        scheduler_snapshot_path=project / ".dbc/scheduler/monitor-state.json",
+        scheduler_event_log_path=project / ".dbc/scheduler/monitor-events.jsonl",
+        artifact_store_path=project / ".dbc/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=project / ".dbc/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=project / ".dbc/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=project / ".dbc/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=project / ".dbc/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=project / ".dbc/runtime/monitor-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -1849,7 +1849,7 @@ def test_scheduler_monitoring_snapshot_cli_reads_frontend_snapshot(
             )
         ),
     )
-    report_path = project / ".codex/scheduler/monitor-live-smoke-report.json"
+    report_path = project / ".dbc/scheduler/monitor-live-smoke-report.json"
     report_path.write_text(
         json.dumps(
             {
@@ -1893,17 +1893,17 @@ def test_scheduler_monitoring_snapshot_cli_reads_frontend_snapshot(
             "scheduler",
             "inspect-monitoring-snapshot",
             "--snapshot-path",
-            ".codex/scheduler/monitor-state.json",
+            ".dbc/scheduler/monitor-state.json",
             "--event-log-path",
-            ".codex/scheduler/monitor-events.jsonl",
+            ".dbc/scheduler/monitor-events.jsonl",
             "--delivery-state-path",
-            ".codex/scheduler/monitor-delivery-state.json",
+            ".dbc/scheduler/monitor-delivery-state.json",
             "--runtime-invocation-log-path",
-            ".codex/runtime/monitor-invocations.jsonl",
+            ".dbc/runtime/monitor-invocations.jsonl",
             "--artifact-store-path",
-            ".codex/orchestration/monitor-exchange-artifacts.json",
+            ".dbc/orchestration/monitor-exchange-artifacts.json",
             "--live-codex-smoke-report-path",
-            ".codex/scheduler/monitor-live-smoke-report.json",
+            ".dbc/scheduler/monitor-live-smoke-report.json",
             "--target-task-id",
             request.target_task_id,
             "--target-task-id",
@@ -2741,7 +2741,7 @@ def test_scheduler_trajectory_team_cli_assign_inspect_resolve_roundtrip(
             "--audit-ref",
             "audit:server",
             "--scheduler-event-log-path",
-            ".codex/scheduler/team-events.jsonl",
+            ".dbc/scheduler/team-events.jsonl",
             "--timestamp",
             "2026-07-04T12:00:00+00:00",
         ],
@@ -2773,7 +2773,7 @@ def test_scheduler_trajectory_team_cli_assign_inspect_resolve_roundtrip(
             "--runtime-provider",
             "opencode",
             "--scheduler-event-log-path",
-            ".codex/scheduler/team-events.jsonl",
+            ".dbc/scheduler/team-events.jsonl",
         ],
         cwd=project,
     )
@@ -2799,7 +2799,7 @@ def test_scheduler_trajectory_team_cli_assign_inspect_resolve_roundtrip(
         "trajectory_team_lane_worker_resolved"
     )
 
-    event_log = project / ".codex/scheduler/team-events.jsonl"
+    event_log = project / ".dbc/scheduler/team-events.jsonl"
     assert event_log.exists()
     assert "trajectory_team_worker_assigned" in event_log.read_text(encoding="utf-8")
 
@@ -2845,7 +2845,7 @@ def test_scheduler_trajectory_team_cli_transfer_release_no_continuity(
     ]
     common_paths = [
         "--scheduler-event-log-path",
-        ".codex/scheduler/team-events.jsonl",
+        ".dbc/scheduler/team-events.jsonl",
     ]
 
     first = _run_cli(
@@ -2961,7 +2961,7 @@ def test_worker_binding_cli_inspect_promotion_candidates_reads_runtime_log(
 ) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    log_path = project / ".codex/runtime/opencode-invocations.jsonl"
+    log_path = project / ".dbc/runtime/opencode-invocations.jsonl"
     JsonlRuntimeInvocationLog(log_path).append(
         RuntimeInvocationRecord(
             invocation_id="inv-server-api",
@@ -2996,7 +2996,7 @@ def test_worker_binding_cli_inspect_promotion_candidates_reads_runtime_log(
             "worker-binding",
             "inspect-promotion-candidates",
             "--runtime-invocation-log-path",
-            ".codex/runtime/opencode-invocations.jsonl",
+            ".dbc/runtime/opencode-invocations.jsonl",
         ],
         cwd=project,
     )
@@ -3017,7 +3017,7 @@ def test_worker_binding_cli_inspect_promotion_candidates_reads_runtime_log(
     assert "--audit-ref" in candidate["suggested_command"]
     assert "promote-server-api-session" in candidate["suggested_command_text"]
     assert payload["authority_split"]["continuous_worker_binding_ledger_mutated"] is False
-    assert not (project / ".codex/runtime/continuous-worker-bindings.json").exists()
+    assert not (project / ".dbc/runtime/continuous-worker-bindings.json").exists()
 
 
 def test_worker_binding_cli_inspect_promotion_candidates_help_describes_path_resolution() -> None:
@@ -3033,7 +3033,7 @@ def test_worker_binding_cli_inspect_promotion_candidates_filters_non_created(
 ) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    log_path = project / ".codex/runtime/opencode-invocations.jsonl"
+    log_path = project / ".dbc/runtime/opencode-invocations.jsonl"
     JsonlRuntimeInvocationLog(log_path).append(
         RuntimeInvocationRecord(
             invocation_id="inv-explicit",
@@ -3064,7 +3064,7 @@ def test_worker_binding_cli_inspect_promotion_candidates_filters_non_created(
             "worker-binding",
             "inspect-promotion-candidates",
             "--runtime-invocation-log-path",
-            ".codex/runtime/opencode-invocations.jsonl",
+            ".dbc/runtime/opencode-invocations.jsonl",
         ],
         cwd=project,
     )
@@ -3126,7 +3126,7 @@ def test_worker_binding_cli_promote_server_api_session_roundtrip(
     assert json.loads(inspect_active.stdout)["bindings"][0]["metadata"]["promotion_source"] == (
         "server_api_created"
     )
-    assert not (project / ".codex/runtime/opencode-session-ledger.json").exists()
+    assert not (project / ".dbc/runtime/opencode-session-ledger.json").exists()
 
 
 def test_worker_binding_cli_promote_claims_and_activates_lane_ownership(
@@ -3569,11 +3569,11 @@ def test_codex_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) ->
             "--executable",
             "definitely-missing-dbc-codex",
             "--snapshot-path",
-            ".codex/scheduler/codex-guide-worker-provider-execution-state.json",
+            ".dbc/scheduler/codex-guide-worker-provider-execution-state.json",
             "--event-log-path",
-            ".codex/scheduler/codex-guide-worker-provider-execution-events.jsonl",
+            ".dbc/scheduler/codex-guide-worker-provider-execution-events.jsonl",
             "--evidence-path",
-            ".codex/scheduler/evidence/codex-guide-worker-provider.json",
+            ".dbc/scheduler/evidence/codex-guide-worker-provider.json",
             "--timestamp",
             "2026-06-24T22:40:00+08:00",
         ],
@@ -3584,10 +3584,10 @@ def test_codex_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path) ->
     assert proc.stdout == ""
     assert "cli_unavailable" in proc.stderr
     assert (
-        project / ".codex/scheduler/codex-guide-worker-provider-execution-state.json"
+        project / ".dbc/scheduler/codex-guide-worker-provider-execution-state.json"
     ).exists() is False
     assert (
-        project / ".codex/scheduler/evidence/codex-guide-worker-provider.json"
+        project / ".dbc/scheduler/evidence/codex-guide-worker-provider.json"
     ).exists() is False
 
 
@@ -3602,11 +3602,11 @@ def test_opencode_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path)
             "--executable",
             "definitely-missing-dbc-opencode",
             "--snapshot-path",
-            ".codex/scheduler/opencode-guide-worker-provider-execution-state.json",
+            ".dbc/scheduler/opencode-guide-worker-provider-execution-state.json",
             "--event-log-path",
-            ".codex/scheduler/opencode-guide-worker-provider-execution-events.jsonl",
+            ".dbc/scheduler/opencode-guide-worker-provider-execution-events.jsonl",
             "--evidence-path",
-            ".codex/scheduler/evidence/opencode-guide-worker-provider.json",
+            ".dbc/scheduler/evidence/opencode-guide-worker-provider.json",
             "--timestamp",
             "2026-06-28T21:40:00+08:00",
         ],
@@ -3617,10 +3617,10 @@ def test_opencode_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path)
     assert proc.stdout == ""
     assert "cli_unavailable" in proc.stderr
     assert (
-        project / ".codex/scheduler/opencode-guide-worker-provider-execution-state.json"
+        project / ".dbc/scheduler/opencode-guide-worker-provider-execution-state.json"
     ).exists() is False
     assert (
-        project / ".codex/scheduler/evidence/opencode-guide-worker-provider.json"
+        project / ".dbc/scheduler/evidence/opencode-guide-worker-provider.json"
     ).exists() is False
 
 
@@ -3645,11 +3645,11 @@ def test_provider_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path)
             "--planner-lane-provider",
             "lane:client=opencode",
             "--snapshot-path",
-            ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json",
+            ".dbc/scheduler/mixed-provider-guide-worker-smoke-state.json",
             "--event-log-path",
-            ".codex/scheduler/mixed-provider-guide-worker-smoke-events.jsonl",
+            ".dbc/scheduler/mixed-provider-guide-worker-smoke-events.jsonl",
             "--evidence-path",
-            ".codex/scheduler/evidence/mixed-provider-guide-worker-smoke.json",
+            ".dbc/scheduler/evidence/mixed-provider-guide-worker-smoke.json",
             "--timestamp",
             "2026-06-28T22:20:00+08:00",
         ],
@@ -3660,10 +3660,10 @@ def test_provider_guide_worker_smoke_missing_cli_writes_no_state(tmp_path: Path)
     assert proc.stdout == ""
     assert "cli_unavailable" in proc.stderr
     assert (
-        project / ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json"
+        project / ".dbc/scheduler/mixed-provider-guide-worker-smoke-state.json"
     ).exists() is False
     assert (
-        project / ".codex/scheduler/evidence/mixed-provider-guide-worker-smoke.json"
+        project / ".dbc/scheduler/evidence/mixed-provider-guide-worker-smoke.json"
     ).exists() is False
 
 
@@ -3744,11 +3744,11 @@ def test_qoder_guide_worker_smoke_missing_auth_writes_no_state(tmp_path: Path) -
             "--auth-env-var",
             absent_env_var,
             "--snapshot-path",
-            ".codex/scheduler/guide-worker-provider-execution-state.json",
+            ".dbc/scheduler/guide-worker-provider-execution-state.json",
             "--event-log-path",
-            ".codex/scheduler/guide-worker-provider-execution-events.jsonl",
+            ".dbc/scheduler/guide-worker-provider-execution-events.jsonl",
             "--evidence-path",
-            ".codex/scheduler/evidence/guide-worker-provider.json",
+            ".dbc/scheduler/evidence/guide-worker-provider.json",
             "--timestamp",
             "2026-06-24T08:40:00+08:00",
         ],
@@ -3761,13 +3761,13 @@ def test_qoder_guide_worker_smoke_missing_auth_writes_no_state(tmp_path: Path) -
     assert "authentication_failed" in proc.stderr
     assert absent_env_var in proc.stderr
     assert (
-        project / ".codex/scheduler/guide-worker-provider-execution-state.json"
+        project / ".dbc/scheduler/guide-worker-provider-execution-state.json"
     ).exists() is False
     assert (
-        project / ".codex/scheduler/evidence/guide-worker-provider.json"
+        project / ".dbc/scheduler/evidence/guide-worker-provider.json"
     ).exists() is False
-    assert (project / ".codex/orchestration/exchange-artifacts.json").exists() is False
-    assert (project / ".codex/progress-graph/local-work-trajectory.json").exists() is False
+    assert (project / ".dbc/orchestration/exchange-artifacts.json").exists() is False
+    assert (project / ".dbc/progress-graph/local-work-trajectory.json").exists() is False
 
 
 def test_qoder_smoke_missing_auth_initializes_only_proposed_snapshot(tmp_path: Path) -> None:
@@ -3784,13 +3784,13 @@ def test_qoder_smoke_missing_auth_initializes_only_proposed_snapshot(tmp_path: P
             "--auth-env-var",
             absent_env_var,
             "--snapshot-path",
-            ".codex/scheduler/qoder-smoke-state.json",
+            ".dbc/scheduler/qoder-smoke-state.json",
             "--event-log-path",
-            ".codex/scheduler/qoder-smoke-events.jsonl",
+            ".dbc/scheduler/qoder-smoke-events.jsonl",
             "--evidence-path",
-            ".codex/scheduler/evidence/qoder-smoke.json",
+            ".dbc/scheduler/evidence/qoder-smoke.json",
             "--projection-output-path",
-            ".codex/progress-graph/scheduler-work-trajectory.json",
+            ".dbc/progress-graph/scheduler-work-trajectory.json",
             "--timestamp",
             "2026-06-22T16:00:00+08:00",
         ],
@@ -3802,13 +3802,13 @@ def test_qoder_smoke_missing_auth_initializes_only_proposed_snapshot(tmp_path: P
     assert proc.stdout == ""
     assert "authentication_failed" in proc.stderr
     assert absent_env_var in proc.stderr
-    snapshot_path = project / ".codex/scheduler/qoder-smoke-state.json"
+    snapshot_path = project / ".dbc/scheduler/qoder-smoke-state.json"
     restored = read_scheduler_state_snapshot(snapshot_path)
     assert restored.tasks["qoder-smoke"].state == "proposed"
     assert restored.tasks["qoder-smoke"].run_id == ""
     assert restored.tasks["qoder-smoke"].agent.max_turns == 1
-    assert (project / ".codex/scheduler/evidence/qoder-smoke.json").exists() is False
-    assert (project / ".codex/progress-graph/scheduler-work-trajectory.json").exists() is False
+    assert (project / ".dbc/scheduler/evidence/qoder-smoke.json").exists() is False
+    assert (project / ".dbc/progress-graph/scheduler-work-trajectory.json").exists() is False
 
 
 def test_qoder_smoke_no_initialize_missing_auth_writes_no_scheduler_files(tmp_path: Path) -> None:
@@ -3824,9 +3824,9 @@ def test_qoder_smoke_no_initialize_missing_auth_writes_no_scheduler_files(tmp_pa
             absent_env_var,
             "--no-initialize-snapshot",
             "--snapshot-path",
-            ".codex/scheduler/qoder-smoke-state.json",
+            ".dbc/scheduler/qoder-smoke-state.json",
             "--evidence-path",
-            ".codex/scheduler/evidence/qoder-smoke.json",
+            ".dbc/scheduler/evidence/qoder-smoke.json",
         ],
         cwd=project,
         env_var=absent_env_var,
@@ -3834,9 +3834,9 @@ def test_qoder_smoke_no_initialize_missing_auth_writes_no_scheduler_files(tmp_pa
 
     assert proc.returncode == 1
     assert "authentication_failed" in proc.stderr
-    assert (project / ".codex/scheduler/qoder-smoke-state.json").exists() is False
-    assert (project / ".codex/scheduler/evidence/qoder-smoke.json").exists() is False
-    assert (project / ".codex/progress-graph/scheduler-work-trajectory.json").exists() is False
+    assert (project / ".dbc/scheduler/qoder-smoke-state.json").exists() is False
+    assert (project / ".dbc/scheduler/evidence/qoder-smoke.json").exists() is False
+    assert (project / ".dbc/progress-graph/scheduler-work-trajectory.json").exists() is False
 
 
 def test_qoder_smoke_invalid_option_fails_before_workspace_mutation(tmp_path: Path) -> None:
@@ -3890,7 +3890,7 @@ def test_scheduler_inspect_binding_refs_cli_reports_submission_refs(tmp_path) ->
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     binding_artifact = ExchangeArtifact(
         artifact_id="binding:cli",
         kind="retention",
@@ -3935,8 +3935,8 @@ def test_scheduler_inspect_binding_refs_cli_reports_submission_refs(tmp_path) ->
     store = JsonArtifactVersionStore(store_path)
     store.put(binding_artifact)
     store.put(submission_artifact)
-    snapshot_path = project / ".codex" / "scheduler" / "inspect-binding-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "inspect-binding-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "inspect-binding-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "inspect-binding-events.jsonl"
 
     proc = _run_cli(
         [
@@ -3963,8 +3963,8 @@ def test_scheduler_inspect_binding_refs_cli_reports_submission_refs(tmp_path) ->
     assert payload["authority_split"]["raw_evidence_json_read"] is False
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_inspect_binding_refs_cli_returns_nonzero_for_bad_ref(tmp_path) -> None:
@@ -3980,7 +3980,7 @@ def test_scheduler_inspect_binding_refs_cli_returns_nonzero_for_bad_ref(tmp_path
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     submission_artifact = scheduler_task_submission_to_artifact(
         SchedulerTaskSubmission(
             task_id="task-cli-bad-binding",
@@ -4019,8 +4019,8 @@ def test_scheduler_inspect_binding_refs_cli_returns_nonzero_for_bad_ref(tmp_path
     assert payload["error_count"] == 1
     assert "binding:missing" in payload["errors"][0]
     assert payload["authority_split"]["scheduler_state_mutated"] is False
-    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "scheduler" / "scheduler-state.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_guide_worker_exchange_dogfood_cli_runs_full_sequence(tmp_path) -> None:
@@ -4037,13 +4037,13 @@ def test_scheduler_guide_worker_exchange_dogfood_cli_runs_full_sequence(tmp_path
             "scheduler",
             "guide-worker-exchange-dogfood",
             "--artifact-store-path",
-            ".codex/orchestration/gw-exchange.json",
+            ".dbc/orchestration/gw-exchange.json",
             "--admission-ledger-path",
-            ".codex/orchestration/gw-admissions.json",
+            ".dbc/orchestration/gw-admissions.json",
             "--snapshot-path",
-            ".codex/scheduler/gw-state.json",
+            ".dbc/scheduler/gw-state.json",
             "--event-log-path",
-            ".codex/scheduler/gw-events.jsonl",
+            ".dbc/scheduler/gw-events.jsonl",
             "--artifact-id-prefix",
             "gw-cli",
             "--timestamp",
@@ -4063,14 +4063,14 @@ def test_scheduler_guide_worker_exchange_dogfood_cli_runs_full_sequence(tmp_path
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert payload["authority_split"]["raw_transcript_persisted"] is False
 
-    state = read_scheduler_state_snapshot(project / ".codex/scheduler/gw-state.json")
+    state = read_scheduler_state_snapshot(project / ".dbc/scheduler/gw-state.json")
     assert "task/gw-cli/worker" in state.tasks
     records = JsonExchangeArtifactAdmissionLedger(
-        project / ".codex/orchestration/gw-admissions.json"
+        project / ".dbc/orchestration/gw-admissions.json"
     ).read_all()
     assert records[-1].artifact_id == "gw-cli:scheduler-submission"
     assert records[-1].status == "admitted"
-    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (project / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_scheduler_guide_worker_local_orchestration_cli_runs_lane_wave(tmp_path) -> None:
@@ -4084,13 +4084,13 @@ def test_scheduler_guide_worker_local_orchestration_cli_runs_lane_wave(tmp_path)
             "scheduler",
             "guide-worker-local-orchestration",
             "--artifact-store-path",
-            ".codex/orchestration/gw-local-exchange.json",
+            ".dbc/orchestration/gw-local-exchange.json",
             "--admission-ledger-path",
-            ".codex/orchestration/gw-local-admissions.json",
+            ".dbc/orchestration/gw-local-admissions.json",
             "--snapshot-path",
-            ".codex/scheduler/gw-local-state.json",
+            ".dbc/scheduler/gw-local-state.json",
             "--event-log-path",
-            ".codex/scheduler/gw-local-events.jsonl",
+            ".dbc/scheduler/gw-local-events.jsonl",
             "--trajectory-id",
             "local-work:cli-test",
             "--artifact-id-prefix",
@@ -4114,11 +4114,11 @@ def test_scheduler_guide_worker_local_orchestration_cli_runs_lane_wave(tmp_path)
     assert payload["authority_split"]["true_process_parallelism"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
-    state = read_scheduler_state_snapshot(project / ".codex/scheduler/gw-local-state.json")
+    state = read_scheduler_state_snapshot(project / ".dbc/scheduler/gw-local-state.json")
     assert state.tasks["task/gw-local-cli/client"].state == "complete"
     assert state.tasks["task/gw-local-cli/server"].state == "complete"
     assert len(state.run_records) == 2
-    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (project / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_scheduler_guide_worker_local_orchestration_cli_plans_lanes(tmp_path) -> None:
@@ -4165,7 +4165,7 @@ def test_scheduler_guide_worker_local_orchestration_cli_plans_lanes(tmp_path) ->
         "client",
         "web",
     ]
-    assert not (project / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (project / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_scheduler_inspect_agent_mailbox_cli_reads_exchange_store_without_mutation(tmp_path) -> None:
@@ -4178,7 +4178,7 @@ def test_scheduler_inspect_agent_mailbox_cli_reads_exchange_store_without_mutati
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -4222,7 +4222,7 @@ def test_scheduler_inspect_agent_mailbox_cli_reads_exchange_store_without_mutati
     assert payload["inbox"][1]["preview"]["redacted"] is True
     assert "secret detail" not in proc.stdout
     assert payload["authority_split"]["read_model_only"] is True
-    assert not (project / ".codex" / "scheduler").exists()
+    assert not (project / ".dbc" / "scheduler").exists()
 
 
 def test_scheduler_exchange_reply_and_transition_cli_round_trip(tmp_path) -> None:
@@ -4234,7 +4234,7 @@ def test_scheduler_exchange_reply_and_transition_cli_round_trip(tmp_path) -> Non
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="ex-cli-question",
@@ -4306,7 +4306,7 @@ def test_scheduler_exchange_reply_and_transition_cli_round_trip(tmp_path) -> Non
     assert mailbox.returncode == 0, mailbox.stderr
     mailbox_payload = json.loads(mailbox.stdout)
     assert [item["artifact_id"] for item in mailbox_payload["inbox"]] == ["ex-cli-answer"]
-    assert not (project / ".codex" / "scheduler").exists()
+    assert not (project / ".dbc" / "scheduler").exists()
 
 
 def test_scheduler_inspect_agent_history_cli_reads_causality_without_mutation(tmp_path) -> None:
@@ -4321,7 +4321,7 @@ def test_scheduler_inspect_agent_history_cli_reads_causality_without_mutation(tm
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -4404,7 +4404,7 @@ def test_scheduler_inspect_agent_history_cli_reads_causality_without_mutation(tm
     assert "safe answer summary" in proc.stdout
     assert "secret answer body" not in proc.stdout
     assert payload["authority_split"]["read_model_only"] is True
-    assert not (project / ".codex" / "scheduler").exists()
+    assert not (project / ".dbc" / "scheduler").exists()
 
 
 def test_scheduler_inspect_agent_action_candidates_cli_reads_without_mutation(tmp_path) -> None:
@@ -4419,7 +4419,7 @@ def test_scheduler_inspect_agent_action_candidates_cli_reads_without_mutation(tm
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -4491,7 +4491,7 @@ def test_scheduler_inspect_agent_action_candidates_cli_reads_without_mutation(tm
     assert payload["authority_split"]["read_model_only"] is True
     assert payload["authority_split"]["review_state_mutated"] is False
     assert "secret blocker detail" not in proc.stdout
-    assert not (project / ".codex" / "scheduler").exists()
+    assert not (project / ".dbc" / "scheduler").exists()
 
 
 def test_scheduler_decide_agent_action_candidate_cli_writes_disposition_only(tmp_path) -> None:
@@ -4503,7 +4503,7 @@ def test_scheduler_decide_agent_action_candidate_cli_writes_disposition_only(tmp
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="ex-cli-decision-task",
@@ -4558,7 +4558,7 @@ def test_scheduler_decide_agent_action_candidate_cli_writes_disposition_only(tmp
     structured = next(part for part in record.artifact.parts if part.part_type == "structured")
     assert structured.data["product_type"] == "agent_exchange_action_candidate_disposition"
     assert structured.data["source_artifact_id"] == "ex-cli-decision-task"
-    assert not (project / ".codex" / "scheduler").exists()
+    assert not (project / ".dbc" / "scheduler").exists()
 
 
 def test_scheduler_consume_accepted_scheduler_candidate_cli_admits_source(tmp_path) -> None:
@@ -4573,7 +4573,7 @@ def test_scheduler_consume_accepted_scheduler_candidate_cli_admits_source(tmp_pa
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -4614,9 +4614,9 @@ def test_scheduler_consume_accepted_scheduler_candidate_cli_admits_source(tmp_pa
             "--disposition-version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--actor",
             "agent:guide",
         ],
@@ -4631,7 +4631,7 @@ def test_scheduler_consume_accepted_scheduler_candidate_cli_admits_source(tmp_pa
     assert payload["admission_result"]["admission_ledger_record_id"]
     assert payload["admission_result"]["submitted_task_ids"] == ["task/cli-consume"]
     assert payload["authority_split"]["scheduler_mutated"] is True
-    state = read_scheduler_state_snapshot(project / ".codex" / "scheduler" / "scheduler-state.json")
+    state = read_scheduler_state_snapshot(project / ".dbc" / "scheduler" / "scheduler-state.json")
     assert "task/cli-consume" in state.tasks
 
 
@@ -4647,7 +4647,7 @@ def test_scheduler_consume_accepted_review_candidate_cli_registers_review(tmp_pa
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="ex-cli-review",
@@ -4708,7 +4708,7 @@ def test_scheduler_consume_accepted_review_candidate_cli_registers_review(tmp_pa
     assert payload["review_pending"][0]["envelope_id"] == "agent-exchange-review-ex-cli-review-v1"
     assert payload["authority_split"]["review_state_mutated"] is True
     assert payload["authority_split"]["scheduler_mutated"] is False
-    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert not (project / ".dbc" / "scheduler" / "scheduler-state.json").exists()
 
 
 def test_scheduler_consume_accepted_handoff_candidate_cli_writes_handoff(tmp_path) -> None:
@@ -4723,7 +4723,7 @@ def test_scheduler_consume_accepted_handoff_candidate_cli_writes_handoff(tmp_pat
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     handoff_dir = project / ".codex" / "handoffs"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
@@ -4797,7 +4797,7 @@ def test_scheduler_consume_accepted_handoff_candidate_cli_writes_handoff(tmp_pat
     assert payload["authority_split"]["handoff_mutated"] is True
     handoff_path = handoff_dir / f"{payload['handoff_payload']['handoff_id']}.json"
     assert handoff_path.exists()
-    assert not (project / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert not (project / ".dbc" / "scheduler" / "scheduler-state.json").exists()
 
 
 def test_scheduler_consume_accepted_merge_candidate_cli_resolves_gate(tmp_path) -> None:
@@ -4818,9 +4818,9 @@ def test_scheduler_consume_accepted_merge_candidate_cli_resolves_gate(tmp_path) 
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    merge_log_path = project / ".codex" / "scheduler" / "merge-gate-events.jsonl"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    merge_log_path = project / ".dbc" / "scheduler" / "merge-gate-events.jsonl"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="ex-cli-merge",
@@ -4892,9 +4892,9 @@ def test_scheduler_consume_accepted_merge_candidate_cli_resolves_gate(tmp_path) 
             "--disposition-version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--merge-gate-event-log-path",
-            ".codex/scheduler/merge-gate-events.jsonl",
+            ".dbc/scheduler/merge-gate-events.jsonl",
             "--gate-id",
             "merge-cli",
             "--approved",
@@ -4952,7 +4952,7 @@ def test_scheduler_consume_worker_patch_review_cli_applies_patch(tmp_path) -> No
     target_repo = _git_repo(project / "target")
     (worker_repo / "src" / "app.py").write_text("print('worker patch')\n", encoding="utf-8")
     patch = _run_git(worker_repo, "diff", "--binary").stdout
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="task-cli:patch-review",
@@ -5063,7 +5063,7 @@ def test_scheduler_review_worker_patch_cli_checks_without_apply(tmp_path) -> Non
     target_repo = _git_repo(project / "target")
     (worker_repo / "src" / "app.py").write_text("print('worker patch')\n", encoding="utf-8")
     patch = _run_git(worker_repo, "diff", "--binary").stdout
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="task-cli:patch-review",
@@ -5138,7 +5138,7 @@ def test_scheduler_review_worker_patch_cli_checks_without_apply(tmp_path) -> Non
     assert payload["authority_split"]["source_workspace_mutated"] is False
     assert (target_repo / "src" / "app.py").read_text(encoding="utf-8") == "print('ok')\n"
     assert stored.lifecycle_state == "accepted"
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_preflight_worker_patch_composition_help_describes_boundary() -> None:
@@ -5162,7 +5162,7 @@ def test_scheduler_preflight_worker_patch_composition_cli_reports_conflict(tmp_p
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     source_repo = _git_repo(project / "source")
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     _store_cli_worker_patch_artifact(
         store_path,
         artifact_id="task-a:patch-review",
@@ -5247,9 +5247,9 @@ def test_scheduler_consume_accepted_blocker_candidate_cli_blocks_task(tmp_path) 
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="ex-cli-blocker",
@@ -5311,9 +5311,9 @@ def test_scheduler_consume_accepted_blocker_candidate_cli_blocks_task(tmp_path) 
             "--disposition-version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--task-id",
             "task-blocked",
             "--reason",
@@ -5347,10 +5347,10 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     artifact = scheduler_task_submission_to_artifact(
         SchedulerTaskSubmission(
             task_id="task-cli",
@@ -5375,9 +5375,9 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -5402,8 +5402,8 @@ def test_scheduler_admit_exchange_artifact_cli_submits_exact_single_task(tmp_pat
     assert ledger["records"][0]["artifact_id"] == "submission:cli"
     assert ledger["records"][0]["submitted_task_ids"] == ["task-cli"]
     assert ledger["records"][0]["allow_duplicate"] is False
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_admit_exchange_artifact_cli_can_mark_consumed_on_success(
@@ -5420,7 +5420,7 @@ def test_scheduler_admit_exchange_artifact_cli_can_mark_consumed_on_success(
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -5444,9 +5444,9 @@ def test_scheduler_admit_exchange_artifact_cli_can_mark_consumed_on_success(
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--mark-consumed-on-success",
             "--actor",
             "agent:operator",
@@ -5494,9 +5494,9 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_non_submission_without_mu
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     JsonArtifactVersionStore(store_path).put(
         ExchangeArtifact(
             artifact_id="note:operator",
@@ -5517,9 +5517,9 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_non_submission_without_mu
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -5528,7 +5528,7 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_non_submission_without_mu
     assert "is not a scheduler submission artifact" in proc.stderr
     assert not snapshot_path.exists()
     assert not event_log_path.exists()
-    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    ledger_path = project / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
     assert ledger["records"][0]["status"] == "failed"
     assert "is not a scheduler submission artifact" in ledger["records"][0]["error_summary"]
@@ -5547,10 +5547,10 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_duplicate_before_schedule
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -5576,9 +5576,9 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_duplicate_before_schedule
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -5591,9 +5591,9 @@ def test_scheduler_admit_exchange_artifact_cli_rejects_duplicate_before_schedule
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--replace-existing",
         ],
         cwd=project,
@@ -5628,8 +5628,8 @@ def test_scheduler_admit_exchange_artifact_cli_allows_explicit_duplicate_admissi
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = project / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = project / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -5653,9 +5653,9 @@ def test_scheduler_admit_exchange_artifact_cli_allows_explicit_duplicate_admissi
         "--version",
         "v1",
         "--snapshot-path",
-        ".codex/scheduler/scheduler-state.json",
+        ".dbc/scheduler/scheduler-state.json",
         "--event-log-path",
-        ".codex/scheduler/scheduler-events.jsonl",
+        ".dbc/scheduler/scheduler-events.jsonl",
     ]
 
     first = _run_cli(base_args, cwd=project)
@@ -5678,10 +5678,10 @@ def test_scheduler_admit_exchange_artifact_cli_allows_explicit_duplicate_admissi
 def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
-    projection_path = project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+    projection_path = project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
     seed = _run_cli(
         [
             "scheduler",
@@ -5727,9 +5727,9 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -5738,9 +5738,9 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
             "scheduler",
             "inspect-state",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -5749,9 +5749,9 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
             "scheduler",
             "daemon-loop",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--max-ticks",
             "3",
             "--max-runs-per-tick",
@@ -5790,7 +5790,7 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
     assert ticked["ran_tasks"] is True
     assert ticked["refreshed_projection"] is False
     assert ticked["evidence_written"] is True
-    assert ticked["evidence_path"] == str(project / ".codex" / "scheduler" / "evidence" / "operator-fixture-loop.json")
+    assert ticked["evidence_path"] == str(project / ".dbc" / "scheduler" / "evidence" / "operator-fixture-loop.json")
     assert ticked["final_queue_summary"]["completed_task_ids"] == ["dogfood:prepare", "dogfood:verify"]
     assert ticked["final_queue_summary"]["ready_task_ids"] == []
     assert ticked["authority_split"]["scheduler_state_mutated"] is True
@@ -5804,9 +5804,9 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
             "scheduler",
             "project",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--guide-context",
             "cli-workflow-test",
         ],
@@ -5839,7 +5839,7 @@ def test_scheduler_operator_workflow_seed_admit_run_project_and_read_evidence(tm
         "dogfood:prepare",
         "dogfood:verify",
     ]
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_cli_runs_shared_surface(tmp_path) -> None:
@@ -5897,8 +5897,8 @@ def test_scheduler_operator_workflow_cli_runs_shared_surface(tmp_path) -> None:
     assert payload["authority_split"]["provider_executed"] is True
     assert payload["authority_split"]["scheduler_projection_refreshed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-    assert (project / ".codex" / "scheduler" / "evidence" / "operator-workflow-cli.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert (project / ".dbc" / "scheduler" / "evidence" / "operator-workflow-cli.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_cli_inspects_binding_refs_before_admission(
@@ -5919,7 +5919,7 @@ def test_scheduler_operator_workflow_cli_inspects_binding_refs_before_admission(
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -5999,7 +5999,7 @@ def test_scheduler_operator_workflow_cli_inspects_binding_refs_before_admission(
     assert payload["request"]["inspect_binding_refs"] is True
     assert payload["authority_split"]["scheduler_state_mutated"] is True
     assert payload["authority_split"]["provider_executed"] is False
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_binding_consumer_fixture_cli_inspects_admits_and_reads_summary(
@@ -6091,7 +6091,7 @@ def test_scheduler_binding_consumer_fixture_cli_inspects_admits_and_reads_summar
     assert ledger_summary["ok"] is True
     assert ledger_summary["binding_ref_count"] == 1
     assert ledger_summary["tasks"][0]["task_id"] == "dogfood:binding-consumer"
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_cli_can_mark_consumed_on_success(
@@ -6170,16 +6170,16 @@ def test_scheduler_operator_dogfood_closure_cli_runs_binding_consumer_flow(
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (
         project
-        / ".codex"
+        / ".dbc"
         / "scheduler"
         / "evidence"
         / "cli-operator-closure.json"
     ).exists()
     assert (
-        project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+        project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
     ).exists()
     assert not (
-        project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+        project / ".dbc" / "progress-graph" / "local-work-trajectory.json"
     ).exists()
 
 
@@ -6234,19 +6234,19 @@ def test_scheduler_evidence_publish_consumer_closure_cli_runs_full_flow(
     assert payload["authority_split"]["scratch_manifest_written"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (
-        project / ".codex" / "scheduler" / "evidence" / "cli-publish-binding.json"
+        project / ".dbc" / "scheduler" / "evidence" / "cli-publish-binding.json"
     ).exists()
     assert (
         project
-        / ".codex"
+        / ".dbc"
         / "scheduler"
         / "evidence"
         / "cli-publish-consumer-loop.json"
     ).exists()
-    assert not (project / ".codex" / "scratch").exists()
+    assert not (project / ".dbc" / "scratch").exists()
     assert not (project / ".codex" / "agents").exists()
     assert not (
-        project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+        project / ".dbc" / "progress-graph" / "local-work-trajectory.json"
     ).exists()
 
 
@@ -6311,7 +6311,7 @@ def test_scheduler_publish_storage_binding_artifact_cli_publishes_evidence(
 ) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    evidence_path = project / ".codex" / "scheduler" / "evidence" / "binding.json"
+    evidence_path = project / ".dbc" / "scheduler" / "evidence" / "binding.json"
     binding = build_supervisor_agent_storage_binding(
         SupervisorAgentStorageBindingRequest(
             supervisor_id="supervisor:cli",
@@ -6324,7 +6324,7 @@ def test_scheduler_publish_storage_binding_artifact_cli_publishes_evidence(
             created_at="2026-06-22T08:30:00+00:00",
         ),
         SchedulerState(),
-        source_snapshot_path=project / ".codex" / "scheduler" / "scheduler-state.json",
+        source_snapshot_path=project / ".dbc" / "scheduler" / "scheduler-state.json",
     )
     write_supervisor_storage_binding_evidence(
         build_supervisor_storage_binding_evidence(
@@ -6372,7 +6372,7 @@ def test_scheduler_publish_storage_binding_artifact_cli_publishes_evidence(
     assert payload["authority_split"]["scratch_directories_created"] is False
     assert payload["authority_split"]["raw_binding_payload_embedded_in_exchange"] is False
     store = json.loads(
-        (project / ".codex" / "orchestration" / "exchange-artifacts.json").read_text(
+        (project / ".dbc" / "orchestration" / "exchange-artifacts.json").read_text(
             encoding="utf-8"
         )
     )
@@ -6484,9 +6484,9 @@ def test_scheduler_operator_multilane_dogfood_fixture_cli_runs_shared_surface(tm
     assert payload["authority_split"]["provider_executed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (
-        project / ".codex" / "scheduler" / "evidence" / "operator-workflow-multilane-cli.json"
+        project / ".dbc" / "scheduler" / "evidence" / "operator-workflow-multilane-cli.json"
     ).exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_tick_rejects_non_fake_provider_without_mutation(tmp_path) -> None:
@@ -6494,8 +6494,8 @@ def test_scheduler_tick_rejects_non_fake_provider_without_mutation(tmp_path) -> 
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
 
     proc = _run_cli(
@@ -6503,9 +6503,9 @@ def test_scheduler_tick_rejects_non_fake_provider_without_mutation(tmp_path) -> 
             "scheduler",
             "tick",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--runtime-provider",
             "qoder",
         ],
@@ -6515,8 +6515,8 @@ def test_scheduler_tick_rejects_non_fake_provider_without_mutation(tmp_path) -> 
     assert proc.returncode == 1
     assert "only --runtime-provider fake" in proc.stderr
     assert not event_log_path.exists()
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_daemon_loop_rejects_non_fake_provider_without_mutation(tmp_path) -> None:
@@ -6524,8 +6524,8 @@ def test_scheduler_daemon_loop_rejects_non_fake_provider_without_mutation(tmp_pa
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
 
     proc = _run_cli(
@@ -6533,9 +6533,9 @@ def test_scheduler_daemon_loop_rejects_non_fake_provider_without_mutation(tmp_pa
             "scheduler",
             "daemon-loop",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--runtime-provider",
             "qoder",
         ],
@@ -6545,8 +6545,8 @@ def test_scheduler_daemon_loop_rejects_non_fake_provider_without_mutation(tmp_pa
     assert proc.returncode == 1
     assert "only --runtime-provider fake" in proc.stderr
     assert not event_log_path.exists()
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> None:
@@ -6554,9 +6554,9 @@ def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> 
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
-    evidence_path = project / ".codex" / "scheduler" / "evidence" / "loop-smoke.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+    evidence_path = project / ".dbc" / "scheduler" / "evidence" / "loop-smoke.json"
     write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
 
     proc = _run_cli(
@@ -6564,9 +6564,9 @@ def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> 
             "scheduler",
             "daemon-loop",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--max-ticks",
             "0",
             "--evidence-id",
@@ -6589,14 +6589,14 @@ def test_scheduler_daemon_loop_writes_evidence_only_when_requested(tmp_path) -> 
     assert evidence["tick_count"] == 0
     assert evidence["total_run_count"] == 0
     assert evidence["metadata"] == {"surface": "cli:scheduler daemon-loop"}
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    control_path = project / ".codex" / "scheduler" / "scheduler-daemon-control.json"
+    control_path = project / ".dbc" / "scheduler" / "scheduler-daemon-control.json"
 
     start = _run_cli(
         [
@@ -6604,11 +6604,11 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
             "lifecycle",
             "start",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--daemon-id",
             "daemon-cli",
             "--run-id",
@@ -6626,7 +6626,7 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
             "lifecycle",
             "pause",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--timestamp",
             "2026-06-20T00:00:10+00:00",
         ],
@@ -6638,7 +6638,7 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
             "lifecycle",
             "resume",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--timestamp",
             "2026-06-20T00:00:20+00:00",
         ],
@@ -6650,7 +6650,7 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
             "lifecycle",
             "cancel",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--timestamp",
             "2026-06-20T00:00:30+00:00",
         ],
@@ -6662,7 +6662,7 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
             "lifecycle",
             "shutdown",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--timestamp",
             "2026-06-20T00:00:40+00:00",
         ],
@@ -6682,8 +6682,8 @@ def test_scheduler_lifecycle_cli_transitions_round_trip(tmp_path) -> None:
     assert stopped["state"] == "stopped"
     assert stopped["authority_split"]["scheduler_state_mutated"] is False
     assert control_path.exists()
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tmp_path) -> None:
@@ -6698,8 +6698,8 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     submit_scheduler_task_with_persistence(
         SchedulerState(),
         scheduler_task_submission_to_artifact(
@@ -6723,11 +6723,11 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
             "lifecycle",
             "start",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--daemon-id",
             "daemon-cli",
         ],
@@ -6739,7 +6739,7 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
             "lifecycle",
             "run-once",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--max-ticks",
             "2",
             "--max-runs-per-tick",
@@ -6755,7 +6755,7 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
             "lifecycle",
             "run-once",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--runtime-provider",
             "qoder",
         ],
@@ -6771,8 +6771,8 @@ def test_scheduler_lifecycle_cli_run_once_uses_control_paths_and_fake_runtime(tm
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert rejected.returncode == 1
     assert "only --runtime-provider fake" in rejected.stderr
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_provider(tmp_path) -> None:
@@ -6787,8 +6787,8 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     submit_scheduler_task_with_persistence(
         SchedulerState(),
         scheduler_task_submission_to_artifact(
@@ -6812,11 +6812,11 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
             "lifecycle",
             "start",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--daemon-id",
             "daemon-cli",
         ],
@@ -6828,7 +6828,7 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
             "lifecycle",
             "harness",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--max-cycles",
             "3",
             "--max-ticks",
@@ -6846,7 +6846,7 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
             "lifecycle",
             "harness",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--runtime-provider",
             "qoder",
         ],
@@ -6865,8 +6865,8 @@ def test_scheduler_lifecycle_cli_harness_drains_fake_runtime_and_rejects_real_pr
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert rejected.returncode == 1
     assert "scheduler lifecycle harness currently supports only --runtime-provider fake" in rejected.stderr
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_path) -> None:
@@ -6879,7 +6879,7 @@ def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_p
             "lifecycle",
             "harness",
             "--control-path",
-            ".codex/scheduler/missing-control.json",
+            ".dbc/scheduler/missing-control.json",
             "--policy-cancelled",
             "--max-attempts",
             "2",
@@ -6892,7 +6892,7 @@ def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_p
             "lifecycle",
             "harness",
             "--control-path",
-            ".codex/scheduler/missing-control.json",
+            ".dbc/scheduler/missing-control.json",
             "--deadline-epoch-seconds",
             "100",
             "--now-epoch-seconds",
@@ -6910,7 +6910,7 @@ def test_scheduler_lifecycle_cli_harness_policy_preflight_and_retry_fields(tmp_p
     assert cancelled_payload["policy"]["max_attempts"] == 2
     assert deadline_payload["stop_reason"] == "deadline_exceeded"
     assert deadline_payload["attempt_count"] == 0
-    assert not (project / ".codex" / "scheduler" / "missing-control.json").exists()
+    assert not (project / ".dbc" / "scheduler" / "missing-control.json").exists()
 
 
 def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_real_provider(tmp_path) -> None:
@@ -6925,8 +6925,8 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     submit_scheduler_task_with_persistence(
         SchedulerState(),
         scheduler_task_submission_to_artifact(
@@ -6950,11 +6950,11 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
             "lifecycle",
             "start",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--daemon-id",
             "daemon-supervisor-cli",
             "--run-id",
@@ -6980,7 +6980,7 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
             "--status-readback-at",
             "2026-06-21T01:11:00+00:00",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--max-cycles",
             "3",
             "--max-ticks",
@@ -7000,7 +7000,7 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
             "--supervisor-id",
             "supervisor-cli",
             "--control-path",
-            ".codex/scheduler/scheduler-daemon-control.json",
+            ".dbc/scheduler/scheduler-daemon-control.json",
             "--runtime-provider",
             "qoder",
         ],
@@ -7027,8 +7027,8 @@ def test_scheduler_lifecycle_cli_supervisor_step_runs_fake_runtime_and_rejects_r
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert rejected.returncode == 1
     assert "scheduler lifecycle supervisor-step currently supports only --runtime-provider fake" in rejected.stderr
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_supervisor_dogfood_workflow_cli_runs_shared_surface(tmp_path) -> None:
@@ -7090,9 +7090,9 @@ def test_scheduler_supervisor_dogfood_workflow_cli_runs_shared_surface(tmp_path)
         "scheduler supervisor-dogfood-workflow currently supports only --runtime-provider fake"
         in rejected.stderr
     )
-    assert (project / ".codex" / "scheduler" / "scheduler-daemon-control.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert (project / ".dbc" / "scheduler" / "scheduler-daemon-control.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) -> None:
@@ -7108,7 +7108,7 @@ def test_scheduler_inspect_admissions_reports_missing_ledger_as_empty(tmp_path) 
     assert payload["record_count"] == 0
     assert payload["status_counts"] == {}
     assert payload["authority_split"]["scheduler_state_mutated"] is False
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_inspect_admissions_filters_records(tmp_path) -> None:
@@ -7122,7 +7122,7 @@ def test_scheduler_inspect_admissions_filters_records(tmp_path) -> None:
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -7147,9 +7147,9 @@ def test_scheduler_inspect_admissions_filters_records(tmp_path) -> None:
             "--version",
             "v1",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
         ],
         cwd=project,
     )
@@ -7198,7 +7198,7 @@ def test_scheduler_inspect_admissions_reports_binding_reference_summary(
 
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    store_path = project / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = project / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -7288,7 +7288,7 @@ def test_scheduler_inspect_state_requires_snapshot_path(tmp_path) -> None:
     (project / "design_docs").mkdir(parents=True)
 
     proc = _run_cli(
-        ["scheduler", "inspect-state", "--event-log-path", ".codex/scheduler/events.jsonl"],
+        ["scheduler", "inspect-state", "--event-log-path", ".dbc/scheduler/events.jsonl"],
         cwd=project,
     )
 
@@ -7312,7 +7312,7 @@ def test_scheduler_project_requires_snapshot_path(tmp_path) -> None:
 def test_scheduler_consume_worker_trajectory_report_cli_starts_trajectory(tmp_path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    report_path = project / ".codex" / "agent-output" / "report-worker.json"
+    report_path = project / ".dbc" / "agent-output" / "report-worker.json"
     _write_cli_worker_trajectory_report(report_path, suggested_action="append")
 
     proc = _run_cli(
@@ -7320,7 +7320,7 @@ def test_scheduler_consume_worker_trajectory_report_cli_starts_trajectory(tmp_pa
             "scheduler",
             "consume-worker-trajectory-report",
             "--report-path",
-            ".codex/agent-output/report-worker.json",
+            ".dbc/agent-output/report-worker.json",
             "--caller-role",
             "leader",
             "--actor",
@@ -7339,7 +7339,7 @@ def test_scheduler_consume_worker_trajectory_report_cli_starts_trajectory(tmp_pa
     assert payload["status"] == "consumed"
     assert payload["consumed_action"] == "start"
     assert payload["authority_split"]["local_work_trajectory_mutated"] is True
-    trajectory_path = project / ".codex" / "progress-graph" / "local-work-trajectory.json"
+    trajectory_path = project / ".dbc" / "progress-graph" / "local-work-trajectory.json"
     trajectory = json.loads(trajectory_path.read_text(encoding="utf-8"))
     assert trajectory["events"]["event:001"]["title"] == "Worker server validation"
     assert trajectory["events"]["event:001"]["metadata"]["worker_report_id"] == "report-cli-worker"
@@ -7350,7 +7350,7 @@ def test_scheduler_consume_worker_trajectory_report_cli_rejects_worker_role(
 ) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    report_path = project / ".codex" / "agent-output" / "report-worker.json"
+    report_path = project / ".dbc" / "agent-output" / "report-worker.json"
     _write_cli_worker_trajectory_report(report_path, suggested_action="append")
 
     proc = _run_cli(
@@ -7358,7 +7358,7 @@ def test_scheduler_consume_worker_trajectory_report_cli_rejects_worker_role(
             "scheduler",
             "consume-worker-trajectory-report",
             "--report-path",
-            ".codex/agent-output/report-worker.json",
+            ".dbc/agent-output/report-worker.json",
             "--caller-role",
             "worker",
         ],
@@ -7370,7 +7370,7 @@ def test_scheduler_consume_worker_trajectory_report_cli_rejects_worker_role(
     assert payload["ok"] is False
     assert payload["status"] == "denied"
     assert "docs/worker-trajectory-update-reporting.md" in payload["errors"][0]
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_inspect_state_reports_missing_snapshot(tmp_path) -> None:
@@ -7378,15 +7378,15 @@ def test_scheduler_inspect_state_reports_missing_snapshot(tmp_path) -> None:
     (project / "design_docs").mkdir(parents=True)
 
     proc = _run_cli(
-        ["scheduler", "inspect-state", "--snapshot-path", ".codex/scheduler/missing.json"],
+        ["scheduler", "inspect-state", "--snapshot-path", ".dbc/scheduler/missing.json"],
         cwd=project,
     )
 
     assert proc.returncode == 1
     assert "Error inspecting scheduler state" in proc.stderr
     assert "missing.json" in proc.stderr
-    assert not (project / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_cleanup_receipts_cli_cleans_git_worktree_evidence(tmp_path) -> None:
@@ -7402,8 +7402,8 @@ def test_scheduler_cleanup_receipts_cli_cleans_git_worktree_evidence(tmp_path) -
     allocation = _allocated_git_worktree(project, repo)
     receipt = allocation.git_worktree_receipt
     assert receipt is not None
-    input_path = project / ".codex" / "scheduler" / "evidence" / "allocation.json"
-    output_path = project / ".codex" / "scheduler" / "evidence" / "cleanup.json"
+    input_path = project / ".dbc" / "scheduler" / "evidence" / "allocation.json"
+    output_path = project / ".dbc" / "scheduler" / "evidence" / "cleanup.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -7419,9 +7419,9 @@ def test_scheduler_cleanup_receipts_cli_cleans_git_worktree_evidence(tmp_path) -
             "scheduler",
             "cleanup-receipts",
             "--input-evidence-path",
-            ".codex/scheduler/evidence/allocation.json",
+            ".dbc/scheduler/evidence/allocation.json",
             "--output-evidence-path",
-            ".codex/scheduler/evidence/cleanup.json",
+            ".dbc/scheduler/evidence/cleanup.json",
             "--output-evidence-id",
             "cleanup",
             "--timestamp",
@@ -7450,7 +7450,7 @@ def test_scheduler_cleanup_receipts_cli_cleans_git_worktree_evidence(tmp_path) -
     assert cleaned_receipt.cleanup_state == "completed"
     assert summary.metadata["surface"] == "cli:scheduler cleanup-receipts"
     assert not Path(receipt.worktree_path).exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_cleanup_receipts_cli_requires_input_evidence_path(tmp_path) -> None:
@@ -7485,10 +7485,10 @@ def test_scheduler_sandbox_receipt_workflow_cli_run_once_cleans_and_reads_back(
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
     repo = _git_repo(project)
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
-    allocation_path = project / ".codex" / "scheduler" / "evidence" / "workflow-allocation.json"
-    cleanup_path = project / ".codex" / "scheduler" / "evidence" / "workflow-cleanup.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+    allocation_path = project / ".dbc" / "scheduler" / "evidence" / "workflow-allocation.json"
+    cleanup_path = project / ".dbc" / "scheduler" / "evidence" / "workflow-cleanup.json"
     task = ScheduledTask(
         task_id="task-1",
         title="Run workflow task",
@@ -7539,9 +7539,9 @@ def test_scheduler_sandbox_receipt_workflow_cli_run_once_cleans_and_reads_back(
             "--mode",
             "run-once",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--workspace-root",
             "repo",
             "--git-worktree-sandbox-root",
@@ -7549,12 +7549,12 @@ def test_scheduler_sandbox_receipt_workflow_cli_run_once_cleans_and_reads_back(
             "--allocation-evidence-id",
             "workflow-allocation",
             "--allocation-evidence-path",
-            ".codex/scheduler/evidence/workflow-allocation.json",
+            ".dbc/scheduler/evidence/workflow-allocation.json",
             "--cleanup",
             "--cleanup-evidence-id",
             "workflow-cleanup",
             "--cleanup-evidence-path",
-            ".codex/scheduler/evidence/workflow-cleanup.json",
+            ".dbc/scheduler/evidence/workflow-cleanup.json",
             "--timestamp",
             "2026-06-21T09:40:00+08:00",
         ],
@@ -7585,7 +7585,7 @@ def test_scheduler_sandbox_receipt_workflow_cli_run_once_cleans_and_reads_back(
     assert cleaned.git_worktree_receipt is not None
     assert cleaned.git_worktree_receipt.cleanup_state == "completed"
     assert not Path(cleaned.git_worktree_receipt.worktree_path).exists()
-    assert not (project / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (project / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_sandbox_receipt_workflow_cli_rejects_cleanup_output_without_cleanup(
@@ -7601,9 +7601,9 @@ def test_scheduler_sandbox_receipt_workflow_cli_rejects_cleanup_output_without_c
             "--mode",
             "run-once",
             "--snapshot-path",
-            ".codex/scheduler/scheduler-state.json",
+            ".dbc/scheduler/scheduler-state.json",
             "--event-log-path",
-            ".codex/scheduler/scheduler-events.jsonl",
+            ".dbc/scheduler/scheduler-events.jsonl",
             "--workspace-root",
             "repo",
             "--git-worktree-sandbox-root",
@@ -7611,7 +7611,7 @@ def test_scheduler_sandbox_receipt_workflow_cli_rejects_cleanup_output_without_c
             "--allocation-evidence-id",
             "workflow-allocation",
             "--cleanup-evidence-path",
-            ".codex/scheduler/evidence/workflow-cleanup.json",
+            ".dbc/scheduler/evidence/workflow-cleanup.json",
         ],
         cwd=project,
     )
@@ -7655,7 +7655,7 @@ def _allocated_git_worktree(project: Path, repo: Path):
                 acquired_at="2026-06-21T06:00:00+08:00",
             ),
             workspace_root=str(repo),
-            scratch_path=".codex/scratch/task-1",
+            scratch_path=".dbc/scratch/task-1",
             required_mounts=("README.md",),
         )
     )
@@ -7788,7 +7788,7 @@ def _write_cli_worker_trajectory_report(
                     "event_status": "completed",
                     "summary": "Worker server task finished.",
                     "suggested_action": suggested_action,
-                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "evidence_refs": [".dbc/agent-output/report-worker.json"],
                     "leader_notes": ["Consume after leader review."],
                 },
             }
@@ -7799,9 +7799,9 @@ def _write_cli_worker_trajectory_report(
 
 def _seed_leader_worker_dispatcher_cli_project(project: Path) -> dict[str, Path]:
     (project / "design_docs").mkdir(parents=True)
-    snapshot = project / ".codex/scheduler/state.json"
-    event_log = project / ".codex/scheduler/events.jsonl"
-    artifact_store = project / ".codex/orchestration/exchange-artifacts.json"
+    snapshot = project / ".dbc/scheduler/state.json"
+    event_log = project / ".dbc/scheduler/events.jsonl"
+    artifact_store = project / ".dbc/orchestration/exchange-artifacts.json"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     write_scheduler_state_snapshot(
@@ -7853,14 +7853,14 @@ def _seed_codex_delivery_supervisor_cli_project(
     provider: str = "codex",
 ) -> dict[str, Path]:
     (project / "design_docs").mkdir(parents=True)
-    snapshot = project / ".codex/scheduler/state.json"
-    event_log = project / ".codex/scheduler/events.jsonl"
-    artifact_store = project / ".codex/orchestration/exchange-artifacts.json"
-    dispatcher_state = project / ".codex/scheduler/dispatcher-state.json"
-    dispatch_log = project / ".codex/scheduler/dispatcher-events.jsonl"
-    delivery_state = project / ".codex/scheduler/delivery-state.json"
-    delivery_log = project / ".codex/scheduler/delivery-events.jsonl"
-    runtime_log = project / ".codex/runtime/invocations.jsonl"
+    snapshot = project / ".dbc/scheduler/state.json"
+    event_log = project / ".dbc/scheduler/events.jsonl"
+    artifact_store = project / ".dbc/orchestration/exchange-artifacts.json"
+    dispatcher_state = project / ".dbc/scheduler/dispatcher-state.json"
+    dispatch_log = project / ".dbc/scheduler/dispatcher-events.jsonl"
+    delivery_state = project / ".dbc/scheduler/delivery-state.json"
+    delivery_log = project / ".dbc/scheduler/delivery-events.jsonl"
+    runtime_log = project / ".dbc/runtime/invocations.jsonl"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     write_scheduler_state_snapshot(

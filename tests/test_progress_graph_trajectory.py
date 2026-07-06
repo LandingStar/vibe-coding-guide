@@ -1038,7 +1038,7 @@ def test_host_scheduler_daemon_loop_and_refresh_projection_preserves_agent_traje
 def test_host_scheduler_daemon_loop_projection_enriches_evidence_metadata(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/host-loop-fake.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/host-loop-fake.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -1112,7 +1112,7 @@ def test_host_scheduler_daemon_loop_projection_enriches_evidence_metadata(tmp_pa
 def test_host_scheduler_daemon_loop_projection_mock_qoder_preserves_evidence(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/host-loop-qoder.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/host-loop-qoder.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -1186,7 +1186,7 @@ def test_host_scheduler_daemon_loop_projection_mock_qoder_preserves_evidence(tmp
 def test_host_runtime_dogfood_harness_fake_writes_evidence_and_projection(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/fake-run.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/fake-run.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -1246,7 +1246,7 @@ def test_host_runtime_dogfood_harness_fake_writes_evidence_and_projection(tmp_pa
 def test_host_evidence_bundle_reads_compact_summaries(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/fake-run.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/fake-run.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -1300,7 +1300,7 @@ def test_host_evidence_bundle_reads_compact_summaries(tmp_path: Path) -> None:
 
 
 def test_host_evidence_bundle_reads_scheduler_loop_evidence_summary(tmp_path: Path) -> None:
-    evidence_dir = tmp_path / ".codex/scheduler/evidence"
+    evidence_dir = tmp_path / ".dbc/scheduler/evidence"
     evidence_path = evidence_dir / "loop-run.json"
     evidence_dir.mkdir(parents=True)
     evidence_path.write_text(
@@ -1391,7 +1391,7 @@ def test_host_evidence_bundle_reads_sandbox_allocation_cleanup_evidence(
         cleanup_returncode=0,
         branch_cleanup_returncode=0,
     )
-    evidence_path = tmp_path / ".codex/scheduler/evidence/cleanup.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/cleanup.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -1402,7 +1402,7 @@ def test_host_evidence_bundle_reads_sandbox_allocation_cleanup_evidence(
                 "surface": "cli:scheduler cleanup-receipts",
                 "source_evidence_id": "allocation",
                 "source_evidence_path": str(
-                    tmp_path / ".codex/scheduler/evidence/allocation.json"
+                    tmp_path / ".dbc/scheduler/evidence/allocation.json"
                 ),
             },
             authority_split={
@@ -1516,7 +1516,7 @@ def test_host_evidence_cleanup_evidence_failed_state_takes_precedence(
         cleanup_state="failed",
         cleanup_returncode=1,
     )
-    evidence_path = tmp_path / ".codex/scheduler/evidence/cleanup-failed.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/cleanup-failed.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -1571,7 +1571,7 @@ def test_host_evidence_bundle_missing_directory_is_empty(tmp_path: Path) -> None
 def test_host_evidence_bundle_isolates_malformed_artifacts(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_dir = tmp_path / ".codex/scheduler/evidence"
+    evidence_dir = tmp_path / ".dbc/scheduler/evidence"
     valid_path = evidence_dir / "valid-run.json"
     malformed_path = evidence_dir / "malformed.json"
     wrong_product_path = evidence_dir / "wrong-product.json"
@@ -1644,7 +1644,7 @@ def test_host_evidence_bundle_isolates_malformed_artifacts(tmp_path: Path) -> No
 def test_host_evidence_presentation_builds_completed_card_with_refs_and_authority(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/fake-run.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/fake-run.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -1709,12 +1709,12 @@ def test_host_evidence_presentation_builds_completed_card_with_refs_and_authorit
 
 def test_scheduler_loop_evidence_presentation_surfaces_host_projection_clues(tmp_path: Path) -> None:
     summary = SchedulerLoopEvidenceSummary(
-        evidence_path=tmp_path / ".codex/scheduler/evidence/loop.json",
+        evidence_path=tmp_path / ".dbc/scheduler/evidence/loop.json",
         evidence_id="loop-host-projection",
         timestamp="2026-06-19T16:40:00+08:00",
         product_type="scheduler_loop_evidence",
-        snapshot_path=".codex/scheduler/scheduler-state.json",
-        event_log_path=".codex/scheduler/scheduler-events.jsonl",
+        snapshot_path=".dbc/scheduler/scheduler-state.json",
+        event_log_path=".dbc/scheduler/scheduler-events.jsonl",
         runtime_provider="qoder",
         stop_policy={"max_ticks": 2, "max_runs_per_tick": 1},
         tick_count=1,
@@ -1741,21 +1741,21 @@ def test_scheduler_loop_evidence_presentation_surfaces_host_projection_clues(tmp
             "provider_executed": True,
             "scheduler_projection_refreshed": True,
             "scheduler_projection_role": "read-only-view",
-            "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+            "scheduler_projection_path": ".dbc/progress-graph/scheduler-work-trajectory.json",
             "local_work_trajectory_mutated": False,
         },
         metadata={
             "surface": "host-authorized-scheduler-daemon-loop",
             "runtime_host_surface": "host-authorized-adapter",
             "host_invocation_id": "host-loop-projection-qoder",
-            "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+            "scheduler_projection_path": ".dbc/progress-graph/scheduler-work-trajectory.json",
         },
     )
 
     payload = build_host_evidence_presentation(
         HostEvidenceBundle(
             project_root=tmp_path,
-            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            evidence_dir=tmp_path / ".dbc/scheduler/evidence",
             summaries=(summary,),
         )
     ).to_json_dict()
@@ -1771,7 +1771,7 @@ def test_scheduler_loop_evidence_presentation_surfaces_host_projection_clues(tmp
     assert {"label": "Host invocation", "value": "host-loop-projection-qoder"} in card["key_facts"]
     assert {
         "label": "Scheduler projection path",
-        "value": ".codex/progress-graph/scheduler-work-trajectory.json",
+        "value": ".dbc/progress-graph/scheduler-work-trajectory.json",
     } in card["key_facts"]
     assert {
         "label": "Scheduler projection role",
@@ -1786,12 +1786,12 @@ def test_scheduler_loop_evidence_presentation_surfaces_host_projection_clues(tmp
         "label": "Local trajectory mutated",
         "value": "false",
     } in card["authority_clues"]
-    assert card["metadata"]["scheduler_projection_path"] == ".codex/progress-graph/scheduler-work-trajectory.json"
+    assert card["metadata"]["scheduler_projection_path"] == ".dbc/progress-graph/scheduler-work-trajectory.json"
 
 
 def test_scheduler_loop_evidence_presentation_keeps_legacy_metadata_compatible(tmp_path: Path) -> None:
     summary = SchedulerLoopEvidenceSummary(
-        evidence_path=tmp_path / ".codex/scheduler/evidence/loop.json",
+        evidence_path=tmp_path / ".dbc/scheduler/evidence/loop.json",
         evidence_id="loop-legacy",
         timestamp="2026-06-19T16:45:00+08:00",
         product_type="scheduler_loop_evidence",
@@ -1828,7 +1828,7 @@ def test_scheduler_loop_evidence_presentation_keeps_legacy_metadata_compatible(t
     card = build_host_evidence_presentation(
         HostEvidenceBundle(
             project_root=tmp_path,
-            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            evidence_dir=tmp_path / ".dbc/scheduler/evidence",
             summaries=(summary,),
         )
     ).to_json_dict()["cards"][0]
@@ -1863,7 +1863,7 @@ def test_host_evidence_presentation_derives_non_completed_statuses(tmp_path: Pat
     presentation = build_host_evidence_presentation(
         HostEvidenceBundle(
             project_root=tmp_path,
-            evidence_dir=tmp_path / ".codex/scheduler/evidence",
+            evidence_dir=tmp_path / ".dbc/scheduler/evidence",
             summaries=(permission, failed, partial),
         )
     )
@@ -1883,11 +1883,11 @@ def test_host_evidence_presentation_derives_non_completed_statuses(tmp_path: Pat
 def test_host_evidence_presentation_reports_error_only_bundle_as_degraded(tmp_path: Path) -> None:
     bundle = HostEvidenceBundle(
         project_root=tmp_path,
-        evidence_dir=tmp_path / ".codex/scheduler/evidence",
+        evidence_dir=tmp_path / ".dbc/scheduler/evidence",
         summaries=(),
         errors=(
             HostEvidenceReadError(
-                evidence_path=tmp_path / ".codex/scheduler/evidence/bad.json",
+                evidence_path=tmp_path / ".dbc/scheduler/evidence/bad.json",
                 error_kind="invalid_evidence",
                 message="bad evidence",
             ),
@@ -1905,7 +1905,7 @@ def test_host_evidence_presentation_reports_error_only_bundle_as_degraded(tmp_pa
             "id": "host-evidence-error:1",
             "status": "read-error",
             "severity": "error",
-            "evidence_path": str(tmp_path / ".codex/scheduler/evidence/bad.json"),
+            "evidence_path": str(tmp_path / ".dbc/scheduler/evidence/bad.json"),
             "error_kind": "invalid_evidence",
             "message": "bad evidence",
         }
@@ -1915,7 +1915,7 @@ def test_host_evidence_presentation_reports_error_only_bundle_as_degraded(tmp_pa
 def test_host_runtime_dogfood_harness_mock_qoder_writes_same_evidence_shape(tmp_path: Path) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-run.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/qoder-run.json"
     write_scheduler_state_snapshot(
         SchedulerState(
             tasks={
@@ -2019,7 +2019,7 @@ def test_host_runtime_dogfood_harness_real_qoder_wrapper_auth_failure_fails_clos
 ) -> None:
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-auth-fail.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/qoder-auth-fail.json"
     projection_path = scheduler_work_trajectory_json_path(tmp_path)
     write_scheduler_state_snapshot(
         SchedulerState(
@@ -2080,7 +2080,7 @@ def test_host_runtime_dogfood_harness_real_qoder_wrapper_auth_failure_fails_clos
 def test_host_owned_qoder_smoke_runner_initializes_snapshot_and_writes_evidence(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-smoke.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/qoder-smoke.json"
     client = _RecordingQoderClient(
         QoderQueryResult(summary="qoder smoke complete", output_text="ok")
     )
@@ -2134,7 +2134,7 @@ def test_host_owned_qoder_smoke_runner_initializes_snapshot_and_writes_evidence(
 def test_host_owned_qoder_smoke_runner_auth_failure_fails_before_state_pollution(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex/scheduler/evidence/qoder-smoke-auth-fail.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/qoder-smoke-auth-fail.json"
     projection_path = scheduler_work_trajectory_json_path(tmp_path)
 
     with pytest.raises(QoderRuntimeError) as raised:
@@ -2164,7 +2164,7 @@ def test_host_owned_qoder_smoke_runner_auth_failure_fails_before_state_pollution
 def test_host_owned_guide_worker_provider_execution_runs_mock_qoder_wave(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex/scheduler/evidence/guide-worker-provider.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/guide-worker-provider.json"
     client = _RecordingQoderClient(
         QoderQueryResult(summary="guide-worker qoder complete", output_text="ok")
     )
@@ -2212,13 +2212,13 @@ def test_host_owned_guide_worker_provider_execution_runs_mock_qoder_wave(
     )
     assert state.tasks["task/guide-worker-provider/client"].agent.runtime_provider == "qoder"
     assert state.tasks["task/guide-worker-provider/server"].agent.runtime_provider == "qoder"
-    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_host_owned_guide_worker_provider_execution_auth_failure_writes_no_state(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex/scheduler/evidence/guide-worker-auth-fail.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/guide-worker-auth-fail.json"
 
     with pytest.raises(QoderRuntimeError) as raised:
         run_host_owned_guide_worker_provider_execution(
@@ -2235,12 +2235,12 @@ def test_host_owned_guide_worker_provider_execution_auth_failure_writes_no_state
     assert raised.value.error_kind == "authentication_failed"
     assert evidence_path.exists() is False
     assert (
-        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+        tmp_path / ".dbc/scheduler/guide-worker-provider-execution-state.json"
     ).exists() is False
     assert (
-        tmp_path / ".codex/orchestration/exchange-artifacts.json"
+        tmp_path / ".dbc/orchestration/exchange-artifacts.json"
     ).exists() is False
-    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_host_owned_guide_worker_provider_execution_mixed_fake_and_qoder_workers(
@@ -2291,7 +2291,7 @@ def test_host_owned_guide_worker_provider_execution_mixed_fake_and_qoder_workers
 def test_host_owned_guide_worker_provider_execution_audits_and_retries_qoder_invocation(
     tmp_path: Path,
 ) -> None:
-    log_path = tmp_path / ".codex/runtime/provider-invocations.jsonl"
+    log_path = tmp_path / ".dbc/runtime/provider-invocations.jsonl"
     client = _FlakyQoderClient()
 
     result = run_host_owned_guide_worker_provider_execution(
@@ -2433,7 +2433,7 @@ def test_host_owned_guide_worker_provider_execution_runs_planned_qoder_workers(
         "Client UI",
         "Server API",
     ]
-    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_host_owned_guide_worker_provider_execution_explicit_workers_override_planner(
@@ -2484,7 +2484,7 @@ def test_host_owned_guide_worker_provider_execution_explicit_workers_override_pl
 def test_host_owned_guide_worker_provider_execution_rejects_unconfigured_planner_provider(
     tmp_path: Path,
 ) -> None:
-    evidence_path = tmp_path / ".codex/scheduler/evidence/planner-provider-fail.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/planner-provider-fail.json"
 
     with pytest.raises(ValueError, match="requests provider 'qoder'"):
         run_host_owned_guide_worker_provider_execution(
@@ -2510,10 +2510,10 @@ def test_host_owned_guide_worker_provider_execution_rejects_unconfigured_planner
 
     assert evidence_path.exists() is False
     assert (
-        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+        tmp_path / ".dbc/scheduler/guide-worker-provider-execution-state.json"
     ).exists() is False
     assert (
-        tmp_path / ".codex/orchestration/exchange-artifacts.json"
+        tmp_path / ".dbc/orchestration/exchange-artifacts.json"
     ).exists() is False
 
 
@@ -2576,7 +2576,7 @@ def test_host_owned_guide_worker_provider_execution_runs_planned_codex_workers(
         "Server API",
     ]
     assert client.requests[0].agent.runtime_provider == "codex"
-    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_host_owned_guide_worker_provider_execution_writes_codex_sandbox_receipts(
@@ -2586,7 +2586,7 @@ def test_host_owned_guide_worker_provider_execution_writes_codex_sandbox_receipt
     client = _RecordingCodexCliClient(
         CodexCliResult(summary="codex worktree worker complete", output_text="ok")
     )
-    allocation_path = tmp_path / ".codex/scheduler/evidence/codex-sandbox-allocation.json"
+    allocation_path = tmp_path / ".dbc/scheduler/evidence/codex-sandbox-allocation.json"
 
     result = run_host_owned_guide_worker_provider_execution(
         tmp_path,
@@ -2743,7 +2743,7 @@ def test_read_trajectory_artifacts_bundle_reports_missing_artifacts(tmp_path: Pa
 
 
 def test_read_trajectory_artifacts_bundle_isolates_parse_errors(tmp_path: Path) -> None:
-    local_path = tmp_path / ".codex/progress-graph/local-work-trajectory.json"
+    local_path = tmp_path / ".dbc/progress-graph/local-work-trajectory.json"
     local_path.parent.mkdir(parents=True)
     local_path.write_text("{not-json", encoding="utf-8")
     state = SchedulerState(
@@ -4271,7 +4271,7 @@ def _git_worktree_allocation_fixture(
         profile=profile,
         state="allocated",
         workspace_root="E:/workspace/project",
-        scratch_path=".codex/scratch/task-1",
+        scratch_path=".dbc/scratch/task-1",
         visible_mounts=("README.md", "src/app.py"),
         network_policy=profile.network_policy,
         secret_policy=profile.secret_policy,

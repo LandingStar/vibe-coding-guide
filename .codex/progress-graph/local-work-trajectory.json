@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Prepare current results commit and release package",
-  "recorded_at": "2026-07-06T00:18:28.577521+00:00",
+  "recorded_at": "2026-07-06T00:28:18.285117+00:00",
   "source_graph_id": "",
   "source_node_id": "",
   "guide_context": "codex-mcp-agent",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Prepare current results commit and release package",
     "lane_count": 1,
-    "event_count": 2,
-    "relation_count": 1,
+    "event_count": 3,
+    "relation_count": 2,
     "source_graph_id": "",
     "source_node_id": ""
   },
@@ -53,11 +53,25 @@
       "lane_id": "lane:main",
       "title": "Run validation and staging hygiene checks",
       "kind": "validation",
-      "status": "pending",
+      "status": "completed",
       "order": 2,
       "summary": "Run focused tests/secret scans, stage intended source docs tests and tracked trajectory, then verify staged set excludes local machine config and ignored runtime artifacts.",
       "metadata": {
         "created_at": "2026-07-06T00:18:28.577521+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-06T00:28:06.797107+00:00"
+      }
+    },
+    "event:003": {
+      "id": "event:003",
+      "lane_id": "lane:main",
+      "title": "Rebuild release artifacts",
+      "kind": "validation",
+      "status": "pending",
+      "order": 3,
+      "summary": "Run release packaging for version 0.9.8 without bumping semver; verify zip, wheels, VSIX, and packaged vendor artifacts.",
+      "metadata": {
+        "created_at": "2026-07-06T00:28:18.285117+00:00",
         "source": "single-line-lifecycle"
       }
     }
@@ -66,6 +80,15 @@
     {
       "source_event_id": "event:001",
       "target_event_id": "event:002",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:002",
+      "target_event_id": "event:003",
       "kind": "sequence",
       "summary": "",
       "metadata": {

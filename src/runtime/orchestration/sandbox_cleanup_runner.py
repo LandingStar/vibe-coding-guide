@@ -14,6 +14,7 @@ from .sandbox_allocation_evidence import (
     read_sandbox_allocation_receipt_evidence_summary,
     write_sandbox_allocation_receipt_evidence,
 )
+from .artifact_paths import project_root_from_artifact_path
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,10 +178,4 @@ def _provider_for_git_worktree_allocation(
 
 
 def _project_root_from_evidence_path(evidence_path: Path) -> Path:
-    parts = evidence_path.parts
-    if ".codex" in parts:
-        index = parts.index(".codex")
-        if index > 0:
-            return Path(*parts[:index])
-        return Path(".")
-    return evidence_path.parent
+    return project_root_from_artifact_path(evidence_path)

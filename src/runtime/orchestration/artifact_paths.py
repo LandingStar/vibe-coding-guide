@@ -33,6 +33,21 @@ def legacy_artifact_path(relative_path: str | Path) -> Path:
     return Path(LEGACY_CODEX_ARTIFACT_ROOT, *parts[1:])
 
 
+def project_root_from_artifact_path(path: str | Path) -> Path:
+    """Infer the workspace root from a path under a DBC or legacy artifact root."""
+
+    artifact_path = Path(path)
+    parts = artifact_path.parts
+    for marker in (DBC_ARTIFACT_ROOT, LEGACY_CODEX_ARTIFACT_ROOT):
+        if marker not in parts:
+            continue
+        index = parts.index(marker)
+        if index > 0:
+            return Path(*parts[:index])
+        return Path(".")
+    return artifact_path.parent
+
+
 def resolve_existing_artifact_path(
     project_root: str | Path,
     relative_path: str | Path,

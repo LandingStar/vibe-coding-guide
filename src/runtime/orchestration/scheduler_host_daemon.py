@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
-from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT, project_root_from_artifact_path
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from .runtime_adapter import QoderQueryClient
 from .runtime_wiring import RuntimeRegistryWiringConfig, build_runtime_registry_from_config
@@ -261,13 +261,7 @@ def _write_loop_evidence_if_requested(
 def _evidence_project_root(request: HostSchedulerDaemonLoopRequest) -> Path:
     if request.workspace_root:
         return Path(request.workspace_root)
-    snapshot = Path(request.snapshot_path)
-    parts = snapshot.parts
-    if ".codex" in parts:
-        index = parts.index(".codex")
-        if index > 0:
-            return Path(*parts[:index])
-    return snapshot.parent
+    return project_root_from_artifact_path(request.snapshot_path)
 
 
 def _sandbox_registry_for_request(

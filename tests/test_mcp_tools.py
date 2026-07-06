@@ -284,7 +284,7 @@ class TestTrajectoryTeamContinuityMcp:
             mailbox_cursor_ref="dbc://mailbox/server@1",
             worker_report_refs=("report:server",),
             audit_refs=("audit:server",),
-            scheduler_event_log_path=".codex/scheduler/team-events.jsonl",
+            scheduler_event_log_path=".dbc/scheduler/team-events.jsonl",
             timestamp="2026-07-04T12:00:00+00:00",
         )
         inspect = tools.trajectory_team_continuity(
@@ -357,7 +357,7 @@ class TestTrajectoryTeamContinuityMcp:
                             "workerId": "worker:server",
                             "runtimeProvider": "opencode",
                             "sessionId": "session-server",
-                            "schedulerEventLogPath": ".codex/scheduler/team-events.jsonl",
+                            "schedulerEventLogPath": ".dbc/scheduler/team-events.jsonl",
                         },
                     )
                 )
@@ -1364,10 +1364,10 @@ class TestAdmitExchangeArtifact:
     """admitExchangeArtifact MCP tool tests."""
 
     def test_admit_exchange_artifact_writes_scheduler_state_and_ledger(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
         artifact = scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
                 task_id="task-mcp-admit",
@@ -1430,10 +1430,10 @@ class TestAdmitExchangeArtifact:
         ]
 
     def test_admit_exchange_artifact_rejects_duplicate_before_scheduler_mutation(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
         JsonArtifactVersionStore(store_path).put(
             scheduler_task_submission_to_artifact(
                 SchedulerTaskSubmission(
@@ -1478,10 +1478,10 @@ class TestAdmitExchangeArtifact:
         assert [record.status for record in records] == ["admitted", "rejected_duplicate"]
 
     def test_admit_exchange_artifact_allows_explicit_duplicate_admission(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
         JsonArtifactVersionStore(store_path).put(
             scheduler_task_submission_to_artifact(
                 SchedulerTaskSubmission(
@@ -1570,9 +1570,9 @@ class TestAdmitExchangeArtifact:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
         JsonArtifactVersionStore(store_path).put(
             scheduler_task_submission_to_artifact(
                 SchedulerTaskSubmission(
@@ -1637,7 +1637,7 @@ class TestAgentExchangeMailbox:
     """agentExchangeMailbox MCP tool tests."""
 
     def test_agent_exchange_mailbox_reads_agent_routes_without_mutation(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         store = JsonArtifactVersionStore(store_path)
         store.put(
             ExchangeArtifact(
@@ -1714,7 +1714,7 @@ class TestAgentExchangeMailbox:
         assert result["inbox"][1]["preview"]["redacted"] is True
         assert "hidden token" not in json.dumps(result, ensure_ascii=False)
         assert result["authority_split"]["read_model_only"] is True
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_mcp_server_exposes_and_routes_agent_exchange_mailbox(self, tmp_path):
         import asyncio
@@ -1726,7 +1726,7 @@ class TestAgentExchangeMailbox:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-mailbox",
@@ -1777,7 +1777,7 @@ class TestAgentExchangeHistory:
     def test_agent_exchange_history_reads_causality_logs_without_mutation(self, tmp_path):
         from src.runtime.orchestration import ExchangeCausality, ExchangeLog
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         store = JsonArtifactVersionStore(store_path)
         store.put(
             ExchangeArtifact(
@@ -1852,7 +1852,7 @@ class TestAgentExchangeHistory:
         assert "safe MCP answer summary" in json.dumps(result, ensure_ascii=False)
         assert "hidden MCP answer" not in json.dumps(result, ensure_ascii=False)
         assert result["authority_split"]["read_model_only"] is True
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_mcp_server_exposes_and_routes_agent_exchange_history(self, tmp_path):
         import asyncio
@@ -1865,7 +1865,7 @@ class TestAgentExchangeHistory:
         from src.mcp.server import create_server
         from src.runtime.orchestration import ExchangeLog
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-history",
@@ -1920,7 +1920,7 @@ class TestAgentExchangeHistory:
     def test_agent_exchange_history_resource_is_listed_and_read_only(self, tmp_path):
         from src.runtime.orchestration import ExchangeLog
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-resource-history",
@@ -1955,14 +1955,14 @@ class TestAgentExchangeHistory:
         assert payload["artifact_count"] == 1
         assert payload["log_entries"][0]["action"] == "resource_history"
         assert payload["authority_split"]["read_model_only"] is True
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
 
 class TestAgentExchangeReplyAndTransition:
     """agentExchangeReply / agentExchangeTransition MCP tool tests."""
 
     def test_agent_exchange_reply_and_transition_round_trip(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-mcp-question",
@@ -2005,7 +2005,7 @@ class TestAgentExchangeReplyAndTransition:
         assert transition["current_lifecycle_state"] == "accepted"
         assert transition["changed"] is True
         assert mailbox["inbox"][0]["artifact_id"] == "ex-mcp-answer"
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_mcp_server_exposes_and_routes_agent_exchange_reply_and_transition(self, tmp_path):
         import asyncio
@@ -2017,7 +2017,7 @@ class TestAgentExchangeReplyAndTransition:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-question",
@@ -2098,7 +2098,7 @@ class TestAgentExchangeActionCandidates:
     """agentExchangeActionCandidates MCP tool/resource tests."""
 
     def test_agent_exchange_action_candidates_reads_without_mutation(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         store = JsonArtifactVersionStore(store_path)
         store.put(
             ExchangeArtifact(
@@ -2155,7 +2155,7 @@ class TestAgentExchangeActionCandidates:
         assert result["authority_split"]["scheduler_mutated"] is False
         assert "secret MCP review" not in json.dumps(result, ensure_ascii=False)
         assert "hidden" not in json.dumps(result, ensure_ascii=False)
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_mcp_server_exposes_and_routes_agent_exchange_action_candidates(self, tmp_path):
         import asyncio
@@ -2167,7 +2167,7 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-action-merge",
@@ -2223,7 +2223,7 @@ class TestAgentExchangeActionCandidates:
         asyncio.run(exercise_server())
 
     def test_agent_exchange_action_candidates_resource_is_listed_and_read_only(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-resource-action-handoff",
@@ -2259,10 +2259,10 @@ class TestAgentExchangeActionCandidates:
         assert payload["candidate_type_counts"] == {"handoff_candidate": 1}
         assert payload["candidates"][0]["relation_clues"][0]["relation_kind"] == "hands_off"
         assert payload["authority_split"]["read_model_only"] is True
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_agent_exchange_action_candidate_decide_writes_disposition_only(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-mcp-decision-task",
@@ -2302,7 +2302,7 @@ class TestAgentExchangeActionCandidates:
         structured = next(part for part in record.artifact.parts if part.part_type == "structured")
         assert structured.data["product_type"] == "agent_exchange_action_candidate_disposition"
         assert structured.data["target_surface"] == "admitExchangeArtifact"
-        assert not (tmp_path / ".codex" / "scheduler").exists()
+        assert not (tmp_path / ".dbc" / "scheduler").exists()
 
     def test_mcp_server_exposes_and_routes_agent_exchange_action_candidate_decide(self, tmp_path):
         import asyncio
@@ -2314,7 +2314,7 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-decision-task",
@@ -2376,10 +2376,10 @@ class TestAgentExchangeActionCandidates:
         asyncio.run(exercise_server())
 
     def test_agent_exchange_accepted_scheduler_candidate_consume_admits_source(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
-        ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+        ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
         JsonArtifactVersionStore(store_path).put(
             scheduler_task_submission_to_artifact(
                 SchedulerTaskSubmission(
@@ -2421,7 +2421,7 @@ class TestAgentExchangeActionCandidates:
         assert read_scheduler_state_snapshot(snapshot_path).tasks["task/mcp-consume"].task_id == "task/mcp-consume"
 
     def test_agent_exchange_accepted_review_candidate_consume_registers_review(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-mcp-review",
@@ -2465,7 +2465,7 @@ class TestAgentExchangeActionCandidates:
         assert result["authority_split"]["scheduler_mutated"] is False
 
     def test_agent_exchange_accepted_handoff_candidate_consume_writes_handoff(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         handoff_dir = tmp_path / ".codex" / "handoffs"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
@@ -2521,9 +2521,9 @@ class TestAgentExchangeActionCandidates:
         assert handoff_path.exists()
 
     def test_agent_exchange_accepted_merge_candidate_consume_resolves_gate(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        merge_log_path = tmp_path / ".codex" / "scheduler" / "merge-gate-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        merge_log_path = tmp_path / ".dbc" / "scheduler" / "merge-gate-events.jsonl"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-mcp-merge",
@@ -2596,9 +2596,9 @@ class TestAgentExchangeActionCandidates:
         assert read_scheduler_state_snapshot(snapshot_path).merge_gates[0].state == "complete"
 
     def test_agent_exchange_accepted_blocker_candidate_consume_blocks_task(self, tmp_path):
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-        event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+        event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-mcp-blocker",
@@ -2671,7 +2671,7 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             scheduler_task_submission_to_artifact(
                 SchedulerTaskSubmission(
@@ -2722,8 +2722,8 @@ class TestAgentExchangeActionCandidates:
                         arguments={
                             "dispositionArtifactId": "ex-server-consume-decision",
                             "dispositionVersion": "v1",
-                            "snapshotPath": ".codex/scheduler/scheduler-state.json",
-                            "eventLogPath": ".codex/scheduler/scheduler-events.jsonl",
+                            "snapshotPath": ".dbc/scheduler/scheduler-state.json",
+                            "eventLogPath": ".dbc/scheduler/scheduler-events.jsonl",
                         },
                     )
                 )
@@ -2746,7 +2746,7 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-review-consume",
@@ -2821,7 +2821,7 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-handoff-consume",
@@ -2914,8 +2914,8 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-merge-consume",
@@ -2998,7 +2998,7 @@ class TestAgentExchangeActionCandidates:
                         arguments={
                             "dispositionArtifactId": "ex-server-merge-consume-decision",
                             "dispositionVersion": "v1",
-                            "snapshotPath": ".codex/scheduler/scheduler-state.json",
+                            "snapshotPath": ".dbc/scheduler/scheduler-state.json",
                             "gateId": "merge-server",
                             "approved": True,
                             "reason": "server approved merge",
@@ -3024,8 +3024,8 @@ class TestAgentExchangeActionCandidates:
         )
         from src.mcp.server import create_server
 
-        store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-        snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
+        store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+        snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
         JsonArtifactVersionStore(store_path).put(
             ExchangeArtifact(
                 artifact_id="ex-server-blocker-consume",
@@ -3098,7 +3098,7 @@ class TestAgentExchangeActionCandidates:
                         arguments={
                             "dispositionArtifactId": "ex-server-blocker-consume-decision",
                             "dispositionVersion": "v1",
-                            "snapshotPath": ".codex/scheduler/scheduler-state.json",
+                            "snapshotPath": ".dbc/scheduler/scheduler-state.json",
                             "taskId": "task-blocked",
                             "reason": "server accepted blocker",
                         },
@@ -3353,8 +3353,8 @@ class TestSchedulerProjection:
         assert rejected["ok"] is False
         assert rejected["runtime_provider"] == "qoder"
         assert "runtimeProvider='fake' only" in rejected["error"]
-        assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
-        assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
+        assert not (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
 
     def test_mcp_server_exposes_and_routes_scheduler_lifecycle_tools(self, tmp_path):
         import asyncio
@@ -3613,7 +3613,7 @@ class TestLocalTrajectory:
         assert "docs/worker-trajectory-update-reporting.md" in rejected["error"]
         assert rejected["callerRole"] == "worker"
         assert not (
-            tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json"
+            tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json"
         ).exists()
 
     def test_local_trajectory_starts_appends_and_advances_single_line(self, tmp_path):

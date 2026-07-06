@@ -581,10 +581,10 @@ def test_project_group_item_delivery_signal_can_record_failure_without_mutating_
 def test_guide_worker_local_orchestration_runs_cross_lane_wave(tmp_path) -> None:
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:test",
             artifact_id_prefix="gw-local-test",
             timestamp="2026-06-23T00:00:00Z",
@@ -621,11 +621,11 @@ def test_guide_worker_local_orchestration_runs_cross_lane_wave(tmp_path) -> None
     assert payload["authority_split"]["true_process_parallelism"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
-    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    state = read_scheduler_state_snapshot(tmp_path / ".dbc/scheduler/state.json")
     assert state.tasks["task/gw-local-test/client"].context_scope.lane_id == "lane:client"
     assert state.tasks["task/gw-local-test/server"].context_scope.lane_id == "lane:server"
     assert len(state.run_records) == 2
-    assert not (tmp_path / ".codex/progress-graph/local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc/progress-graph/local-work-trajectory.json").exists()
 
 
 def test_guide_worker_local_orchestration_plans_instructions_from_task(
@@ -633,10 +633,10 @@ def test_guide_worker_local_orchestration_plans_instructions_from_task(
 ) -> None:
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:planned",
             artifact_id_prefix="gw-planned",
             timestamp="2026-06-24T10:00:00Z",
@@ -707,10 +707,10 @@ def test_guide_worker_local_orchestration_explicit_instructions_override_planner
 ) -> None:
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:planned",
             artifact_id_prefix="gw-explicit-wins",
             timestamp="2026-06-24T10:10:00Z",
@@ -749,10 +749,10 @@ def test_guide_worker_local_orchestration_preserves_instruction_sandbox_profile(
     sandbox_registry.register(GitWorktreeSandboxProvider(tmp_path / "sandboxes"))
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:sandbox-profile",
             artifact_id_prefix="gw-sandbox-profile",
             timestamp="2026-06-24T23:20:00Z",
@@ -777,7 +777,7 @@ def test_guide_worker_local_orchestration_preserves_instruction_sandbox_profile(
     )
 
     payload = result.to_json_dict()
-    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    state = read_scheduler_state_snapshot(tmp_path / ".dbc/scheduler/state.json")
     task = state.tasks["task/sandbox/client"]
 
     assert payload["planned_worker_instructions"][0]["sandbox_profile"] == {
@@ -797,10 +797,10 @@ def test_guide_worker_local_orchestration_preserves_instruction_sandbox_profile(
 def test_guide_worker_parallel_wave_selects_one_ready_task_per_lane(tmp_path) -> None:
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:test",
             artifact_id_prefix="gw-local-same-lane",
             timestamp="2026-06-23T00:00:00Z",
@@ -833,7 +833,7 @@ def test_guide_worker_parallel_wave_selects_one_ready_task_per_lane(tmp_path) ->
     assert payload["parallel_waves"][1]["lane_ids"] == ["lane:shared"]
     assert payload["run_task_ids"] == ["task/same-lane/a", "task/same-lane/b"]
 
-    completed_state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    completed_state = read_scheduler_state_snapshot(tmp_path / ".dbc/scheduler/state.json")
     ready_state = mark_ready_tasks(completed_state)
     empty_wave = select_ready_worker_parallel_wave(
         ready_state,
@@ -849,10 +849,10 @@ def test_guide_worker_local_orchestration_threaded_wave_reports_deterministic_me
 ) -> None:
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:test",
             artifact_id_prefix="gw-local-threaded",
             timestamp="2026-06-24T00:00:00Z",
@@ -898,7 +898,7 @@ def test_guide_worker_local_orchestration_threaded_wave_reports_deterministic_me
     ]
     assert payload["authority_split"]["wave_executor_mode"] == "threaded"
     assert payload["authority_split"]["true_process_parallelism"] is True
-    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    state = read_scheduler_state_snapshot(tmp_path / ".dbc/scheduler/state.json")
     assert state.tasks["task/threaded/a"].state == "complete"
     assert state.tasks["task/threaded/b"].state == "complete"
     assert [record.task_id for record in state.run_records] == [
@@ -932,10 +932,10 @@ def test_guide_worker_local_orchestration_can_use_injected_qoder_worker_runtime(
 
     result = run_guide_worker_local_trajectory_orchestration(
         GuideWorkerLocalOrchestrationRequest(
-            artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-            admission_ledger_path=tmp_path / ".codex/orchestration/admissions.json",
-            snapshot_path=tmp_path / ".codex/scheduler/state.json",
-            event_log_path=tmp_path / ".codex/scheduler/events.jsonl",
+            artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+            admission_ledger_path=tmp_path / ".dbc/orchestration/admissions.json",
+            snapshot_path=tmp_path / ".dbc/scheduler/state.json",
+            event_log_path=tmp_path / ".dbc/scheduler/events.jsonl",
             trajectory_id="local-work:test",
             artifact_id_prefix="gw-local-qoder",
             timestamp="2026-06-24T00:00:00Z",
@@ -959,7 +959,7 @@ def test_guide_worker_local_orchestration_can_use_injected_qoder_worker_runtime(
     )
 
     payload = result.to_json_dict()
-    state = read_scheduler_state_snapshot(tmp_path / ".codex/scheduler/state.json")
+    state = read_scheduler_state_snapshot(tmp_path / ".dbc/scheduler/state.json")
 
     assert payload["ok"] is True
     assert payload["scenario"]["runtime_provider"] == "qoder"
@@ -1669,9 +1669,9 @@ def test_log_decoration_adapters_project_core_log_records() -> None:
                 tick_id="dispatcher:tick-1",
                 dispatcher_id="dispatcher",
                 timestamp="2026-07-05T13:21:00+08:00",
-                scheduler_snapshot_path=".codex/scheduler/state.json",
-                scheduler_event_log_path=".codex/scheduler/events.jsonl",
-                artifact_store_path=".codex/orchestration/exchange-artifacts.json",
+                scheduler_snapshot_path=".dbc/scheduler/state.json",
+                scheduler_event_log_path=".dbc/scheduler/events.jsonl",
+                artifact_store_path=".dbc/orchestration/exchange-artifacts.json",
                 recovery_event_count=2,
                 exchange_record_count=3,
                 decision_count=1,
@@ -1697,15 +1697,15 @@ def test_log_decoration_adapters_project_core_log_records() -> None:
         exchange_artifact_admission_record_to_decoration_record(
             ExchangeArtifactAdmissionRecord(
                 ledger_id="admission:1",
-                artifact_store_path=Path(".codex/orchestration/exchange-artifacts.json"),
+                artifact_store_path=Path(".dbc/orchestration/exchange-artifacts.json"),
                 artifact_id="artifact:submission",
                 artifact_version="v1",
                 product_type="scheduler_task_submission",
                 surface="scheduler-admission",
                 actor="agent:guide",
                 timestamp="2026-07-05T13:23:00+08:00",
-                snapshot_path=Path(".codex/scheduler/state.json"),
-                event_log_path=Path(".codex/scheduler/events.jsonl"),
+                snapshot_path=Path(".dbc/scheduler/state.json"),
+                event_log_path=Path(".dbc/scheduler/events.jsonl"),
                 status="admitted",
                 submitted_task_ids=("task:server",),
                 dependency_ids=("dep:server",),
@@ -1791,7 +1791,7 @@ def test_log_decoration_adapters_project_runtime_receipts_and_evidence() -> None
             secret_policy="deny",
         ),
         workspace_root="E:/workspace/source",
-        scratch_path=".codex/scratch/task-server",
+        scratch_path=".dbc/scratch/task-server",
         visible_mounts=("src/server.py", "tests/test_server.py"),
         cleanup_required=True,
         lease_authorized_mounts=(
@@ -1882,7 +1882,7 @@ def test_log_decoration_adapters_project_runtime_receipts_and_evidence() -> None
                 (sandbox_allocation,),
                 evidence_id="sandbox-evidence:1",
                 timestamp="2026-07-05T14:02:00+08:00",
-                evidence_path=".codex/scheduler/evidence/sandbox-evidence.json",
+                evidence_path=".dbc/scheduler/evidence/sandbox-evidence.json",
                 metadata={"raw_detail": "do not copy"},
                 authority_split={"sandbox_provider_executed": True},
             )
@@ -2226,9 +2226,9 @@ def test_scratch_manifest_maps_to_retention_review_artifact_with_redaction_flag(
         task_id="task-client",
         lane_id="lane-client",
         context_id="context-client",
-        path=".codex/scratch/task-client",
+        path=".dbc/scratch/task-client",
         created_at="2026-06-16T23:55:00+08:00",
-        manifest_path=".codex/scratch/task-client/manifest.json",
+        manifest_path=".dbc/scratch/task-client/manifest.json",
         audit_state="pending_review",
     )
     manifest = ScratchManifest(
@@ -2281,7 +2281,7 @@ def test_cleanup_receipt_maps_to_cleanup_exchange_artifact() -> None:
         task_id="task-client",
         lane_id="lane-client",
         context_id="context-client",
-        path=".codex/scratch/task-client",
+        path=".dbc/scratch/task-client",
         audit_state="cleaned",
     )
     receipt = CleanupReceipt(
@@ -2612,8 +2612,8 @@ def test_exchange_artifact_store_inspection_projects_admission_state_from_ledger
 def test_exchange_artifact_store_projects_binding_readiness_before_admission(
     tmp_path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     seed_scheduler_operator_binding_consumer_dogfood_fixture(
         tmp_path,
         artifact_store_path=store_path,
@@ -2652,10 +2652,10 @@ def test_exchange_artifact_store_projects_binding_readiness_before_admission(
 def test_exchange_artifact_store_projects_latest_binding_summary_after_admission(
     tmp_path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = tmp_path / ".codex" / "scheduler" / "scheduler-events.jsonl"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = tmp_path / ".dbc" / "scheduler" / "scheduler-events.jsonl"
     seed_scheduler_operator_binding_consumer_dogfood_fixture(
         tmp_path,
         artifact_store_path=store_path,
@@ -3388,10 +3388,10 @@ def test_mixed_provider_planner_accepts_codex_and_opencode_workers(tmp_path) -> 
 def test_mixed_provider_host_wrapper_fails_before_state_when_opencode_missing(
     tmp_path: Path,
 ) -> None:
-    snapshot_path = tmp_path / ".codex/scheduler/mixed-state.json"
-    event_log_path = tmp_path / ".codex/scheduler/mixed-events.jsonl"
-    evidence_path = tmp_path / ".codex/scheduler/evidence/mixed.json"
-    runtime_log_path = tmp_path / ".codex/runtime/invocations.jsonl"
+    snapshot_path = tmp_path / ".dbc/scheduler/mixed-state.json"
+    event_log_path = tmp_path / ".dbc/scheduler/mixed-events.jsonl"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/mixed.json"
+    runtime_log_path = tmp_path / ".dbc/runtime/invocations.jsonl"
     opencode_client = OpenCodeCliProcessClient(
         OpenCodeCliClientConfig(executable="definitely-missing-dbc-opencode"),
         which=lambda _executable: None,
@@ -3663,7 +3663,7 @@ def test_codex_cli_process_client_prefers_task_runtime_workspace(tmp_path) -> No
                 sandbox_provider="git-worktree",
                 sandbox_allocation_id="git-worktree:task-c:worktree",
                 visible_mounts=("src/app.py",),
-                scratch_path=".codex/scratch/task-c",
+                scratch_path=".dbc/scratch/task-c",
             ),
             instruction="Run in the worker sandbox.",
         )
@@ -3715,7 +3715,7 @@ def test_opencode_cli_process_client_prefers_task_runtime_workspace(tmp_path) ->
                 sandbox_provider="git-worktree",
                 sandbox_allocation_id="git-worktree:task-o:worktree",
                 visible_mounts=("src/app.py",),
-                scratch_path=".codex/scratch/task-o",
+                scratch_path=".dbc/scratch/task-o",
             ),
             instruction="Run in the worker sandbox.",
         )
@@ -3833,7 +3833,7 @@ def test_opencode_cli_process_client_uses_host_session_selector(tmp_path) -> Non
                 binding_id="opencode-session:lane:lane-server",
                 scope_kind="lane",
                 scope_id="lane:server",
-                ledger_path=".codex/runtime/opencode-session-ledger.json",
+                ledger_path=".dbc/runtime/opencode-session-ledger.json",
             ),
         )
     )
@@ -4131,7 +4131,7 @@ def test_opencode_server_api_client_maps_http_failure_to_runtime_error() -> None
 
 
 def test_opencode_serve_lifecycle_receipts_record_and_inspect(tmp_path: Path) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-serve-lifecycle-ledger.json"
 
     recorded = record_opencode_serve_lifecycle_receipt(
         OpenCodeServeLifecycleRecordRequest(
@@ -4182,7 +4182,7 @@ def test_opencode_serve_lifecycle_receipts_record_and_inspect(tmp_path: Path) ->
 
 
 def test_opencode_serve_lifecycle_receipts_validate_action_and_status(tmp_path: Path) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-serve-lifecycle-ledger.json"
 
     with pytest.raises(ValueError, match="action must be start"):
         record_opencode_serve_lifecycle_receipt(
@@ -4202,7 +4202,7 @@ def test_opencode_serve_lifecycle_receipts_validate_action_and_status(tmp_path: 
 
 
 def test_opencode_session_ledger_claim_inspect_release_roundtrip(tmp_path: Path) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
 
     claimed = claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
@@ -4260,7 +4260,7 @@ def test_opencode_session_ledger_claim_inspect_release_roundtrip(tmp_path: Path)
 
 
 def test_opencode_session_ledger_claim_conflict_without_replace(tmp_path: Path) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     first = claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -4289,7 +4289,7 @@ def test_opencode_session_ledger_claim_conflict_without_replace(tmp_path: Path) 
 
 
 def test_opencode_session_recover_stale_expires_elapsed_binding(tmp_path: Path) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -4340,7 +4340,7 @@ def test_opencode_session_recover_stale_expires_elapsed_binding(tmp_path: Path) 
 def test_opencode_session_recover_stale_can_expire_unhealthy_binding(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -4371,7 +4371,7 @@ def test_opencode_session_recover_stale_can_expire_unhealthy_binding(
 def test_opencode_session_recover_stale_noops_without_matching_policy(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -4399,8 +4399,8 @@ def test_opencode_session_recover_stale_noops_without_matching_policy(
 def test_continuous_worker_binding_claim_inspect_release_roundtrip(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
 
     claimed = claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
@@ -4473,9 +4473,9 @@ def test_continuous_worker_binding_claim_inspect_release_roundtrip(
 def test_server_api_created_session_promotion_claims_continuous_worker_binding(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    opencode_session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    opencode_session_ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
 
     promoted = promote_server_api_created_session_to_continuous_worker_binding(
         ServerApiCreatedSessionPromotionRequest(
@@ -4525,11 +4525,11 @@ def test_server_api_created_session_promotion_claims_continuous_worker_binding(
 def test_server_api_created_session_promotion_supports_lane_group(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
     promoted = promote_server_api_created_session_to_continuous_worker_binding(
         ServerApiCreatedSessionPromotionRequest(
             ledger_path=ledger_path,
-            event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+            event_log_path=tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl",
             attach_url="http://127.0.0.1:4096",
             session_id="session-web",
             worker_id="worker:web",
@@ -4558,8 +4558,8 @@ def test_server_api_created_session_promotion_rejects_non_created_sources(
     with pytest.raises(ValueError, match="session_selector_source=server_api_created"):
         promote_server_api_created_session_to_continuous_worker_binding(
             ServerApiCreatedSessionPromotionRequest(
-                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
-                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                ledger_path=tmp_path / ".dbc/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl",
                 session_selector_source=selector_source,
                 attach_url="http://127.0.0.1:4096",
                 session_id="session-created-api",
@@ -4585,8 +4585,8 @@ def test_server_api_created_session_promotion_rejects_missing_required_fields(
     override: dict[str, object],
 ) -> None:
     payload = {
-        "ledger_path": tmp_path / ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": tmp_path / ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "attach_url": "http://127.0.0.1:4096",
         "session_id": "session-created-api",
         "worker_id": "worker:server",
@@ -4607,8 +4607,8 @@ def test_server_api_created_session_promotion_rejects_lane_group_without_lanes(
     with pytest.raises(ValueError, match="lane_ids"):
         promote_server_api_created_session_to_continuous_worker_binding(
             ServerApiCreatedSessionPromotionRequest(
-                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
-                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                ledger_path=tmp_path / ".dbc/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl",
                 attach_url="http://127.0.0.1:4096",
                 session_id="session-web",
                 worker_id="worker:web",
@@ -4624,8 +4624,8 @@ def test_server_api_created_session_promotion_rejects_secret_metadata(
     with pytest.raises(ValueError, match="raw transcript or secret value"):
         promote_server_api_created_session_to_continuous_worker_binding(
             ServerApiCreatedSessionPromotionRequest(
-                ledger_path=tmp_path / ".codex/runtime/continuous-worker-bindings.json",
-                event_log_path=tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl",
+                ledger_path=tmp_path / ".dbc/runtime/continuous-worker-bindings.json",
+                event_log_path=tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl",
                 attach_url="http://127.0.0.1:4096",
                 session_id="session-created-api",
                 worker_id="worker:server",
@@ -4639,8 +4639,8 @@ def test_server_api_created_session_promotion_rejects_secret_metadata(
 def test_continuous_worker_binding_recover_stale_and_lane_group_resolution(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=ledger_path,
@@ -4699,8 +4699,8 @@ def test_continuous_worker_binding_recover_stale_and_lane_group_resolution(
 def test_continuous_worker_binding_reuse_fork_compact_and_expiry_resolution(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     claimed = claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=ledger_path,
@@ -4805,8 +4805,8 @@ def test_continuous_worker_binding_reuse_fork_compact_and_expiry_resolution(
 def test_continuous_worker_binding_archive_has_distinct_event(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=ledger_path,
@@ -4867,8 +4867,8 @@ def test_continuous_worker_ownership_schema_lane_ownership_round_trips() -> None
 def test_continuous_worker_lane_ownership_claim_inspect_roundtrip(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
 
     claimed = claim_lane_ownership(
         LaneOwnershipClaimRequest(
@@ -4910,8 +4910,8 @@ def test_continuous_worker_lane_ownership_claim_inspect_roundtrip(
 def test_continuous_worker_lane_ownership_lane_group_conflict_and_release(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
 
     group_claim = claim_lane_ownership(
         LaneOwnershipClaimRequest(
@@ -4982,8 +4982,8 @@ def test_continuous_worker_lane_ownership_lane_group_conflict_and_release(
 def test_continuous_worker_lane_ownership_lifecycle_transitions(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
 
     claim_lane_ownership(
         LaneOwnershipClaimRequest(
@@ -5153,8 +5153,8 @@ def test_continuous_worker_ownership_schema_delivery_lease_round_trips() -> None
 def test_continuous_worker_ownership_schema_binding_fields_round_trip(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
 
     claimed = claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
@@ -5363,8 +5363,8 @@ def test_continuous_worker_ownership_schema_detects_active_delivery_lease_confli
 def test_continuous_worker_delivery_lease_ledger_round_trip_and_conflict(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
 
     reserved = reserve_delivery_lease(
         DeliveryLeaseReserveRequest(
@@ -5406,8 +5406,8 @@ def test_continuous_worker_delivery_lease_ledger_round_trip_and_conflict(
 def test_continuous_worker_delivery_lease_transitions_release_then_rereserve(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
 
     reserve = reserve_delivery_lease(
         DeliveryLeaseReserveRequest(
@@ -5485,8 +5485,8 @@ def test_continuous_worker_delivery_lease_transitions_release_then_rereserve(
 def test_continuous_worker_delivery_lease_failed_retryable_does_not_block_rereserve(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
 
     reserve_delivery_lease(
         DeliveryLeaseReserveRequest(
@@ -5551,8 +5551,8 @@ def test_continuous_worker_delivery_lease_rejects_secret_metadata(
 def test_continuous_worker_compact_context_bundle_is_project_owned(
     tmp_path: Path,
 ) -> None:
-    ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    bundle_dir = tmp_path / ".codex/runtime/continuous-worker-contexts"
+    ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    bundle_dir = tmp_path / ".dbc/runtime/continuous-worker-contexts"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=ledger_path,
@@ -5618,10 +5618,10 @@ def test_provider_generic_delivery_naming_aliases_remain_compatible() -> None:
 
     request = ProviderDeliveryE2ESmokeRequest(runtime_provider="opencode")
     supervisor_request = ProviderDeliverySupervisorRequest(
-        delivery_state_path=".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=".codex/scheduler/delivery-events.jsonl",
-        scheduler_snapshot_path=".codex/scheduler/state.json",
-        scheduler_event_log_path=".codex/scheduler/events.jsonl",
+        delivery_state_path=".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=".dbc/scheduler/delivery-events.jsonl",
+        scheduler_snapshot_path=".dbc/scheduler/state.json",
+        scheduler_event_log_path=".dbc/scheduler/events.jsonl",
         runtime_provider="opencode",
     )
 
@@ -7722,7 +7722,7 @@ def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:
             acquired_at="2026-06-21T00:00:00+08:00",
         ),
         workspace_root="E:/workspace/project",
-        scratch_path=".codex/scratch/task-1",
+        scratch_path=".dbc/scratch/task-1",
         required_mounts=("README.md",),
     )
 
@@ -7735,7 +7735,7 @@ def test_shared_process_sandbox_provider_allocates_metadata_only() -> None:
     assert allocation.state == "allocated"
     assert allocation.allocation_id == "shared-process:task-1:shared"
     assert allocation.workspace_root == "E:/workspace/project"
-    assert allocation.scratch_path == ".codex/scratch/task-1"
+    assert allocation.scratch_path == ".dbc/scratch/task-1"
     assert allocation.visible_mounts == ("README.md", "src/app.py")
     assert allocation.network_policy == "disabled"
     assert allocation.secret_policy == "deny"
@@ -7827,7 +7827,7 @@ def test_git_worktree_sandbox_provider_allocates_and_cleans_up_worktree(tmp_path
             acquired_at="2026-06-21T00:00:00+08:00",
         ),
         workspace_root=str(repo),
-        scratch_path=".codex/scratch/task-1",
+        scratch_path=".dbc/scratch/task-1",
         required_mounts=("README.md",),
     )
 
@@ -8417,7 +8417,7 @@ def test_orchestration_preflight_bundle_assembles_runtime_sandbox_and_scratch() 
         sandbox_registry=registry,
         scheduler_state=state,
         workspace_root="E:/workspace/project",
-        scratch_root=".codex/scratch",
+        scratch_root=".dbc/scratch",
         created_at="2026-06-17T00:10:00+08:00",
         expires_at="2026-06-17T01:10:00+08:00",
     )
@@ -8427,11 +8427,11 @@ def test_orchestration_preflight_bundle_assembles_runtime_sandbox_and_scratch() 
     assert bundle.runtime_task.output_artifact_id == "task-1:result"
     assert bundle.runtime_task.scope.task_id == "task-1"
     assert bundle.scratch.scratch_id == "scratch:task-1"
-    assert bundle.scratch.path == ".codex/scratch/task-1"
-    assert bundle.scratch.manifest_path == ".codex/scratch/task-1/manifest.json"
+    assert bundle.scratch.path == ".dbc/scratch/task-1"
+    assert bundle.scratch.manifest_path == ".dbc/scratch/task-1/manifest.json"
     assert bundle.sandbox_allocation.state == "allocated"
     assert bundle.sandbox_allocation.workspace_root == "E:/workspace/project"
-    assert bundle.sandbox_allocation.scratch_path == ".codex/scratch/task-1"
+    assert bundle.sandbox_allocation.scratch_path == ".dbc/scratch/task-1"
     assert bundle.sandbox_allocation.visible_mounts == ("README.md", "src/app.py")
     assert bundle.sandbox_allocation.lease_authorization_state == "authorized"
 
@@ -8766,7 +8766,7 @@ def test_sandbox_allocation_receipt_evidence_round_trips_git_worktree_receipt(
     restored = summary.allocations_by_task_id["task-1"]
     restored_receipt = restored.git_worktree_receipt
 
-    assert result.evidence_path == tmp_path / ".codex/scheduler/evidence/receipt-task-1.json"
+    assert result.evidence_path == tmp_path / ".dbc/scheduler/evidence/receipt-task-1.json"
     assert payload["product_type"] == "sandbox_allocation_receipt_evidence"
     assert payload["schema_version"] == "1"
     assert payload["allocation_count"] == 1
@@ -8883,7 +8883,7 @@ def test_scheduler_authorization_snapshot_readback_merges_allocation_evidence(
         cleanup_required=True,
         cleanup_state="required",
     )
-    evidence_path = tmp_path / ".codex/scheduler/evidence/git-worktree-receipts.json"
+    evidence_path = tmp_path / ".dbc/scheduler/evidence/git-worktree-receipts.json"
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -8991,7 +8991,7 @@ def test_sandbox_allocation_cleanup_runner_noops_without_required_cleanup(
     summary = read_sandbox_allocation_receipt_evidence_summary(result.output_evidence_path)
     restored = summary.allocations_by_task_id["task-1"]
 
-    assert result.output_evidence_path == tmp_path / ".codex/scheduler/evidence/already-clean-cleanup.json"
+    assert result.output_evidence_path == tmp_path / ".dbc/scheduler/evidence/already-clean-cleanup.json"
     assert payload["ok"] is True
     assert payload["selected_allocation_ids"] == []
     assert payload["skipped_allocation_ids"] == ["git-worktree:task-1:worktree"]
@@ -9014,7 +9014,7 @@ def test_sandbox_allocation_cleanup_runner_default_output_path_for_relative_code
         branch_cleanup_returncode=0,
     )
     monkeypatch.chdir(tmp_path)
-    input_path = Path(".codex/scheduler/evidence/relative-receipts.json")
+    input_path = Path(".dbc/scheduler/evidence/relative-receipts.json")
     write_sandbox_allocation_receipt_evidence(
         build_sandbox_allocation_receipt_evidence(
             (allocation,),
@@ -9026,7 +9026,7 @@ def test_sandbox_allocation_cleanup_runner_default_output_path_for_relative_code
 
     result = run_sandbox_allocation_cleanup_over_receipts(input_path)
 
-    assert result.output_evidence_path == Path(".codex/scheduler/evidence/relative-receipts-cleanup.json")
+    assert result.output_evidence_path == Path(".dbc/scheduler/evidence/relative-receipts-cleanup.json")
     assert result.output_evidence_path.exists()
 
 
@@ -9484,9 +9484,9 @@ def test_submit_scheduler_task_batch_with_persistence_recovers_and_drains(tmp_pa
 
 
 def test_seed_scheduler_operator_dogfood_fixture_creates_candidate_only(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
 
     result = seed_scheduler_operator_dogfood_fixture(
         tmp_path,
@@ -9517,9 +9517,9 @@ def test_seed_scheduler_operator_dogfood_fixture_creates_candidate_only(tmp_path
 
 
 def test_seed_scheduler_operator_multilane_dogfood_fixture_creates_candidate_only(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
 
     result = seed_scheduler_operator_multilane_dogfood_fixture(
         tmp_path,
@@ -9569,9 +9569,9 @@ def test_seed_scheduler_operator_multilane_dogfood_fixture_creates_candidate_onl
 def test_seed_scheduler_operator_binding_consumer_fixture_creates_compact_ref_pair(
     tmp_path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     evidence_path = (
         tmp_path
         / ".codex"
@@ -9641,7 +9641,7 @@ def test_seed_scheduler_operator_binding_consumer_fixture_creates_compact_ref_pa
 def test_seed_scheduler_operator_binding_consumer_fixture_rejects_duplicate_keys(
     tmp_path,
 ) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
 
     with pytest.raises(ValueError, match="requires distinct artifact version keys"):
         seed_scheduler_operator_binding_consumer_dogfood_fixture(
@@ -9655,7 +9655,7 @@ def test_seed_scheduler_operator_binding_consumer_fixture_rejects_duplicate_keys
 
 
 def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
 
     with pytest.raises(ValueError, match="exchange artifact version already exists"):
@@ -9675,10 +9675,10 @@ def test_seed_scheduler_operator_dogfood_fixture_requires_explicit_replace(tmp_p
 
 
 def test_scheduler_operator_workflow_read_only_inspects_without_mutation(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
-    projection_path = tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
+    projection_path = tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
     seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
 
     result = run_scheduler_operator_workflow(
@@ -9707,13 +9707,13 @@ def test_scheduler_operator_workflow_read_only_inspects_without_mutation(tmp_pat
     assert not snapshot_path.exists()
     assert not ledger_path.exists()
     assert not projection_path.exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_inspects_binding_refs_without_mutation(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
-    snapshot_path = tmp_path / ".codex" / "scheduler" / "scheduler-state.json"
-    ledger_path = tmp_path / ".codex" / "orchestration" / "exchange-artifact-admissions.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    snapshot_path = tmp_path / ".dbc" / "scheduler" / "scheduler-state.json"
+    ledger_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifact-admissions.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -9792,7 +9792,7 @@ def test_scheduler_operator_workflow_inspects_binding_refs_without_mutation(tmp_
     assert payload["authority_split"]["provider_executed"] is False
     assert not snapshot_path.exists()
     assert not ledger_path.exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
@@ -9841,14 +9841,14 @@ def test_scheduler_operator_workflow_full_dogfood_flow(tmp_path) -> None:
     assert payload["authority_split"]["provider_executed"] is True
     assert payload["authority_split"]["scheduler_projection_refreshed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-    assert (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
-    assert (tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-loop.json").exists()
-    assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert (tmp_path / ".dbc" / "scheduler" / "scheduler-state.json").exists()
+    assert (tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-helper-loop.json").exists()
+    assert (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_inspect_binding_refs_then_admit(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     store = JsonArtifactVersionStore(store_path)
     store.put(
         ExchangeArtifact(
@@ -9921,7 +9921,7 @@ def test_scheduler_operator_workflow_inspect_binding_refs_then_admit(tmp_path) -
 
 
 def test_scheduler_operator_workflow_can_mark_consumed_on_success(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     seed_scheduler_operator_dogfood_fixture(tmp_path, artifact_store_path=store_path)
 
     result = run_scheduler_operator_workflow(
@@ -10009,12 +10009,12 @@ def test_scheduler_operator_workflow_full_multilane_dogfood_flow(tmp_path) -> No
     assert payload["authority_split"]["provider_executed"] is True
     assert payload["authority_split"]["scheduler_projection_refreshed"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-    assert (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert (tmp_path / ".dbc" / "scheduler" / "scheduler-state.json").exists()
     assert (
-        tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-helper-multilane-loop.json"
+        tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-helper-multilane-loop.json"
     ).exists()
-    assert (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_workflow_duplicate_admission_stops_dependent_steps(tmp_path) -> None:
@@ -10053,11 +10053,11 @@ def test_scheduler_operator_workflow_duplicate_admission_stops_dependent_steps(t
     assert payload["steps"][3]["status"] == "skipped"
     assert payload["authority_split"]["provider_executed"] is False
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
-    assert not (tmp_path / ".codex" / "scheduler" / "evidence" / "duplicate-should-not-run.json").exists()
+    assert not (tmp_path / ".dbc" / "scheduler" / "evidence" / "duplicate-should-not-run.json").exists()
 
 
 def test_scheduler_operator_workflow_binding_ref_failure_stops_dependents(tmp_path) -> None:
-    store_path = tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json"
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
     JsonArtifactVersionStore(store_path).put(
         scheduler_task_submission_to_artifact(
             SchedulerTaskSubmission(
@@ -10108,9 +10108,9 @@ def test_scheduler_operator_workflow_binding_ref_failure_stops_dependents(tmp_pa
     assert payload["authority_split"]["admission_ledger_mutated"] is False
     assert payload["authority_split"]["scheduler_state_mutated"] is False
     assert payload["authority_split"]["provider_executed"] is False
-    assert not (tmp_path / ".codex" / "scheduler" / "scheduler-state.json").exists()
+    assert not (tmp_path / ".dbc" / "scheduler" / "scheduler-state.json").exists()
     assert not (
-        tmp_path / ".codex" / "scheduler" / "evidence" / "binding-failure-should-not-run.json"
+        tmp_path / ".dbc" / "scheduler" / "evidence" / "binding-failure-should-not-run.json"
     ).exists()
 
 
@@ -10167,12 +10167,12 @@ def test_scheduler_operator_dogfood_closure_runs_binding_consumer_full_flow(
     assert payload["authority_split"]["host_evidence_read"] is True
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (
-        tmp_path / ".codex" / "scheduler" / "evidence" / "operator-closure-test.json"
+        tmp_path / ".dbc" / "scheduler" / "evidence" / "operator-closure-test.json"
     ).exists()
     assert (
-        tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+        tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
     ).exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_operator_dogfood_closure_rejects_live_provider(
@@ -10270,19 +10270,19 @@ def test_evidence_publish_to_consumer_closure_runs_published_artifact_flow(
     assert payload["authority_split"]["cleanup_executed"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
     assert (
-        tmp_path / ".codex" / "scheduler" / "evidence" / "publish-closure-binding.json"
+        tmp_path / ".dbc" / "scheduler" / "evidence" / "publish-closure-binding.json"
     ).exists()
     assert (
-        tmp_path / ".codex" / "scheduler" / "evidence" / "publish-closure-loop.json"
+        tmp_path / ".dbc" / "scheduler" / "evidence" / "publish-closure-loop.json"
     ).exists()
     assert (
-        tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json"
+        tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json"
     ).exists()
-    assert not (tmp_path / ".codex" / "scratch").exists()
+    assert not (tmp_path / ".dbc" / "scratch").exists()
     assert not (tmp_path / ".codex" / "agents").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
     store_payload = json.loads(
-        (tmp_path / ".codex" / "orchestration" / "exchange-artifacts.json").read_text(
+        (tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json").read_text(
             encoding="utf-8"
         )
     )
@@ -10373,9 +10373,9 @@ def test_scheduler_supervisor_dogfood_workflow_full_simple_flow(tmp_path) -> Non
     assert payload["authority_split"]["scheduler_projection_refreshed"] is False
     assert payload["authority_split"]["cleanup_executed"] is False
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
-    assert (tmp_path / ".codex" / "scheduler" / "scheduler-daemon-control.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "scheduler-work-trajectory.json").exists()
-    assert not (tmp_path / ".codex" / "progress-graph" / "local-work-trajectory.json").exists()
+    assert (tmp_path / ".dbc" / "scheduler" / "scheduler-daemon-control.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "scheduler-work-trajectory.json").exists()
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_scheduler_supervisor_dogfood_workflow_multilane_flow(tmp_path) -> None:
@@ -10421,7 +10421,7 @@ def test_supervisor_dogfood_storage_binding_maps_run_identity_and_scheduler_fact
         result,
         agent_id="agent:supervisor-binding",
         context_session_id="context-session:binding",
-        scratch_root=".codex/scratch/supervisor-binding",
+        scratch_root=".dbc/scratch/supervisor-binding",
         home_root=".codex/agents",
         expires_at="2026-06-22T11:00:00+00:00",
     )
@@ -10455,7 +10455,7 @@ def test_supervisor_dogfood_storage_binding_maps_run_identity_and_scheduler_fact
     ]
     assert payload["scratch_spaces"][0]["agent_id"] == "agent:dogfood-prepare"
     assert payload["scratch_spaces"][0]["path"] == (
-        ".codex/scratch/supervisor-binding/dogfood:prepare"
+        ".dbc/scratch/supervisor-binding/dogfood:prepare"
     )
     assert payload["scratch_spaces"][0]["run_id"] == "fake-run-1"
     assert payload["scratch_spaces"][1]["run_id"] == "fake-run-1"
@@ -11815,7 +11815,7 @@ def test_run_persisted_scheduler_once_recovers_drains_and_writes_snapshot(tmp_pa
         sandbox_registry=sandbox_registry,
         runtime_registry=runtime_registry,
         workspace_root="E:/workspace/project",
-        scratch_root=".codex/scratch",
+        scratch_root=".dbc/scratch",
         timestamp="2026-06-17T01:21:00+08:00",
     )
     written = read_scheduler_state_snapshot(snapshot_path)
@@ -11836,7 +11836,7 @@ def test_run_persisted_scheduler_once_recovers_drains_and_writes_snapshot(tmp_pa
         "task-a",
         "task-b",
     )
-    assert result.drain.preflight_results[0].preflight.scratch.path == ".codex/scratch/task-a"
+    assert result.drain.preflight_results[0].preflight.scratch.path == ".dbc/scratch/task-a"
     assert written.tasks["task-a"].state == "complete"
     assert written.tasks["task-b"].state == "complete"
     assert tuple(record.task_id for record in written.run_records) == ("task-a", "task-b")
@@ -13712,7 +13712,7 @@ def test_host_scheduler_daemon_loop_git_worktree_opt_in_writes_allocation_eviden
     task = _workflow_git_worktree_task()
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    evidence_path = tmp_path / ".codex" / "scheduler" / "evidence" / "daemon-allocation-receipts.json"
+    evidence_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "daemon-allocation-receipts.json"
     write_scheduler_state_snapshot(
         _state_with_acquired_git_worktree_lease(task),
         snapshot_path,
@@ -13801,8 +13801,8 @@ def test_host_sandbox_receipt_workflow_run_once_cleans_and_reads_back(
     task = _workflow_git_worktree_task()
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-run-allocation.json"
-    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-run-cleanup.json"
+    allocation_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-run-allocation.json"
+    cleanup_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-run-cleanup.json"
     write_scheduler_state_snapshot(
         _state_with_acquired_git_worktree_lease(task),
         snapshot_path,
@@ -13882,8 +13882,8 @@ def test_host_sandbox_receipt_workflow_daemon_loop_cleans_and_reads_back(
     task = _workflow_git_worktree_task()
     snapshot_path = tmp_path / "scheduler-state.json"
     event_log_path = tmp_path / "scheduler-events.jsonl"
-    allocation_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
-    cleanup_path = tmp_path / ".codex" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
+    allocation_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-loop-allocation.json"
+    cleanup_path = tmp_path / ".dbc" / "scheduler" / "evidence" / "workflow-loop-cleanup.json"
     write_scheduler_state_snapshot(
         _state_with_acquired_git_worktree_lease(task),
         snapshot_path,
@@ -14038,9 +14038,9 @@ def test_host_scheduler_daemon_loop_mock_qoder_writes_scheduler_loop_evidence(tm
 
 def test_host_scheduler_daemon_loop_default_evidence_path_uses_workspace_root(tmp_path) -> None:
     project = tmp_path / "project"
-    snapshot_path = project / ".codex" / "scheduler" / "scheduler-state.json"
-    event_log_path = project / ".codex" / "scheduler" / "scheduler-events.jsonl"
-    evidence_path = project / ".codex" / "scheduler" / "evidence" / "host-loop-default.json"
+    snapshot_path = project / ".dbc" / "scheduler" / "scheduler-state.json"
+    event_log_path = project / ".dbc" / "scheduler" / "scheduler-events.jsonl"
+    evidence_path = project / ".dbc" / "scheduler" / "evidence" / "host-loop-default.json"
     write_scheduler_state_snapshot(SchedulerState(), snapshot_path)
 
     result = run_host_authorized_scheduler_daemon_loop(
@@ -14218,7 +14218,7 @@ def test_drain_preflighted_ready_tasks_runs_dependency_chain_to_completion(tmp_p
         sandbox_registry=sandbox_registry,
         runtime_registry=runtime_registry,
         workspace_root="E:/workspace/project",
-        scratch_root=".codex/scratch",
+        scratch_root=".dbc/scratch",
         event_log=scheduler_log,
         timestamp="2026-06-17T00:30:00+08:00",
     )
@@ -14229,8 +14229,8 @@ def test_drain_preflighted_ready_tasks_runs_dependency_chain_to_completion(tmp_p
         "task-b",
     )
     assert tuple(run.preflight.scratch.path for run in result.preflight_results) == (
-        ".codex/scratch/task-a",
-        ".codex/scratch/task-b",
+        ".dbc/scratch/task-a",
+        ".dbc/scratch/task-b",
     )
     assert all(task.state == "complete" for task in result.state.tasks.values())
     assert [event.event_kind for event in scheduler_log.read_all()] == [
@@ -16075,7 +16075,7 @@ def _git_worktree_allocation(
         profile=task.sandbox_profile,
         state=state,
         workspace_root="E:/workspace/project",
-        scratch_path=".codex/scratch/task-1",
+        scratch_path=".dbc/scratch/task-1",
         visible_mounts=("README.md", *authorized_mounts),
         network_policy=task.sandbox_profile.network_policy,
         secret_policy=task.sandbox_profile.secret_policy,
@@ -16152,7 +16152,7 @@ def _allocated_git_worktree_for_cleanup(tmp_path: Path, repo: Path) -> SandboxAl
                 acquired_at="2026-06-21T06:00:00+08:00",
             ),
             workspace_root=str(repo),
-            scratch_path=".codex/scratch/task-1",
+            scratch_path=".dbc/scratch/task-1",
             required_mounts=("README.md",),
         )
     )
@@ -17012,7 +17012,7 @@ def test_runtime_invocation_log_inspection_can_decorate_latest_records(
 def test_worker_binding_promotion_candidate_readback_from_runtime_invocation_log(
     tmp_path: Path,
 ) -> None:
-    log_path = tmp_path / ".codex/runtime/opencode-delivery-invocations.jsonl"
+    log_path = tmp_path / ".dbc/runtime/opencode-delivery-invocations.jsonl"
     JsonlRuntimeInvocationLog(log_path).append(
         RuntimeInvocationRecord(
             invocation_id="inv-opencode-server-api",
@@ -17074,13 +17074,13 @@ def test_worker_binding_promotion_candidate_readback_from_runtime_invocation_log
     assert payload["authority_split"]["raw_transcript_exposed"] is False
     assert "transcript body" not in json.dumps(payload)
     assert "secret-token" not in json.dumps(payload)
-    assert not (tmp_path / ".codex/runtime/continuous-worker-bindings.json").exists()
+    assert not (tmp_path / ".dbc/runtime/continuous-worker-bindings.json").exists()
 
 
 def test_worker_binding_promotion_candidate_readback_filters_non_created_sources(
     tmp_path: Path,
 ) -> None:
-    log_path = tmp_path / ".codex/runtime/invocations.jsonl"
+    log_path = tmp_path / ".dbc/runtime/invocations.jsonl"
     log = JsonlRuntimeInvocationLog(log_path)
     log.append(
         RuntimeInvocationRecord(
@@ -17594,7 +17594,7 @@ def test_opencode_delivery_supervisor_uses_lane_session_ledger_binding(
         server_provider="opencode",
         client_provider="fake",
     )
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -17664,7 +17664,7 @@ def test_opencode_delivery_supervisor_server_api_uses_lane_session_ledger_bindin
         server_provider="opencode",
         client_provider="fake",
     )
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -17747,7 +17747,7 @@ def test_opencode_delivery_supervisor_prefers_task_binding_over_lane_binding(
         server_provider="opencode",
         client_provider="fake",
     )
-    ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=ledger_path,
@@ -17893,9 +17893,9 @@ def test_opencode_delivery_supervisor_server_api_uses_continuous_binding_before_
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=session_ledger_path,
@@ -18004,9 +18004,9 @@ def test_opencode_delivery_supervisor_server_api_explicit_session_disables_ledge
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=session_ledger_path,
@@ -18111,9 +18111,9 @@ def test_opencode_delivery_supervisor_server_api_created_session_does_not_write_
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    session_ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     run_leader_worker_dispatcher_tick(
         LeaderWorkerDispatcherTickRequest(
             dispatcher_state_path=paths["dispatcher_state"],
@@ -18199,11 +18199,11 @@ def test_opencode_delivery_supervisor_uses_continuous_worker_binding_before_sess
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
-    session_ledger_path = tmp_path / ".codex/runtime/opencode-session-ledger.json"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
+    session_ledger_path = tmp_path / ".dbc/runtime/opencode-session-ledger.json"
     claim_opencode_session_binding(
         OpenCodeSessionClaimRequest(
             ledger_path=session_ledger_path,
@@ -18326,10 +18326,10 @@ def test_opencode_delivery_supervisor_carries_continuous_worker_context_refs(
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
     claimed = claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -18450,11 +18450,11 @@ def test_opencode_delivery_supervisor_hydrates_compact_context_bundle(
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    context_bundle_dir = tmp_path / ".codex/runtime/continuous-worker-contexts"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    context_bundle_dir = tmp_path / ".dbc/runtime/continuous-worker-contexts"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
     claimed = claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -18575,8 +18575,8 @@ def test_opencode_delivery_supervisor_fails_closed_on_missing_compact_context_bu
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -18633,7 +18633,7 @@ def test_opencode_delivery_supervisor_fails_closed_on_missing_compact_context_bu
             continuous_worker_binding_ledger_path=worker_ledger_path,
             continuous_worker_binding_event_log_path=worker_event_log_path,
             continuous_worker_context_bundle_dir_path=(
-                tmp_path / ".codex/runtime/continuous-worker-contexts"
+                tmp_path / ".dbc/runtime/continuous-worker-contexts"
             ),
             enable_continuous_worker_binding_lookup=True,
             opencode_enable_session_lookup=False,
@@ -18660,12 +18660,12 @@ def test_opencode_delivery_supervisor_consumes_active_promoted_lane_ownership(
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
     promoted = promote_server_api_created_session_to_continuous_worker_binding(
         ServerApiCreatedSessionPromotionRequest(
             ledger_path=worker_ledger_path,
@@ -18791,17 +18791,17 @@ def test_opencode_delivery_supervisor_consumes_active_promoted_lane_ownership(
 def test_opencode_bounded_loop_reuses_same_continuous_worker_across_lane_chain(
     tmp_path: Path,
 ) -> None:
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c2-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c2-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c2-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c2-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-29T11:20:00+00:00",
@@ -18873,22 +18873,22 @@ def test_opencode_bounded_loop_reuses_same_continuous_worker_across_lane_chain(
 def test_trajectory_team_continuity_reuses_worker_across_same_trajectory_nodes(
     tmp_path: Path,
 ) -> None:
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
-    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
+    team_event_log_path = tmp_path / ".dbc/runtime/trajectory-team-continuity-events.jsonl"
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/team-continuity-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/team-continuity-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/team-continuity-exchange.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/team-continuity-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/team-continuity-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/team-continuity-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/team-continuity-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/team-continuity-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/team-continuity-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/team-continuity-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/team-continuity-exchange.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/team-continuity-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/team-continuity-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/team-continuity-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/team-continuity-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/team-continuity-invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-07-04T10:00:00+00:00",
@@ -19125,12 +19125,12 @@ def test_trajectory_team_continuity_reuses_worker_across_same_trajectory_nodes(
 def test_trajectory_team_continuity_records_transfer_release_and_no_continuity(
     tmp_path: Path,
 ) -> None:
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
-    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
-    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-transfer-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".dbc/runtime/trajectory-team-continuity-events.jsonl"
+    scheduler_event_log_path = tmp_path / ".dbc/scheduler/team-transfer-events.jsonl"
     assigned = assign_trajectory_lane_worker(
         TrajectoryTeamContinuityAssignRequest(
             trajectory_id="local-work:team-transfer",
@@ -19245,12 +19245,12 @@ def test_trajectory_team_continuity_records_transfer_release_and_no_continuity(
 def test_trajectory_team_continuity_records_suspend_resume_and_fork(
     tmp_path: Path,
 ) -> None:
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
-    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
-    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-fork-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".dbc/runtime/trajectory-team-continuity-events.jsonl"
+    scheduler_event_log_path = tmp_path / ".dbc/scheduler/team-fork-events.jsonl"
     assigned = assign_trajectory_lane_worker(
         TrajectoryTeamContinuityAssignRequest(
             trajectory_id="local-work:team-fork",
@@ -19407,11 +19407,11 @@ def test_trajectory_team_continuity_records_suspend_resume_and_fork(
 def test_trajectory_team_continuity_records_successful_release(
     tmp_path: Path,
 ) -> None:
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
-    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".dbc/runtime/trajectory-team-continuity-events.jsonl"
     assigned = assign_trajectory_lane_worker(
         TrajectoryTeamContinuityAssignRequest(
             trajectory_id="local-work:team-release",
@@ -19468,7 +19468,7 @@ def test_trajectory_team_continuity_records_successful_release(
 def test_trajectory_team_continuity_surface_assign_inspect_and_resolve(
     tmp_path: Path,
 ) -> None:
-    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-surface-events.jsonl"
+    scheduler_event_log_path = tmp_path / ".dbc/scheduler/team-surface-events.jsonl"
     assign = run_trajectory_team_continuity_surface(
         TrajectoryTeamContinuitySurfaceRequest(
             action="assign",
@@ -19578,10 +19578,10 @@ def test_opencode_delivery_supervisor_marks_continuous_worker_binding_stale_on_r
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -19681,10 +19681,10 @@ def test_opencode_delivery_supervisor_skips_binding_with_active_delivery_lease(
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
-    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    lease_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-delivery-lease-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -19770,10 +19770,10 @@ def test_opencode_delivery_supervisor_skips_binding_with_suspended_lane_ownershi
         server_provider="opencode",
         client_provider="fake",
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
-    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
-    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -19892,7 +19892,7 @@ def test_opencode_delivery_supervisor_worker_binding_blocks_same_session_paralle
         ),
         paths["snapshot"],
     )
-    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_ledger_path = tmp_path / ".dbc/runtime/continuous-worker-bindings.json"
     claim_continuous_worker_binding(
         ContinuousWorkerBindingClaimRequest(
             ledger_path=worker_ledger_path,
@@ -19974,9 +19974,9 @@ def test_opencode_delivery_supervisor_worker_binding_blocks_same_session_paralle
 def test_codex_result_consumer_stores_artifact_and_completion_event(
     tmp_path: Path,
 ) -> None:
-    snapshot = tmp_path / ".codex/scheduler/state.json"
-    event_log = tmp_path / ".codex/scheduler/events.jsonl"
-    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    snapshot = tmp_path / ".dbc/scheduler/state.json"
+    event_log = tmp_path / ".dbc/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
     task = ScheduledTask(
         task_id="task-consume",
         title="Consume result",
@@ -20980,14 +20980,14 @@ def test_codex_delivery_e2e_smoke_completes_one_codex_task(
     tmp_path: Path,
 ) -> None:
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c1-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c1-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c1-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c1-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-26T10:00:00+00:00",
@@ -21046,14 +21046,14 @@ def test_codex_delivery_e2e_smoke_fails_closed_when_codex_not_ready(
     tmp_path: Path,
 ) -> None:
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c1-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c1-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c1-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c1-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=False,
         require_host_ready=True,
     )
@@ -21078,14 +21078,14 @@ def test_opencode_delivery_e2e_smoke_completes_one_opencode_task(
     tmp_path: Path,
 ) -> None:
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c1-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c1-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c1-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c1-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-29T12:00:00+00:00",
@@ -21152,14 +21152,14 @@ def test_opencode_delivery_e2e_smoke_fails_closed_when_opencode_not_ready(
     tmp_path: Path,
 ) -> None:
     request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c1-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c1-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c1-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c1-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=False,
         require_host_ready=True,
     )
@@ -21186,14 +21186,14 @@ def test_bounded_codex_delivery_supervisor_loop_completes_codex_chain(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c2-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c2-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c2-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c2-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-26T11:00:00+00:00",
@@ -21249,14 +21249,14 @@ def test_opencode_bounded_delivery_supervisor_loop_completes_chain(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c2-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c2-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c2-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c2-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-29T11:00:00+00:00",
@@ -21318,14 +21318,14 @@ def test_bounded_codex_delivery_supervisor_loop_multilane_fixture(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c6-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c6-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c6-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c6-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -21390,14 +21390,14 @@ def test_bounded_codex_delivery_supervisor_loop_multilane_fixture(
 def test_codex_delivery_supervisor_keeps_same_lane_records_out_of_concurrent_batch(
     tmp_path: Path,
 ) -> None:
-    snapshot = tmp_path / ".codex/scheduler/state.json"
-    event_log = tmp_path / ".codex/scheduler/events.jsonl"
-    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
-    dispatcher_state = tmp_path / ".codex/scheduler/dispatcher-state.json"
-    dispatch_log = tmp_path / ".codex/scheduler/dispatcher-events.jsonl"
-    delivery_state_path = tmp_path / ".codex/scheduler/delivery-state.json"
-    delivery_log = tmp_path / ".codex/scheduler/delivery-events.jsonl"
-    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    snapshot = tmp_path / ".dbc/scheduler/state.json"
+    event_log = tmp_path / ".dbc/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".dbc/scheduler/dispatcher-state.json"
+    dispatch_log = tmp_path / ".dbc/scheduler/dispatcher-events.jsonl"
+    delivery_state_path = tmp_path / ".dbc/scheduler/delivery-state.json"
+    delivery_log = tmp_path / ".dbc/scheduler/delivery-events.jsonl"
+    runtime_log = tmp_path / ".dbc/runtime/invocations.jsonl"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     JsonArtifactVersionStore(artifact_store)
@@ -21492,14 +21492,14 @@ def test_bounded_codex_delivery_supervisor_loop_runs_lane_distinct_codex_concurr
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c8-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c8-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c8-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c8-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -21570,14 +21570,14 @@ def test_opencode_bounded_delivery_supervisor_loop_runs_lane_distinct_concurrent
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c8-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-c8-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-c8-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-c8-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-c8-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-c8-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c8-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c8-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-c8-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-c8-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-c8-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-c8-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-c8-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-c8-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -21642,21 +21642,21 @@ def test_live_codex_concurrent_worker_smoke_reports_audit_overlap(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c9-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c9-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/c9-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/c9-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/c9-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/c9-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/c9-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/c9-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c9-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c9-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/c9-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
         timestamp="2026-06-28T10:00:00+00:00",
         runtime_invocation_max_attempts=1,
     )
-    report_path = tmp_path / ".codex/scheduler/c9-report.json"
+    report_path = tmp_path / ".dbc/scheduler/c9-report.json"
     client = _BarrierCodexCliClient(
         expected_concurrent_calls=2,
         hold_after_barrier_seconds=0.05,
@@ -21704,14 +21704,14 @@ def test_live_opencode_concurrent_worker_smoke_reports_audit_overlap(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-c9-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-c9-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-c9-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-c9-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-c9-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-c9-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-c9-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-c9-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-c9-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -21733,7 +21733,7 @@ def test_live_opencode_concurrent_worker_smoke_reports_audit_overlap(
         host_invocation_id="host-owned-opencode-c9-test",
         trajectory_id="opencode-live-concurrent-worker-smoke",
     )
-    report_path = tmp_path / ".codex/scheduler/opencode-c9-report.json"
+    report_path = tmp_path / ".dbc/scheduler/opencode-c9-report.json"
     client = _BarrierOpenCodeCliClient(
         expected_concurrent_calls=2,
         hold_after_barrier_seconds=0.05,
@@ -21791,14 +21791,14 @@ def test_live_opencode_concurrent_worker_smoke_does_not_pass_failed_overlap(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-failed-c9-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-failed-c9-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-failed-c9-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-failed-c9-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-failed-c9-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-failed-c9-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-failed-c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-failed-c9-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -21830,7 +21830,7 @@ def test_live_opencode_concurrent_worker_smoke_does_not_pass_failed_overlap(
                 max_runtime_failures=1,
                 max_concurrent_deliveries=2,
             ),
-            report_path=tmp_path / ".codex/scheduler/opencode-failed-c9-report.json",
+            report_path=tmp_path / ".dbc/scheduler/opencode-failed-c9-report.json",
         ),
         opencode_cli_client=_BarrierFailingOpenCodeCliClient(
             expected_concurrent_calls=2,
@@ -21854,14 +21854,14 @@ def test_live_codex_concurrent_worker_smoke_replace_fixture_clears_auxiliary_sta
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c9-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c9-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/c9-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/c9-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/c9-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/c9-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/c9-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/c9-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c9-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c9-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/c9-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/c9-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/c9-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/c9-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/c9-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/c9-invocations.jsonl",
         initialize_fixture=True,
         replace_existing_fixture=True,
         fixture="multilane",
@@ -21877,7 +21877,7 @@ def test_live_codex_concurrent_worker_smoke_replace_fixture_clears_auxiliary_sta
             max_runtime_failures=1,
             max_concurrent_deliveries=2,
         ),
-        report_path=tmp_path / ".codex/scheduler/c9-report.json",
+        report_path=tmp_path / ".dbc/scheduler/c9-report.json",
     )
 
     first = run_live_codex_concurrent_worker_smoke(
@@ -21907,21 +21907,21 @@ def test_monitoring_api_summarizes_live_codex_smoke_without_mutation(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/monitor-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/monitor-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/monitor-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/monitor-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/monitor-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/monitor-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/monitor-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/monitor-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/monitor-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/monitor-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/monitor-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
         timestamp="2026-06-28T11:00:00+00:00",
         runtime_invocation_max_attempts=1,
     )
-    report_path = tmp_path / ".codex/scheduler/monitor-live-smoke-report.json"
+    report_path = tmp_path / ".dbc/scheduler/monitor-live-smoke-report.json"
     run_live_codex_concurrent_worker_smoke(
         LiveCodexConcurrentWorkerSmokeRequest(
             loop_request=CodexDeliveryBoundedLoopRequest(
@@ -21985,14 +21985,14 @@ def test_monitoring_api_handles_missing_live_smoke_report(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/monitor-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/monitor-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/monitor-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/monitor-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/monitor-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/monitor-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/monitor-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/monitor-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/monitor-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/monitor-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/monitor-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/monitor-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/monitor-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/monitor-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/monitor-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/monitor-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -22020,7 +22020,7 @@ def test_monitoring_api_handles_missing_live_smoke_report(
             delivery_state_path=smoke_request.delivery_state_path,
             runtime_invocation_log_path=smoke_request.runtime_invocation_log_path,
             artifact_store_path=smoke_request.artifact_store_path,
-            live_codex_smoke_report_path=tmp_path / ".codex/scheduler/missing-report.json",
+            live_codex_smoke_report_path=tmp_path / ".dbc/scheduler/missing-report.json",
         )
     )
     payload = snapshot.to_json_dict()
@@ -22038,14 +22038,14 @@ def test_codex_runtime_status_summarizes_multilane_loop_without_mutation(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c7-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c7-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c7-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c7-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -22124,14 +22124,14 @@ def test_opencode_runtime_status_summarizes_multilane_loop_without_mutation(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/opencode-status-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/opencode-status-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/opencode-exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/opencode-dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/opencode-dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/opencode-delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/opencode-delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/opencode-invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/opencode-status-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/opencode-status-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/opencode-exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/opencode-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/opencode-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/opencode-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/opencode-invocations.jsonl",
         initialize_fixture=True,
         fixture="multilane",
         require_host_ready=False,
@@ -22217,14 +22217,14 @@ def test_bounded_codex_delivery_supervisor_loop_stops_at_max_deliveries(
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c2-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c2-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c2-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c2-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-26T11:10:00+00:00",
@@ -22264,14 +22264,14 @@ def test_bounded_codex_delivery_supervisor_loop_retries_failed_delivery_after_re
     tmp_path: Path,
 ) -> None:
     smoke_request = CodexDeliveryE2ESmokeRequest(
-        scheduler_snapshot_path=tmp_path / ".codex/scheduler/c4-state.json",
-        scheduler_event_log_path=tmp_path / ".codex/scheduler/c4-events.jsonl",
-        artifact_store_path=tmp_path / ".codex/orchestration/exchange-artifacts.json",
-        dispatcher_state_path=tmp_path / ".codex/scheduler/dispatcher-state.json",
-        dispatch_event_log_path=tmp_path / ".codex/scheduler/dispatcher-events.jsonl",
-        delivery_state_path=tmp_path / ".codex/scheduler/delivery-state.json",
-        delivery_event_log_path=tmp_path / ".codex/scheduler/delivery-events.jsonl",
-        runtime_invocation_log_path=tmp_path / ".codex/runtime/invocations.jsonl",
+        scheduler_snapshot_path=tmp_path / ".dbc/scheduler/c4-state.json",
+        scheduler_event_log_path=tmp_path / ".dbc/scheduler/c4-events.jsonl",
+        artifact_store_path=tmp_path / ".dbc/orchestration/exchange-artifacts.json",
+        dispatcher_state_path=tmp_path / ".dbc/scheduler/dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".dbc/scheduler/dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".dbc/scheduler/delivery-state.json",
+        delivery_event_log_path=tmp_path / ".dbc/scheduler/delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".dbc/runtime/invocations.jsonl",
         initialize_fixture=True,
         require_host_ready=False,
         timestamp="2026-06-27T09:20:00+00:00",
@@ -22386,14 +22386,14 @@ def _seed_leader_worker_dispatcher_inputs_with_provider(
     server_provider,
     client_provider,
 ) -> dict[str, Path]:
-    snapshot = tmp_path / ".codex/scheduler/state.json"
-    event_log = tmp_path / ".codex/scheduler/events.jsonl"
-    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
-    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
-    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
-    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
-    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
-    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    snapshot = tmp_path / ".dbc/scheduler/state.json"
+    event_log = tmp_path / ".dbc/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".dbc/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".dbc/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".dbc/runtime/invocations.jsonl"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     write_scheduler_state_snapshot(
@@ -22445,14 +22445,14 @@ def _seed_leader_worker_dispatcher_inputs_with_provider(
 
 
 def _seed_codex_delivery_supervisor_permission_project(tmp_path: Path) -> dict[str, Path]:
-    snapshot = tmp_path / ".codex/scheduler/state.json"
-    event_log = tmp_path / ".codex/scheduler/events.jsonl"
-    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
-    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
-    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
-    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
-    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
-    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    snapshot = tmp_path / ".dbc/scheduler/state.json"
+    event_log = tmp_path / ".dbc/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".dbc/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".dbc/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".dbc/runtime/invocations.jsonl"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     write_scheduler_state_snapshot(
@@ -22523,14 +22523,14 @@ def _seed_codex_delivery_supervisor_git_worktree_project(
     source_repo: Path,
     provider: RuntimeProviderKind = "codex",
 ) -> dict[str, Path]:
-    snapshot = tmp_path / ".codex/scheduler/state.json"
-    event_log = tmp_path / ".codex/scheduler/events.jsonl"
-    artifact_store = tmp_path / ".codex/orchestration/exchange-artifacts.json"
-    dispatcher_state = tmp_path / ".codex/scheduler/leader-worker-dispatcher-state.json"
-    dispatch_log = tmp_path / ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
-    delivery_state = tmp_path / ".codex/scheduler/leader-worker-delivery-state.json"
-    delivery_log = tmp_path / ".codex/scheduler/leader-worker-delivery-events.jsonl"
-    runtime_log = tmp_path / ".codex/runtime/invocations.jsonl"
+    snapshot = tmp_path / ".dbc/scheduler/state.json"
+    event_log = tmp_path / ".dbc/scheduler/events.jsonl"
+    artifact_store = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
+    dispatcher_state = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-state.json"
+    dispatch_log = tmp_path / ".dbc/scheduler/leader-worker-dispatcher-events.jsonl"
+    delivery_state = tmp_path / ".dbc/scheduler/leader-worker-delivery-state.json"
+    delivery_log = tmp_path / ".dbc/scheduler/leader-worker-delivery-events.jsonl"
+    runtime_log = tmp_path / ".dbc/runtime/invocations.jsonl"
     event_log.parent.mkdir(parents=True, exist_ok=True)
     event_log.write_text("", encoding="utf-8")
     server_task = ScheduledTask(
@@ -22630,7 +22630,7 @@ def test_worker_trajectory_report_consumer_starts_missing_trajectory_from_append
 ) -> None:
     from tools.progress_graph import load_local_work_trajectory, trajectory_json_path
 
-    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
     _write_worker_trajectory_report(report_path, suggested_action="append")
 
     result = consume_worker_trajectory_report(
@@ -22660,7 +22660,7 @@ def test_worker_trajectory_report_consumer_starts_missing_trajectory_from_append
     assert event.kind == "validation"
     assert event.metadata["worker_report_id"] == "report-worker-trajectory"
     assert event.metadata["worker_task_id"] == "task/server"
-    assert event.metadata["worker_evidence_refs"] == ".codex/agent-output/report-worker.json"
+    assert event.metadata["worker_evidence_refs"] == ".dbc/agent-output/report-worker.json"
 
 
 def test_worker_trajectory_report_consumer_rejects_worker_role_before_mutation(
@@ -22668,7 +22668,7 @@ def test_worker_trajectory_report_consumer_rejects_worker_role_before_mutation(
 ) -> None:
     from tools.progress_graph import trajectory_json_path
 
-    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
     _write_worker_trajectory_report(report_path, suggested_action="append")
 
     result = consume_worker_trajectory_report(
@@ -22690,7 +22690,7 @@ def test_worker_trajectory_report_consumer_fails_invalid_report_without_mutation
 ) -> None:
     from tools.progress_graph import trajectory_json_path
 
-    report_path = tmp_path / ".codex" / "agent-output" / "report-invalid.json"
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-invalid.json"
     _write_worker_trajectory_report(report_path, suggested_action="append")
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     payload["trajectory_update"]["localTrajectoryPayload"] = {"action": "advance"}
@@ -22721,7 +22721,7 @@ def test_worker_trajectory_report_consumer_advances_existing_trajectory(
         lane_label="server",
         lane_id="lane:server",
     )
-    report_path = tmp_path / ".codex" / "agent-output" / "report-worker.json"
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
     _write_worker_trajectory_report(report_path, suggested_action="advance")
 
     result = consume_worker_trajectory_report(
@@ -22760,7 +22760,7 @@ def _write_worker_trajectory_report(
                     "event_status": "completed",
                     "summary": "Server lane finished and validated.",
                     "suggested_action": suggested_action,
-                    "evidence_refs": [".codex/agent-output/report-worker.json"],
+                    "evidence_refs": [".dbc/agent-output/report-worker.json"],
                     "leader_notes": ["Review validation before advancing."],
                 },
             },
