@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.workflow.checkpoint import read_checkpoint
 
 from .model import (
@@ -17,7 +18,7 @@ from .model import (
     ProgressNode,
 )
 
-_DEFAULT_HISTORY_PATH = Path(".codex/progress-graph/latest.json")
+_DEFAULT_HISTORY_PATH = Path(dbc_artifact_path("progress-graph", "latest.json"))
 _PHASE_MAP_PATH = Path("design_docs/Global Phase Map and Current Position.md")
 _GLOBAL_DIRECTION_CANDIDATES_PATH = Path("design_docs/direction-candidates-after-phase-35.md")
 _RESEARCH_COMPASS_PATH = Path("review/research-compass.md")

@@ -114,6 +114,45 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="workspaceDbcCommand",
+                description=(
+                    "Per-agent workspace DBC command relay. Runs a doc-based-coding CLI argv "
+                    "through the same package/Python instance that hosts this MCP server, with "
+                    "the MCP project root as cwd, so agents do not resolve global PATH or venv "
+                    "paths themselves. This is not a generic shell. Prefer dedicated structured "
+                    "MCP tools when available; use this for CLI-equivalent diagnostics or operator "
+                    "surfaces that do not have a dedicated MCP tool."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "argv": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "DBC CLI arguments without the executable name, for example "
+                                "['doctor', '--profile', 'codex']."
+                            ),
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["read", "mutate"],
+                            "description": (
+                                "read allows read/diagnostic commands only. mutate is required "
+                                "for DBC commands that may write project or scheduler state."
+                            ),
+                        },
+                        "timeoutSeconds": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 300,
+                            "description": "Bounded subprocess timeout. Default 30.",
+                        },
+                    },
+                    "required": ["argv"],
+                },
+            ),
+            Tool(
                 name="writeback_notify",
                 description=(
                     "Notify that a phase or slice writeback has been completed. "
@@ -875,11 +914,131 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="trajectoryTeamContinuity",
+                description=(
+                    "Leader/operator-owned surface for Trajectory Team Continuity. "
+                    "Uses one shared runtime dispatcher to inspect or update the "
+                    "trajectory team roster, continuous worker binding, lane "
+                    "ownership, and team audit event log. Mutating actions require "
+                    "callerRole leader/main/supervisor/guide; worker/subagent roles "
+                    "are rejected and must use the worker report path described in "
+                    "docs/worker-trajectory-update-reporting.md. This tool does not "
+                    "run providers, mutate scheduler task state, or mutate Local "
+                    "Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "inspect",
+                                "resolve",
+                                "assign",
+                                "activate",
+                                "suspend",
+                                "resume",
+                                "transfer",
+                                "fork",
+                                "release",
+                                "noContinuity",
+                            ],
+                            "description": "Trajectory team continuity action.",
+                        },
+                        "callerRole": {
+                            "type": "string",
+                            "enum": [
+                                "leader",
+                                "main",
+                                "supervisor",
+                                "guide",
+                                "worker",
+                                "subagent",
+                                "lane_worker",
+                                "bounded_worker",
+                            ],
+                            "description": "Caller role. Mutating actions require leader/main/supervisor/guide.",
+                        },
+                        "trajectoryId": {
+                            "type": "string",
+                            "description": "Local Work Trajectory id for the team roster.",
+                        },
+                        "laneId": {
+                            "type": "string",
+                            "description": "Lane id to inspect, resolve, or mutate.",
+                        },
+                        "leaderId": {"type": "string"},
+                        "workerId": {"type": "string"},
+                        "runtimeProvider": {
+                            "type": "string",
+                            "description": "Runtime provider label: fake, qoder, codex, or opencode.",
+                        },
+                        "bindingId": {"type": "string"},
+                        "ownershipId": {"type": "string"},
+                        "replacementBindingId": {"type": "string"},
+                        "newBindingId": {"type": "string"},
+                        "sourceBindingId": {"type": "string"},
+                        "noContinuityReason": {"type": "string"},
+                        "taskId": {"type": "string"},
+                        "deliveryId": {"type": "string"},
+                        "timestamp": {"type": "string"},
+                        "reason": {"type": "string"},
+                        "bindingLedgerPath": {
+                            "type": "string",
+                            "description": "Optional binding ledger path. Relative paths resolve under the MCP project root.",
+                        },
+                        "bindingEventLogPath": {
+                            "type": "string",
+                            "description": "Optional binding event JSONL path.",
+                        },
+                        "ownershipLedgerPath": {
+                            "type": "string",
+                            "description": "Optional lane ownership ledger path.",
+                        },
+                        "ownershipEventLogPath": {
+                            "type": "string",
+                            "description": "Optional lane ownership event JSONL path.",
+                        },
+                        "leaseLedgerPath": {
+                            "type": "string",
+                            "description": "Optional delivery lease ledger path used for active lease readback.",
+                        },
+                        "teamEventLogPath": {
+                            "type": "string",
+                            "description": "Optional trajectory team continuity event JSONL path.",
+                        },
+                        "schedulerEventLogPath": {
+                            "type": "string",
+                            "description": "Optional scheduler event log path for audit-only continuity events.",
+                        },
+                        "attachUrl": {"type": "string"},
+                        "sessionId": {"type": "string"},
+                        "continueSession": {"type": "boolean"},
+                        "forkSession": {"type": "boolean"},
+                        "compactContextRef": {"type": "string"},
+                        "mailboxCursorRef": {"type": "string"},
+                        "workerReportRefs": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "auditRefs": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "includeInactive": {
+                            "type": "boolean",
+                            "description": "Include inactive binding/ownership rows in readback. Default true.",
+                        },
+                    },
+                    "required": ["action"],
+                },
+            ),
+            Tool(
                 name="schedulerProjection",
                 description=(
                     "Write a scheduler-derived Local Work Trajectory projection artifact. "
                     "Reads a scheduler snapshot plus optional scheduler/merge-gate JSONL "
-                    "history logs, then writes .codex/progress-graph/scheduler-work-trajectory.json "
+                    "history logs, then writes .dbc/progress-graph/scheduler-work-trajectory.json "
                     "by default. This is a read-only projection path and does not mutate "
                     "the agent-owned local-work-trajectory.json lifecycle artifact."
                 ),
@@ -900,7 +1059,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "outputPath": {
                             "type": "string",
-                            "description": "Optional output JSON path. Defaults to .codex/progress-graph/scheduler-work-trajectory.json.",
+                            "description": "Optional output JSON path. Defaults to .dbc/progress-graph/scheduler-work-trajectory.json.",
                         },
                         "trajectoryId": {
                             "type": "string",
@@ -1034,11 +1193,11 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "admissionLedgerPath": {
                             "type": "string",
-                            "description": "Optional admission ledger path. Defaults to .codex/orchestration/exchange-artifact-admissions.json.",
+                            "description": "Optional admission ledger path. Defaults to .dbc/orchestration/exchange-artifact-admissions.json.",
                         },
                         "allowDuplicateAdmission": {
                             "type": "boolean",
@@ -1088,7 +1247,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                     },
                     "required": ["artifactId", "version"],
@@ -1113,7 +1272,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "includeArchived": {
                             "type": "boolean",
@@ -1146,7 +1305,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "includeArchived": {
                             "type": "boolean",
@@ -1180,7 +1339,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "admissionLedgerPath": {
                             "type": "string",
@@ -1245,7 +1404,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "timestamp": {
                             "type": "string",
@@ -1294,7 +1453,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "admissionLedgerPath": {
                             "type": "string",
@@ -1356,7 +1515,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "actor": {
                             "type": "string",
@@ -1396,7 +1555,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "actor": {
                             "type": "string",
@@ -1447,7 +1606,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "mergeGateEventLogPath": {
                             "type": "string",
@@ -1516,7 +1675,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "eventLogPath": {
                             "type": "string",
@@ -1582,7 +1741,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "kind": {
                             "type": "string",
@@ -1641,7 +1800,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "reason": {
                             "type": "string",
@@ -1675,7 +1834,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults to .codex/orchestration/exchange-artifacts.json.",
+                            "description": "Optional ExchangeArtifact store path. Defaults to .dbc/orchestration/exchange-artifacts.json.",
                         },
                         "artifactId": {
                             "type": "string",
@@ -1735,7 +1894,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "outputPath": {
                             "type": "string",
-                            "description": "Optional scheduler projection output JSON path. Defaults to .codex/progress-graph/scheduler-work-trajectory.json.",
+                            "description": "Optional scheduler projection output JSON path. Defaults to .dbc/progress-graph/scheduler-work-trajectory.json.",
                         },
                         "maxRuns": {
                             "type": "number",
@@ -1800,7 +1959,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "scratchRoot": {
                             "type": "string",
-                            "description": "Optional scratch root used only to compute readback scratch paths. Defaults to .codex/scratch.",
+                            "description": "Optional scratch root used only to compute readback scratch paths. Defaults to .dbc/scratch.",
                         },
                     },
                     "required": ["snapshotPath"],
@@ -1898,11 +2057,11 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "snapshotPath": {
                             "type": "string",
-                            "description": "Optional scheduler snapshot path. Defaults under .codex/scheduler.",
+                            "description": "Optional scheduler snapshot path. Defaults under .dbc/scheduler.",
                         },
                         "eventLogPath": {
                             "type": "string",
-                            "description": "Optional scheduler event log path. Defaults under .codex/scheduler.",
+                            "description": "Optional scheduler event log path. Defaults under .dbc/scheduler.",
                         },
                         "mergeGateEventLogPath": {
                             "type": "string",
@@ -2012,11 +2171,11 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                         },
                         "snapshotPath": {
                             "type": "string",
-                            "description": "Optional scheduler snapshot path. Defaults under .codex/scheduler.",
+                            "description": "Optional scheduler snapshot path. Defaults under .dbc/scheduler.",
                         },
                         "eventLogPath": {
                             "type": "string",
-                            "description": "Optional scheduler event log path. Defaults under .codex/scheduler.",
+                            "description": "Optional scheduler event log path. Defaults under .dbc/scheduler.",
                         },
                         "mergeGateEventLogPath": {
                             "type": "string",
@@ -2116,11 +2275,11 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                     "properties": {
                         "artifactStorePath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact store path. Defaults under .codex/orchestration.",
+                            "description": "Optional ExchangeArtifact store path. Defaults under .dbc/orchestration.",
                         },
                         "admissionLedgerPath": {
                             "type": "string",
-                            "description": "Optional ExchangeArtifact admission ledger path. Defaults under .codex/orchestration.",
+                            "description": "Optional ExchangeArtifact admission ledger path. Defaults under .dbc/orchestration.",
                         },
                         "snapshotPath": {
                             "type": "string",
@@ -2876,6 +3035,12 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
             result = tools.check_constraints()
         elif name == "get_next_action":
             result = tools.get_next_action()
+        elif name == "workspaceDbcCommand":
+            result = tools.workspace_dbc_command(
+                arguments.get("argv"),
+                mode=arguments.get("mode", "read"),
+                timeout_seconds=arguments.get("timeoutSeconds", 30),
+            )
         elif name == "writeback_notify":
             result = tools.writeback_notify(arguments["phase_description"])
         elif name == "get_pack_info":
@@ -3007,6 +3172,42 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 start_if_missing=arguments.get("startIfMissing", True),
                 trajectory_title=arguments.get("trajectoryTitle", "Local Work Trajectory"),
                 guide_context=arguments.get("guideContext", "worker-trajectory-report-consumer"),
+            )
+        elif name == "trajectoryTeamContinuity":
+            result = tools.trajectory_team_continuity(
+                action=arguments.get("action", ""),
+                caller_role=arguments.get("callerRole", "leader"),
+                trajectory_id=arguments.get("trajectoryId", ""),
+                lane_id=arguments.get("laneId", ""),
+                leader_id=arguments.get("leaderId", "agent:guide"),
+                worker_id=arguments.get("workerId", ""),
+                runtime_provider=arguments.get("runtimeProvider", "opencode"),
+                binding_id=arguments.get("bindingId", ""),
+                ownership_id=arguments.get("ownershipId", ""),
+                replacement_binding_id=arguments.get("replacementBindingId", ""),
+                new_binding_id=arguments.get("newBindingId", ""),
+                source_binding_id=arguments.get("sourceBindingId", ""),
+                no_continuity_reason=arguments.get("noContinuityReason", ""),
+                task_id=arguments.get("taskId", ""),
+                delivery_id=arguments.get("deliveryId", ""),
+                timestamp=arguments.get("timestamp", ""),
+                reason=arguments.get("reason", ""),
+                binding_ledger_path=arguments.get("bindingLedgerPath", ""),
+                binding_event_log_path=arguments.get("bindingEventLogPath", ""),
+                ownership_ledger_path=arguments.get("ownershipLedgerPath", ""),
+                ownership_event_log_path=arguments.get("ownershipEventLogPath", ""),
+                lease_ledger_path=arguments.get("leaseLedgerPath", ""),
+                team_event_log_path=arguments.get("teamEventLogPath", ""),
+                scheduler_event_log_path=arguments.get("schedulerEventLogPath", ""),
+                attach_url=arguments.get("attachUrl", ""),
+                session_id=arguments.get("sessionId", ""),
+                continue_session=arguments.get("continueSession", False),
+                fork_session=arguments.get("forkSession", False),
+                compact_context_ref=arguments.get("compactContextRef", ""),
+                mailbox_cursor_ref=arguments.get("mailboxCursorRef", ""),
+                worker_report_refs=arguments.get("workerReportRefs"),
+                audit_refs=arguments.get("auditRefs"),
+                include_inactive=arguments.get("includeInactive", True),
             )
         elif name == "schedulerProjection":
             result = tools.scheduler_projection(
@@ -3207,7 +3408,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 scheduler_event_log_path=arguments.get("schedulerEventLogPath", ""),
                 strict=arguments.get("strict", True),
                 workspace_root=arguments.get("workspaceRoot", ""),
-                scratch_root=arguments.get("scratchRoot", ".codex/scratch"),
+                scratch_root=arguments.get("scratchRoot", ".dbc/scratch"),
             )
         elif name == "schedulerCleanupReceipts":
             result = tools.scheduler_cleanup_receipts(
@@ -3293,7 +3494,7 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 timestamp=arguments.get("timestamp", ""),
                 runtime_provider=arguments.get("runtimeProvider", "fake"),
                 workspace_root=arguments.get("workspaceRoot", ""),
-                scratch_root=arguments.get("scratchRoot", ".codex/scratch"),
+                scratch_root=arguments.get("scratchRoot", ".dbc/scratch"),
                 wave_execution_mode=arguments.get("waveExecutionMode", "serial"),
             )
         elif name == "schedulerSandboxReceiptWorkflow":

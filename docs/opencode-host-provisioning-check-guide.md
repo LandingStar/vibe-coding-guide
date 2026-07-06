@@ -209,7 +209,7 @@ doc-based-coding opencode serve-lifecycle inspect
 Useful bounded options:
 
 ```text
---ledger-path .codex/runtime/opencode-serve-lifecycle-ledger.json
+--ledger-path .dbc/runtime/opencode-serve-lifecycle-ledger.json
 --action start|stop|restart|status|external
 --status planned|observed|succeeded|failed
 --executable PATH
@@ -275,7 +275,7 @@ doc-based-coding opencode session recover-stale \
 Useful options:
 
 ```text
---ledger-path .codex/runtime/opencode-session-ledger.json
+--ledger-path .dbc/runtime/opencode-session-ledger.json
 --binding-id ID
 --owner-agent-id agent:guide
 --lane-id lane:server
@@ -307,7 +307,7 @@ task -> agent -> lane
 Use:
 
 ```text
---session-ledger-path .codex/runtime/opencode-session-ledger.json
+--session-ledger-path .dbc/runtime/opencode-session-ledger.json
 --no-session-ledger-lookup
 ```
 
@@ -411,7 +411,7 @@ Inspect runtime invocation audit for promotable server/API-created sessions:
 
 ```text
 doc-based-coding worker-binding inspect-promotion-candidates \
-  --runtime-invocation-log-path .codex/runtime/opencode-delivery-invocations.jsonl
+  --runtime-invocation-log-path .dbc/runtime/opencode-delivery-invocations.jsonl
 ```
 
 `inspect-promotion-candidates` is read-only. It scans compact runtime
@@ -449,7 +449,7 @@ Useful commands:
 doc-based-coding worker-binding inspect
 doc-based-coding worker-binding lane-ownership inspect --lane-id lane:server
 doc-based-coding worker-binding lane-ownership activate --binding-id continuous-worker:lane:lane-server --delivery-id DELIVERY_ID --task-id TASK_ID
-doc-based-coding worker-binding inspect-promotion-candidates --runtime-invocation-log-path .codex/runtime/opencode-delivery-invocations.jsonl
+doc-based-coding worker-binding inspect-promotion-candidates --runtime-invocation-log-path .dbc/runtime/opencode-delivery-invocations.jsonl
 doc-based-coding worker-binding promote-server-api-session --worker-id worker:server --scope-kind lane --scope-id lane:server --attach-url http://127.0.0.1:4096 --session-id SESSION_ID --claim-lane-ownership
 doc-based-coding worker-binding reuse --binding-id continuous-worker:lane:lane-server --task-id task-server
 doc-based-coding worker-binding compact --binding-id continuous-worker:lane:lane-server --compact-context-ref dbc://context/server-worker-v2
@@ -462,8 +462,8 @@ doc-based-coding worker-binding recover-stale --now 2026-06-29T10:00:00+00:00
 Useful options:
 
 ```text
---ledger-path .codex/runtime/continuous-worker-bindings.json
---event-log-path .codex/runtime/continuous-worker-binding-events.jsonl
+--ledger-path .dbc/runtime/continuous-worker-bindings.json
+--event-log-path .dbc/runtime/continuous-worker-binding-events.jsonl
 --runtime-provider fake|qoder|codex|opencode
 --scope-kind lane|lane_group|agent|task
 --worker-id worker:server
@@ -472,12 +472,12 @@ Useful options:
 --audit-ref REF
 --expires-at TIMESTAMP
 --include-inactive
---runtime-invocation-log-path .codex/runtime/opencode-delivery-invocations.jsonl
+--runtime-invocation-log-path .dbc/runtime/opencode-delivery-invocations.jsonl
 --latest-limit 100
 --include-incomplete
 --claim-lane-ownership
---lane-ownership-ledger-path .codex/runtime/continuous-worker-lane-ownerships.json
---lane-ownership-event-log-path .codex/runtime/continuous-worker-lane-ownership-events.jsonl
+--lane-ownership-ledger-path .dbc/runtime/continuous-worker-lane-ownerships.json
+--lane-ownership-event-log-path .dbc/runtime/continuous-worker-lane-ownership-events.jsonl
 ```
 
 Binding lookup precedence is:
@@ -489,8 +489,8 @@ task -> agent -> lane -> lane_group membership
 For delivery commands:
 
 ```text
---worker-binding-ledger-path .codex/runtime/continuous-worker-bindings.json
---worker-binding-event-log-path .codex/runtime/continuous-worker-binding-events.jsonl
+--worker-binding-ledger-path .dbc/runtime/continuous-worker-bindings.json
+--worker-binding-event-log-path .dbc/runtime/continuous-worker-binding-events.jsonl
 --no-worker-binding-lookup
 ```
 
@@ -511,7 +511,7 @@ OpenCode it can carry a `fork_session` selector, but it still does not create a
 session or call the provider. `compact` records a project-owned compact context
 snapshot, mailbox cursor, worker report refs, and audit refs. With
 `--build-context-bundle`, it writes a provider-neutral compact bundle under
-`.codex/runtime/continuous-worker-contexts/` and then stores that bundle's
+`.dbc/runtime/continuous-worker-contexts/` and then stores that bundle's
 `dbc://continuous-worker-context/...` ref on the binding. The bundle may contain
 summary, key decisions, current state, artifact refs, worker report refs,
 mailbox cursor, and audit refs. It must not store raw transcript text or secret
@@ -584,12 +584,12 @@ Useful bounded options:
 --session-id ID
 --continue-session
 --fork-session
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
---snapshot-path .codex/scheduler/opencode-guide-worker-provider-execution-state.json
---event-log-path .codex/scheduler/opencode-guide-worker-provider-execution-events.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json
+--snapshot-path .dbc/scheduler/opencode-guide-worker-provider-execution-state.json
+--event-log-path .dbc/scheduler/opencode-guide-worker-provider-execution-events.jsonl
 --evidence-id opencode-guide-worker-provider-execution
---evidence-path .codex/scheduler/evidence/opencode-guide-worker-provider-execution.json
+--evidence-path .dbc/scheduler/evidence/opencode-guide-worker-provider-execution.json
 --host-invocation-id host-owned-opencode-guide-worker-provider-execution-cli
 --reason "bounded host-owned OpenCode smoke"
 --guide-task-title "Build maze game"
@@ -613,10 +613,10 @@ delivery records have been synced:
 
 ```text
 doc-based-coding scheduler opencode-delivery-supervisor-once \
-  --snapshot-path .codex/scheduler/state.json \
-  --event-log-path .codex/scheduler/events.jsonl \
-  --delivery-state-path .codex/scheduler/leader-worker-delivery-state.json \
-  --delivery-event-log-path .codex/scheduler/leader-worker-delivery-events.jsonl
+  --snapshot-path .dbc/scheduler/state.json \
+  --event-log-path .dbc/scheduler/events.jsonl \
+  --delivery-state-path .dbc/scheduler/leader-worker-delivery-state.json \
+  --delivery-event-log-path .dbc/scheduler/leader-worker-delivery-events.jsonl
 ```
 
 Useful bounded options:
@@ -630,12 +630,12 @@ Useful bounded options:
 --session-id ID
 --continue-session
 --fork-session
---worker-binding-ledger-path .codex/runtime/continuous-worker-bindings.json
+--worker-binding-ledger-path .dbc/runtime/continuous-worker-bindings.json
 --no-worker-binding-lookup
---session-ledger-path .codex/runtime/opencode-session-ledger.json
+--session-ledger-path .dbc/runtime/opencode-session-ledger.json
 --no-session-ledger-lookup
---runtime-invocation-log-path .codex/runtime/opencode-delivery-invocations.jsonl
---artifact-store-path .codex/orchestration/exchange-artifacts.json
+--runtime-invocation-log-path .dbc/runtime/opencode-delivery-invocations.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
 --consume-success-results
 --replace-existing-result-artifact
 --max-deliveries 1
@@ -643,8 +643,8 @@ Useful bounded options:
 --max-delivery-attempts-per-record 2
 --enable-sandbox-preflight
 --workspace-root .
---scratch-root .codex/scratch
---git-worktree-sandbox-root .codex/sandboxes/opencode-workers
+--scratch-root .dbc/scratch
+--git-worktree-sandbox-root .dbc/sandboxes/opencode-workers
 --git-executable git
 --publish-worker-patch-artifacts
 --worker-patch-guide-agent-id agent:guide
@@ -716,18 +716,18 @@ Useful bounded options:
 --session-id ID
 --continue-session
 --fork-session
---worker-binding-ledger-path .codex/runtime/continuous-worker-bindings.json
+--worker-binding-ledger-path .dbc/runtime/continuous-worker-bindings.json
 --no-worker-binding-lookup
---session-ledger-path .codex/runtime/opencode-session-ledger.json
+--session-ledger-path .dbc/runtime/opencode-session-ledger.json
 --no-session-ledger-lookup
---snapshot-path .codex/scheduler/opencode-delivery-e2e-smoke-state.json
---event-log-path .codex/scheduler/opencode-delivery-e2e-smoke-events.jsonl
---runtime-invocation-log-path .codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---dispatcher-state-path .codex/scheduler/leader-worker-dispatcher-state.json
---dispatch-event-log-path .codex/scheduler/leader-worker-dispatcher-events.jsonl
---delivery-state-path .codex/scheduler/leader-worker-delivery-state.json
---delivery-event-log-path .codex/scheduler/leader-worker-delivery-events.jsonl
+--snapshot-path .dbc/scheduler/opencode-delivery-e2e-smoke-state.json
+--event-log-path .dbc/scheduler/opencode-delivery-e2e-smoke-events.jsonl
+--runtime-invocation-log-path .dbc/runtime/opencode-delivery-e2e-smoke-invocations.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--dispatcher-state-path .dbc/scheduler/leader-worker-dispatcher-state.json
+--dispatch-event-log-path .dbc/scheduler/leader-worker-dispatcher-events.jsonl
+--delivery-state-path .dbc/scheduler/leader-worker-delivery-state.json
+--delivery-event-log-path .dbc/scheduler/leader-worker-delivery-events.jsonl
 --replace-existing-fixture
 --replace-existing-result-artifact
 --fixture simple|multilane
@@ -773,26 +773,26 @@ Useful bounded options:
 --session-id ID
 --continue-session
 --fork-session
---worker-binding-ledger-path .codex/runtime/continuous-worker-bindings.json
+--worker-binding-ledger-path .dbc/runtime/continuous-worker-bindings.json
 --no-worker-binding-lookup
---session-ledger-path .codex/runtime/opencode-session-ledger.json
+--session-ledger-path .dbc/runtime/opencode-session-ledger.json
 --no-session-ledger-lookup
---snapshot-path .codex/scheduler/opencode-delivery-supervisor-loop-state.json
---event-log-path .codex/scheduler/opencode-delivery-supervisor-loop-events.jsonl
---dispatcher-state-path .codex/scheduler/leader-worker-dispatcher-state.json
---dispatch-event-log-path .codex/scheduler/leader-worker-dispatcher-events.jsonl
---delivery-state-path .codex/scheduler/leader-worker-delivery-state.json
---delivery-event-log-path .codex/scheduler/leader-worker-delivery-events.jsonl
---runtime-invocation-log-path .codex/runtime/opencode-delivery-loop-invocations.jsonl
---artifact-store-path .codex/orchestration/exchange-artifacts.json
+--snapshot-path .dbc/scheduler/opencode-delivery-supervisor-loop-state.json
+--event-log-path .dbc/scheduler/opencode-delivery-supervisor-loop-events.jsonl
+--dispatcher-state-path .dbc/scheduler/leader-worker-dispatcher-state.json
+--dispatch-event-log-path .dbc/scheduler/leader-worker-dispatcher-events.jsonl
+--delivery-state-path .dbc/scheduler/leader-worker-delivery-state.json
+--delivery-event-log-path .dbc/scheduler/leader-worker-delivery-events.jsonl
+--runtime-invocation-log-path .dbc/runtime/opencode-delivery-loop-invocations.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
 --replace-existing-fixture
 --replace-existing-result-artifact
 --max-runtime-failures 1
 --max-delivery-attempts-per-record 2
 --enable-sandbox-preflight
 --workspace-root .
---scratch-root .codex/scratch
---git-worktree-sandbox-root .codex/sandboxes/opencode-workers
+--scratch-root .dbc/scratch
+--git-worktree-sandbox-root .dbc/sandboxes/opencode-workers
 --git-executable git
 --publish-worker-patch-artifacts
 --worker-patch-guide-agent-id agent:guide
@@ -842,11 +842,11 @@ For a single pass over existing delivery records:
 
 ```text
 doc-based-coding scheduler opencode-delivery-supervisor-once \
-  --snapshot-path .codex/scheduler/state.json \
-  --event-log-path .codex/scheduler/events.jsonl \
-  --delivery-state-path .codex/scheduler/leader-worker-delivery-state.json \
-  --delivery-event-log-path .codex/scheduler/leader-worker-delivery-events.jsonl \
-  --runtime-invocation-log-path .codex/runtime/opencode-server-api-invocations.jsonl \
+  --snapshot-path .dbc/scheduler/state.json \
+  --event-log-path .dbc/scheduler/events.jsonl \
+  --delivery-state-path .dbc/scheduler/leader-worker-delivery-state.json \
+  --delivery-event-log-path .dbc/scheduler/leader-worker-delivery-events.jsonl \
+  --runtime-invocation-log-path .dbc/runtime/opencode-server-api-invocations.jsonl \
   --opencode-transport server-api \
   --server-api-base-url http://127.0.0.1:4096 \
   --runtime-invocation-max-attempts 1
@@ -907,17 +907,17 @@ Useful bounded options:
 --session-id ID
 --continue-session
 --fork-session
---report-path .codex/scheduler/live-opencode-concurrent-worker-smoke-report.json
---snapshot-path .codex/scheduler/live-opencode-concurrent-worker-smoke-state.json
---event-log-path .codex/scheduler/live-opencode-concurrent-worker-smoke-events.jsonl
---runtime-invocation-log-path .codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl
---artifact-store-path .codex/orchestration/live-opencode-concurrent-worker-smoke-exchange-artifacts.json
+--report-path .dbc/scheduler/live-opencode-concurrent-worker-smoke-report.json
+--snapshot-path .dbc/scheduler/live-opencode-concurrent-worker-smoke-state.json
+--event-log-path .dbc/scheduler/live-opencode-concurrent-worker-smoke-events.jsonl
+--runtime-invocation-log-path .dbc/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl
+--artifact-store-path .dbc/orchestration/live-opencode-concurrent-worker-smoke-exchange-artifacts.json
 --replace-existing-result-artifact
 --max-delivery-attempts-per-record 2
 --enable-sandbox-preflight
 --workspace-root .
---scratch-root .codex/scratch
---git-worktree-sandbox-root .codex/sandboxes/opencode-workers
+--scratch-root .dbc/scratch
+--git-worktree-sandbox-root .dbc/sandboxes/opencode-workers
 --git-executable git
 --publish-worker-patch-artifacts
 --runtime-invocation-backoff-seconds 0
@@ -940,11 +940,11 @@ audit exist:
 
 ```text
 doc-based-coding scheduler inspect-opencode-runtime-status \
-  --snapshot-path .codex/scheduler/opencode-delivery-supervisor-loop-state.json \
-  --event-log-path .codex/scheduler/opencode-delivery-supervisor-loop-events.jsonl \
-  --delivery-state-path .codex/scheduler/leader-worker-delivery-state.json \
-  --runtime-invocation-log-path .codex/runtime/opencode-delivery-loop-invocations.jsonl \
-  --artifact-store-path .codex/orchestration/exchange-artifacts.json
+  --snapshot-path .dbc/scheduler/opencode-delivery-supervisor-loop-state.json \
+  --event-log-path .dbc/scheduler/opencode-delivery-supervisor-loop-events.jsonl \
+  --delivery-state-path .dbc/scheduler/leader-worker-delivery-state.json \
+  --runtime-invocation-log-path .dbc/runtime/opencode-delivery-loop-invocations.jsonl \
+  --artifact-store-path .dbc/orchestration/exchange-artifacts.json
 ```
 
 Useful bounded options:

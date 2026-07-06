@@ -138,7 +138,7 @@
 - 是否建议升级
 
 子 agent / worker 不直接调用 `localTrajectory`，也不直接修改
-`.codex/progress-graph/local-work-trajectory.json`。Local Work Trajectory
+`.dbc/progress-graph/local-work-trajectory.json`。Local Work Trajectory
 写入由主 agent / leader / supervisor 审核 report 后执行；worker 的
 `trajectory_update` 是建议和证据，不是 mutation authority。
 

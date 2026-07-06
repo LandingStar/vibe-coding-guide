@@ -9,9 +9,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from .artifact_paths import dbc_artifact_path
+
 EXCHANGE_ARTIFACT_ADMISSION_LEDGER_SCHEMA_VERSION = "exchange-artifact-admission-ledger.v1"
 DEFAULT_EXCHANGE_ARTIFACT_ADMISSION_LEDGER_RELATIVE_PATH = (
-    ".codex/orchestration/exchange-artifact-admissions.json"
+    dbc_artifact_path("orchestration", "exchange-artifact-admissions.json")
 )
 
 ExchangeArtifactAdmissionStatus = Literal["admitted", "rejected_duplicate", "failed"]

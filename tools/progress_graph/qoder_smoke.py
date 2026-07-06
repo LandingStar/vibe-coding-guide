@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration import (
     AgentSpec,
     ContextScope,
@@ -60,8 +61,8 @@ class HostOwnedQoderSmokeRunConfig:
 
     evidence_id: str = "qoder-smoke"
     timestamp: str = ""
-    snapshot_path: str | Path = ".codex/scheduler/qoder-smoke-state.json"
-    event_log_path: str | Path = ".codex/scheduler/qoder-smoke-events.jsonl"
+    snapshot_path: str | Path = dbc_artifact_path("scheduler", "qoder-smoke-state.json")
+    event_log_path: str | Path = dbc_artifact_path("scheduler", "qoder-smoke-events.jsonl")
     evidence_output_path: str | Path | None = None
     projection_output_path: str | Path | None = None
     initialize_snapshot: bool = True
@@ -80,7 +81,7 @@ class HostOwnedQoderSmokeRunConfig:
         default_factory=lambda: SchedulerRunPolicy(max_runs=1, continue_on_failure=False)
     )
     workspace_root: str = ""
-    scratch_root: str = ".codex/scratch"
+    scratch_root: str = dbc_artifact_path("scratch")
     created_at: str = ""
     expires_at: str = ""
     strict_recovery: bool = True
@@ -114,13 +115,13 @@ class HostOwnedQoderSmokeRunResult:
 def default_qoder_smoke_snapshot_path(project_root: str | Path) -> Path:
     """Return the default scheduler snapshot path for host-owned Qoder smoke."""
 
-    return Path(project_root) / ".codex/scheduler/qoder-smoke-state.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "qoder-smoke-state.json")
 
 
 def default_qoder_smoke_event_log_path(project_root: str | Path) -> Path:
     """Return the default scheduler event-log path for host-owned Qoder smoke."""
 
-    return Path(project_root) / ".codex/scheduler/qoder-smoke-events.jsonl"
+    return Path(project_root) / dbc_artifact_path("scheduler", "qoder-smoke-events.jsonl")
 
 
 def build_qoder_smoke_scheduler_state(

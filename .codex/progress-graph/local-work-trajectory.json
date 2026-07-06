@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "逐块整理剩余提交",
-  "recorded_at": "2026-07-02T12:48:55.231202+00:00",
+  "title": "Prepare current results commit and release package",
+  "recorded_at": "2026-07-06T00:18:28.577521+00:00",
   "source_graph_id": "",
   "source_node_id": "",
-  "guide_context": "AGENTS.md + docs/worker-trajectory-update-reporting.md + design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md",
+  "guide_context": "codex-mcp-agent",
   "metadata": {
     "projection": "single-lane-lifecycle",
     "lane_mode": "single",
@@ -13,7 +13,7 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "逐块整理剩余提交",
+    "title": "Prepare current results commit and release package",
     "lane_count": 1,
     "event_count": 2,
     "relation_count": 1,
@@ -23,12 +23,12 @@
   "lanes": {
     "lane:main": {
       "id": "lane:main",
-      "label": "commit-series",
-      "status": "done",
+      "label": "当前工作",
+      "status": "pending",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
-        "context": "AGENTS.md + docs/worker-trajectory-update-reporting.md + design_docs/stages/planning-gate/2026-06-28-local-trajectory-worker-report-ownership-guard.md"
+        "context": "codex-mcp-agent"
       }
     }
   },
@@ -36,32 +36,29 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "整理并提交当前暂存整合块",
-      "kind": "task",
+      "title": "Prepare current results commit and release package",
+      "kind": "start",
       "status": "completed",
       "order": 1,
-      "summary": "提交整理完成：43d1a16 关闭 2026-07-02 recovery gates；aea7e42 整合 orchestration runtime surfaces。验证已通过，工作树无剩余应提交项目改动，仅有 ignored 本机配置/运行态目录。",
+      "summary": "",
       "metadata": {
-        "created_at": "2026-07-02T12:29:01.227755+00:00",
-        "activated_at": "2026-07-02T12:29:01.227755+00:00",
+        "created_at": "2026-07-06T00:16:14.958304+00:00",
+        "activated_at": "2026-07-06T00:16:14.958304+00:00",
         "source": "single-line-lifecycle",
-        "updated_at": "2026-07-02T12:35:57.272630+00:00",
-        "completed_at": "2026-07-02T12:48:55.231202+00:00",
-        "closed_at": "2026-07-02T12:48:55.231202+00:00"
+        "completed_at": "2026-07-06T00:18:17.761447+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "验证整合提交块",
+      "title": "Run validation and staging hygiene checks",
       "kind": "validation",
-      "status": "completed",
+      "status": "pending",
       "order": 2,
-      "summary": "运行 whitespace/secret guard、Python 编译、focused pytest、extension build 与 monitoring dashboard 截图验证，确保当前大块可提交。",
+      "summary": "Run focused tests/secret scans, stage intended source docs tests and tracked trajectory, then verify staged set excludes local machine config and ignored runtime artifacts.",
       "metadata": {
-        "created_at": "2026-07-02T12:43:06.982762+00:00",
-        "source": "single-line-lifecycle",
-        "completed_at": "2026-07-02T12:47:21.856179+00:00"
+        "created_at": "2026-07-06T00:18:28.577521+00:00",
+        "source": "single-line-lifecycle"
       }
     }
   },

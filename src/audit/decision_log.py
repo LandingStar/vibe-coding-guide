@@ -8,6 +8,21 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+DEFAULT_DECISION_LOG_RELATIVE_DIR = Path(".dbc") / "decision-logs"
+LEGACY_DECISION_LOG_RELATIVE_DIR = Path(".codex") / "decision-logs"
+
+
+def default_decision_log_dir(project_root: str | Path) -> Path:
+    """Return the current DBC-owned decision log directory for a project."""
+
+    return Path(project_root) / DEFAULT_DECISION_LOG_RELATIVE_DIR
+
+
+def legacy_decision_log_dir(project_root: str | Path) -> Path:
+    """Return the legacy Codex-host decision log directory for read fallback."""
+
+    return Path(project_root) / LEGACY_DECISION_LOG_RELATIVE_DIR
+
 
 @dataclass
 class DecisionLogEntry:

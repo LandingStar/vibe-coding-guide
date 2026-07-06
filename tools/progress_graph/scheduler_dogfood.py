@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration.exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from src.runtime.orchestration.runtime_adapter import QoderQueryClient
 from src.runtime.orchestration.runtime_wiring import RuntimeRegistryWiringConfig
@@ -47,7 +48,7 @@ def run_host_runtime_dogfood_harness(
     policy: SchedulerRunPolicy | None = None,
     max_runs: int | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = dbc_artifact_path("scratch"),
     created_at: str = "",
     expires_at: str = "",
     timestamp: str = "",

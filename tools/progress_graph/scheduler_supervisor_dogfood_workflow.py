@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Mapping
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration import (
     DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_ARTIFACT_ID,
     DEFAULT_SCHEDULER_OPERATOR_DOGFOOD_VERSION,
@@ -47,7 +48,7 @@ SupervisorDogfoodWorkflowFixture = Literal["simple", "multilane"]
 SupervisorDogfoodWorkflowStepStatus = Literal["completed", "skipped", "failed"]
 
 DEFAULT_SUPERVISOR_DOGFOOD_CONTROL_RELATIVE_PATH = Path(
-    ".codex/scheduler/scheduler-daemon-control.json"
+    dbc_artifact_path("scheduler", "scheduler-daemon-control.json")
 )
 DEFAULT_SUPERVISOR_DOGFOOD_SUPERVISOR_ID = "supervisor:dogfood"
 DEFAULT_SUPERVISOR_DOGFOOD_DAEMON_ID = "daemon:supervisor-dogfood"
@@ -460,8 +461,8 @@ def build_supervisor_dogfood_storage_binding(
     *,
     agent_id: str = "",
     context_session_id: str = "",
-    scratch_root: str = ".codex/scratch",
-    home_root: str = ".codex/agents",
+    scratch_root: str = ".dbc/scratch",
+    home_root: str = ".dbc/agents",
     expires_at: str = "",
     purpose: str = "Bind supervisor dogfood run to agent-private storage context.",
     capability_domain: str = "scheduler-supervisor-dogfood",

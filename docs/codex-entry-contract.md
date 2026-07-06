@@ -32,7 +32,10 @@ Codex 是当前平台明确支持的目标入口，而不是历史兼容路径�
    会表现为 `MCP servers 0`。
 3. `.codex/config.toml` 或 `codex mcp add` 是否注册了正确 MCP server。
 4. MCP server 是否通过 `tools/list` 暴露预期工具。
-5. CLI/validation 是否在目标 workspace 下运行。
+5. 每-agent `workspaceDbcCommand` relay 是否暴露；有 MCP 时，CLI 等价
+   DBC 操作应优先通过该 relay 或专用结构化 MCP tool 运行，而不是依赖
+   全局 `doc-based-coding`。
+6. CLI/validation 是否在目标 workspace 下运行。
 
 除非问题已经被定位为 Core Contract 或 Portable Runtime 缺口，否则不应优先修改后端。
 
@@ -66,6 +69,13 @@ Codex 当前优先走项目级 MCP 注册：
 
 这两者都属于宿主注册适配面，而不是平台核心语义。
 
+Codex host registration does not mean DBC runtime products belong under
+`.codex/`. DBC-owned generated artifacts such as scheduler state, orchestration
+stores, runtime invocation logs, progress graph artifacts, scratch files, and
+agent-output files default to `.dbc/`. Keep `.codex/config.toml` for Codex MCP
+registration; migrate legacy DBC runtime products separately when updating an
+older workspace.
+
 ### 3. 最小验证
 
 完成 instructions 与 MCP 注册后，最小验证建议是：
@@ -81,9 +91,14 @@ Codex 当前优先走项目级 MCP 注册：
    - `doc-based-coding info`
    - `doc-based-coding validate`
 
+若已经处于 MCP-enabled agent 会话，上述 DBC CLI 示例应优先视作
+`workspaceDbcCommand` 的 argv，例如 `["info"]` 或 `["validate"]`。
+这避免 agent 因 host `PATH` 命中全局旧包而绕过工作区 MCP 配置。
+
 ### 4. 需要更深说明时跳哪里
 
 - 安装与 MCP 接入细节：`docs/installation-guide.md`
+- 每-agent DBC relay 使用与排障：`docs/workspace-dbc-command-relay.md`
 - 统一自检/doctor contract：`docs/self-check-doctor-contract.md`
 - 宿主分层与边界：`docs/host-interaction-model.md`
 - 第一次进入仓库的总入口：`docs/starter-surface.md`

@@ -61,10 +61,12 @@ test('ai chat prompt treats localTrajectory as the task-tracking mutation except
   assert.match(source, /localTrajectory tool is the explicit exception/);
   assert.match(source, /block\/wait for impediments/);
   assert.match(source, /close when the tracked task is done/);
-  assert.match(source, /Before the first localTrajectory call/);
-  assert.match(source, /server\/client\/API contract\/testing/);
+  assert.match(source, /Before substantial task work begins/);
+  assert.match(source, /design_docs\/tooling\/local-work-lane-splitting\/README.md/);
+  assert.match(source, /detailed lane split criteria/);
+  assert.doesNotMatch(source, /server\/client\/API contract\/testing/);
   assert.match(source, /include sourceGraphId\/sourceNodeId on start/);
-  assert.match(source, /Use localTrajectory addLane as soon as a distinct work context must begin/);
+  assert.match(source, /Use localTrajectory addLane when a distinct work context must begin/);
   assert.match(source, /localTrajectory addLane/);
   assert.match(source, /localTrajectory addCompound/);
   assert.match(source, /localTrajectory packRange/);

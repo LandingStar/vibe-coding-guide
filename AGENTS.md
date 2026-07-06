@@ -3,7 +3,7 @@
 ## Local Work Trajectory
 
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
-- Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.
+- Before substantial task work begins, judge whether the task is large enough or split-worthy enough to need distinct Local Work lanes. If yes or uncertain, follow `design_docs/tooling/local-work-lane-splitting/README.md`; keep detailed lane split criteria there, not in this file.
 - Leader-worker is the recommended execution structure for single-lane Local Work and the required structure for Local Work with two or more lanes. In multi-lane work, lane workers may be inactive while waiting for dependencies, review, or leader messages; the leader may also be inactive while waiting for worker feedback. Treat message-driven reactivation and mailbox/history audit as part of the orchestration contract, not as optional chat bookkeeping.
 - Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put trajectory/status suggestions in their `Subagent Report.trajectory_update`, and the leader/main agent consumes the report before mutating Local Work Trajectory. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.
 - When MCP exposes `localTrajectory` to a leader/main/supervisor, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` as soon as a distinct work context begins, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
@@ -43,6 +43,7 @@
 - 需要接入 Codex 能力时，优先检查 Codex 实际入口：`AGENTS.md`、`.codex/config.toml` 或 `codex mcp add`、以及 `src/mcp/server.py` 暴露的工具。
 - `.vscode/mcp.json` 只覆盖 VS Code / Copilot Chat 注册面；不能据此判断 Codex 已加载 MCP。
 - 后端/运行时默认应保持宿主无关；若 Codex 与 Copilot 的差异只是实际应用入口不同，优先在 Interaction Adapter 或 Host UX 的薄组件处理，不要改写 Portable Runtime / Core Contract。
+- 当 MCP 暴露 `workspaceDbcCommand` 时，将其视为每个 agent 自己的工作区级 DBC 命令中转；需要 CLI 等价的 DBC 操作时优先调用该 relay 或专用结构化 MCP 工具，不要自行解析全局 `doc-based-coding`、venv 或 checkout 路径。
 
 执行规则：
 

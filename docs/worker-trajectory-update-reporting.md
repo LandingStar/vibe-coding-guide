@@ -27,7 +27,7 @@ Add or update this optional section in the worker report:
     "summary": "Worker completed the lane-scoped task and produced review evidence.",
     "suggested_action": "advance",
     "evidence_refs": [
-      ".codex/agent-output/report-worker.json"
+      ".dbc/agent-output/report-worker.json"
     ],
     "leader_notes": [
       "Advance only after reviewing the changed artifacts and validation output."
@@ -79,7 +79,7 @@ worker reports. Those remain leader-authored Local Work Trajectory decisions.
 CLI example:
 
 ```text
-doc-based-coding scheduler consume-worker-trajectory-report --report-path .codex/agent-output/report-worker.json --caller-role leader
+doc-based-coding scheduler consume-worker-trajectory-report --report-path .dbc/agent-output/report-worker.json --caller-role leader
 ```
 
 MCP tool:
@@ -95,7 +95,7 @@ actions require an existing trajectory or an explicit current event id.
 Disallowed path:
 
 1. Worker calls `localTrajectory` directly.
-2. Worker edits `.codex/progress-graph/local-work-trajectory.json` directly.
+2. Worker edits `.dbc/progress-graph/local-work-trajectory.json` directly.
 3. Worker creates a separate trajectory-update proposal artifact for this flow.
 
 ## Future Changes

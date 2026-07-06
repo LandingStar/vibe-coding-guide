@@ -7,6 +7,7 @@
 - `Document-Driven Workflow Standard.md`
 - `Dual-Package Distribution Standard.md`
 - `Module Dependency Direction Standard.md`
+- `local-work-lane-splitting/`
 - `Session Handoff Standard.md`
 - `Semantic Versioning and Packaging Standard.md`
 - `Secret Hygiene and Log Redaction Standard.md`

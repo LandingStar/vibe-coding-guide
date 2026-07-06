@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..audit.audit_logger import AuditLogger, MemoryAuditBackend
-from ..audit.decision_log import DecisionLogStore, build_entry as build_decision_log_entry
+from ..audit.decision_log import (
+    DecisionLogStore,
+    build_entry as build_decision_log_entry,
+    default_decision_log_dir,
+)
 from ..pack import manifest_loader
 from ..pack.context_builder import ContextBuilder, PackContext
 from ..pack.manifest_loader import LoadLevel
@@ -602,7 +606,7 @@ class Pipeline:
             audit_events=audit_events,
             pack_info=pack_info,
         )
-        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
+        store = DecisionLogStore(default_decision_log_dir(self._project_root))
         store.append(dl_entry)
 
         return PipelineResult(
@@ -672,7 +676,7 @@ class Pipeline:
             pack_info=pack_info,
             scope_path=scope_path,
         )
-        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
+        store = DecisionLogStore(default_decision_log_dir(self._project_root))
         store.append(dl_entry)
 
         return PipelineResult(

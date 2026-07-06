@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .artifact_paths import dbc_artifact_path
 from .scheduler_host_runner import HostSchedulerRunResult
 
 HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE = "host_scheduler_run_evidence"
@@ -149,7 +150,7 @@ def default_host_scheduler_run_evidence_path(
 
     safe_id = "".join(character if character.isalnum() or character in {"-", "_"} else "-" for character in evidence_id)
     safe_id = safe_id.strip("-") or "host-scheduler-run"
-    return Path(project_root) / ".codex/scheduler/evidence" / f"{safe_id}.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence", f"{safe_id}.json")
 
 
 def build_host_scheduler_run_evidence(

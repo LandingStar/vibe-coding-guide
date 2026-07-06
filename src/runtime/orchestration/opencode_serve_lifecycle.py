@@ -20,6 +20,8 @@ from typing import Any
 from typing import Literal
 from urllib.parse import urljoin
 
+from .artifact_paths import dbc_artifact_path
+
 
 DEFAULT_OPENCODE_SERVE_HOSTNAME = "127.0.0.1"
 DEFAULT_OPENCODE_SERVE_PORT = 4096
@@ -27,7 +29,7 @@ DEFAULT_OPENCODE_SERVE_HEALTH_PATH = "/global/health"
 DEFAULT_OPENCODE_SERVER_USERNAME_ENV_VAR = "OPENCODE_SERVER_USERNAME"
 DEFAULT_OPENCODE_SERVER_PASSWORD_ENV_VAR = "OPENCODE_SERVER_PASSWORD"
 DEFAULT_OPENCODE_SERVE_LIFECYCLE_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+    dbc_artifact_path("runtime", "opencode-serve-lifecycle-ledger.json")
 )
 OPENCODE_SERVE_LIFECYCLE_LEDGER_SCHEMA_VERSION = "opencode-serve-lifecycle-ledger.v1"
 OpenCodeServeLifecycleAction = Literal["start", "stop", "restart", "status", "external"]

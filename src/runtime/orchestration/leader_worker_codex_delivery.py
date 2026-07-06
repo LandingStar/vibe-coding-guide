@@ -9,6 +9,16 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Literal
 
+from .continuous_worker_binding import (
+    DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH,
+)
+from .continuous_worker_context import (
+    DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH,
+)
 from .leader_worker_delivery import (
     LeaderWorkerDeliveryAckRequest,
     LeaderWorkerDeliveryAckResult,
@@ -28,6 +38,7 @@ from .codex_result_consumer import (
 )
 from .exchange_store import DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
 from .exchange_store import JsonArtifactVersionStore
+from .opencode_session_ledger import DEFAULT_OPENCODE_SESSION_LEDGER_RELATIVE_PATH
 from .preflight import (
     OrchestrationPreflightBundle,
     PreflightedTaskRunResult,
@@ -64,22 +75,13 @@ from .runtime_wiring import (
 )
 from .scheduler import (
     ScheduledTask,
+    SchedulerEvent,
     SchedulerState,
     evaluate_task_admission,
     task_to_runtime_spec,
 )
-from .scheduler_store import recover_scheduler_state
+from .scheduler_store import JsonlSchedulerEventLog, recover_scheduler_state
 from .worker_patch_review import build_worker_patch_review_artifact
-
-DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-delivery-leases.json"
-)
-DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
-)
-DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-lane-ownerships.json"
-)
 
 CodexDeliverySupervisorRecordStatus = Literal[
     "acknowledged",
@@ -103,6 +105,7 @@ class _PreparedCodexDelivery:
     continuous_worker_delivery_lease_id: str = ""
     continuous_worker_delivery_lease_ledger_path: str | Path = ""
     continuous_worker_delivery_lease_event_log_path: str | Path = ""
+    scheduler_event_log_path: str | Path = ""
     delivery_timestamp: str = ""
 
 
@@ -157,17 +160,17 @@ class CodexDeliverySupervisorRequest:
     runtime_invocation_backoff_seconds: float = 0.0
     enable_sandbox_preflight: bool = False
     workspace_root: str | Path = ""
-    scratch_root: str | Path = ".codex/scratch"
+    scratch_root: str | Path = ".dbc/scratch"
     git_worktree_sandbox_root: str | Path | None = None
     git_executable: str = "git"
     publish_worker_patch_artifacts: bool = False
     worker_patch_guide_agent_id: str = "agent:guide"
     worker_patch_target_task_id: str = ""
-    opencode_session_ledger_path: str | Path = ".codex/runtime/opencode-session-ledger.json"
+    opencode_session_ledger_path: str | Path = DEFAULT_OPENCODE_SESSION_LEDGER_RELATIVE_PATH
     opencode_enable_session_lookup: bool = False
-    continuous_worker_binding_ledger_path: str | Path = ".codex/runtime/continuous-worker-bindings.json"
-    continuous_worker_binding_event_log_path: str | Path = ".codex/runtime/continuous-worker-binding-events.jsonl"
-    continuous_worker_context_bundle_dir_path: str | Path = ".codex/runtime/continuous-worker-contexts"
+    continuous_worker_binding_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH
+    continuous_worker_binding_event_log_path: str | Path = DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH
+    continuous_worker_context_bundle_dir_path: str | Path = DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH
     continuous_worker_delivery_lease_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH
     continuous_worker_delivery_lease_event_log_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH
     continuous_worker_lane_ownership_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH
@@ -745,6 +748,7 @@ def _prepare_codex_delivery(
         continuous_worker_delivery_lease_event_log_path=(
             request.continuous_worker_delivery_lease_event_log_path
         ),
+        scheduler_event_log_path=request.scheduler_event_log_path,
         delivery_timestamp=request.timestamp,
     )
 
@@ -1374,6 +1378,25 @@ def _reserve_continuous_worker_delivery_lease(
             },
         )
     )
+    if result.ok and result.lease is not None:
+        _append_continuous_worker_scheduler_audit_event(
+            request.scheduler_event_log_path,
+            event_kind="continuous_worker_delivery_lease_reserved",
+            timestamp=request.timestamp,
+            task_id=task.task_id,
+            reason="continuous worker delivery lease reserved",
+            binding_id=binding_id,
+            worker_id="",
+            lane_id=task.context_scope.lane_id,
+            delivery_id=record.delivery_id,
+            lease_id=result.lease.lease_id,
+            invocation_id="",
+            metadata={
+                "host_invocation_id": request.host_invocation_id,
+                "agent_id": task.agent.agent_id,
+                "source_key": record.source_key,
+            },
+        )
     return result.lease if result.ok else None
 
 
@@ -1406,6 +1429,23 @@ def _begin_continuous_worker_delivery_lease(
     )
     if not result.ok:
         raise RuntimeError(result.message)
+    _append_continuous_worker_scheduler_audit_event(
+        prepared.scheduler_event_log_path,
+        event_kind="continuous_worker_delivery_lease_started",
+        timestamp=prepared.delivery_timestamp,
+        task_id=prepared.task.task_id,
+        reason="continuous worker delivery lease run started",
+        binding_id=prepared.continuous_worker_binding_id,
+        worker_id=prepared.continuous_worker_id,
+        lane_id=prepared.task.context_scope.lane_id,
+        delivery_id=prepared.record.delivery_id,
+        lease_id=prepared.continuous_worker_delivery_lease_id,
+        invocation_id=invocation_id,
+        metadata={
+            "agent_id": prepared.task.agent.agent_id,
+            "source_key": prepared.record.source_key,
+        },
+    )
 
 
 def _complete_continuous_worker_delivery_lease(
@@ -1436,6 +1476,24 @@ def _complete_continuous_worker_delivery_lease(
                 "task_id": prepared.task.task_id,
             },
         )
+    )
+    _append_continuous_worker_scheduler_audit_event(
+        prepared.scheduler_event_log_path,
+        event_kind="continuous_worker_delivery_lease_completed",
+        timestamp=prepared.delivery_timestamp,
+        task_id=prepared.task.task_id,
+        reason="continuous worker delivery lease completed",
+        binding_id=prepared.continuous_worker_binding_id,
+        worker_id=prepared.continuous_worker_id,
+        lane_id=prepared.task.context_scope.lane_id,
+        delivery_id=prepared.record.delivery_id,
+        lease_id=prepared.continuous_worker_delivery_lease_id,
+        invocation_id=outcome.invocation_id,
+        metadata={
+            "runtime_session_id": outcome.session_id,
+            "runtime_run_id": outcome.run_id,
+            "agent_id": prepared.task.agent.agent_id,
+        },
     )
 
 
@@ -1474,6 +1532,25 @@ def _fail_continuous_worker_delivery_lease(
         fail_delivery_lease_retryable(fail_request)
     else:
         fail_delivery_lease_terminal(fail_request)
+    _append_continuous_worker_scheduler_audit_event(
+        prepared.scheduler_event_log_path,
+        event_kind="continuous_worker_delivery_lease_failed",
+        timestamp=prepared.delivery_timestamp,
+        task_id=prepared.task.task_id,
+        reason=outcome.failure_kind or "continuous worker delivery lease failed",
+        binding_id=prepared.continuous_worker_binding_id,
+        worker_id=prepared.continuous_worker_id,
+        lane_id=prepared.task.context_scope.lane_id,
+        delivery_id=prepared.record.delivery_id,
+        lease_id=prepared.continuous_worker_delivery_lease_id,
+        invocation_id=outcome.invocation_id,
+        metadata={
+            "runtime_session_id": outcome.session_id,
+            "runtime_run_id": outcome.run_id,
+            "agent_id": prepared.task.agent.agent_id,
+            "retryable": outcome.retryable,
+        },
+    )
 
 
 def _record_continuous_worker_binding_after_success(
@@ -1506,6 +1583,25 @@ def _record_continuous_worker_binding_after_success(
                 "source_key": prepared.record.source_key,
             },
         )
+    )
+    _append_continuous_worker_scheduler_audit_event(
+        request.scheduler_event_log_path,
+        event_kind="continuous_worker_binding_reused",
+        timestamp=request.timestamp,
+        task_id=prepared.task.task_id,
+        reason="continuous worker binding reused after successful delivery",
+        binding_id=prepared.continuous_worker_binding_id,
+        worker_id=prepared.continuous_worker_id,
+        lane_id=prepared.task.context_scope.lane_id,
+        delivery_id=prepared.record.delivery_id,
+        lease_id=prepared.continuous_worker_delivery_lease_id,
+        invocation_id=outcome.invocation_id,
+        metadata={
+            "runtime_session_id": outcome.session_id,
+            "runtime_run_id": outcome.run_id,
+            "agent_id": prepared.task.agent.agent_id,
+            "source_key": prepared.record.source_key,
+        },
     )
 
 
@@ -1549,6 +1645,83 @@ def _failure_may_invalidate_continuous_worker_binding(
         "authentication_failed",
         "unknown",
     }
+
+
+def _append_continuous_worker_scheduler_audit_event(
+    path: str | Path,
+    *,
+    event_kind: str,
+    timestamp: str,
+    task_id: str,
+    reason: str,
+    binding_id: str,
+    worker_id: str,
+    lane_id: str,
+    delivery_id: str,
+    lease_id: str,
+    invocation_id: str,
+    metadata: Mapping[str, object] | None = None,
+) -> None:
+    if not path:
+        return
+    JsonlSchedulerEventLog(path).append(
+        SchedulerEvent(
+            event_id=_scheduler_audit_event_id(
+                event_kind,
+                task_id,
+                binding_id,
+                lease_id,
+                invocation_id,
+            ),
+            event_kind=event_kind,  # type: ignore[arg-type]
+            timestamp=timestamp,
+            task_id=task_id,
+            reason=reason,
+            run_id=invocation_id,
+            related_artifact_ids=_unique_nonempty(
+                (binding_id, lease_id, delivery_id, invocation_id)
+            ),
+            lease_id=lease_id,
+            metadata={
+                "audit_only": True,
+                "audit_source": "continuous_worker_delivery",
+                "binding_id": binding_id,
+                "worker_id": worker_id,
+                "lane_id": lane_id,
+                "delivery_id": delivery_id,
+                "lease_id": lease_id,
+                "invocation_id": invocation_id,
+                **dict(metadata or {}),
+            },
+        )
+    )
+
+
+def _scheduler_audit_event_id(
+    event_kind: str,
+    task_id: str,
+    binding_id: str,
+    lease_id: str,
+    invocation_id: str,
+) -> str:
+    discriminator = invocation_id or lease_id or binding_id or task_id
+    return "scheduler-audit:{kind}:{task}:{discriminator}".format(
+        kind=_safe_id(event_kind),
+        task=_safe_id(task_id),
+        discriminator=_safe_id(discriminator),
+    )
+
+
+def _safe_id(value: str) -> str:
+    return value.replace("\\", "/").strip("/").replace("/", "-").replace(":", "-")
+
+
+def _unique_nonempty(values: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for value in values:
+        if value and value not in normalized:
+            normalized.append(value)
+    return tuple(normalized)
 
 
 def _skip_reason_for_record(

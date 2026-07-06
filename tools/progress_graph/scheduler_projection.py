@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration.exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from src.runtime.orchestration.runtime_adapter import AgentRuntimeAdapterRegistry, QoderQueryClient
 from src.runtime.orchestration.sandbox import SandboxProviderRegistry
@@ -60,7 +61,9 @@ from .trajectory import (
 )
 
 
-_DEFAULT_SCHEDULER_TRAJECTORY_PATH = Path(".codex/progress-graph/scheduler-work-trajectory.json")
+_DEFAULT_SCHEDULER_TRAJECTORY_PATH = Path(
+    dbc_artifact_path("progress-graph", "scheduler-work-trajectory.json")
+)
 _DEFAULT_HISTORY_TIMELINE_LIMIT = 40
 
 
@@ -458,7 +461,7 @@ def run_persisted_scheduler_once_and_refresh_projection(
     policy: SchedulerRunPolicy | None = None,
     max_runs: int | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = ".dbc/scratch",
     created_at: str = "",
     expires_at: str = "",
     timestamp: str = "",

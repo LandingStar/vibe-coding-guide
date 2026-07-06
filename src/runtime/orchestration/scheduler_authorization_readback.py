@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
 from .sandbox import (
     GitWorktreeCommandReceipt,
     GitWorktreeSandboxReceipt,
@@ -345,7 +346,7 @@ def inspect_scheduler_authorization(
     state: SchedulerState,
     *,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     sandbox_allocations: Mapping[str, SandboxAllocation] | None = None,
     snapshot_path: str = "",
     scheduler_event_log_path: str = "",
@@ -410,7 +411,7 @@ def inspect_scheduler_authorization_snapshot(
     sandbox_allocation_evidence_path: str | Path | None = None,
     strict: bool = True,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
 ) -> SchedulerAuthorizationReadback:
     """Build authorization readback from persisted scheduler snapshot inputs."""
 

@@ -192,11 +192,31 @@ def test_write_checkpoint_work_trajectory_round_trips_json(tmp_path: Path) -> No
     path = write_checkpoint_work_trajectory(tmp_path)
     loaded = load_local_work_trajectory(tmp_path)
 
-    assert path == tmp_path / ".codex/progress-graph/local-work-trajectory.json"
+    assert path == tmp_path / ".dbc/progress-graph/local-work-trajectory.json"
     assert loaded.trajectory_id == "local-work:checkpoint-current"
     assert list(loaded.events) == ["event:001", "event:002"]
     assert loaded.events["event:001"].metadata["checkpoint_todo_id"] == "todo:001"
     assert loaded.relations[0].kind == "sequence"
+
+
+def test_local_work_trajectory_reads_legacy_codex_artifact_when_dbc_missing(
+    tmp_path: Path,
+) -> None:
+    legacy_dir = tmp_path / ".codex" / "progress-graph"
+    legacy_dir.mkdir(parents=True)
+    legacy_path = legacy_dir / "local-work-trajectory.json"
+    legacy_path.write_text(
+        LocalWorkTrajectory(
+            trajectory_id="local-work:legacy",
+            title="Legacy local work trajectory",
+        ).to_json(),
+        encoding="utf-8",
+    )
+
+    loaded = load_local_work_trajectory(tmp_path)
+
+    assert loaded.trajectory_id == "local-work:legacy"
+    assert not (tmp_path / ".dbc" / "progress-graph" / "local-work-trajectory.json").exists()
 
 
 def test_build_scheduler_work_trajectory_projects_lanes_tasks_dependencies_and_runs() -> None:
@@ -758,7 +778,7 @@ def test_write_scheduler_work_trajectory_artifact_uses_separate_default_path(tmp
     )
 
     assert path == scheduler_work_trajectory_json_path(tmp_path)
-    assert path == tmp_path / ".codex/progress-graph/scheduler-work-trajectory.json"
+    assert path == tmp_path / ".dbc/progress-graph/scheduler-work-trajectory.json"
     scheduler_projection = LocalWorkTrajectory.from_json(path.read_text(encoding="utf-8"))
     assert scheduler_projection.trajectory_id == "local-work:scheduler-projection"
     assert scheduler_projection.metadata["projection_artifact_path"] == str(path)
@@ -2088,8 +2108,8 @@ def test_host_owned_qoder_smoke_runner_initializes_snapshot_and_writes_evidence(
     payload = result.to_json_dict()
 
     assert result.initialized_snapshot is True
-    assert result.snapshot_path == tmp_path / ".codex/scheduler/qoder-smoke-state.json"
-    assert result.event_log_path == tmp_path / ".codex/scheduler/qoder-smoke-events.jsonl"
+    assert result.snapshot_path == tmp_path / ".dbc/scheduler/qoder-smoke-state.json"
+    assert result.event_log_path == tmp_path / ".dbc/scheduler/qoder-smoke-events.jsonl"
     assert len(client.requests) == 1
     assert client.requests[0].task.task_id == "task-qoder-smoke"
     assert client.requests[0].acceptance[-1] == "Do not include secrets or raw credential material in output."
@@ -2135,7 +2155,7 @@ def test_host_owned_qoder_smoke_runner_auth_failure_fails_before_state_pollution
     assert evidence_path.exists() is False
     assert projection_path.exists() is False
     restored = read_scheduler_state_snapshot(
-        tmp_path / ".codex/scheduler/qoder-smoke-state.json"
+        tmp_path / ".dbc/scheduler/qoder-smoke-state.json"
     )
     assert restored.tasks["task-qoder-smoke-auth-fail"].state == "proposed"
     assert restored.tasks["task-qoder-smoke-auth-fail"].run_id == ""
@@ -2188,7 +2208,7 @@ def test_host_owned_guide_worker_provider_execution_runs_mock_qoder_wave(
     assert {request.agent.runtime_provider for request in client.requests} == {"qoder"}
     assert evidence_path.exists()
     state = read_scheduler_state_snapshot(
-        tmp_path / ".codex/scheduler/guide-worker-provider-execution-state.json"
+        tmp_path / ".dbc/scheduler/guide-worker-provider-execution-state.json"
     )
     assert state.tasks["task/guide-worker-provider/client"].agent.runtime_provider == "qoder"
     assert state.tasks["task/guide-worker-provider/server"].agent.runtime_provider == "qoder"
@@ -2680,7 +2700,7 @@ def test_host_owned_guide_worker_provider_execution_publishes_patch_review_candi
         codex_cli_client=client,
     )
     payload = result.to_json_dict()
-    artifact_store_path = tmp_path / ".codex/orchestration/exchange-artifacts.json"
+    artifact_store_path = tmp_path / ".dbc/orchestration/exchange-artifacts.json"
     assert len(payload["worker_patch_artifact_refs"]) == 1
     patch_ref = payload["worker_patch_artifact_refs"][0]
     patch_record = JsonArtifactVersionStore(artifact_store_path).get(

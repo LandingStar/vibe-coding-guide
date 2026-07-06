@@ -5,6 +5,7 @@
 当前默认文件：
 
 - `Document-Driven Workflow Standard.md`
+- `local-work-lane-splitting/`
 - `Session Handoff Standard.md`
 - `Subagent Delegation Standard.md`
 

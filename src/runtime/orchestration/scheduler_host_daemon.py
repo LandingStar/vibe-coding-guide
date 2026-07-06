@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
 from .exchange_store import InMemoryArtifactVersionStore, JsonlCoordinationEventLog
 from .runtime_adapter import QoderQueryClient
 from .runtime_wiring import RuntimeRegistryWiringConfig, build_runtime_registry_from_config
@@ -45,7 +46,7 @@ class HostSchedulerDaemonLoopRequest:
     evidence_id: str = ""
     evidence_path: str | Path | None = None
     workspace_root: str = ""
-    scratch_root: str = ".codex/scratch"
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT
     git_worktree_sandbox_root: str | Path | None = None
     sandbox_allocation_evidence_id: str = ""
     sandbox_allocation_evidence_path: str | Path | None = None

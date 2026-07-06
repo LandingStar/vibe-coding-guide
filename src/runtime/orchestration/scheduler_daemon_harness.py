@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
 from .exchange_store import InMemoryArtifactVersionStore
 from .runtime_adapter import AgentRuntimeAdapterRegistry
 from .sandbox import SandboxProviderRegistry
@@ -52,7 +53,7 @@ class SchedulerDaemonHarnessRequest:
     runtime_provider: str = "fake"
     timestamp: str = ""
     workspace_root: str = ""
-    scratch_root: str = ".codex/scratch"
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT
     created_at: str = ""
     expires_at: str = ""
     strict_recovery: bool = True

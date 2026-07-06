@@ -17,12 +17,12 @@ delivery, runtime, exchange, or smoke files directly.
 
 ```powershell
 python -m src scheduler inspect-monitoring-snapshot `
-  --snapshot-path .codex/scheduler/live-codex-concurrent-worker-smoke-state.json `
-  --event-log-path .codex/scheduler/live-codex-concurrent-worker-smoke-events.jsonl `
-  --delivery-state-path .codex/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json `
-  --runtime-invocation-log-path .codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl `
-  --artifact-store-path .codex/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json `
-  --live-codex-smoke-report-path .codex/scheduler/live-codex-concurrent-worker-smoke-report.json
+  --snapshot-path .dbc/scheduler/live-codex-concurrent-worker-smoke-state.json `
+  --event-log-path .dbc/scheduler/live-codex-concurrent-worker-smoke-events.jsonl `
+  --delivery-state-path .dbc/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json `
+  --runtime-invocation-log-path .dbc/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl `
+  --artifact-store-path .dbc/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json `
+  --live-codex-smoke-report-path .dbc/scheduler/live-codex-concurrent-worker-smoke-report.json
 ```
 
 Required:
@@ -51,8 +51,8 @@ from src.runtime.orchestration import (
 
 snapshot = inspect_monitoring_snapshot(
     MonitoringSnapshotRequest(
-        scheduler_snapshot_path=".codex/scheduler/state.json",
-        scheduler_event_log_path=".codex/scheduler/events.jsonl",
+        scheduler_snapshot_path=".dbc/scheduler/state.json",
+        scheduler_event_log_path=".dbc/scheduler/events.jsonl",
     )
 )
 payload = snapshot.to_json_dict()

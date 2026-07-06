@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import PurePosixPath, PureWindowsPath
+from collections.abc import Mapping
 from typing import Literal, Protocol
 
 from .exchange import ExchangeReference, ExchangeScope
@@ -111,6 +112,20 @@ SchedulerEventKind = Literal[
     "lease_expired",
     "lease_revoked",
     "lease_blocked",
+    "trajectory_team_worker_assigned",
+    "trajectory_team_worker_resolved",
+    "trajectory_team_worker_activated",
+    "trajectory_team_worker_suspended",
+    "trajectory_team_worker_resumed",
+    "trajectory_team_worker_transferred",
+    "trajectory_team_worker_forked",
+    "trajectory_team_worker_released",
+    "trajectory_team_no_continuity",
+    "continuous_worker_binding_reused",
+    "continuous_worker_delivery_lease_reserved",
+    "continuous_worker_delivery_lease_started",
+    "continuous_worker_delivery_lease_completed",
+    "continuous_worker_delivery_lease_failed",
 ]
 
 SchedulerMergeGateEventKind = Literal[
@@ -324,6 +339,7 @@ class SchedulerEvent:
     lease_id: str = ""
     edit_lease_lifecycle: EditLeaseLifecycleRecord | None = None
     sequence: int | None = None
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

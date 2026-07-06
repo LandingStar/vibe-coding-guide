@@ -7,6 +7,10 @@ import json
 from pathlib import Path
 from typing import Literal, TypeAlias
 
+from src.runtime.orchestration.artifact_paths import (
+    dbc_artifact_path,
+    legacy_codex_artifact_path,
+)
 from src.runtime.orchestration import (
     HOST_SCHEDULER_RUN_EVIDENCE_PRODUCT_TYPE,
     SANDBOX_ALLOCATION_RECEIPT_EVIDENCE_PRODUCT_TYPE,
@@ -232,7 +236,13 @@ def build_host_evidence_presentation(
 def host_scheduler_evidence_dir(project_root: str | Path) -> Path:
     """Return the default host scheduler evidence directory."""
 
-    return Path(project_root) / ".codex/scheduler/evidence"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence")
+
+
+def legacy_host_scheduler_evidence_dir(project_root: str | Path) -> Path:
+    """Return the legacy host scheduler evidence directory for read fallback."""
+
+    return Path(project_root) / legacy_codex_artifact_path("scheduler", "evidence")
 
 
 def _host_evidence_presentation_card(
@@ -910,9 +920,19 @@ def read_host_evidence_bundle(
         return HostEvidenceBundle(
             project_root=root,
             evidence_dir=target_dir,
-            summaries=_read_host_evidence_summaries_strict(target_dir),
+            summaries=_read_host_evidence_summaries_strict(
+                target_dir,
+                fallback_dirs=(
+                    () if evidence_dir is not None else (legacy_host_scheduler_evidence_dir(root),)
+                ),
+            ),
         )
-    summaries, errors = _read_host_evidence_bundle_isolated(target_dir)
+    summaries, errors = _read_host_evidence_bundle_isolated(
+        target_dir,
+        fallback_dirs=(
+            () if evidence_dir is not None else (legacy_host_scheduler_evidence_dir(root),)
+        ),
+    )
     return HostEvidenceBundle(
         project_root=root,
         evidence_dir=target_dir,
@@ -923,40 +943,52 @@ def read_host_evidence_bundle(
 
 def _read_host_evidence_bundle_isolated(
     evidence_dir: Path,
+    *,
+    fallback_dirs: tuple[Path, ...] = (),
 ) -> tuple[tuple[HostEvidenceSummary, ...], tuple[HostEvidenceReadError, ...]]:
-    if not evidence_dir.exists():
-        return (), ()
-    if not evidence_dir.is_dir():
-        return (), (
-            HostEvidenceReadError(
-                evidence_path=evidence_dir,
-                error_kind="not_directory",
-                message=f"host scheduler evidence path is not a directory: {evidence_dir}",
-            ),
-        )
-
     summaries: list[HostEvidenceSummary] = []
     errors: list[HostEvidenceReadError] = []
-    for path in sorted(evidence_dir.glob("*.json")):
-        try:
-            summaries.append(_read_host_evidence_summary(path))
-        except FileNotFoundError as exc:
-            errors.append(_host_evidence_read_error(path, "not_found", exc))
-        except ValueError as exc:
-            errors.append(_host_evidence_read_error(path, "invalid_evidence", exc))
-        except OSError as exc:
-            errors.append(_host_evidence_read_error(path, "read_failed", exc))
+    for active_dir in _existing_evidence_dirs(evidence_dir, fallback_dirs):
+        if not active_dir.is_dir():
+            errors.append(
+                HostEvidenceReadError(
+                    evidence_path=active_dir,
+                    error_kind="not_directory",
+                    message=f"host scheduler evidence path is not a directory: {active_dir}",
+                )
+            )
+            continue
+        for path in sorted(active_dir.glob("*.json")):
+            try:
+                summaries.append(_read_host_evidence_summary(path))
+            except FileNotFoundError as exc:
+                errors.append(_host_evidence_read_error(path, "not_found", exc))
+            except ValueError as exc:
+                errors.append(_host_evidence_read_error(path, "invalid_evidence", exc))
+            except OSError as exc:
+                errors.append(_host_evidence_read_error(path, "read_failed", exc))
     return tuple(summaries), tuple(errors)
 
 
 def _read_host_evidence_summaries_strict(
     evidence_dir: Path,
+    *,
+    fallback_dirs: tuple[Path, ...] = (),
 ) -> tuple[HostEvidenceSummary, ...]:
-    if not evidence_dir.exists():
-        return ()
-    if not evidence_dir.is_dir():
-        raise ValueError(f"host scheduler evidence path is not a directory: {evidence_dir}")
-    return tuple(_read_host_evidence_summary(path) for path in sorted(evidence_dir.glob("*.json")))
+    summaries: list[HostEvidenceSummary] = []
+    for active_dir in _existing_evidence_dirs(evidence_dir, fallback_dirs):
+        if not active_dir.is_dir():
+            raise ValueError(f"host scheduler evidence path is not a directory: {active_dir}")
+        summaries.extend(
+            _read_host_evidence_summary(path) for path in sorted(active_dir.glob("*.json"))
+        )
+    return tuple(summaries)
+
+
+def _existing_evidence_dirs(evidence_dir: Path, fallback_dirs: tuple[Path, ...]) -> tuple[Path, ...]:
+    dirs = [evidence_dir] if evidence_dir.exists() else []
+    dirs.extend(path for path in fallback_dirs if path.exists() and path != evidence_dir)
+    return tuple(dirs)
 
 
 def _read_host_evidence_summary(path: Path) -> HostEvidenceSummary:

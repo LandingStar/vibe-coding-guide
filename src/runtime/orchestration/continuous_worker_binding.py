@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from .artifact_paths import dbc_artifact_path
 from .runtime_adapter import RuntimeProviderKind
 
 
@@ -35,22 +36,22 @@ CONTINUOUS_WORKER_LANE_OWNERSHIP_EVENT_LOG_SCHEMA_VERSION = (
     "continuous-worker-lane-ownership-event-log.v1"
 )
 DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-bindings.json"
+    dbc_artifact_path("runtime", "continuous-worker-bindings.json")
 )
 DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-binding-events.jsonl"
+    dbc_artifact_path("runtime", "continuous-worker-binding-events.jsonl")
 )
 DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-delivery-leases.json"
+    dbc_artifact_path("runtime", "continuous-worker-delivery-leases.json")
 )
 DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    dbc_artifact_path("runtime", "continuous-worker-delivery-lease-events.jsonl")
 )
 DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-lane-ownerships.json"
+    dbc_artifact_path("runtime", "continuous-worker-lane-ownerships.json")
 )
 DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    dbc_artifact_path("runtime", "continuous-worker-lane-ownership-events.jsonl")
 )
 
 ContinuousWorkerScopeKind = Literal["lane", "lane_group", "agent", "task"]

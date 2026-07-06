@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
 from .preflight import PreflightDrainResult, drain_preflighted_ready_tasks
 from .runtime_adapter import AgentRuntimeAdapterRegistry
 from .runtime_wiring import RuntimeRegistryWiringResult
@@ -40,7 +41,7 @@ def run_persisted_scheduler_once(
     policy: SchedulerRunPolicy | None = None,
     max_runs: int | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     created_at: str = "",
     expires_at: str = "",
     timestamp: str = "",
@@ -91,7 +92,7 @@ def run_persisted_scheduler_once_with_wiring(
     policy: SchedulerRunPolicy | None = None,
     max_runs: int | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     created_at: str = "",
     expires_at: str = "",
     timestamp: str = "",

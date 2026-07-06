@@ -12,6 +12,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT, dbc_artifact_path
 from .exchange import (
     ExchangeArtifact,
     ExchangeCausality,
@@ -55,10 +56,10 @@ from .scheduler_submission import (
 
 DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_PREFIX = "guide-worker-local-orchestration"
 DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_SNAPSHOT_RELATIVE_PATH = (
-    ".codex/scheduler/guide-worker-local-orchestration-state.json"
+    dbc_artifact_path("scheduler", "guide-worker-local-orchestration-state.json")
 )
 DEFAULT_GUIDE_WORKER_LOCAL_ORCHESTRATION_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/scheduler/guide-worker-local-orchestration-events.jsonl"
+    dbc_artifact_path("scheduler", "guide-worker-local-orchestration-events.jsonl")
 )
 
 GuideWorkerWaveExecutionMode = Literal["serial", "threaded"]
@@ -213,7 +214,7 @@ class GuideWorkerLocalOrchestrationRequest:
     replace_existing: bool = False
     allow_duplicate_admission: bool = False
     workspace_root: str = ""
-    scratch_root: str = ".codex/scratch"
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT
     wave_execution_mode: GuideWorkerWaveExecutionMode = "serial"
 
 
@@ -594,7 +595,7 @@ def execute_guide_worker_parallel_wave(
     sandbox_registry: SandboxProviderRegistry,
     event_log: SchedulerEventSink | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     timestamp: str = "",
     mode: GuideWorkerWaveExecutionMode = "serial",
 ) -> GuideWorkerWaveExecutionResult:

@@ -40,6 +40,7 @@ class InstructionsGenerator:
         sections.append(self._constraints_section())
         sections.append(self._conversation_progression_section())
         sections.append(self._work_agent_local_trajectory_section())
+        sections.append(self._workspace_dbc_relay_section())
         sections.append(self._temporary_override_section())
         sections.append(self._external_skill_interaction_section())
         sections.append(self._document_types_section())
@@ -130,7 +131,7 @@ class InstructionsGenerator:
             "- Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put progress/status suggestions in `Subagent Report.trajectory_update` for the leader to consume. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.",
             "- Do not wait for the user to ask for trajectory updates. Start or continue the trajectory as part of doing the work.",
             "- Use the MCP `localTrajectory` tool as the preferred mutation surface when it is available to a leader/main/supervisor context.",
-            "- Before the first trajectory mutation for a task, decide whether the work has distinct context streams. Use separate lanes early when independent or semi-independent streams have different files, protocols, validation surfaces, or mental context, such as server/client/API contract/testing. Keep one lane only when the work is truly linear.",
+            "- Before substantial task work begins, judge whether the task is large enough or split-worthy enough to need distinct Local Work lanes. If yes or uncertain, follow `design_docs/tooling/local-work-lane-splitting/README.md`; keep detailed lane split criteria there, not in generated instructions.",
             "- Leader-worker is recommended for single-lane Local Work and required when Local Work has two or more lanes. In multi-lane work, model workers and the leader as activatable lifecycle participants: they may wait for dependencies, review, or messages, and message-driven reactivation must remain auditable.",
             "- Call `localTrajectory start` when beginning a tracked task and no active trajectory exists; include `sourceGraphId` and `sourceNodeId` on `start` when a visible owning progress-map node is known so the trajectory is attached from birth.",
             "- Call `append` for planned or observed milestones; call `advance` when the active milestone is complete.",
@@ -146,6 +147,20 @@ class InstructionsGenerator:
             "- When worker execution uses a backend runtime such as Codex, Qoder, or opencode, prefer host-owned wrappers that record compact runtime invocation audit/retry records. Do not persist raw transcripts or secret values.",
             "- Do not ask the user to manually maintain Local Work Trajectory nodes.",
             "- 当涉及UI等图像的工作时，在验收前务必使用截图性质工具进行验证。 For UI or other image-like output, use screenshot-style validation before acceptance.",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _workspace_dbc_relay_section(self) -> str:
+        """Render guidance for workspace-bound DBC command relay usage."""
+
+        lines = [
+            "## Workspace DBC Command Relay",
+            "",
+            "- When MCP exposes `workspaceDbcCommand`, use it for DBC CLI-equivalent checks or operator commands instead of asking the model to resolve `doc-based-coding` from PATH, virtualenvs, or checkout locations.",
+            "- Treat `workspaceDbcCommand` as a per-agent, workspace-bound relay: it is provided by that agent's MCP server instance and should run against that agent's current project root.",
+            "- Prefer dedicated structured MCP tools such as `localTrajectory`, `get_next_action`, or scheduler tools when they exist; use the relay only for CLI surfaces without a dedicated tool.",
+            "- If a DBC CLI-equivalent action is needed but neither a dedicated MCP tool nor `workspaceDbcCommand` is exposed, report the MCP/tool exposure problem explicitly instead of falling back to a global `doc-based-coding` command.",
             "",
         ]
         return "\n".join(lines)

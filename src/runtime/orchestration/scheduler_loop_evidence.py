@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .artifact_paths import dbc_artifact_path
 from .scheduler_daemon import SchedulerDaemonLoopResult
 
 SCHEDULER_LOOP_EVIDENCE_PRODUCT_TYPE = "scheduler_loop_evidence"
@@ -131,7 +132,7 @@ def default_scheduler_loop_evidence_path(
 
     safe_id = "".join(character if character.isalnum() or character in {"-", "_"} else "-" for character in evidence_id)
     safe_id = safe_id.strip("-") or "scheduler-loop"
-    return Path(project_root) / ".codex/scheduler/evidence" / f"{safe_id}.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence", f"{safe_id}.json")
 
 
 def build_scheduler_loop_evidence(
@@ -255,4 +256,3 @@ def _required_mapping_tuple(payload: Mapping[str, Any], key: str, path: Path) ->
     if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
         raise ValueError(f"scheduler loop evidence artifact field {key!r} must be an object list: {path}")
     return tuple(dict(item) for item in value)
-

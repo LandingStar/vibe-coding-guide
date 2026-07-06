@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from .artifact_paths import dbc_artifact_path
 from .agent_communication import inspect_agent_exchange_mailbox
 from .agent_exchange_action_candidates import inspect_agent_exchange_action_candidates
 from .agent_exchange_action_consumers import consume_accepted_scheduler_action_candidate
@@ -35,10 +36,10 @@ from .scheduler_submission import (
 
 DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_PREFIX = "guide-worker-exchange-dogfood"
 DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_SNAPSHOT_RELATIVE_PATH = (
-    ".codex/scheduler/guide-worker-exchange-dogfood-state.json"
+    dbc_artifact_path("scheduler", "guide-worker-exchange-dogfood-state.json")
 )
 DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/scheduler/guide-worker-exchange-dogfood-events.jsonl"
+    dbc_artifact_path("scheduler", "guide-worker-exchange-dogfood-events.jsonl")
 )
 
 

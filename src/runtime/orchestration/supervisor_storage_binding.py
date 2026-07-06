@@ -9,8 +9,8 @@ from .agent_storage import AgentHomeRegistration, AgentScratchSpace
 from .scheduler import SchedulerState
 
 
-DEFAULT_SUPERVISOR_BINDING_SCRATCH_ROOT = ".codex/scratch"
-DEFAULT_SUPERVISOR_BINDING_HOME_ROOT = ".codex/agents"
+DEFAULT_SUPERVISOR_BINDING_SCRATCH_ROOT = ".dbc/scratch"
+DEFAULT_SUPERVISOR_BINDING_HOME_ROOT = ".dbc/agents"
 
 
 @dataclass(frozen=True, slots=True)

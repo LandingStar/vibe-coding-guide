@@ -179,6 +179,22 @@ Current first compatibility rule:
 
 The first registered check is:
 
+- `workspace.dbc_command_relay`
+- profiles: `codex`, `mcp`, `runtime`
+- source behavior: reports the per-agent `workspaceDbcCommand` MCP relay
+  contract
+- purpose: make the workspace-bound DBC command surface explicit so agents do
+  not fall back to a global `doc-based-coding` command when an MCP session is
+  available.
+
+It must remain read-only and must not execute the relay during doctor. The
+relay itself is the execution surface.
+
+Operational usage and troubleshooting guidance lives in
+`docs/workspace-dbc-command-relay.md`.
+
+The first host exposure check is:
+
 - `codex.mcp_exposure`
 - profiles: `codex`, `mcp`
 - source behavior: current Codex MCP exposure diagnostic
@@ -200,6 +216,10 @@ The next standard checks are:
     tasks, starting/stopping the server, or reading secret values.
 - `scheduler.storage_visibility`
   - profile: `scheduler`
-  - purpose: report whether default scheduler storage artifacts are present and
-    readable without recovering, compacting, ticking, or mutating scheduler
+  - purpose: report whether default `.dbc/scheduler` storage artifacts are
+    present and readable without recovering, compacting, ticking, or mutating
+    scheduler
     state.
+  - compatibility: if legacy `.codex/scheduler` exists while `.dbc/scheduler`
+    is missing, the check reports a warning with legacy evidence instead of
+    treating `.codex/scheduler` as the current default.

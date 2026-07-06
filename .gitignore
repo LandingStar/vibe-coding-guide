@@ -41,6 +41,7 @@ tests/*
 !tests/test_progress_graph_trajectory.py
 !tests/test_runtime_orchestration.py
 !tests/test_runtime_orchestration_agent_communication.py
+!tests/test_decision_log.py
 !tests/test_pep_writeback_lease_evidence.py
 !tests/test_release_versioning.py
 example/
@@ -66,3 +67,6 @@ debug.log
 .codex/handoffs/history/
 .codex/runtime/
 .codex/temporary-overrides.json
+
+# DBC-owned generated runtime artifacts.
+.dbc/

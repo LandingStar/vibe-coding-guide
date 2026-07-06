@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
+from .artifact_paths import dbc_artifact_path
 from .leader_worker_dispatcher import (
     JsonlLeaderWorkerDispatcherEventLog,
     LeaderWorkerDispatchDecision,
@@ -17,10 +18,10 @@ from .leader_worker_dispatcher import (
 LEADER_WORKER_DELIVERY_STATE_SCHEMA_VERSION = "leader-worker-delivery-state.v1"
 LEADER_WORKER_DELIVERY_EVENT_LOG_SCHEMA_VERSION = "leader-worker-delivery-log.v1"
 DEFAULT_LEADER_WORKER_DELIVERY_STATE_RELATIVE_PATH = (
-    ".codex/scheduler/leader-worker-delivery-state.json"
+    dbc_artifact_path("scheduler", "leader-worker-delivery-state.json")
 )
 DEFAULT_LEADER_WORKER_DELIVERY_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/scheduler/leader-worker-delivery-events.jsonl"
+    dbc_artifact_path("scheduler", "leader-worker-delivery-events.jsonl")
 )
 
 LeaderWorkerDeliveryStatus = Literal[

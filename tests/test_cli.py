@@ -1511,8 +1511,11 @@ def test_scheduler_live_codex_concurrent_worker_smoke_cli_fails_closed_when_cli_
     assert not (
         project / ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
     ).exists()
-    assert (
+    assert not (
         project / ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json"
+    ).exists()
+    assert (
+        project / ".dbc/scheduler/live-codex-concurrent-worker-smoke-report.json"
     ).exists()
 
 
@@ -1556,8 +1559,11 @@ def test_scheduler_live_opencode_concurrent_worker_smoke_cli_fails_closed_when_c
     assert not (
         project / ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
     ).exists()
-    assert (
+    assert not (
         project / ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json"
+    ).exists()
+    assert (
+        project / ".dbc/scheduler/live-opencode-concurrent-worker-smoke-report.json"
     ).exists()
 
 
@@ -2156,8 +2162,11 @@ def test_doctor_codex_profile_outputs_self_check_report(tmp_path: Path) -> None:
     payload = json.loads(proc.stdout)
     assert payload["schema_version"] == "self-check-report/v1"
     assert payload["profile"] == "codex"
-    assert payload["checks"][0]["check_id"] == "codex.mcp_exposure"
-    assert payload["checks"][0]["secret_safe"] is True
+    checks = {check["check_id"]: check for check in payload["checks"]}
+    assert "workspace.dbc_command_relay" in checks
+    assert "codex.mcp_exposure" in checks
+    assert checks["codex.mcp_exposure"]["secret_safe"] is True
+    assert checks["workspace.dbc_command_relay"]["evidence"]["tool_name"] == "workspaceDbcCommand"
     assert payload["authority_split"]["provider_executed"] is False
     assert payload["authority_split"]["mcp_tool_called"] is False
     assert "token" not in json.dumps(payload).lower()
@@ -2485,8 +2494,9 @@ def test_opencode_serve_lifecycle_cli_record_inspect_roundtrip(tmp_path: Path) -
     assert inspect_payload["authority_split"]["serve_lifecycle_ledger_mutated"] is False
     assert len(inspect_payload["receipts"]) == 1
     assert inspect_payload["receipts"][0]["pid"] == "4242"
-    ledger = project / ".codex/runtime/opencode-serve-lifecycle-ledger.json"
+    ledger = project / ".dbc/runtime/opencode-serve-lifecycle-ledger.json"
     assert ledger.exists()
+    assert not (project / ".codex/runtime/opencode-serve-lifecycle-ledger.json").exists()
     ledger_text = ledger.read_text(encoding="utf-8").lower()
     assert "transcript" not in ledger_text
     assert "secret" not in ledger_text
@@ -2577,8 +2587,9 @@ def test_opencode_session_cli_claim_inspect_release_roundtrip(tmp_path: Path) ->
     assert inspect_all.returncode == 0, inspect_all.stderr
     all_payload = json.loads(inspect_all.stdout)
     assert all_payload["bindings"][0]["status"] == "released"
-    ledger = project / ".codex/runtime/opencode-session-ledger.json"
+    ledger = project / ".dbc/runtime/opencode-session-ledger.json"
     assert ledger.exists()
+    assert not (project / ".codex/runtime/opencode-session-ledger.json").exists()
     assert "transcript" not in ledger.read_text(encoding="utf-8").lower()
 
 
@@ -2687,6 +2698,247 @@ def test_worker_binding_help_describes_continuity_boundary() -> None:
     assert "recover-stale" in proc.stdout
     assert "reuse a worker identity" in proc.stdout
     assert "Local Work Trajectory" in proc.stdout
+
+
+def test_scheduler_trajectory_team_cli_help_describes_authority_boundary() -> None:
+    proc = _run_cli(["scheduler", "trajectory-team", "--help"])
+
+    assert proc.returncode == 0
+    assert "leader/operator-owned team continuity surface" in proc.stdout
+    assert "does not run providers" in proc.stdout
+    assert "docs/worker-trajectory-update-reporting.md" in proc.stdout
+
+
+def test_scheduler_trajectory_team_cli_assign_inspect_resolve_roundtrip(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    assign = _run_cli(
+        [
+            "scheduler",
+            "trajectory-team",
+            "assign",
+            "--trajectory-id",
+            "local-work:cli-surface",
+            "--lane-id",
+            "lane:server",
+            "--leader-id",
+            "agent:guide",
+            "--worker-id",
+            "worker:server",
+            "--runtime-provider",
+            "opencode",
+            "--session-id",
+            "session-server",
+            "--compact-context-ref",
+            "dbc://context/server",
+            "--mailbox-cursor-ref",
+            "dbc://mailbox/server@1",
+            "--worker-report-ref",
+            "report:server",
+            "--audit-ref",
+            "audit:server",
+            "--scheduler-event-log-path",
+            ".codex/scheduler/team-events.jsonl",
+            "--timestamp",
+            "2026-07-04T12:00:00+00:00",
+        ],
+        cwd=project,
+    )
+    inspect = _run_cli(
+        [
+            "scheduler",
+            "trajectory-team",
+            "inspect",
+            "--trajectory-id",
+            "local-work:cli-surface",
+            "--lane-id",
+            "lane:server",
+            "--runtime-provider",
+            "opencode",
+        ],
+        cwd=project,
+    )
+    resolve = _run_cli(
+        [
+            "scheduler",
+            "trajectory-team",
+            "resolve",
+            "--trajectory-id",
+            "local-work:cli-surface",
+            "--lane-id",
+            "lane:server",
+            "--runtime-provider",
+            "opencode",
+            "--scheduler-event-log-path",
+            ".codex/scheduler/team-events.jsonl",
+        ],
+        cwd=project,
+    )
+
+    assert assign.returncode == 0, assign.stderr
+    assign_payload = json.loads(assign.stdout)
+    assert assign_payload["ok"] is True
+    assert assign_payload["authority_split"]["provider_executed"] is False
+    assert assign_payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert assign_payload["rows"][0]["binding_id"] == "continuous-worker:lane:lane-server"
+
+    assert inspect.returncode == 0, inspect.stderr
+    inspect_payload = json.loads(inspect.stdout)
+    assert inspect_payload["rows"][0]["worker_id"] == "worker:server"
+    assert inspect_payload["rows"][0]["compact_context_ref"] == "dbc://context/server"
+    assert inspect_payload["rows"][0]["worker_report_refs"] == ["report:server"]
+    assert str(project) in inspect_payload["paths"]["binding_ledger_path"]
+
+    assert resolve.returncode == 0, resolve.stderr
+    resolve_payload = json.loads(resolve.stdout)
+    assert resolve_payload["status"] == "resolved"
+    assert resolve_payload["rows"][0]["last_team_event_kind"] == (
+        "trajectory_team_lane_worker_resolved"
+    )
+
+    event_log = project / ".codex/scheduler/team-events.jsonl"
+    assert event_log.exists()
+    assert "trajectory_team_worker_assigned" in event_log.read_text(encoding="utf-8")
+
+
+def test_scheduler_trajectory_team_cli_rejects_worker_mutation(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+
+    proc = _run_cli(
+        [
+            "scheduler",
+            "trajectory-team",
+            "assign",
+            "--caller-role",
+            "worker",
+            "--trajectory-id",
+            "local-work:cli-surface",
+            "--lane-id",
+            "lane:server",
+            "--worker-id",
+            "worker:server",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["status"] == "caller_role_rejected"
+    assert "docs/worker-trajectory-update-reporting.md" in payload["message"]
+    assert payload["authority_split"]["worker_direct_mutation_allowed"] is False
+
+
+def test_scheduler_trajectory_team_cli_transfer_release_no_continuity(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    base = [
+        "scheduler",
+        "trajectory-team",
+    ]
+    common_paths = [
+        "--scheduler-event-log-path",
+        ".codex/scheduler/team-events.jsonl",
+    ]
+
+    first = _run_cli(
+        [
+            *base,
+            "assign",
+            "--trajectory-id",
+            "local-work:cli-transfer",
+            "--lane-id",
+            "lane:server",
+            "--worker-id",
+            "worker:server",
+            *common_paths,
+        ],
+        cwd=project,
+    )
+    second = _run_cli(
+        [
+            *base,
+            "assign",
+            "--trajectory-id",
+            "local-work:cli-transfer",
+            "--lane-id",
+            "lane:replacement",
+            "--worker-id",
+            "worker:replacement",
+            *common_paths,
+        ],
+        cwd=project,
+    )
+    transfer = _run_cli(
+        [
+            *base,
+            "transfer",
+            "--trajectory-id",
+            "local-work:cli-transfer",
+            "--lane-id",
+            "lane:server",
+            "--worker-id",
+            "worker:replacement",
+            "--replacement-binding-id",
+            "continuous-worker:lane:lane-replacement",
+            *common_paths,
+        ],
+        cwd=project,
+    )
+    no_continuity = _run_cli(
+        [
+            *base,
+            "noContinuity",
+            "--trajectory-id",
+            "local-work:cli-transfer",
+            "--lane-id",
+            "lane:docs",
+            "--no-continuity-reason",
+            "explicit_no_continuity",
+            *common_paths,
+        ],
+        cwd=project,
+    )
+    release = _run_cli(
+        [
+            *base,
+            "release",
+            "--trajectory-id",
+            "local-work:cli-transfer",
+            "--lane-id",
+            "lane:replacement",
+            "--binding-id",
+            "continuous-worker:lane:lane-replacement",
+            *common_paths,
+        ],
+        cwd=project,
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert transfer.returncode == 0, transfer.stderr
+    transfer_payload = json.loads(transfer.stdout)
+    assert transfer_payload["status"] == "transferred"
+    assert transfer_payload["bridge_result"]["event"]["replacement_binding_id"] == (
+        "continuous-worker:lane:lane-replacement"
+    )
+    assert no_continuity.returncode == 1
+    no_continuity_payload = json.loads(no_continuity.stdout)
+    assert no_continuity_payload["status"] == "no_continuity"
+    assert no_continuity_payload["rows"][0]["no_continuity_reason"] == (
+        "explicit_no_continuity"
+    )
+    assert release.returncode == 0, release.stderr
+    release_payload = json.loads(release.stdout)
+    assert release_payload["status"] == "released"
+    assert release_payload["authority_split"]["provider_executed"] is False
 
 
 def test_worker_binding_lifecycle_subcommand_help() -> None:
@@ -2962,10 +3214,11 @@ def test_worker_binding_cli_promote_claims_and_activates_lane_ownership(
     assert inspect_active.returncode == 0, inspect_active.stderr
     active_payload = json.loads(inspect_active.stdout)
     assert active_payload["ownerships"][0]["status"] == "active"
-    ownership_ledger = project / ".codex/runtime/continuous-worker-lane-ownerships.json"
-    ownership_event_log = project / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    ownership_ledger = project / ".dbc/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log = project / ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl"
     assert ownership_ledger.exists()
     assert ownership_event_log.exists()
+    assert not (project / ".codex/runtime/continuous-worker-lane-ownerships.json").exists()
     assert not (project / ".codex/runtime/opencode-session-ledger.json").exists()
 
 
@@ -3080,10 +3333,11 @@ def test_worker_binding_cli_claim_inspect_release_roundtrip(tmp_path: Path) -> N
     assert inspect_all.returncode == 0, inspect_all.stderr
     all_payload = json.loads(inspect_all.stdout)
     assert all_payload["bindings"][0]["lifecycle_status"] == "released"
-    ledger = project / ".codex/runtime/continuous-worker-bindings.json"
-    event_log = project / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ledger = project / ".dbc/runtime/continuous-worker-bindings.json"
+    event_log = project / ".dbc/runtime/continuous-worker-binding-events.jsonl"
     assert ledger.exists()
     assert event_log.exists()
+    assert not (project / ".codex/runtime/continuous-worker-bindings.json").exists()
     ledger_payload = json.loads(ledger.read_text(encoding="utf-8"))
     assert ledger_payload["authority_split"]["raw_transcript_persisted"] is False
     assert "session-server" in ledger.read_text(encoding="utf-8")
@@ -3092,7 +3346,7 @@ def test_worker_binding_cli_claim_inspect_release_roundtrip(tmp_path: Path) -> N
 def test_worker_binding_cli_reuse_compact_fork_roundtrip(tmp_path: Path) -> None:
     project = tmp_path / "project"
     (project / "design_docs").mkdir(parents=True)
-    event_log = project / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    event_log = project / ".dbc/runtime/continuous-worker-binding-events.jsonl"
 
     claim = _run_cli(
         [

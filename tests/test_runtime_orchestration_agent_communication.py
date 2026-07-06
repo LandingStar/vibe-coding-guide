@@ -22,10 +22,13 @@ from src.runtime.orchestration import (
     VisibilityPolicy,
     AgentSpec,
     ContextScope,
+    AppendFieldsLogDecorator,
     agent_home_registration_to_artifact,
     build_agent_exchange_action_candidates,
     build_agent_exchange_mailbox,
     build_agent_exchange_history_summary,
+    LogDecorationPipeline,
+    RequiredFieldsLogDecorator,
     FeedbackAPIReviewIntakeConsumer,
     FileHandoffConsumer,
     GuideWorkerExchangeDogfoodRequest,
@@ -603,6 +606,72 @@ def test_agent_exchange_history_filters_and_redacts_sensitive_sources(tmp_path) 
     assert "safe compact summary" in str(payload)
     assert "secret text must not leak" not in str(payload)
     assert "should-not-leak" not in str(payload)
+
+
+def test_agent_exchange_history_can_decorate_log_entries_without_store_mutation(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-history-decoration",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:guide",
+            audience=("agent:worker",),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="log",
+                    log=ExchangeLog(
+                        timestamp="2026-07-05T13:00:00+08:00",
+                        actor="agent:guide",
+                        action="instruction_sent",
+                        channel="agent-exchange-history",
+                        summary="Guide sent compact instruction.",
+                        related_artifact_ids=("ex-history-decoration",),
+                        related_event_ids=("event:instruction",),
+                        related_run_ids=("run:instruction",),
+                        sequence=3,
+                    ),
+                ),
+            ),
+        )
+    )
+    before = store_path.read_text(encoding="utf-8")
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="exchange-history-scope",
+                fields={"history_surface": "agent-exchange-history"},
+            ),
+        )
+    )
+
+    summary = inspect_agent_exchange_history_summary(
+        store_path,
+        decoration_pipeline=pipeline,
+    )
+
+    assert store_path.read_text(encoding="utf-8") == before
+    assert [entry.action for entry in summary.log_entries] == ["instruction_sent"]
+    assert len(summary.log_decoration_results) == 1
+    decoration = summary.log_decoration_results[0]
+    assert decoration.ok is True
+    assert decoration.record.record_id == "exchange_history:ex-history-decoration@v1:3"
+    assert decoration.record.fields["source_record_kind"] == "exchange_log"
+    assert decoration.record.fields["source_artifact_id"] == "ex-history-decoration"
+    assert decoration.record.fields["source_version"] == "v1"
+    assert decoration.record.fields["source"] == "ex-history-decoration@v1"
+    assert decoration.record.fields["related_event_ids"] == ["event:instruction"]
+    assert decoration.record.decorations["history_surface"] == "agent-exchange-history"
+    payload = summary.to_json_dict()
+    assert payload["log_decoration_results"][0]["record"]["record_id"] == (
+        "exchange_history:ex-history-decoration@v1:3"
+    )
+    assert payload["authority_split"]["exchange_store_mutated"] is False
 
 
 def test_agent_exchange_history_reports_missing_or_invalid_store(tmp_path) -> None:

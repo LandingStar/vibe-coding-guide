@@ -8,6 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from src.runtime.orchestration.artifact_paths import (
+    dbc_artifact_path,
+    resolve_existing_artifact_path,
+)
 from src.workflow.checkpoint import read_checkpoint
 
 TrajectoryLaneStatus = Literal["pending", "active", "waiting", "blocked", "done"]
@@ -68,7 +72,7 @@ _LOCAL_WORK_RELATION_KINDS: set[str] = {
     "approves_new_line",
 }
 
-_DEFAULT_TRAJECTORY_PATH = Path(".codex/progress-graph/local-work-trajectory.json")
+_DEFAULT_TRAJECTORY_PATH = Path(dbc_artifact_path("progress-graph", "local-work-trajectory.json"))
 
 
 @dataclass(frozen=True)
@@ -288,8 +292,12 @@ def trajectory_json_path(project_root: str | Path) -> Path:
     return Path(project_root) / _DEFAULT_TRAJECTORY_PATH
 
 
+def existing_trajectory_json_path(project_root: str | Path) -> Path:
+    return resolve_existing_artifact_path(project_root, _DEFAULT_TRAJECTORY_PATH)
+
+
 def load_local_work_trajectory(project_root: str | Path) -> LocalWorkTrajectory:
-    path = trajectory_json_path(project_root)
+    path = existing_trajectory_json_path(project_root)
     return LocalWorkTrajectory.from_json(path.read_text(encoding="utf-8"))
 
 

@@ -1,6 +1,6 @@
 """Agent output routing — write structured analysis to a visible surface.
 
-Current implementation: write to file (.codex/agent-output/latest.md).
+Current implementation: write to file (.dbc/agent-output/latest.md).
 Future implementation: route to VS Code UI panel when running as a plugin.
 
 This module is the single abstraction point for "making agent analysis
@@ -16,13 +16,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
+from ..runtime.orchestration.artifact_paths import dbc_artifact_path
+
 logger = logging.getLogger(__name__)
 
 
 class OutputSink(Protocol):
     """Abstraction for agent output destinations.
 
-    Current implementation: FileSink (writes to .codex/agent-output/).
+    Current implementation: FileSink (writes to .dbc/agent-output/).
     Future: UIPanelSink, ChatStreamSink, etc.
     """
 
@@ -32,10 +34,10 @@ class OutputSink(Protocol):
 
 
 class FileSink:
-    """Write agent output to a Markdown file under .codex/agent-output/."""
+    """Write agent output to a Markdown file under .dbc/agent-output/."""
 
     def __init__(self, project_root: str | Path) -> None:
-        self._output_dir = Path(project_root) / ".codex" / "agent-output"
+        self._output_dir = Path(project_root) / dbc_artifact_path("agent-output")
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
     def write(self, content: str, *, title: str = "") -> str:

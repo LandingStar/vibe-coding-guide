@@ -17,6 +17,12 @@ blocked state, completion, or suggested trajectory actions belong in
 procedure: `docs/worker-trajectory-update-reporting.md`.
 Scheduler MCP tools operate on scheduler-owned snapshot/event-log state.
 
+CLI notation in this prompt is a DBC argv shorthand. When MCP exposes
+`workspaceDbcCommand`, run CLI-equivalent DBC checks or operator surfaces
+through that per-agent workspace relay instead of resolving a bare
+`doc-based-coding` executable from PATH. Prefer dedicated structured MCP tools
+when they exist.
+
 ## Authority Boundary
 
 Keep the lifecycle split:
@@ -205,7 +211,7 @@ Keep the lifecycle split:
    until max ticks, no-ready, blocked-task, or runtime-failure stop policy
    fires. It does not refresh scheduler projection automatically.
 18. `doc-based-coding scheduler project` is the CLI projection refresh surface
-   for `.codex/progress-graph/scheduler-work-trajectory.json`. It does not run
+   for `.dbc/progress-graph/scheduler-work-trajectory.json`. It does not run
    providers or mutate Local Work Trajectory.
 19. Host-authorized runners use Python/host wiring through
    `HostSchedulerRunRequest` plus
@@ -221,7 +227,7 @@ Keep the lifecycle split:
    `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` when a
    host-owned Python caller needs one compact workflow that runs the bounded
    daemon loop, preserves optional `scheduler_loop_evidence`, refreshes
-   `.codex/progress-graph/scheduler-work-trajectory.json`, and reads back a
+   `.dbc/progress-graph/scheduler-work-trajectory.json`, and reads back a
    scheduler-derived trajectory summary. This is explicit host workflow
    composition, not scheduler-owned Local Work Trajectory mutation and not
    CLI/MCP real-provider exposure.
@@ -291,20 +297,20 @@ Keep the lifecycle split:
    `run_host_runtime_dogfood_harness()` to run the host-authorized scheduler
    pass, refresh scheduler projection, and write compact evidence JSON.
 
-These tools must not mutate `.codex/progress-graph/local-work-trajectory.json`.
+These tools must not mutate `.dbc/progress-graph/local-work-trajectory.json`.
 
 ## Minimal Paths
 
-Prefer explicit paths under `.codex/scheduler/` or a test temp directory:
+Prefer explicit paths under `.dbc/scheduler/` or a test temp directory:
 
 ```text
-.codex/scheduler/scheduler-state.json
-.codex/scheduler/scheduler-events.jsonl
-.codex/scheduler/scheduler-daemon-control.json
-.codex/scheduler/evidence/<evidence-id>.json
-.codex/orchestration/exchange-artifacts.json
-.codex/orchestration/exchange-artifact-admissions.json
-.codex/progress-graph/scheduler-work-trajectory.json
+.dbc/scheduler/scheduler-state.json
+.dbc/scheduler/scheduler-events.jsonl
+.dbc/scheduler/scheduler-daemon-control.json
+.dbc/scheduler/evidence/<evidence-id>.json
+.dbc/orchestration/exchange-artifacts.json
+.dbc/orchestration/exchange-artifact-admissions.json
+.dbc/progress-graph/scheduler-work-trajectory.json
 ```
 
 Do not invent a default scheduler state path inside a tool call unless the
@@ -324,13 +330,13 @@ default_exchange_artifact_store_path()
 
 Expected inspection behavior:
 
-1. Read `.codex/orchestration/exchange-artifacts.json` by default.
+1. Read `.dbc/orchestration/exchange-artifacts.json` by default.
 2. Return exact artifact IDs, versions, latest flags, kind / intent /
    lifecycle / producer, scope, payload part types, and visibility clues.
 3. Detect scheduler task submission and batch submission candidates through
    advisory `admission_candidates[]` metadata.
 4. Include ledger-derived `admission_state` for each exact artifact version
-   when `.codex/orchestration/exchange-artifact-admissions.json` is available.
+   when `.dbc/orchestration/exchange-artifact-admissions.json` is available.
    Missing ledgers produce `admission_state.status=not_admitted`.
 5. Keep `admission_state` read-only: it is not exchange artifact lifecycle
    mutation, consumed marking, scheduler projection refresh, or a scheduler
@@ -385,7 +391,7 @@ Expected admission behavior:
 6. Reject missing exact versions, malformed stores, non-submission artifacts,
    and ambiguous multiple scheduler submission payloads with readable errors.
 7. Do not run providers, mark exchange artifacts consumed, refresh scheduler
-   projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+   projection, or mutate `.dbc/progress-graph/local-work-trajectory.json`.
 
 For agent/host-facing MCP exact admission, use the `admitExchangeArtifact`
 tool below. For operator-triggered admission outside Python or MCP, use the CLI
@@ -424,9 +430,9 @@ Expected MCP behavior:
 
 1. Resolve relative paths under the MCP project root.
 2. Default `artifactStorePath` to
-   `.codex/orchestration/exchange-artifacts.json`.
+   `.dbc/orchestration/exchange-artifacts.json`.
 3. Default `admissionLedgerPath` to
-   `.codex/orchestration/exchange-artifact-admissions.json`.
+   `.dbc/orchestration/exchange-artifact-admissions.json`.
 4. Reuse the same ledger duplicate policy as the CLI: reject duplicate exact
    artifact/version admission before scheduler mutation unless
    `allowDuplicateAdmission=true`.
@@ -442,7 +448,7 @@ Expected MCP behavior:
    `status=rejected_duplicate`, `duplicate_of`, `scheduler_state_mutated=false`,
    and `event_log_mutated=false`.
 8. Do not run providers, mark exchange artifacts consumed, refresh scheduler
-   projection, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+   projection, or mutate `.dbc/progress-graph/local-work-trajectory.json`.
 
 ### Binding Reference Inspection
 
@@ -461,7 +467,7 @@ Optional inputs:
 
 ```text
 artifactStorePath
---artifact-store-path .codex/orchestration/exchange-artifacts.json
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
 ```
 
 Expected inspection behavior:
@@ -483,7 +489,7 @@ Expected inspection behavior:
    mutate ExchangeArtifact stores, write admission ledgers, mark artifacts
    consumed, read raw supervisor binding evidence JSON, run providers, refresh
    scheduler projection, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 ### CLI Operator Admission
 
@@ -494,15 +500,15 @@ exact stored scheduler submission artifact without opening an MCP write tool:
 doc-based-coding scheduler admit-exchange-artifact \
   --artifact-id <artifact-id> \
   --version <version> \
-  --snapshot-path .codex/scheduler/scheduler-state.json \
-  --event-log-path .codex/scheduler/scheduler-events.jsonl
+  --snapshot-path .dbc/scheduler/scheduler-state.json \
+  --event-log-path .dbc/scheduler/scheduler-events.jsonl
 ```
 
 Optional inputs:
 
 ```text
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json
 --allow-duplicate-admission
 --actor <actor-id>
 --replace-existing
@@ -513,10 +519,10 @@ Expected CLI behavior:
 
 1. Resolve relative paths under the detected project root.
 2. Default `--artifact-store-path` to
-   `.codex/orchestration/exchange-artifacts.json`.
+   `.dbc/orchestration/exchange-artifacts.json`.
 3. Require explicit scheduler snapshot and event-log paths.
 4. Default `--admission-ledger-path` to
-   `.codex/orchestration/exchange-artifact-admissions.json`.
+   `.dbc/orchestration/exchange-artifact-admissions.json`.
 5. Before scheduler mutation, reject duplicate exact artifact/version admission
    when a previous `admitted` ledger record exists and
    `--allow-duplicate-admission` is absent.
@@ -530,7 +536,7 @@ Expected CLI behavior:
    artifacts without scheduler mutation.
 9. Do not run providers, mark exchange artifacts consumed, refresh scheduler
    projection, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 ### CLI Admission Ledger Readback
 
@@ -540,20 +546,20 @@ scheduler state:
 
 ```text
 doc-based-coding scheduler inspect-admissions \
-  --admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json \
+  --admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json \
   --artifact-id <artifact-id> \
   --version <version>
 ```
 
 Expected ledger behavior:
 
-1. Read `.codex/orchestration/exchange-artifact-admissions.json` by default.
+1. Read `.dbc/orchestration/exchange-artifact-admissions.json` by default.
 2. Report compact `status_counts`, `records[]`, `artifact_ids`, filters, and
    authority clues.
 3. Include `admitted`, `rejected_duplicate`, and `failed` records.
 4. Return an empty readback when the ledger file is missing.
 5. Do not mutate scheduler state, exchange artifacts, scheduler projection, or
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 ### CLI Operator Readback And Projection
 
@@ -562,31 +568,31 @@ script needs to verify admission results without an MCP host:
 
 ```text
 doc-based-coding scheduler inspect-state \
-  --snapshot-path .codex/scheduler/scheduler-state.json \
-  --event-log-path .codex/scheduler/scheduler-events.jsonl
+  --snapshot-path .dbc/scheduler/scheduler-state.json \
+  --event-log-path .dbc/scheduler/scheduler-events.jsonl
 
 doc-based-coding scheduler tick \
-  --snapshot-path .codex/scheduler/scheduler-state.json \
-  --event-log-path .codex/scheduler/scheduler-events.jsonl \
+  --snapshot-path .dbc/scheduler/scheduler-state.json \
+  --event-log-path .dbc/scheduler/scheduler-events.jsonl \
   --max-runs 1
 
 doc-based-coding scheduler daemon-loop \
-  --snapshot-path .codex/scheduler/scheduler-state.json \
-  --event-log-path .codex/scheduler/scheduler-events.jsonl \
+  --snapshot-path .dbc/scheduler/scheduler-state.json \
+  --event-log-path .dbc/scheduler/scheduler-events.jsonl \
   --max-ticks 3 \
   --max-runs-per-tick 1 \
   --max-runtime-failures 1 \
   --evidence-id scheduler-loop-smoke
 
 doc-based-coding scheduler project \
-  --snapshot-path .codex/scheduler/scheduler-state.json \
-  --event-log-path .codex/scheduler/scheduler-events.jsonl
+  --snapshot-path .dbc/scheduler/scheduler-state.json \
+  --event-log-path .dbc/scheduler/scheduler-events.jsonl
 ```
 
 Optional projection inputs:
 
 ```text
---output-path .codex/progress-graph/scheduler-work-trajectory.json
+--output-path .dbc/progress-graph/scheduler-work-trajectory.json
 --trajectory-id local-work:scheduler-projection
 --title "Scheduler Local Work Trajectory"
 --guide-context <planning-or-review-doc>
@@ -600,7 +606,7 @@ Expected readback behavior:
 2. Print task, dependency, run-record, merge-gate, task-state, and event-log
    summary clues.
 3. Do not write scheduler state, exchange artifacts, projection artifacts, run
-   providers, or mutate `.codex/progress-graph/local-work-trajectory.json`.
+   providers, or mutate `.dbc/progress-graph/local-work-trajectory.json`.
 
 Expected tick behavior:
 
@@ -611,10 +617,10 @@ Expected tick behavior:
 4. Write scheduler snapshot/event-log state through scheduler primitives.
 5. Do not run real providers, refresh scheduler projection, mutate exchange
    artifacts, mutate admission ledger, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 6. Evidence writing is explicit: `--evidence-id <id>` writes
    `product_type="scheduler_loop_evidence"` under
-   `.codex/scheduler/evidence/<safe-id>.json`; without `--evidence-id`, no
+   `.dbc/scheduler/evidence/<safe-id>.json`; without `--evidence-id`, no
    evidence artifact is written.
 
 Expected daemon-loop behavior:
@@ -630,18 +636,18 @@ Expected daemon-loop behavior:
    primitives.
 5. Do not run real providers, refresh scheduler projection, mutate exchange
    artifacts, mutate admission ledger, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 Expected projection CLI behavior:
 
 1. Read scheduler snapshot and optional scheduler / merge-gate JSONL logs.
-2. Write `.codex/progress-graph/scheduler-work-trajectory.json` by default, or
+2. Write `.dbc/progress-graph/scheduler-work-trajectory.json` by default, or
    the explicit `--output-path`.
 3. Print trajectory identity, projection path, event/lane/relation counts, and
    authority clues.
 4. Do not run providers, mutate scheduler state, mark exchange artifacts
    consumed, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 Recommended operator workflow:
 
@@ -812,7 +818,7 @@ Expected shared workflow behavior:
    skips dependent admission/loop/projection steps.
 7. The shared workflow does not run live providers, start a background daemon,
    mark ExchangeArtifacts consumed, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 Expected supervisor dogfood workflow behavior:
 
@@ -823,7 +829,7 @@ Expected supervisor dogfood workflow behavior:
 4. Run one fake-runtime host-managed supervisor step.
 5. Read final lifecycle and scheduler queue facts.
 6. Do not refresh scheduler projection, run cleanup, start a service, or mutate
-   `.codex/progress-graph/local-work-trajectory.json`.
+   `.dbc/progress-graph/local-work-trajectory.json`.
 
 ## Submit
 
@@ -834,8 +840,8 @@ Recommended shape:
 
 ```json
 {
-  "snapshotPath": ".codex/scheduler/scheduler-state.json",
-  "eventLogPath": ".codex/scheduler/scheduler-events.jsonl",
+  "snapshotPath": ".dbc/scheduler/scheduler-state.json",
+  "eventLogPath": ".dbc/scheduler/scheduler-events.jsonl",
   "batchId": "batch-smoke",
   "timestamp": "2026-06-17T00:00:00+08:00",
   "tasks": [
@@ -960,7 +966,7 @@ Expected host loop projection workflow behavior:
 - `run_host_authorized_scheduler_daemon_loop_and_refresh_projection()` calls the
   host daemon-loop helper, then writes the read-only scheduler projection
 - `scheduler_projection_path` points at
-  `.codex/progress-graph/scheduler-work-trajectory.json` unless an explicit
+  `.dbc/progress-graph/scheduler-work-trajectory.json` unless an explicit
   projection path was supplied
 - `projection_summary` gives compact machine readback for the
   scheduler-derived trajectory
@@ -1035,7 +1041,7 @@ host_scheduler_evidence_dir()
 Expected consumer behavior:
 
 1. Read existing `host_scheduler_run_evidence` and `scheduler_loop_evidence`
-   JSON under `.codex/scheduler/evidence/`.
+   JSON under `.dbc/scheduler/evidence/`.
 2. Validate `product_type` and `schema_version`.
 3. Return compact summaries for UI, MCP resources, review docs, or release
    tooling.
@@ -1165,11 +1171,11 @@ Expected CLI smoke options:
 --model NAME
 --max-turns N
 --permission-request-policy deny|surface
---snapshot-path .codex/scheduler/qoder-smoke-state.json
---event-log-path .codex/scheduler/qoder-smoke-events.jsonl
+--snapshot-path .dbc/scheduler/qoder-smoke-state.json
+--event-log-path .dbc/scheduler/qoder-smoke-events.jsonl
 --evidence-id qoder-smoke
---evidence-path .codex/scheduler/evidence/qoder-smoke.json
---projection-output-path .codex/progress-graph/scheduler-work-trajectory.json
+--evidence-path .dbc/scheduler/evidence/qoder-smoke.json
+--projection-output-path .dbc/progress-graph/scheduler-work-trajectory.json
 --host-invocation-id host-owned-qoder-smoke-cli
 --reason "bounded host-owned Qoder smoke"
 --reset-snapshot
@@ -1179,8 +1185,8 @@ Expected CLI smoke options:
 
 Expected helper behavior:
 
-1. Create or reuse `.codex/scheduler/qoder-smoke-state.json`.
-2. Create or reuse `.codex/scheduler/qoder-smoke-events.jsonl`.
+1. Create or reuse `.dbc/scheduler/qoder-smoke-state.json`.
+2. Create or reuse `.dbc/scheduler/qoder-smoke-events.jsonl`.
 3. Build a one-task Qoder smoke scheduler snapshot when requested.
 4. Construct host invocation and qoder permission grant.
 5. Construct `QoderSDKQueryClient` from host config, unless an injected
@@ -1223,12 +1229,12 @@ Expected CLI options:
 --model NAME
 --max-turns N
 --permission-request-policy deny|surface
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
---snapshot-path .codex/scheduler/guide-worker-provider-execution-state.json
---event-log-path .codex/scheduler/guide-worker-provider-execution-events.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json
+--snapshot-path .dbc/scheduler/guide-worker-provider-execution-state.json
+--event-log-path .dbc/scheduler/guide-worker-provider-execution-events.jsonl
 --evidence-id guide-worker-provider-execution
---evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
+--evidence-path .dbc/scheduler/evidence/guide-worker-provider-execution.json
 --host-invocation-id host-owned-guide-worker-provider-execution-cli
 --reason "bounded host-owned guide-worker provider execution"
 --guide-task-title "Build maze game"

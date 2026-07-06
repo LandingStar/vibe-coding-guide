@@ -5,8 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.runtime.orchestration.artifact_paths import resolve_existing_artifact_path
+
 from .scheduler_projection import scheduler_work_trajectory_json_path
-from .trajectory import LocalWorkTrajectory, trajectory_json_path
+from .trajectory import (
+    LocalWorkTrajectory,
+    existing_trajectory_json_path,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +71,13 @@ def read_trajectory_artifacts_bundle(project_root: str | Path) -> TrajectoryArti
     root = Path(project_root)
     return TrajectoryArtifactsBundle(
         project_root=root,
-        local=_read_trajectory_artifact("agent", trajectory_json_path(root)),
+        local=_read_trajectory_artifact("agent", existing_trajectory_json_path(root)),
         scheduler=_read_trajectory_artifact(
             "scheduler",
-            scheduler_work_trajectory_json_path(root),
+            resolve_existing_artifact_path(
+                root,
+                scheduler_work_trajectory_json_path(root).relative_to(root),
+            ),
         ),
     )
 

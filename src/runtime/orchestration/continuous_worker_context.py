@@ -13,9 +13,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .artifact_paths import dbc_artifact_path
 from .continuous_worker_binding import (
     ContinuousWorkerBinding,
     ContinuousWorkerScopeKind,
+    DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH,
     read_continuous_worker_binding_ledger,
 )
 from .runtime_adapter import RuntimeProviderKind
@@ -25,7 +27,7 @@ CONTINUOUS_WORKER_COMPACT_CONTEXT_SCHEMA_VERSION = (
     "continuous-worker-compact-context.v1"
 )
 DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH = (
-    ".codex/runtime/continuous-worker-contexts"
+    dbc_artifact_path("runtime", "continuous-worker-contexts")
 )
 
 
@@ -80,7 +82,7 @@ class ContinuousWorkerCompactContextBundle:
 class ContinuousWorkerCompactContextBuildRequest:
     """Request to build one compact context bundle from project-owned refs."""
 
-    ledger_path: str | Path = ".codex/runtime/continuous-worker-bindings.json"
+    ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH
     bundle_dir_path: str | Path = DEFAULT_CONTINUOUS_WORKER_COMPACT_CONTEXT_DIR_RELATIVE_PATH
     bundle_path: str | Path = ""
     binding_id: str = ""

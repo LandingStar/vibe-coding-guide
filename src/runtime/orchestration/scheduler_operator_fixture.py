@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .artifact_paths import dbc_artifact_path
 from .exchange import ExchangeArtifact
 from .exchange_store import JsonArtifactVersionStore, default_exchange_artifact_store_path
 from .runtime_adapter import AgentSpec
@@ -618,12 +619,15 @@ def _build_binding_consumer_artifact(
             purpose="Dogfood compact supervisor storage binding artifact consumption.",
         ),
         SchedulerState(),
-        source_snapshot_path=Path(project_root) / ".codex/scheduler/scheduler-state.json",
+        source_snapshot_path=Path(project_root) / dbc_artifact_path("scheduler", "scheduler-state.json"),
     )
     evidence_path = (
         Path(project_root)
-        / ".codex/scheduler/evidence"
-        / f"{DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_EVIDENCE_ID}.json"
+        / dbc_artifact_path(
+            "scheduler",
+            "evidence",
+            f"{DEFAULT_SCHEDULER_OPERATOR_BINDING_CONSUMER_EVIDENCE_ID}.json",
+        )
     )
     evidence = build_supervisor_storage_binding_evidence(
         binding,

@@ -3,6 +3,7 @@
 ## Local Work Trajectory
 
 - Task-like implementation, validation, review, and write-back work must be reflected in Local Work Trajectory by the agent, not by the user.
+- Before substantial task work begins, judge whether the task is large enough or split-worthy enough to need distinct Local Work lanes. If yes or uncertain, follow `design_docs/tooling/local-work-lane-splitting/README.md`; keep detailed lane split criteria there, not in this file.
 - Direct `localTrajectory` mutation is leader/main/supervisor authority. Bounded workers/subagents must not call `localTrajectory` directly; they must put trajectory/status suggestions in their `Subagent Report.trajectory_update`, and the leader/main agent consumes the report before mutating Local Work Trajectory. Worker report procedure: `docs/worker-trajectory-update-reporting.md`.
 - When MCP exposes `localTrajectory` to a leader/main/supervisor, use it proactively: `start` when beginning a tracked task with no active trajectory, `append` for meaningful milestones, `advance` when the active milestone is complete, `addLane` only for a distinct work context, `merge` only for explicit fan-in, and `relate` only for visible relation metadata.
 - Do not wait for a user instruction such as "start trajectory"; do not ask the user to manually create trajectory nodes.

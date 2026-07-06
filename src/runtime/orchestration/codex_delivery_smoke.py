@@ -7,6 +7,14 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .codex_cli_client import CodexCliHostReadinessReport, CodexCliProcessClient
+from .artifact_paths import dbc_artifact_path
+from .continuous_worker_binding import (
+    DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH,
+    DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH,
+)
 from .exchange import ExchangeReference
 from .exchange_store import DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH
 from .leader_worker_codex_delivery import (
@@ -30,6 +38,7 @@ from .leader_worker_dispatcher import (
     LeaderWorkerDispatcherTickResult,
     run_leader_worker_dispatcher_tick,
 )
+from .opencode_session_ledger import DEFAULT_OPENCODE_SESSION_LEDGER_RELATIVE_PATH
 from .opencode_cli_client import OpenCodeCliHostReadinessReport, OpenCodeCliProcessClient
 from .runtime_adapter import AgentSpec, CodexCliClient, OpenCodeCliClient, RuntimeProviderKind
 from .runtime_invocation_audit import (
@@ -46,10 +55,10 @@ from .scheduler_store import (
 )
 
 DEFAULT_CODEX_DELIVERY_E2E_SMOKE_SNAPSHOT_RELATIVE_PATH = (
-    ".codex/scheduler/codex-delivery-e2e-smoke-state.json"
+    dbc_artifact_path("scheduler", "codex-delivery-e2e-smoke-state.json")
 )
 DEFAULT_CODEX_DELIVERY_E2E_SMOKE_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/scheduler/codex-delivery-e2e-smoke-events.jsonl"
+    dbc_artifact_path("scheduler", "codex-delivery-e2e-smoke-events.jsonl")
 )
 
 
@@ -93,19 +102,19 @@ class CodexDeliveryE2ESmokeRequest:
     allow_network: bool = True
     enable_sandbox_preflight: bool = False
     workspace_root: str | Path = ""
-    scratch_root: str | Path = ".codex/scratch"
+    scratch_root: str | Path = ".dbc/scratch"
     git_worktree_sandbox_root: str | Path | None = None
     git_executable: str = "git"
     publish_worker_patch_artifacts: bool = False
     worker_patch_guide_agent_id: str = "agent:guide"
     worker_patch_target_task_id: str = ""
-    opencode_session_ledger_path: str | Path = ".codex/runtime/opencode-session-ledger.json"
+    opencode_session_ledger_path: str | Path = DEFAULT_OPENCODE_SESSION_LEDGER_RELATIVE_PATH
     opencode_enable_session_lookup: bool = False
-    continuous_worker_binding_ledger_path: str | Path = ".codex/runtime/continuous-worker-bindings.json"
-    continuous_worker_binding_event_log_path: str | Path = ".codex/runtime/continuous-worker-binding-events.jsonl"
-    continuous_worker_delivery_lease_ledger_path: str | Path = ".codex/runtime/continuous-worker-delivery-leases.json"
-    continuous_worker_delivery_lease_event_log_path: str | Path = ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
-    continuous_worker_lane_ownership_ledger_path: str | Path = ".codex/runtime/continuous-worker-lane-ownerships.json"
+    continuous_worker_binding_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH
+    continuous_worker_binding_event_log_path: str | Path = DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH
+    continuous_worker_delivery_lease_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH
+    continuous_worker_delivery_lease_event_log_path: str | Path = DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_EVENT_LOG_RELATIVE_PATH
+    continuous_worker_lane_ownership_ledger_path: str | Path = DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH
     enable_continuous_worker_binding_lookup: bool = False
     replace_existing_result_artifact: bool = False
     metadata: Mapping[str, object] = field(default_factory=dict)

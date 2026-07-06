@@ -65,15 +65,15 @@ Useful bounded options:
 --model NAME
 --sandbox read-only|workspace-write|danger-full-access
 --ask-for-approval untrusted|on-request|never
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
---snapshot-path .codex/scheduler/codex-guide-worker-provider-execution-state.json
---event-log-path .codex/scheduler/codex-guide-worker-provider-execution-events.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json
+--snapshot-path .dbc/scheduler/codex-guide-worker-provider-execution-state.json
+--event-log-path .dbc/scheduler/codex-guide-worker-provider-execution-events.jsonl
 --evidence-id codex-guide-worker-provider-execution
---evidence-path .codex/scheduler/evidence/codex-guide-worker-provider-execution.json
---git-worktree-sandbox-root .codex/sandboxes/codex-workers
+--evidence-path .dbc/scheduler/evidence/codex-guide-worker-provider-execution.json
+--git-worktree-sandbox-root .dbc/sandboxes/codex-workers
 --sandbox-allocation-evidence-id codex-worker-sandbox-allocation
---sandbox-allocation-evidence-path .codex/scheduler/evidence/codex-worker-sandbox-allocation.json
+--sandbox-allocation-evidence-path .dbc/scheduler/evidence/codex-worker-sandbox-allocation.json
 --host-invocation-id host-owned-codex-guide-worker-provider-execution-cli
 --reason "bounded host-owned Codex CLI guide-worker execution"
 --guide-task-title "Build maze game"

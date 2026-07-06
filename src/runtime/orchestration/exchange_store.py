@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from .artifact_paths import dbc_artifact_path
 from .exchange import (
     ExchangeArtifact,
     ExchangeCausality,
@@ -34,7 +35,10 @@ CoordinationEventKind = Literal[
     "validation_failed",
 ]
 EXCHANGE_ARTIFACT_STORE_SCHEMA_VERSION = "exchange-artifact-store.v1"
-DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH = ".codex/orchestration/exchange-artifacts.json"
+DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH = dbc_artifact_path(
+    "orchestration",
+    "exchange-artifacts.json",
+)
 
 ExchangeArtifactAdmissionProductType = Literal[
     "scheduler_task_submission",

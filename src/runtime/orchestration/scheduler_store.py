@@ -349,6 +349,8 @@ def replay_scheduler_events(
     }
 
     for event in sorted(events, key=_scheduler_event_order_key):
+        if _scheduler_event_is_audit_only(event):
+            continue
         if event.task_id not in tasks:
             if strict:
                 raise ValueError(
@@ -826,11 +828,31 @@ def _state_from_scheduler_event(event: SchedulerEvent) -> ScheduledTaskState:
     return "proposed"
 
 
+def _scheduler_event_is_audit_only(event: SchedulerEvent) -> bool:
+    return event.event_kind in {
+        "trajectory_team_worker_assigned",
+        "trajectory_team_worker_resolved",
+        "trajectory_team_worker_activated",
+        "trajectory_team_worker_suspended",
+        "trajectory_team_worker_resumed",
+        "trajectory_team_worker_transferred",
+        "trajectory_team_worker_forked",
+        "trajectory_team_worker_released",
+        "trajectory_team_no_continuity",
+        "continuous_worker_binding_reused",
+        "continuous_worker_delivery_lease_reserved",
+        "continuous_worker_delivery_lease_started",
+        "continuous_worker_delivery_lease_completed",
+        "continuous_worker_delivery_lease_failed",
+    }
+
+
 def _scheduler_event_to_json(event: SchedulerEvent) -> dict[str, object]:
     payload = asdict(event)
     payload["related_dependency_ids"] = list(event.related_dependency_ids)
     payload["related_artifact_ids"] = list(event.related_artifact_ids)
     payload["edit_lease_lifecycle"] = _lease_lifecycle_to_json(event.edit_lease_lifecycle)
+    payload["metadata"] = dict(event.metadata)
     return payload
 
 
@@ -860,6 +882,7 @@ def _scheduler_event_from_json(payload: dict[str, object]) -> SchedulerEvent:
         if payload.get("edit_lease_lifecycle") is not None
         else None,
         sequence=payload.get("sequence") if isinstance(payload.get("sequence"), int) else None,
+        metadata=dict(payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}),
     )
 
 

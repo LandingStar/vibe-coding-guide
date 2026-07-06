@@ -12,13 +12,23 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
+from .artifact_paths import dbc_artifact_path
+from .log_decoration import LogDecorationPipeline, LogDecorationPipelineResult
+
 RuntimeInvocationStatus = Literal["succeeded", "failed"]
 
 R = TypeVar("R")
 
 RUNTIME_INVOCATION_LOG_SCHEMA_VERSION = "runtime-invocation-log.v1"
-DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH = ".codex/runtime/invocations.jsonl"
-DEFAULT_RUNTIME_INVOCATION_ARCHIVE_RELATIVE_PATH = ".codex/runtime/archive/invocations.pre-compaction.jsonl"
+DEFAULT_RUNTIME_INVOCATION_LOG_RELATIVE_PATH = dbc_artifact_path(
+    "runtime",
+    "invocations.jsonl",
+)
+DEFAULT_RUNTIME_INVOCATION_ARCHIVE_RELATIVE_PATH = dbc_artifact_path(
+    "runtime",
+    "archive",
+    "invocations.pre-compaction.jsonl",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +148,7 @@ class RuntimeInvocationLogSummary:
     failed_count: int = 0
     provider_counts: Mapping[str, int] = field(default_factory=dict)
     latest_records: tuple[RuntimeInvocationRecord, ...] = ()
+    latest_decoration_results: tuple[LogDecorationPipelineResult, ...] = ()
     errors: tuple[str, ...] = ()
 
     def to_json_dict(self) -> dict[str, object]:
@@ -149,10 +160,15 @@ class RuntimeInvocationLogSummary:
             "failed_count": self.failed_count,
             "provider_counts": dict(self.provider_counts),
             "latest_records": [record.to_json_dict() for record in self.latest_records],
+            "latest_decoration_results": [
+                result.to_json_dict()
+                for result in self.latest_decoration_results
+            ],
             "errors": list(self.errors),
             "authority_split": {
                 "read_model_only": True,
                 "raw_transcript_exposed": False,
+                "runtime_invocation_log_mutated": False,
                 "scheduler_state_mutated": False,
                 "exchange_store_mutated": False,
                 "local_work_trajectory_mutated": False,
@@ -333,6 +349,7 @@ def inspect_runtime_invocation_log(
     path: str | Path,
     *,
     latest_limit: int = 20,
+    decoration_pipeline: LogDecorationPipeline | None = None,
 ) -> RuntimeInvocationLogSummary:
     """Read compact runtime invocation audit records without mutation."""
 
@@ -353,6 +370,14 @@ def inspect_runtime_invocation_log(
         else:
             failed += 1
     latest = records[-latest_limit:] if latest_limit >= 0 else records
+    decoration_results: tuple[LogDecorationPipelineResult, ...] = ()
+    if decoration_pipeline is not None:
+        from .log_decoration_adapters import decorate_log_like_records
+
+        decoration_results = decorate_log_like_records(
+            latest,
+            decoration_pipeline=decoration_pipeline,
+        ).results
     return RuntimeInvocationLogSummary(
         path=log_path,
         exists=True,
@@ -361,6 +386,7 @@ def inspect_runtime_invocation_log(
         failed_count=failed,
         provider_counts=dict(sorted(provider_counts.items())),
         latest_records=tuple(latest),
+        latest_decoration_results=decoration_results,
     )
 
 

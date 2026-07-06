@@ -5,12 +5,14 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from .artifact_paths import dbc_artifact_path, legacy_codex_artifact_path
 from .codex_mcp_diagnostics import inspect_codex_mcp_exposure
 from .opencode_cli_client import OpenCodeCliClientConfig, OpenCodeCliProcessClient
 from .opencode_server_api_client import (
@@ -193,11 +195,22 @@ def build_default_self_check_registry() -> SelfCheckRegistry:
 
     return SelfCheckRegistry(
         (
+            build_workspace_dbc_relay_check(),
             build_codex_mcp_exposure_check(),
             build_opencode_cli_readiness_check(),
             build_opencode_server_api_readiness_check(),
             build_scheduler_storage_visibility_check(),
         )
+    )
+
+
+def build_workspace_dbc_relay_check() -> SelfCheckDefinition:
+    return SelfCheckDefinition(
+        check_id="workspace.dbc_command_relay",
+        profiles=("codex", "mcp", "runtime"),
+        title="Workspace DBC Command Relay",
+        description="Report the workspace-bound DBC relay surface for this MCP package instance.",
+        run=run_workspace_dbc_relay_self_check,
     )
 
 
@@ -241,6 +254,44 @@ def build_scheduler_storage_visibility_check() -> SelfCheckDefinition:
         title="Scheduler Storage Visibility",
         description="Check whether default scheduler storage artifacts are present and readable.",
         run=run_scheduler_storage_visibility_self_check,
+    )
+
+
+def run_workspace_dbc_relay_self_check(context: SelfCheckContext) -> SelfCheckResult:
+    started = time.monotonic()
+    project_root = context.resolve_project_root()
+    evidence = {
+        "tool_name": "workspaceDbcCommand",
+        "project_root": str(project_root),
+        "command_template": [sys.executable, "-m", "src", "<argv...>"],
+        "cwd": str(project_root),
+        "resolution_policy": "per-agent MCP server package instance",
+        "path_fallback_required": False,
+        "generic_shell": False,
+    }
+    return SelfCheckResult(
+        check_id="workspace.dbc_command_relay",
+        profiles=("codex", "mcp", "runtime"),
+        title="Workspace DBC Command Relay",
+        status="ok",
+        summary=(
+            "Workspace DBC relay is available as the standard CLI-equivalent "
+            "surface when this MCP server is exposed."
+        ),
+        evidence=evidence,
+        remediation=(
+            "When MCP is available, call `workspaceDbcCommand` for DBC CLI-equivalent actions instead of relying on bare PATH resolution.",
+        ),
+        authority_split=SelfCheckAuthoritySplit(
+            read_only=True,
+            provider_executed=False,
+            mcp_server_started=False,
+            mcp_tool_called=False,
+            config_mutated=False,
+            secret_material_read=False,
+        ),
+        secret_safe=True,
+        duration_ms=max(0, int((time.monotonic() - started) * 1000)),
     )
 
 
@@ -435,7 +486,8 @@ def run_opencode_server_api_readiness_self_check(
 def run_scheduler_storage_visibility_self_check(context: SelfCheckContext) -> SelfCheckResult:
     started = time.monotonic()
     project = context.resolve_project_root()
-    scheduler_dir = project / ".codex" / "scheduler"
+    scheduler_dir = project / dbc_artifact_path("scheduler")
+    legacy_scheduler_dir = project / legacy_codex_artifact_path("scheduler")
     snapshot_candidates = (
         scheduler_dir / "state.json",
         scheduler_dir / "scheduler-state.json",
@@ -451,6 +503,8 @@ def run_scheduler_storage_visibility_self_check(context: SelfCheckContext) -> Se
     evidence: dict[str, object] = {
         "scheduler_dir": str(scheduler_dir),
         "scheduler_dir_exists": scheduler_dir.is_dir(),
+        "legacy_scheduler_dir": str(legacy_scheduler_dir),
+        "legacy_scheduler_dir_exists": legacy_scheduler_dir.is_dir(),
         "snapshot_candidates": [str(path) for path in snapshot_candidates],
         "event_log_candidates": [str(path) for path in event_log_candidates],
         "existing_snapshots": [str(path) for path in existing_snapshots],
@@ -463,8 +517,9 @@ def run_scheduler_storage_visibility_self_check(context: SelfCheckContext) -> Se
         status = "warning"
         suspected = "scheduler_storage_missing"
         remediation = (
-            "No `.codex/scheduler` directory was found for this project.",
+            "No `.dbc/scheduler` directory was found for this project.",
             "Run a scheduler/bootstrap flow that creates scheduler artifacts before expecting scheduler readback.",
+            "If only `.codex/scheduler` exists, migrate legacy DBC runtime artifacts to `.dbc/scheduler`; `.codex/config.toml` remains the Codex host registration file.",
         )
     elif not existing_snapshots and not existing_event_logs:
         status = "warning"
@@ -668,6 +723,8 @@ def _scheduler_storage_summary(
             return f"Scheduler storage is visible; readable snapshot contains {task_count} task(s)."
         return "Scheduler storage artifacts are visible."
     if suspected_problem == "scheduler_storage_missing":
+        if evidence.get("legacy_scheduler_dir_exists") is True:
+            return "Current `.dbc/scheduler` storage is missing; legacy `.codex/scheduler` exists."
         return "Scheduler storage directory is missing."
     if suspected_problem == "scheduler_artifacts_missing":
         return "Scheduler storage directory exists but default artifacts are missing."

@@ -766,7 +766,7 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
-    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_log_path = ".dbc/runtime/invocations.jsonl"
     runtime_invocation_max_attempts = 2
     runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
@@ -958,18 +958,18 @@ def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
         config_kwargs = {
             "evidence_id": evidence_id or "codex-guide-worker-provider-execution",
             "timestamp": timestamp,
-            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "artifact_store_path": artifact_store_path or ".dbc/orchestration/exchange-artifacts.json",
             "admission_ledger_path": (
                 admission_ledger_path
-                or ".codex/orchestration/exchange-artifact-admissions.json"
+                or ".dbc/orchestration/exchange-artifact-admissions.json"
             ),
             "snapshot_path": (
                 snapshot_path
-                or ".codex/scheduler/codex-guide-worker-provider-execution-state.json"
+                or ".dbc/scheduler/codex-guide-worker-provider-execution-state.json"
             ),
             "event_log_path": (
                 event_log_path
-                or ".codex/scheduler/codex-guide-worker-provider-execution-events.jsonl"
+                or ".dbc/scheduler/codex-guide-worker-provider-execution-events.jsonl"
             ),
             "evidence_output_path": evidence_path or None,
             "workspace_root": str(root),
@@ -1338,7 +1338,7 @@ def cmd_opencode_serve_lifecycle_record(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-serve-lifecycle-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-serve-lifecycle-ledger.json",
         "action": "",
         "status": "observed",
         "executable": "opencode",
@@ -1449,7 +1449,7 @@ def cmd_opencode_serve_lifecycle_inspect(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-serve-lifecycle-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-serve-lifecycle-ledger.json",
         "action": "",
         "status": "",
         "latest_limit": 0,
@@ -1553,7 +1553,7 @@ def cmd_opencode_session_claim(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "scope_kind": "",
         "scope_id": "",
         "attach_url": "",
@@ -1642,7 +1642,7 @@ def cmd_opencode_session_release(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "binding_id": "",
         "scope_kind": "",
         "scope_id": "",
@@ -1715,7 +1715,7 @@ def cmd_opencode_session_inspect(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "scope_kind": "",
         "scope_id": "",
         "include_released": False,
@@ -1780,7 +1780,7 @@ def cmd_opencode_session_recover_stale(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "now": "",
         "timestamp": "",
         "expire_unhealthy": False,
@@ -1928,8 +1928,8 @@ def cmd_worker_binding_claim(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "worker_id": "",
         "runtime_provider": "opencode",
         "scope_kind": "",
@@ -2068,10 +2068,10 @@ def cmd_worker_binding_promote_server_api_session(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
-        "lane_ownership_ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
-        "lane_ownership_event_log_path": ".codex/runtime/continuous-worker-lane-ownership-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
+        "lane_ownership_ledger_path": ".dbc/runtime/continuous-worker-lane-ownerships.json",
+        "lane_ownership_event_log_path": ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl",
         "session_selector_source": "server_api_created",
         "attach_url": "",
         "session_id": "",
@@ -2264,7 +2264,7 @@ def cmd_worker_binding_inspect_promotion_candidates(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
+        "runtime_invocation_log_path": ".dbc/runtime/invocations.jsonl",
         "latest_limit": 100,
         "include_incomplete": False,
         "command_prefix": "doc-based-coding",
@@ -2340,8 +2340,8 @@ def cmd_worker_binding_reuse(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "binding_id": "",
         "task_id": "",
         "agent_id": "",
@@ -2427,8 +2427,8 @@ def cmd_worker_binding_fork(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "source_binding_id": "",
         "new_binding_id": "",
         "worker_id": "",
@@ -2559,14 +2559,14 @@ def cmd_worker_binding_compact(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "binding_id": "",
         "scope_kind": "",
         "scope_id": "",
         "compact_context_ref": "",
         "build_context_bundle": False,
-        "context_bundle_dir": ".codex/runtime/continuous-worker-contexts",
+        "context_bundle_dir": ".dbc/runtime/continuous-worker-contexts",
         "context_bundle_path": "",
         "bundle_id": "",
         "summary": "",
@@ -2716,8 +2716,8 @@ def cmd_worker_binding_release(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "binding_id": "",
         "scope_kind": "",
         "scope_id": "",
@@ -2793,7 +2793,7 @@ def cmd_worker_binding_inspect(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
         "runtime_provider": "",
         "scope_kind": "",
         "scope_id": "",
@@ -2890,7 +2890,7 @@ def cmd_worker_binding_lane_ownership_inspect(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
+        "ledger_path": ".dbc/runtime/continuous-worker-lane-ownerships.json",
         "ownership_id": "",
         "scope_kind": "",
         "scope_id": "",
@@ -2966,8 +2966,8 @@ def cmd_worker_binding_lane_ownership_activate(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-lane-ownerships.json",
-        "event_log_path": ".codex/runtime/continuous-worker-lane-ownership-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-lane-ownerships.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl",
         "ownership_id": "",
         "binding_id": "",
         "delivery_id": "",
@@ -3063,8 +3063,8 @@ def cmd_worker_binding_recover_stale(args: list[str]) -> int:
         return 0
 
     parsed: dict[str, object] = {
-        "ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "now": "",
         "timestamp": "",
         "reason": "continuous worker binding stale recovery",
@@ -3159,7 +3159,7 @@ def cmd_opencode_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
-    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_log_path = ".dbc/runtime/invocations.jsonl"
     runtime_invocation_max_attempts = 2
     runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
@@ -3365,18 +3365,18 @@ def cmd_opencode_guide_worker_smoke(args: list[str]) -> int:
         config_kwargs = {
             "evidence_id": evidence_id or "opencode-guide-worker-provider-execution",
             "timestamp": timestamp,
-            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "artifact_store_path": artifact_store_path or ".dbc/orchestration/exchange-artifacts.json",
             "admission_ledger_path": (
                 admission_ledger_path
-                or ".codex/orchestration/exchange-artifact-admissions.json"
+                or ".dbc/orchestration/exchange-artifact-admissions.json"
             ),
             "snapshot_path": (
                 snapshot_path
-                or ".codex/scheduler/opencode-guide-worker-provider-execution-state.json"
+                or ".dbc/scheduler/opencode-guide-worker-provider-execution-state.json"
             ),
             "event_log_path": (
                 event_log_path
-                or ".codex/scheduler/opencode-guide-worker-provider-execution-events.jsonl"
+                or ".dbc/scheduler/opencode-guide-worker-provider-execution-events.jsonl"
             ),
             "evidence_output_path": evidence_path or None,
             "workspace_root": str(root),
@@ -3669,8 +3669,8 @@ def cmd_qoder_smoke(args: list[str]) -> int:
         config = HostOwnedQoderSmokeRunConfig(
             evidence_id=evidence_id or "qoder-smoke",
             timestamp=timestamp,
-            snapshot_path=snapshot_path or ".codex/scheduler/qoder-smoke-state.json",
-            event_log_path=event_log_path or ".codex/scheduler/qoder-smoke-events.jsonl",
+            snapshot_path=snapshot_path or ".dbc/scheduler/qoder-smoke-state.json",
+            event_log_path=event_log_path or ".dbc/scheduler/qoder-smoke-events.jsonl",
             evidence_output_path=evidence_path or None,
             projection_output_path=projection_output_path or None,
             initialize_snapshot=initialize_snapshot,
@@ -3731,7 +3731,7 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
-    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_log_path = ".dbc/runtime/invocations.jsonl"
     runtime_invocation_max_attempts = 2
     runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
@@ -3937,18 +3937,18 @@ def cmd_qoder_guide_worker_smoke(args: list[str]) -> int:
         config_kwargs = {
             "evidence_id": evidence_id or "guide-worker-provider-execution",
             "timestamp": timestamp,
-            "artifact_store_path": artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            "artifact_store_path": artifact_store_path or ".dbc/orchestration/exchange-artifacts.json",
             "admission_ledger_path": (
                 admission_ledger_path
-                or ".codex/orchestration/exchange-artifact-admissions.json"
+                or ".dbc/orchestration/exchange-artifact-admissions.json"
             ),
             "snapshot_path": (
                 snapshot_path
-                or ".codex/scheduler/guide-worker-provider-execution-state.json"
+                or ".dbc/scheduler/guide-worker-provider-execution-state.json"
             ),
             "event_log_path": (
                 event_log_path
-                or ".codex/scheduler/guide-worker-provider-execution-events.jsonl"
+                or ".dbc/scheduler/guide-worker-provider-execution-events.jsonl"
             ),
             "evidence_output_path": evidence_path or None,
             "workspace_root": str(root),
@@ -4055,7 +4055,7 @@ def cmd_provider_guide_worker_smoke(args: list[str]) -> int:
     sandbox_allocation_evidence_path = ""
     host_invocation_id = ""
     reason = ""
-    runtime_invocation_log_path = ".codex/runtime/invocations.jsonl"
+    runtime_invocation_log_path = ".dbc/runtime/invocations.jsonl"
     runtime_invocation_max_attempts = 2
     runtime_invocation_backoff_seconds = 0.0
     guide_task_title = ""
@@ -4344,18 +4344,18 @@ def cmd_provider_guide_worker_smoke(args: list[str]) -> int:
         config = HostOwnedGuideWorkerProviderExecutionConfig(
             evidence_id=evidence_id or "mixed-provider-guide-worker-smoke",
             timestamp=timestamp,
-            artifact_store_path=artifact_store_path or ".codex/orchestration/exchange-artifacts.json",
+            artifact_store_path=artifact_store_path or ".dbc/orchestration/exchange-artifacts.json",
             admission_ledger_path=(
                 admission_ledger_path
-                or ".codex/orchestration/exchange-artifact-admissions.json"
+                or ".dbc/orchestration/exchange-artifact-admissions.json"
             ),
             snapshot_path=(
                 snapshot_path
-                or ".codex/scheduler/mixed-provider-guide-worker-smoke-state.json"
+                or ".dbc/scheduler/mixed-provider-guide-worker-smoke-state.json"
             ),
             event_log_path=(
                 event_log_path
-                or ".codex/scheduler/mixed-provider-guide-worker-smoke-events.jsonl"
+                or ".dbc/scheduler/mixed-provider-guide-worker-smoke-events.jsonl"
             ),
             evidence_output_path=evidence_path or None,
             workspace_root=str(root),
@@ -4498,6 +4498,24 @@ _SCHEDULER_CONSUME_WORKER_TRAJECTORY_REPORT_USAGE = (
     "[--actor ACTOR] [--current-event-id ID] [--title TITLE] "
     "[--event-kind task|review|validation|writeback|wait|decision|handoff|close] "
     "[--no-start-if-missing] [--trajectory-title TITLE] [--guide-context LABEL]"
+)
+
+_SCHEDULER_TRAJECTORY_TEAM_USAGE = (
+    "Usage: doc-based-coding scheduler trajectory-team "
+    "<inspect|resolve|assign|activate|suspend|resume|transfer|fork|release|noContinuity> "
+    "[--trajectory-id ID] [--lane-id ID] [--leader-id ID] [--worker-id ID] "
+    "[--caller-role leader|main|supervisor|guide|worker|subagent|lane_worker|bounded_worker] "
+    "[--runtime-provider fake|qoder|codex|opencode] [--binding-id ID] "
+    "[--ownership-id ID] [--replacement-binding-id ID] [--new-binding-id ID] "
+    "[--source-binding-id ID] [--no-continuity-reason REASON] "
+    "[--task-id ID] [--delivery-id ID] [--reason TEXT] [--timestamp TIMESTAMP] "
+    "[--binding-ledger-path PATH] [--binding-event-log-path PATH] "
+    "[--ownership-ledger-path PATH] [--ownership-event-log-path PATH] "
+    "[--lease-ledger-path PATH] [--team-event-log-path PATH] "
+    "[--scheduler-event-log-path PATH] [--attach-url URL] [--session-id ID] "
+    "[--continue-session] [--fork-session] [--compact-context-ref REF] "
+    "[--mailbox-cursor-ref REF] [--worker-report-ref REF]... [--audit-ref REF]... "
+    "[--active-only]"
 )
 
 _SCHEDULER_CODEX_DELIVERY_SUPERVISOR_USAGE = (
@@ -4969,6 +4987,7 @@ def cmd_scheduler(args: list[str]) -> int:
             "  inspect-opencode-runtime-status Read compact OpenCode scheduler/delivery/runtime status without mutation\n"
             "  inspect-monitoring-snapshot Read frontend-oriented orchestration monitoring snapshot without mutation\n"
             "  consume-worker-trajectory-report Consume worker report trajectory_update as leader-owned trajectory mutation\n"
+            "  trajectory-team       Inspect or mutate leader/operator trajectory team continuity roster\n"
             "  codex-delivery-supervisor-once Run one host-owned Codex pass over pending delivery records\n"
             "  opencode-delivery-supervisor-once Run one host-owned OpenCode pass over pending delivery records\n"
             "  codex-delivery-e2e-smoke Run C1 Codex delivery/result-consumer smoke\n"
@@ -5040,6 +5059,8 @@ def cmd_scheduler(args: list[str]) -> int:
         return cmd_scheduler_inspect_monitoring_snapshot(args[1:])
     if sub == "consume-worker-trajectory-report":
         return cmd_scheduler_consume_worker_trajectory_report(args[1:])
+    if sub == "trajectory-team":
+        return cmd_scheduler_trajectory_team(args[1:])
     if sub == "codex-delivery-supervisor-once":
         return cmd_scheduler_codex_delivery_supervisor_once(args[1:])
     if sub == "opencode-delivery-supervisor-once":
@@ -5113,7 +5134,7 @@ def cmd_scheduler(args: list[str]) -> int:
 
     print(f"Unknown scheduler subcommand: {sub}", file=sys.stderr)
     print(
-        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-runtime-invocations|inspect-leader-worker-activation|leader-worker-dispatcher-tick|leader-worker-dispatcher-loop|leader-worker-delivery-sync|leader-worker-delivery-ack|inspect-leader-worker-delivery|inspect-codex-runtime-status|inspect-opencode-runtime-status|inspect-monitoring-snapshot|consume-worker-trajectory-report|codex-delivery-supervisor-once|opencode-delivery-supervisor-once|codex-delivery-e2e-smoke|opencode-delivery-e2e-smoke|codex-delivery-supervisor-loop|opencode-delivery-supervisor-loop|live-codex-concurrent-worker-smoke|live-opencode-concurrent-worker-smoke|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
+        "Usage: doc-based-coding scheduler <admit-exchange-artifact|inspect-admissions|inspect-binding-refs|inspect-agent-mailbox|inspect-agent-history|inspect-runtime-invocations|inspect-leader-worker-activation|leader-worker-dispatcher-tick|leader-worker-dispatcher-loop|leader-worker-delivery-sync|leader-worker-delivery-ack|inspect-leader-worker-delivery|inspect-codex-runtime-status|inspect-opencode-runtime-status|inspect-monitoring-snapshot|consume-worker-trajectory-report|trajectory-team|codex-delivery-supervisor-once|opencode-delivery-supervisor-once|codex-delivery-e2e-smoke|opencode-delivery-e2e-smoke|codex-delivery-supervisor-loop|opencode-delivery-supervisor-loop|live-codex-concurrent-worker-smoke|live-opencode-concurrent-worker-smoke|inspect-agent-action-candidates|decide-agent-action-candidate|consume-accepted-scheduler-candidate|consume-accepted-review-candidate|consume-accepted-handoff-candidate|consume-accepted-merge-candidate|consume-worker-patch-review|preflight-worker-patch-composition|consume-accepted-blocker-candidate|guide-worker-exchange-dogfood|guide-worker-local-orchestration|reply-exchange-artifact|transition-exchange-artifact|publish-storage-binding-artifact|inspect-state|tick|daemon-loop|lifecycle|project|seed-dogfood-fixture|operator-workflow|operator-dogfood-closure|evidence-publish-consumer-closure|supervisor-dogfood-workflow|cleanup-receipts|sandbox-receipt-workflow> [args]",
         file=sys.stderr,
     )
     return 1
@@ -7024,6 +7045,179 @@ def cmd_scheduler_inspect_leader_worker_activation(args: list[str]) -> int:
     return 0
 
 
+def cmd_scheduler_trajectory_team(args: list[str]) -> int:
+    """Inspect or mutate leader/operator trajectory team continuity roster."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            _SCHEDULER_TRAJECTORY_TEAM_USAGE + "\n\n"
+            "This is a leader/operator-owned team continuity surface. It uses "
+            "the shared runtime dispatcher to inspect or update trajectory-team "
+            "roster, binding, ownership, and audit evidence. It does not run "
+            "providers, mutate scheduler task state, or mutate Local Work "
+            "Trajectory. Workers must report requested changes through "
+            "docs/worker-trajectory-update-reporting.md.",
+        )
+        return 0
+
+    action = args[0]
+    parsed: dict[str, object] = {
+        "trajectory_id": "",
+        "lane_id": "",
+        "leader_id": "agent:guide",
+        "worker_id": "",
+        "caller_role": "leader",
+        "runtime_provider": "opencode",
+        "binding_id": "",
+        "ownership_id": "",
+        "replacement_binding_id": "",
+        "new_binding_id": "",
+        "source_binding_id": "",
+        "no_continuity_reason": "",
+        "task_id": "",
+        "delivery_id": "",
+        "reason": "",
+        "timestamp": "",
+        "binding_ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "binding_event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
+        "ownership_ledger_path": ".dbc/runtime/continuous-worker-lane-ownerships.json",
+        "ownership_event_log_path": ".dbc/runtime/continuous-worker-lane-ownership-events.jsonl",
+        "lease_ledger_path": ".dbc/runtime/continuous-worker-delivery-leases.json",
+        "team_event_log_path": ".dbc/runtime/trajectory-team-continuity-events.jsonl",
+        "scheduler_event_log_path": "",
+        "attach_url": "",
+        "session_id": "",
+        "continue_session": False,
+        "fork_session": False,
+        "compact_context_ref": "",
+        "mailbox_cursor_ref": "",
+        "worker_report_refs": [],
+        "audit_refs": [],
+        "include_inactive": True,
+    }
+    option_map = {
+        "--trajectory-id": "trajectory_id",
+        "--lane-id": "lane_id",
+        "--leader-id": "leader_id",
+        "--worker-id": "worker_id",
+        "--caller-role": "caller_role",
+        "--runtime-provider": "runtime_provider",
+        "--binding-id": "binding_id",
+        "--ownership-id": "ownership_id",
+        "--replacement-binding-id": "replacement_binding_id",
+        "--new-binding-id": "new_binding_id",
+        "--source-binding-id": "source_binding_id",
+        "--no-continuity-reason": "no_continuity_reason",
+        "--task-id": "task_id",
+        "--delivery-id": "delivery_id",
+        "--reason": "reason",
+        "--timestamp": "timestamp",
+        "--binding-ledger-path": "binding_ledger_path",
+        "--binding-event-log-path": "binding_event_log_path",
+        "--ownership-ledger-path": "ownership_ledger_path",
+        "--ownership-event-log-path": "ownership_event_log_path",
+        "--lease-ledger-path": "lease_ledger_path",
+        "--team-event-log-path": "team_event_log_path",
+        "--scheduler-event-log-path": "scheduler_event_log_path",
+        "--attach-url": "attach_url",
+        "--session-id": "session_id",
+        "--compact-context-ref": "compact_context_ref",
+        "--mailbox-cursor-ref": "mailbox_cursor_ref",
+    }
+
+    i = 1
+    while i < len(args):
+        arg = args[i]
+        if arg == "--continue-session":
+            parsed["continue_session"] = True
+            i += 1
+            continue
+        if arg == "--fork-session":
+            parsed["fork_session"] = True
+            i += 1
+            continue
+        if arg == "--active-only":
+            parsed["include_inactive"] = False
+            i += 1
+            continue
+        if arg in {"--worker-report-ref", "--audit-ref"}:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_TRAJECTORY_TEAM_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            key = "worker_report_refs" if arg == "--worker-report-ref" else "audit_refs"
+            parsed[key].append(args[i + 1])  # type: ignore[union-attr]
+            i += 2
+            continue
+        if arg in option_map:
+            if i + 1 >= len(args):
+                print(_SCHEDULER_TRAJECTORY_TEAM_USAGE, file=sys.stderr)
+                print(f"Missing value for {arg}", file=sys.stderr)
+                return 1
+            parsed[option_map[arg]] = args[i + 1]
+            i += 2
+            continue
+        print(f"Unknown scheduler trajectory-team option: {arg}", file=sys.stderr)
+        print(_SCHEDULER_TRAJECTORY_TEAM_USAGE, file=sys.stderr)
+        return 1
+
+    root = _find_project_root()
+    try:
+        from .runtime.orchestration import (
+            TrajectoryTeamContinuitySurfaceRequest,
+            run_trajectory_team_continuity_surface,
+        )
+
+        result = run_trajectory_team_continuity_surface(
+            TrajectoryTeamContinuitySurfaceRequest(
+                action=action,  # type: ignore[arg-type]
+                project_root=root,
+                caller_role=str(parsed["caller_role"]),
+                trajectory_id=str(parsed["trajectory_id"]),
+                lane_id=str(parsed["lane_id"]),
+                leader_id=str(parsed["leader_id"]),
+                worker_id=str(parsed["worker_id"]),
+                runtime_provider=str(parsed["runtime_provider"]),
+                binding_id=str(parsed["binding_id"]),
+                ownership_id=str(parsed["ownership_id"]),
+                replacement_binding_id=str(parsed["replacement_binding_id"]),
+                new_binding_id=str(parsed["new_binding_id"]),
+                source_binding_id=str(parsed["source_binding_id"]),
+                no_continuity_reason=str(parsed["no_continuity_reason"]),
+                task_id=str(parsed["task_id"]),
+                delivery_id=str(parsed["delivery_id"]),
+                timestamp=str(parsed["timestamp"]),
+                reason=str(parsed["reason"]),
+                binding_ledger_path=str(parsed["binding_ledger_path"]),
+                binding_event_log_path=str(parsed["binding_event_log_path"]),
+                ownership_ledger_path=str(parsed["ownership_ledger_path"]),
+                ownership_event_log_path=str(parsed["ownership_event_log_path"]),
+                lease_ledger_path=str(parsed["lease_ledger_path"]),
+                team_event_log_path=str(parsed["team_event_log_path"]),
+                scheduler_event_log_path=str(parsed["scheduler_event_log_path"]),
+                attach_url=str(parsed["attach_url"]),
+                session_id=str(parsed["session_id"]),
+                continue_session=bool(parsed["continue_session"]),
+                fork_session=bool(parsed["fork_session"]),
+                compact_context_ref=str(parsed["compact_context_ref"]),
+                mailbox_cursor_ref=str(parsed["mailbox_cursor_ref"]),
+                worker_report_refs=tuple(parsed["worker_report_refs"]),  # type: ignore[arg-type]
+                audit_refs=tuple(parsed["audit_refs"]),  # type: ignore[arg-type]
+                include_inactive=bool(parsed["include_inactive"]),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error running scheduler trajectory-team",
+            e,
+            category="scheduler_trajectory_team_failed",
+        )
+
+    payload = result.to_json_dict()
+    _print_json(payload)
+    return 0 if payload.get("ok") else 1
+
+
 def cmd_scheduler_leader_worker_dispatcher_tick(args: list[str]) -> int:
     """Persist one leader/worker dispatcher tick without running providers."""
 
@@ -8219,8 +8413,8 @@ def _parse_codex_delivery_supervisor_args(args: list[str]) -> dict[str, object] 
         "event_log_path": "",
         "delivery_state_path": "",
         "delivery_event_log_path": "",
-        "runtime_invocation_log_path": ".codex/runtime/invocations.jsonl",
-        "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+        "runtime_invocation_log_path": ".dbc/runtime/invocations.jsonl",
+        "artifact_store_path": ".dbc/orchestration/exchange-artifacts.json",
         "consume_success_results": False,
         "replace_existing_result_artifact": False,
         "max_deliveries": 1,
@@ -8239,7 +8433,7 @@ def _parse_codex_delivery_supervisor_args(args: list[str]) -> dict[str, object] 
         "runtime_invocation_backoff_seconds": 0.0,
         "enable_sandbox_preflight": False,
         "workspace_root": "",
-        "scratch_root": ".codex/scratch",
+        "scratch_root": ".dbc/scratch",
         "git_worktree_sandbox_root": "",
         "git_executable": "git",
         "publish_worker_patch_artifacts": False,
@@ -8340,8 +8534,8 @@ def _parse_opencode_delivery_supervisor_args(args: list[str]) -> dict[str, objec
         "event_log_path": "",
         "delivery_state_path": "",
         "delivery_event_log_path": "",
-        "runtime_invocation_log_path": ".codex/runtime/opencode-delivery-invocations.jsonl",
-        "artifact_store_path": ".codex/orchestration/exchange-artifacts.json",
+        "runtime_invocation_log_path": ".dbc/runtime/opencode-delivery-invocations.jsonl",
+        "artifact_store_path": ".dbc/orchestration/exchange-artifacts.json",
         "consume_success_results": False,
         "replace_existing_result_artifact": False,
         "max_deliveries": 1,
@@ -8363,10 +8557,10 @@ def _parse_opencode_delivery_supervisor_args(args: list[str]) -> dict[str, objec
         "server_api_timeout_seconds": 30.0,
         "server_api_username_env_var": "OPENCODE_SERVER_USERNAME",
         "server_api_password_env_var": "OPENCODE_SERVER_PASSWORD",
-        "worker_binding_ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "worker_binding_event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "worker_binding_ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "worker_binding_event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "worker_binding_lookup": True,
-        "session_ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "session_ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "session_ledger_lookup": True,
         "host_id": "host:opencode-delivery-supervisor",
         "host_invocation_id": "host-owned-opencode-delivery-supervisor-once",
@@ -8376,7 +8570,7 @@ def _parse_opencode_delivery_supervisor_args(args: list[str]) -> dict[str, objec
         "runtime_invocation_backoff_seconds": 0.0,
         "enable_sandbox_preflight": False,
         "workspace_root": "",
-        "scratch_root": ".codex/scratch",
+        "scratch_root": ".dbc/scratch",
         "git_worktree_sandbox_root": "",
         "git_executable": "git",
         "publish_worker_patch_artifacts": False,
@@ -8520,7 +8714,7 @@ def _parse_opencode_delivery_loop_args(
     default_max_deliveries: int = 3,
     default_max_runtime_failures: int = 1,
     default_max_concurrent_deliveries: int = 1,
-    default_runtime_invocation_log_path: str = ".codex/runtime/opencode-delivery-loop-invocations.jsonl",
+    default_runtime_invocation_log_path: str = ".dbc/runtime/opencode-delivery-loop-invocations.jsonl",
 ) -> dict[str, object] | None:
     parsed: dict[str, object] = {
         "snapshot_path": "",
@@ -8555,10 +8749,10 @@ def _parse_opencode_delivery_loop_args(
         "server_api_timeout_seconds": 30.0,
         "server_api_username_env_var": "OPENCODE_SERVER_USERNAME",
         "server_api_password_env_var": "OPENCODE_SERVER_PASSWORD",
-        "worker_binding_ledger_path": ".codex/runtime/continuous-worker-bindings.json",
-        "worker_binding_event_log_path": ".codex/runtime/continuous-worker-binding-events.jsonl",
+        "worker_binding_ledger_path": ".dbc/runtime/continuous-worker-bindings.json",
+        "worker_binding_event_log_path": ".dbc/runtime/continuous-worker-binding-events.jsonl",
         "worker_binding_lookup": True,
-        "session_ledger_path": ".codex/runtime/opencode-session-ledger.json",
+        "session_ledger_path": ".dbc/runtime/opencode-session-ledger.json",
         "session_ledger_lookup": True,
         "host_id": default_host_id,
         "host_invocation_id": default_host_invocation_id,
@@ -8567,7 +8761,7 @@ def _parse_opencode_delivery_loop_args(
         "runtime_invocation_backoff_seconds": 0.0,
         "enable_sandbox_preflight": False,
         "workspace_root": "",
-        "scratch_root": ".codex/scratch",
+        "scratch_root": ".dbc/scratch",
         "git_worktree_sandbox_root": "",
         "git_executable": "git",
         "publish_worker_patch_artifacts": False,
@@ -8838,7 +9032,7 @@ def cmd_scheduler_opencode_delivery_e2e_smoke(args: list[str]) -> int:
         default_host_id="host:opencode-delivery-e2e-smoke",
         default_host_invocation_id="host-owned-opencode-delivery-e2e-smoke",
         default_runtime_invocation_log_path=(
-            ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+            ".dbc/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
         ),
     )
     if parsed is None:
@@ -8859,10 +9053,10 @@ def cmd_scheduler_opencode_delivery_e2e_smoke(args: list[str]) -> int:
 
         smoke_request, opencode_config = _opencode_delivery_loop_cli_objects(
             parsed,
-            default_snapshot_path=".codex/scheduler/opencode-delivery-e2e-smoke-state.json",
-            default_event_log_path=".codex/scheduler/opencode-delivery-e2e-smoke-events.jsonl",
+            default_snapshot_path=".dbc/scheduler/opencode-delivery-e2e-smoke-state.json",
+            default_event_log_path=".dbc/scheduler/opencode-delivery-e2e-smoke-events.jsonl",
             default_runtime_invocation_log_path=(
-                ".codex/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
+                ".dbc/runtime/opencode-delivery-e2e-smoke-invocations.jsonl"
             ),
             trajectory_id="opencode-delivery-e2e-smoke",
         )
@@ -9087,7 +9281,7 @@ def cmd_scheduler_live_codex_concurrent_worker_smoke(args: list[str]) -> int:
         default_max_runtime_failures=2,
         default_max_concurrent_deliveries=2,
         default_runtime_invocation_log_path=(
-            ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
+            ".dbc/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl"
         ),
     )
     if parsed is None:
@@ -9201,7 +9395,7 @@ def cmd_scheduler_live_opencode_concurrent_worker_smoke(args: list[str]) -> int:
         default_max_runtime_failures=2,
         default_max_concurrent_deliveries=2,
         default_runtime_invocation_log_path=(
-            ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
+            ".dbc/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl"
         ),
     )
     if parsed is None:
@@ -9277,7 +9471,7 @@ def _parse_codex_delivery_e2e_smoke_args(
     default_max_deliveries: int = 3,
     default_max_runtime_failures: int = 1,
     default_max_concurrent_deliveries: int = 1,
-    default_runtime_invocation_log_path: str = ".codex/runtime/invocations.jsonl",
+    default_runtime_invocation_log_path: str = ".dbc/runtime/invocations.jsonl",
 ) -> dict[str, object] | None:
     parsed: dict[str, object] = {
         "snapshot_path": "",
@@ -9308,7 +9502,7 @@ def _parse_codex_delivery_e2e_smoke_args(
         "runtime_invocation_backoff_seconds": 0.0,
         "enable_sandbox_preflight": False,
         "workspace_root": "",
-        "scratch_root": ".codex/scratch",
+        "scratch_root": ".dbc/scratch",
         "git_worktree_sandbox_root": "",
         "git_executable": "git",
         "publish_worker_patch_artifacts": False,
@@ -9504,15 +9698,15 @@ def _apply_live_codex_concurrent_worker_smoke_defaults(
     parsed: dict[str, object],
 ) -> None:
     defaults = {
-        "snapshot_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-state.json",
-        "event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-events.jsonl",
-        "artifact_store_path": ".codex/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json",
-        "dispatcher_state_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-dispatcher-state.json",
-        "dispatch_event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-dispatcher-events.jsonl",
-        "delivery_state_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json",
-        "delivery_event_log_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-delivery-events.jsonl",
-        "runtime_invocation_log_path": ".codex/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl",
-        "report_path": ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json",
+        "snapshot_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-state.json",
+        "event_log_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-events.jsonl",
+        "artifact_store_path": ".dbc/orchestration/live-codex-concurrent-worker-smoke-exchange-artifacts.json",
+        "dispatcher_state_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-dispatcher-state.json",
+        "dispatch_event_log_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-dispatcher-events.jsonl",
+        "delivery_state_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-delivery-state.json",
+        "delivery_event_log_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-delivery-events.jsonl",
+        "runtime_invocation_log_path": ".dbc/runtime/live-codex-concurrent-worker-smoke-invocations.jsonl",
+        "report_path": ".dbc/scheduler/live-codex-concurrent-worker-smoke-report.json",
     }
     for key, value in defaults.items():
         if key in parsed and not str(parsed[key]):
@@ -9525,15 +9719,15 @@ def _apply_live_opencode_concurrent_worker_smoke_defaults(
     parsed: dict[str, object],
 ) -> None:
     defaults = {
-        "snapshot_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-state.json",
-        "event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-events.jsonl",
-        "artifact_store_path": ".codex/orchestration/live-opencode-concurrent-worker-smoke-exchange-artifacts.json",
-        "dispatcher_state_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-state.json",
-        "dispatch_event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-events.jsonl",
-        "delivery_state_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-delivery-state.json",
-        "delivery_event_log_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-delivery-events.jsonl",
-        "runtime_invocation_log_path": ".codex/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl",
-        "report_path": ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json",
+        "snapshot_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-state.json",
+        "event_log_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-events.jsonl",
+        "artifact_store_path": ".dbc/orchestration/live-opencode-concurrent-worker-smoke-exchange-artifacts.json",
+        "dispatcher_state_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-state.json",
+        "dispatch_event_log_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-dispatcher-events.jsonl",
+        "delivery_state_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-delivery-state.json",
+        "delivery_event_log_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-delivery-events.jsonl",
+        "runtime_invocation_log_path": ".dbc/runtime/live-opencode-concurrent-worker-smoke-invocations.jsonl",
+        "report_path": ".dbc/scheduler/live-opencode-concurrent-worker-smoke-report.json",
     }
     for key, value in defaults.items():
         if key in parsed and not str(parsed[key]):
@@ -9645,9 +9839,9 @@ def _codex_delivery_smoke_cli_objects(parsed: dict[str, object]):
 def _opencode_delivery_loop_cli_objects(
     parsed: dict[str, object],
     *,
-    default_snapshot_path: str = ".codex/scheduler/opencode-delivery-supervisor-loop-state.json",
-    default_event_log_path: str = ".codex/scheduler/opencode-delivery-supervisor-loop-events.jsonl",
-    default_runtime_invocation_log_path: str = ".codex/runtime/opencode-delivery-loop-invocations.jsonl",
+    default_snapshot_path: str = ".dbc/scheduler/opencode-delivery-supervisor-loop-state.json",
+    default_event_log_path: str = ".dbc/scheduler/opencode-delivery-supervisor-loop-events.jsonl",
+    default_runtime_invocation_log_path: str = ".dbc/runtime/opencode-delivery-loop-invocations.jsonl",
     trajectory_id: str = "opencode-delivery-supervisor-loop",
 ):
     root = _find_project_root()

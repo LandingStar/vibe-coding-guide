@@ -13,10 +13,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from .artifact_paths import dbc_artifact_path
+
 
 OPENCODE_SESSION_LEDGER_SCHEMA_VERSION = "opencode-session-ledger.v1"
 DEFAULT_OPENCODE_SESSION_LEDGER_RELATIVE_PATH = (
-    ".codex/runtime/opencode-session-ledger.json"
+    dbc_artifact_path("runtime", "opencode-session-ledger.json")
 )
 OpenCodeSessionBindingScope = Literal["lane", "agent", "task", "custom"]
 OpenCodeSessionBindingStatus = Literal["active", "released", "expired"]

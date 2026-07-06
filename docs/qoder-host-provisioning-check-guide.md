@@ -117,11 +117,11 @@ Useful bounded options:
 --model NAME
 --max-turns N
 --permission-request-policy deny|surface
---snapshot-path .codex/scheduler/qoder-smoke-state.json
---event-log-path .codex/scheduler/qoder-smoke-events.jsonl
+--snapshot-path .dbc/scheduler/qoder-smoke-state.json
+--event-log-path .dbc/scheduler/qoder-smoke-events.jsonl
 --evidence-id qoder-smoke
---evidence-path .codex/scheduler/evidence/qoder-smoke.json
---projection-output-path .codex/progress-graph/scheduler-work-trajectory.json
+--evidence-path .dbc/scheduler/evidence/qoder-smoke.json
+--projection-output-path .dbc/progress-graph/scheduler-work-trajectory.json
 --host-invocation-id host-owned-qoder-smoke-cli
 --reason "bounded host-owned Qoder smoke"
 --reset-snapshot
@@ -168,12 +168,12 @@ Useful bounded options:
 --model NAME
 --max-turns N
 --permission-request-policy deny|surface
---artifact-store-path .codex/orchestration/exchange-artifacts.json
---admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json
---snapshot-path .codex/scheduler/guide-worker-provider-execution-state.json
---event-log-path .codex/scheduler/guide-worker-provider-execution-events.jsonl
+--artifact-store-path .dbc/orchestration/exchange-artifacts.json
+--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json
+--snapshot-path .dbc/scheduler/guide-worker-provider-execution-state.json
+--event-log-path .dbc/scheduler/guide-worker-provider-execution-events.jsonl
 --evidence-id guide-worker-provider-execution
---evidence-path .codex/scheduler/evidence/guide-worker-provider-execution.json
+--evidence-path .dbc/scheduler/evidence/guide-worker-provider-execution.json
 --host-invocation-id host-owned-guide-worker-provider-execution-cli
 --reason "bounded host-owned guide-worker provider execution"
 --guide-task-title "Build maze game"

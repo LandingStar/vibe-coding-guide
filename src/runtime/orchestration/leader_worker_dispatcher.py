@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from .artifact_paths import dbc_artifact_path
 from .exchange_store import JsonArtifactVersionStore
 from .leader_worker_activation import (
     AgentActivationEvent,
@@ -21,10 +22,10 @@ from .scheduler_store import recover_scheduler_state
 LEADER_WORKER_DISPATCHER_STATE_SCHEMA_VERSION = "leader-worker-dispatcher-state.v1"
 LEADER_WORKER_DISPATCHER_EVENT_LOG_SCHEMA_VERSION = "leader-worker-dispatcher-log.v1"
 DEFAULT_LEADER_WORKER_DISPATCHER_STATE_RELATIVE_PATH = (
-    ".codex/scheduler/leader-worker-dispatcher-state.json"
+    dbc_artifact_path("scheduler", "leader-worker-dispatcher-state.json")
 )
 DEFAULT_LEADER_WORKER_DISPATCHER_EVENT_LOG_RELATIVE_PATH = (
-    ".codex/scheduler/leader-worker-dispatcher-events.jsonl"
+    dbc_artifact_path("scheduler", "leader-worker-dispatcher-events.jsonl")
 )
 
 LeaderWorkerDispatcherLoopStopReason = Literal[

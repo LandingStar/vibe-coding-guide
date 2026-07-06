@@ -26,15 +26,67 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-07-01`
+- Snapshot Date: `2026-07-05`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `Next-action state source sync completed`
+- Current Focus: `Next: test workspace .dbc migration and unified artifact index planning`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`
-- Latest Completed Slice: `Next Action State Source Sync`
+  `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
+- Latest Completed Slice: `DBC Runtime Artifact Root Defaults`
+- Active Planning Gate: `none`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`,
+  `src/runtime/orchestration/artifact_paths.py`,
+  `src/runtime/orchestration/self_check.py`,
+  `tools/progress_graph/trajectory.py`,
+  `tools/progress_graph/trajectory_artifacts.py`,
+  `tools/progress_graph/host_evidence.py`,
+  `docs/installation-guide.md`,
+  `docs/codex-entry-contract.md`,
+  `docs/self-check-doctor-contract.md`,
+  `docs/codex-cli-host-provisioning-check-guide.md`,
+  `docs/opencode-host-provisioning-check-guide.md`,
+  `docs/qoder-host-provisioning-check-guide.md`,
+  `docs/monitoring-ui-backend-api.md`,
+  `docs/worker-trajectory-update-reporting.md`,
+  `tests/test_doc_loop_prompts.py`,
+  `design_docs/stages/planning-gate/2026-07-05-runtime-receipt-evidence-log-decoration-adapters.md`,
+  `design_docs/stages/planning-gate/2026-07-05-log-like-record-batch-decoration.md`,
+  `design_docs/stages/planning-gate/2026-07-05-core-log-record-decoration-adapters.md`,
+  `design_docs/stages/planning-gate/2026-07-05-runtime-lifecycle-event-log-decoration-adapters.md`,
+  `design_docs/stages/planning-gate/2026-07-05-agent-exchange-history-log-decoration-wiring.md`,
+  `design_docs/stages/planning-gate/2026-07-05-runtime-invocation-readback-log-decoration-wiring.md`,
+  `design_docs/stages/planning-gate/2026-07-05-runtime-log-decoration-existing-record-adoption.md`,
+  `design_docs/stages/planning-gate/2026-07-05-runtime-log-decoration-contract.md`,
+  `docs/runtime-log-decoration-contract.md`,
+  `src/runtime/orchestration/agent_exchange_history.py`,
+  `src/runtime/orchestration/log_decoration.py`,
+  `src/runtime/orchestration/log_decoration_adapters.py`,
+  `src/runtime/orchestration/runtime_invocation_audit.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_runtime_orchestration_agent_communication.py`,
+  `design_docs/stages/planning-gate/2026-07-05-advisory-product-pool-schema-validator-skeleton.md`,
+  `docs/advisory-product-pool.md`,
+  `design_docs/advisory-product-pool-interface-design-record.md`,
+  `src/runtime/orchestration/advisory_product_pool.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-07-04-trajectory-team-continuity-surface.md`,
+  `docs/trajectory-team-continuity-surface.md`,
+  `src/runtime/orchestration/trajectory_team_continuity_surface.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/__main__.py`,
+  `src/mcp/tools.py`,
+  `src/mcp/server.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
+  `tests/test_mcp_tools.py`,
+  `design_docs/stages/planning-gate/2026-07-04-trajectory-team-continuity-bridge.md`,
+  `src/runtime/orchestration/trajectory_team_continuity.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
   `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`,
   `src/mcp/tools.py`,
   `tests/test_mcp_tools.py`,
@@ -177,6 +229,21 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
+1. `design_docs/stages/planning-gate/2026-07-05-runtime-receipt-evidence-log-decoration-adapters.md`
+1. `design_docs/stages/planning-gate/2026-07-05-log-like-record-batch-decoration.md`
+1. `design_docs/stages/planning-gate/2026-07-05-core-log-record-decoration-adapters.md`
+1. `design_docs/stages/planning-gate/2026-07-05-runtime-lifecycle-event-log-decoration-adapters.md`
+1. `design_docs/stages/planning-gate/2026-07-05-agent-exchange-history-log-decoration-wiring.md`
+1. `design_docs/stages/planning-gate/2026-07-05-runtime-invocation-readback-log-decoration-wiring.md`
+1. `design_docs/stages/planning-gate/2026-07-05-runtime-log-decoration-existing-record-adoption.md`
+1. `design_docs/stages/planning-gate/2026-07-05-runtime-log-decoration-contract.md`
+1. `docs/runtime-log-decoration-contract.md`
+1. `design_docs/stages/planning-gate/2026-07-05-advisory-product-pool-schema-validator-skeleton.md`
+1. `docs/advisory-product-pool.md`
+1. `design_docs/advisory-product-pool-interface-design-record.md`
+1. `design_docs/stages/planning-gate/2026-07-04-trajectory-team-continuity-surface.md`
+1. `design_docs/stages/planning-gate/2026-07-04-trajectory-team-continuity-bridge.md`
 1. `design_docs/stages/planning-gate/2026-07-02-next-action-state-source-sync.md`
 1. `design_docs/stages/planning-gate/2026-07-02-compact-context-hydration-smoke.md`
 1. `design_docs/stages/planning-gate/2026-07-02-pytest-collection-hygiene.md`
@@ -2146,6 +2213,37 @@ Validation:
   products, but hard thresholds must still force compact and retain forced-
   compact windows for later policy improvement. Source draft:
   `design_docs/stages/planning-gate/2026-06-30-continuous-worker-ownership-transition-contract.md`.
+- [x] Complete the generic advisory product pool schema/validator skeleton for
+  specialized policy agents. Source:
+  `design_docs/stages/planning-gate/2026-07-05-advisory-product-pool-schema-validator-skeleton.md`.
+- [x] Complete the bottom-layer runtime log decoration contract for append-only,
+  validation, and controlled rewrite decorators. Source:
+  `design_docs/stages/planning-gate/2026-07-05-runtime-log-decoration-contract.md`.
+- [x] Adopt runtime log decoration in existing bottom-layer log-like records,
+  including exchange/runtime/scheduler/lifecycle records and runtime-owned
+  receipt/evidence records. Sources:
+  `design_docs/stages/planning-gate/2026-07-05-log-like-record-batch-decoration.md`
+  and
+  `design_docs/stages/planning-gate/2026-07-05-runtime-receipt-evidence-log-decoration-adapters.md`.
+- [ ] Later design persistent advisory pools and advisor execution, including
+  assignment advisors and future business-block advisor agents. Source design
+  record: `design_docs/advisory-product-pool-interface-design-record.md`.
+- [ ] Later adopt runtime log decoration in higher-level policy/advisory
+  products and any future review/lane-split records that become durable runtime
+  audit products. Source:
+  `docs/runtime-log-decoration-contract.md`.
+- [ ] Later document and evaluate Python package subsystem boundaries before
+  future packaging expansion. Current source is modular inside one distribution
+  package (`doc-based-coding-runtime`, packaging `src*` and `tools*`), but
+  runtime orchestration, MCP, workflow, pack, PDP/PEP, workers, and tools are
+  still shipped together. Prefer first documenting `core / runtime / host
+  adapters / tools` boundaries, then decide whether separate installable
+  packages are needed after Codex/OpenCode runtime and `.dbc` artifact-root
+  behavior stabilize. Source: `pyproject.toml`.
+- [ ] Later design a unified `.dbc` artifact/log index or manifest layer for
+  generated runtime products, so scheduler/orchestration/progress-graph/log
+  readers can discover products without hardcoded path scans. Source:
+  `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`.
 - [ ] For later gates, consider persistent monitoring UI, distributed worker
   leases, live Codex process resume, live-provider throughput validation, or
   automatic log compaction as separate product slices.

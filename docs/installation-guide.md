@@ -168,9 +168,15 @@ doc-based-coding doctor --profile codex
 ```
 
 该命令输出统一 self-check JSON。第一版至少包含
-`codex.mcp_exposure`，用于判断项目级 `.codex/config.toml` 是否存在、
-用户级 Codex config 是否信任当前项目，以及 `codex mcp list` 是否能看到
-enabled 的 doc-based-coding MCP server。
+`workspace.dbc_command_relay` 与 `codex.mcp_exposure`。前者用于确认
+agent 可通过每-agent 工作区 relay 调用当前 MCP server/package 实例中的
+DBC CLI 等价能力，而不依赖全局 `doc-based-coding`；后者用于判断项目级
+`.codex/config.toml` 是否存在、用户级 Codex config 是否信任当前项目，
+以及 `codex mcp list` 是否能看到 enabled 的 doc-based-coding MCP server。
+
+relay 的使用和排障标准见：
+
+- [workspace-dbc-command-relay.md](workspace-dbc-command-relay.md)
 
 其他第一批 doctor profile：
 
@@ -184,6 +190,24 @@ doc-based-coding doctor --profile all
   OpenCode provider task。
 - `scheduler.storage_visibility` 只读检查默认 scheduler 存储目录、
   snapshot 和 event log 是否存在/可读，不推进 scheduler。
+
+## Workspace Artifact Layout
+
+Codex host registration and DBC runtime artifacts intentionally use different
+workspace roots:
+
+- `.codex/config.toml` remains the Codex project-level MCP registration file.
+- `.codex/checkpoints/` and `.codex/handoffs/` remain Codex recovery surfaces
+  when used by the current workflow.
+- DBC-owned generated runtime products default to `.dbc/`, including scheduler
+  state/logs/evidence, orchestration ExchangeArtifact stores, runtime
+  invocation logs, progress graph artifacts, scratch files, and
+  agent-output files.
+
+If a workspace still has legacy generated products under `.codex/scheduler`,
+`.codex/orchestration`, `.codex/runtime`, `.codex/progress-graph`, or
+`.codex/agent-output`, treat those as migration inputs. Do not move
+`.codex/config.toml` during that migration.
 
 ## MCP 安装态接入
 
@@ -325,6 +349,9 @@ macOS / Linux 示例：
 5. 若要区分“包未暴露工具”与“Codex 未加载配置”，可用真实 MCP client
    对同一启动命令执行 `tools/list`；若其中包含 `localTrajectory`，问题
    就在 Codex 注册/加载层，而不是 runtime 包或 MCP server 工具声明层。
+6. 若 `localTrajectory` 可见但 `workspaceDbcCommand` 不可见，通常说明
+   当前 host 仍连接旧 DBC MCP package 或旧 MCP 进程；更新工作区 MCP
+   指向并重启 host 后重新检查。
 
 ## 与 adoption 文档的关系
 
@@ -332,6 +359,7 @@ macOS / Linux 示例：
 
 - [starter-surface.md](starter-surface.md)
 - [codex-entry-contract.md](codex-entry-contract.md)
+- [workspace-dbc-command-relay.md](workspace-dbc-command-relay.md)
 - [project-adoption.md](project-adoption.md)
 - [official-instance-doc-loop.md](official-instance-doc-loop.md)
 - [host-interaction-model.md](host-interaction-model.md)
@@ -341,6 +369,7 @@ macOS / Linux 示例：
 - 本文解决“如何安装与启动入口”
 - `starter-surface.md` 解决“第一次进入仓库时先看哪里”
 - `codex-entry-contract.md` 解决“如果目标宿主是 Codex，最短入口闭环是什么”
+- `workspace-dbc-command-relay.md` 解决“每个 agent 如何通过自己的 MCP relay 使用工作区级 DBC 命令面”
 - adoption 文档解决“安装后如何让一个真实仓库挂上来”
 - `host-interaction-model.md` 解决“这些入口差异属于平台哪一层”
 

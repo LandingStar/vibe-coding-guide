@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .artifact_paths import dbc_artifact_path
 from .exchange import (
     ExchangeArtifact,
     ExchangeLog,
@@ -232,7 +233,7 @@ def default_supervisor_storage_binding_evidence_path(
         for character in evidence_id
     )
     safe_id = safe_id.strip("-") or "supervisor-storage-binding"
-    return Path(project_root) / ".codex/scheduler/evidence" / f"{safe_id}.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence", f"{safe_id}.json")
 
 
 def build_supervisor_storage_binding_evidence(

@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
+
 from .doc_projection import history_json_path
 from .export import export_history_surface, load_export_surface
 from .model import ProgressMultiGraphHistory
 
-_DEFAULT_DOT_PATH = Path(".codex/progress-graph/latest.dot")
+_DEFAULT_DOT_PATH = Path(dbc_artifact_path("progress-graph", "latest.dot"))
 _NODE_KIND_SHAPES = {
     "task": "box",
     "milestone": "ellipse",

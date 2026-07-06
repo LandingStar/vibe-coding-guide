@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from .artifact_paths import dbc_artifact_path
 from .codex_delivery_smoke import (
     CodexDeliveryBoundedLoopRequest,
     CodexDeliveryBoundedLoopResult,
@@ -22,10 +23,10 @@ from .runtime_invocation_audit import (
 from .scheduler_store import recover_scheduler_state
 
 DEFAULT_LIVE_CODEX_CONCURRENT_WORKER_SMOKE_REPORT_RELATIVE_PATH = (
-    ".codex/scheduler/live-codex-concurrent-worker-smoke-report.json"
+    dbc_artifact_path("scheduler", "live-codex-concurrent-worker-smoke-report.json")
 )
 DEFAULT_LIVE_OPENCODE_CONCURRENT_WORKER_SMOKE_REPORT_RELATIVE_PATH = (
-    ".codex/scheduler/live-opencode-concurrent-worker-smoke-report.json"
+    dbc_artifact_path("scheduler", "live-opencode-concurrent-worker-smoke-report.json")
 )
 
 

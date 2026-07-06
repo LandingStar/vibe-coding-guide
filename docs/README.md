@@ -39,6 +39,14 @@
 - `opencode-host-provisioning-check-guide.md`
 - `worker-trajectory-update-reporting.md`
   - worker-to-leader Local Work Trajectory update reporting and consumption
+- `trajectory-team-continuity-surface.md`
+  - leader/main/supervisor/guide CLI + MCP surface for trajectory team roster continuity
+- `advisory-product-pool.md`
+  - reusable schema and validator skeleton for advisory/policy product pools
+- `runtime-log-decoration-contract.md`
+  - bottom-layer runtime contract for append-only, validation, and rewrite log decorators
+- `workspace-dbc-command-relay.md`
+  - per-agent workspace-bound DBC command relay usage, self-check, and troubleshooting
 - `monitoring-ui-backend-api.md`
   - read-only backend snapshot API for the future monitoring UI
 - `self-check-doctor-contract.md`
@@ -94,7 +102,11 @@
 24. `qoder-host-provisioning-check-guide.md`
 25. `opencode-host-provisioning-check-guide.md`
 26. `worker-trajectory-update-reporting.md`
-27. `monitoring-ui-backend-api.md`
-28. `self-check-doctor-contract.md`
-29. `current-prototype-status.md`
-30. `first-stable-release-boundary.md`
+27. `trajectory-team-continuity-surface.md`
+28. `advisory-product-pool.md`
+29. `runtime-log-decoration-contract.md`
+30. `workspace-dbc-command-relay.md`
+31. `monitoring-ui-backend-api.md`
+32. `self-check-doctor-contract.md`
+33. `current-prototype-status.md`
+34. `first-stable-release-boundary.md`

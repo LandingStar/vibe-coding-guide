@@ -316,7 +316,12 @@ def _touched_path_collisions(
 
 
 def _copy_workspace_for_preflight(source_root: Path, target_root: Path) -> None:
-    ignore = shutil.ignore_patterns(".git", ".codex/sandboxes", "__pycache__")
+    ignore = shutil.ignore_patterns(
+        ".git",
+        ".codex/sandboxes",
+        ".dbc/sandboxes",
+        "__pycache__",
+    )
     shutil.copytree(source_root, target_root, ignore=ignore)
 
 

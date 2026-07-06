@@ -384,12 +384,41 @@ class GovernanceTools:
             source="mcp",
         ).to_dict()
 
+    def workspace_dbc_command(
+        self,
+        argv: list[str] | tuple[str, ...] | None,
+        *,
+        mode: str = "read",
+        timeout_seconds: int = 30,
+    ) -> dict:
+        """Run a DBC CLI argv through this workspace's MCP package instance."""
+        from ..runtime.orchestration import (
+            WorkspaceDbcCommandRelayRequest,
+            run_workspace_dbc_command_relay,
+        )
+
+        clean_argv = tuple(str(item) for item in (argv or ()))
+        clean_mode = str(mode or "read").strip() or "read"
+        try:
+            clean_timeout = int(timeout_seconds)
+        except (TypeError, ValueError):
+            clean_timeout = 30
+        result = run_workspace_dbc_command_relay(
+            WorkspaceDbcCommandRelayRequest(
+                project_root=self._project_root,
+                argv=clean_argv,
+                mode=clean_mode,  # type: ignore[arg-type]
+                timeout_seconds=clean_timeout,
+            )
+        )
+        return result.to_json_dict()
+
     def write_output(self, content: str, *, title: str = "") -> str:
         """Write agent analysis to a visible surface and return the file path.
 
         Use this to surface analysis, tables, or summaries that the user
         needs to see. In MCP clients where chat text is invisible (e.g.
-        VS Code Copilot Chat), this writes to .codex/agent-output/latest.md.
+        VS Code Copilot Chat), this writes to .dbc/agent-output/latest.md.
         """
         return self._agent_output_sink.write(content, title=title)
 
@@ -522,7 +551,7 @@ class GovernanceTools:
         """Mutate the agent-owned Local Work Trajectory artifact.
 
         This is intentionally narrower than general file editing: it only writes
-        `.codex/progress-graph/local-work-trajectory.json` through the progress
+        `.dbc/progress-graph/local-work-trajectory.json` through the progress
         graph lifecycle API so MCP hosts such as Codex can track work without a
         human-maintained UI button path.
         """
@@ -984,6 +1013,112 @@ class GovernanceTools:
             guide_context=guide_context,
         )
         return consume_worker_trajectory_report(request).to_json_dict()
+
+    def trajectory_team_continuity(
+        self,
+        *,
+        action: str,
+        caller_role: str = "leader",
+        trajectory_id: str = "",
+        lane_id: str = "",
+        leader_id: str = "agent:guide",
+        worker_id: str = "",
+        runtime_provider: str = "opencode",
+        binding_id: str = "",
+        ownership_id: str = "",
+        replacement_binding_id: str = "",
+        new_binding_id: str = "",
+        source_binding_id: str = "",
+        no_continuity_reason: str = "",
+        task_id: str = "",
+        delivery_id: str = "",
+        timestamp: str = "",
+        reason: str = "",
+        binding_ledger_path: str = "",
+        binding_event_log_path: str = "",
+        ownership_ledger_path: str = "",
+        ownership_event_log_path: str = "",
+        lease_ledger_path: str = "",
+        team_event_log_path: str = "",
+        scheduler_event_log_path: str = "",
+        attach_url: str = "",
+        session_id: str = "",
+        continue_session: bool = False,
+        fork_session: bool = False,
+        compact_context_ref: str = "",
+        mailbox_cursor_ref: str = "",
+        worker_report_refs: list[str] | tuple[str, ...] | None = None,
+        audit_refs: list[str] | tuple[str, ...] | None = None,
+        include_inactive: bool = True,
+    ) -> dict[str, Any]:
+        """Run trajectory team continuity through the shared runtime dispatcher."""
+
+        from ..runtime.orchestration import (
+            DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH,
+            DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH,
+            DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_EVENT_LOG_RELATIVE_PATH,
+            DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH,
+            DEFAULT_TRAJECTORY_TEAM_CONTINUITY_EVENT_LOG_RELATIVE_PATH,
+            TrajectoryTeamContinuitySurfaceRequest,
+            run_trajectory_team_continuity_surface,
+        )
+
+        request = TrajectoryTeamContinuitySurfaceRequest(
+            action=action,  # type: ignore[arg-type]
+            project_root=self._project_root,
+            caller_role=caller_role,
+            trajectory_id=trajectory_id,
+            lane_id=lane_id,
+            leader_id=leader_id or "agent:guide",
+            worker_id=worker_id,
+            runtime_provider=runtime_provider or "opencode",
+            binding_id=binding_id,
+            ownership_id=ownership_id,
+            replacement_binding_id=replacement_binding_id,
+            new_binding_id=new_binding_id,
+            source_binding_id=source_binding_id,
+            no_continuity_reason=no_continuity_reason,
+            task_id=task_id,
+            delivery_id=delivery_id,
+            timestamp=timestamp,
+            reason=reason,
+            binding_ledger_path=(
+                binding_ledger_path
+                or DEFAULT_CONTINUOUS_WORKER_BINDING_LEDGER_RELATIVE_PATH
+            ),
+            binding_event_log_path=(
+                binding_event_log_path
+                or DEFAULT_CONTINUOUS_WORKER_BINDING_EVENT_LOG_RELATIVE_PATH
+            ),
+            ownership_ledger_path=(
+                ownership_ledger_path
+                or DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_LEDGER_RELATIVE_PATH
+            ),
+            ownership_event_log_path=(
+                ownership_event_log_path
+                or DEFAULT_CONTINUOUS_WORKER_LANE_OWNERSHIP_EVENT_LOG_RELATIVE_PATH
+            ),
+            lease_ledger_path=(
+                lease_ledger_path
+                or DEFAULT_CONTINUOUS_WORKER_DELIVERY_LEASE_LEDGER_RELATIVE_PATH
+            ),
+            team_event_log_path=(
+                team_event_log_path
+                or DEFAULT_TRAJECTORY_TEAM_CONTINUITY_EVENT_LOG_RELATIVE_PATH
+            ),
+            scheduler_event_log_path=scheduler_event_log_path,
+            attach_url=attach_url,
+            session_id=session_id,
+            continue_session=continue_session,
+            fork_session=fork_session,
+            compact_context_ref=compact_context_ref,
+            mailbox_cursor_ref=mailbox_cursor_ref,
+            worker_report_refs=tuple(worker_report_refs or ()),
+            audit_refs=tuple(audit_refs or ()),
+            include_inactive=include_inactive,
+        )
+        return run_trajectory_team_continuity_surface(request).to_json_dict()
 
     def scheduler_submit_tasks(
         self,
@@ -2044,7 +2179,7 @@ class GovernanceTools:
         scheduler_event_log_path: str = "",
         strict: bool = True,
         workspace_root: str = "",
-        scratch_root: str = ".codex/scratch",
+        scratch_root: str = ".dbc/scratch",
     ) -> dict[str, Any]:
         """Read scheduler lease/sandbox authorization diagnostics."""
 
@@ -2070,7 +2205,7 @@ class GovernanceTools:
                 scheduler_event_log_path=event_log,
                 strict=strict,
                 workspace_root=workspace_root or str(self._project_root),
-                scratch_root=scratch_root or ".codex/scratch",
+                scratch_root=scratch_root or ".dbc/scratch",
             )
         except Exception as exc:
             return {
@@ -3209,7 +3344,7 @@ class GovernanceTools:
         timestamp: str = "",
         runtime_provider: str = "fake",
         workspace_root: str = "",
-        scratch_root: str = ".codex/scratch",
+        scratch_root: str = ".dbc/scratch",
         wave_execution_mode: str = "serial",
     ) -> dict[str, Any]:
         """Run guide-worker local trajectory orchestration through MCP."""
@@ -3360,7 +3495,7 @@ class GovernanceTools:
                 replace_existing=replace_existing,
                 allow_duplicate_admission=allow_duplicate_admission,
                 workspace_root=str(resolve_path(workspace_root)) if workspace_root else "",
-                scratch_root=scratch_root or ".codex/scratch",
+                scratch_root=scratch_root or ".dbc/scratch",
                 wave_execution_mode=normalized_wave_execution_mode,  # type: ignore[arg-type]
             )
             payload = run_guide_worker_local_trajectory_orchestration(request).to_json_dict()
@@ -3566,16 +3701,28 @@ class GovernanceTools:
         and whether merge conflicts were recorded.
         Returns the most recent entries first, up to *limit*.
         """
-        from ..audit.decision_log import DecisionLogStore
+        from ..audit.decision_log import (
+            DecisionLogStore,
+            default_decision_log_dir,
+            legacy_decision_log_dir,
+        )
 
-        store = DecisionLogStore(self._project_root / ".codex" / "decision-logs")
-        entries = store.query(
-            trace_id=trace_id or None,
-            decision=decision or None,
-            intent=intent or None,
-            has_merge_conflicts=has_merge_conflicts,
+        query_kwargs = {
+            "trace_id": trace_id or None,
+            "decision": decision or None,
+            "intent": intent or None,
+            "has_merge_conflicts": has_merge_conflicts,
+        }
+        entries = DecisionLogStore(default_decision_log_dir(self._project_root)).query(
+            **query_kwargs,
             limit=limit,
         )
+        if len(entries) < limit:
+            legacy_entries = DecisionLogStore(legacy_decision_log_dir(self._project_root)).query(
+                **query_kwargs,
+                limit=limit - len(entries),
+            )
+            entries.extend(legacy_entries)
         filters: dict = {
             k: v for k, v in
             {"trace_id": trace_id, "decision": decision, "intent": intent}.items()

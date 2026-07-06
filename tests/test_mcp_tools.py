@@ -216,6 +216,197 @@ class TestCheckConstraints:
         assert c5[0]["severity"] == "warn"
 
 
+class TestWorkspaceDbcCommandRelay:
+    """workspaceDbcCommand MCP relay tests."""
+
+    def test_mcp_server_exposes_and_routes_workspace_dbc_command(self, tmp_path):
+        import asyncio
+
+        from mcp.types import (
+            CallToolRequest,
+            CallToolRequestParams,
+            ListToolsRequest,
+        )
+        from src.mcp.server import create_server
+
+        server = create_server(tmp_path, dry_run=True)
+
+        async def exercise_server():
+            list_result = await server.request_handlers[ListToolsRequest](
+                ListToolsRequest()
+            )
+            tools = list_result.root.tools
+            names = {tool.name for tool in tools}
+            assert "workspaceDbcCommand" in names
+            relay_tool = next(tool for tool in tools if tool.name == "workspaceDbcCommand")
+            assert relay_tool.inputSchema["required"] == ["argv"]
+            assert "mode" in relay_tool.inputSchema["properties"]
+            assert "not a generic shell" in relay_tool.description
+            assert "global PATH" in relay_tool.description
+
+            call_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="workspaceDbcCommand",
+                        arguments={
+                            "argv": ["scheduler", "operator-dogfood-closure"],
+                            "mode": "read",
+                        },
+                    )
+                )
+            )
+            payload = json.loads(call_result.root.content[0].text)
+            assert payload["ok"] is False
+            assert payload["status"] == "denied"
+            assert "requires mode='mutate'" in payload["denied_reason"]
+            assert payload["command_preview"][:3][1:] == ["-m", "src"]
+            assert payload["authority_split"]["generic_shell"] is False
+            assert payload["authority_split"]["workspace_bound"] is True
+
+        asyncio.run(exercise_server())
+
+
+class TestTrajectoryTeamContinuityMcp:
+    """trajectoryTeamContinuity MCP tool tests."""
+
+    def test_tools_method_assign_inspect_and_worker_rejection(self, tmp_path):
+        tools = GovernanceTools(tmp_path, dry_run=True)
+
+        assign = tools.trajectory_team_continuity(
+            action="assign",
+            trajectory_id="local-work:mcp-surface",
+            lane_id="lane:server",
+            leader_id="agent:guide",
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            session_id="session-server",
+            compact_context_ref="dbc://context/server",
+            mailbox_cursor_ref="dbc://mailbox/server@1",
+            worker_report_refs=("report:server",),
+            audit_refs=("audit:server",),
+            scheduler_event_log_path=".codex/scheduler/team-events.jsonl",
+            timestamp="2026-07-04T12:00:00+00:00",
+        )
+        inspect = tools.trajectory_team_continuity(
+            action="inspect",
+            trajectory_id="local-work:mcp-surface",
+            lane_id="lane:server",
+            runtime_provider="opencode",
+        )
+        rejected = tools.trajectory_team_continuity(
+            action="assign",
+            caller_role="worker",
+            trajectory_id="local-work:mcp-surface",
+            lane_id="lane:client",
+            worker_id="worker:client",
+        )
+
+        assert assign["ok"] is True
+        assert assign["authority_split"]["provider_executed"] is False
+        assert assign["authority_split"]["local_work_trajectory_mutated"] is False
+        assert inspect["ok"] is True
+        assert inspect["rows"][0]["binding_id"] == "continuous-worker:lane:lane-server"
+        assert inspect["rows"][0]["worker_report_refs"] == ["report:server"]
+        assert rejected["ok"] is False
+        assert rejected["status"] == "caller_role_rejected"
+        assert "docs/worker-trajectory-update-reporting.md" in rejected["message"]
+
+    def test_mcp_server_exposes_and_routes_trajectory_team_continuity(self, tmp_path):
+        import asyncio
+
+        from mcp.types import (
+            CallToolRequest,
+            CallToolRequestParams,
+            ListToolsRequest,
+        )
+        from src.mcp.server import create_server
+
+        server = create_server(tmp_path, dry_run=True)
+
+        async def exercise_server():
+            list_result = await server.request_handlers[ListToolsRequest](
+                ListToolsRequest()
+            )
+            tools = list_result.root.tools
+            names = {tool.name for tool in tools}
+            assert "trajectoryTeamContinuity" in names
+            tool = next(tool for tool in tools if tool.name == "trajectoryTeamContinuity")
+            assert tool.inputSchema["properties"]["action"]["enum"] == [
+                "inspect",
+                "resolve",
+                "assign",
+                "activate",
+                "suspend",
+                "resume",
+                "transfer",
+                "fork",
+                "release",
+                "noContinuity",
+            ]
+            assert "docs/worker-trajectory-update-reporting.md" in tool.description
+
+            assign_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="trajectoryTeamContinuity",
+                        arguments={
+                            "action": "assign",
+                            "trajectoryId": "local-work:mcp-server",
+                            "laneId": "lane:server",
+                            "leaderId": "agent:guide",
+                            "workerId": "worker:server",
+                            "runtimeProvider": "opencode",
+                            "sessionId": "session-server",
+                            "schedulerEventLogPath": ".codex/scheduler/team-events.jsonl",
+                        },
+                    )
+                )
+            )
+            assign_payload = json.loads(assign_result.root.content[0].text)
+            assert assign_payload["ok"] is True
+            assert assign_payload["rows"][0]["worker_id"] == "worker:server"
+
+            inspect_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="trajectoryTeamContinuity",
+                        arguments={
+                            "action": "inspect",
+                            "trajectoryId": "local-work:mcp-server",
+                            "laneId": "lane:server",
+                            "runtimeProvider": "opencode",
+                        },
+                    )
+                )
+            )
+            inspect_payload = json.loads(inspect_result.root.content[0].text)
+            assert inspect_payload["ok"] is True
+            assert inspect_payload["rows"][0]["binding_id"] == (
+                "continuous-worker:lane:lane-server"
+            )
+
+            worker_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="trajectoryTeamContinuity",
+                        arguments={
+                            "action": "assign",
+                            "callerRole": "worker",
+                            "trajectoryId": "local-work:mcp-server",
+                            "laneId": "lane:client",
+                            "workerId": "worker:client",
+                        },
+                    )
+                )
+            )
+            worker_payload = json.loads(worker_result.root.content[0].text)
+            assert worker_payload["ok"] is False
+            assert "Subagent Report.trajectory_update" in worker_payload["message"]
+            assert "docs/worker-trajectory-update-reporting.md" in worker_payload["message"]
+
+        asyncio.run(exercise_server())
+
+
 class TestGetNextAction:
     """get_next_action tool tests."""
 

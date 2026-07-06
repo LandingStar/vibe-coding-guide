@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration import (
     CodexCliClient,
     CodexCliClientConfig,
@@ -72,10 +73,10 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
 
     evidence_id: str = "guide-worker-provider-execution"
     timestamp: str = ""
-    artifact_store_path: str | Path = ".codex/orchestration/exchange-artifacts.json"
-    admission_ledger_path: str | Path = ".codex/orchestration/exchange-artifact-admissions.json"
-    snapshot_path: str | Path = ".codex/scheduler/guide-worker-provider-execution-state.json"
-    event_log_path: str | Path = ".codex/scheduler/guide-worker-provider-execution-events.jsonl"
+    artifact_store_path: str | Path = dbc_artifact_path("orchestration", "exchange-artifacts.json")
+    admission_ledger_path: str | Path = dbc_artifact_path("orchestration", "exchange-artifact-admissions.json")
+    snapshot_path: str | Path = dbc_artifact_path("scheduler", "guide-worker-provider-execution-state.json")
+    event_log_path: str | Path = dbc_artifact_path("scheduler", "guide-worker-provider-execution-events.jsonl")
     evidence_output_path: str | Path | None = None
     trajectory_id: str = "local-work:current"
     guide_agent_id: str = "agent:guide"
@@ -105,7 +106,7 @@ class HostOwnedGuideWorkerProviderExecutionConfig:
     replace_existing: bool = True
     allow_duplicate_admission: bool = True
     workspace_root: str = ""
-    scratch_root: str = ".codex/scratch"
+    scratch_root: str = dbc_artifact_path("scratch")
     git_worktree_sandbox_root: str | Path | None = None
     sandbox_allocation_evidence_id: str = ""
     sandbox_allocation_evidence_path: str | Path | None = None
@@ -228,7 +229,7 @@ def default_guide_worker_provider_execution_evidence_path(
         for character in evidence_id
     )
     safe_id = safe_id.strip("-") or "guide-worker-provider-execution"
-    return Path(project_root) / ".codex/scheduler/evidence" / f"{safe_id}.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence", f"{safe_id}.json")
 
 
 def run_host_owned_guide_worker_provider_execution(

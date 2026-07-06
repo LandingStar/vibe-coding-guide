@@ -9,12 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.runtime.orchestration import BridgeGroupItem, BridgeWorkItem
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.workflow.checkpoint import read_checkpoint
 from src.workflow.handoff_footprint import load_current_handoff_footprint
 
 from .control_binding import normalize_control_bindings
 
-_DEFAULT_CONTROL_SNAPSHOT_PATH = Path(".codex/progress-graph/control-snapshot.json")
+_DEFAULT_CONTROL_SNAPSHOT_PATH = Path(dbc_artifact_path("progress-graph", "control-snapshot.json"))
 _DEFAULT_CHECKPOINT_PATH = Path(".codex/checkpoints/latest.md")
 _CURRENT_HANDOFF_PATH = Path(".codex/handoffs/CURRENT.md")
 _CHECKPOINT_GRAPH_ID = "checkpoint-current"

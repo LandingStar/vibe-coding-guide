@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Mapping
 
+from src.runtime.orchestration.artifact_paths import dbc_artifact_path
 from src.runtime.orchestration import (
     InMemoryArtifactVersionStore,
     JsonArtifactVersionStore,
@@ -40,10 +41,10 @@ from .trajectory import LocalWorkTrajectory
 SchedulerOperatorWorkflowStepStatus = Literal["completed", "skipped", "failed"]
 
 DEFAULT_SCHEDULER_OPERATOR_SNAPSHOT_RELATIVE_PATH = Path(
-    ".codex/scheduler/scheduler-state.json"
+    dbc_artifact_path("scheduler", "scheduler-state.json")
 )
 DEFAULT_SCHEDULER_OPERATOR_EVENT_LOG_RELATIVE_PATH = Path(
-    ".codex/scheduler/scheduler-events.jsonl"
+    dbc_artifact_path("scheduler", "scheduler-events.jsonl")
 )
 DEFAULT_SCHEDULER_OPERATOR_EVIDENCE_ID = "scheduler-operator-workflow-loop"
 

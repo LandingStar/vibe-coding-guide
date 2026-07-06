@@ -3,7 +3,8 @@
 ## Document Position
 
 This document defines the repository-level secret hygiene rule for tracked
-workflow artifacts, especially `.codex/decision-logs/*.jsonl`.
+workflow artifacts, especially `.dbc/decision-logs/*.jsonl` and legacy
+`.codex/decision-logs/*.jsonl`.
 
 It is a long-lived tooling standard. It does not replace provider-side key
 rotation. If a real key is committed or pushed, the key must be revoked or
@@ -19,9 +20,9 @@ The following files are local credential surfaces and must not be committed:
 - `*.apikey`
 - `*.secret`
 
-`.codex/decision-logs/*.jsonl` may remain tracked as audit artifacts, but they
-must not contain raw secrets copied from terminal commands, prompts, tool
-outputs, or configuration values.
+`.dbc/decision-logs/*.jsonl` and legacy `.codex/decision-logs/*.jsonl` may
+remain tracked as audit artifacts, but they must not contain raw secrets copied
+from terminal commands, prompts, tool outputs, or configuration values.
 
 ## Redaction Rule
 

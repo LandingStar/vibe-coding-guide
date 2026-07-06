@@ -14,9 +14,18 @@ from pathlib import Path
 
 import pytest
 
+from src.audit.audit_logger import AuditEvent
+from src.audit.decision_log import DecisionLogEntry
 from src.runtime.orchestration import (
     BridgeGroupItem,
     BridgeWorkItem,
+    ADVISORY_PRODUCT_POOL_PRODUCT_TYPE,
+    ADVISORY_PRODUCT_POOL_SCHEMA_VERSION,
+    AdvisoryProduct,
+    AdvisoryProductValidatorRegistry,
+    AgentActivationEvent,
+    AppendFieldsLogDecorator,
+    BoundedTextRewriteLogDecorator,
     CoordinationEvent,
     AgentSpec,
     AgentHomeRegistration,
@@ -90,6 +99,7 @@ from src.runtime.orchestration import (
     OpenCodeServerApiClient,
     OpenCodeServerApiClientConfig,
     OpenCodeServeLifecycleInspectRequest,
+    OpenCodeServeLifecycleReceipt,
     OpenCodeServeLifecycleRecordRequest,
     OpenCodeServeReadinessRequest,
     OpenCodeSessionClaimRequest,
@@ -105,6 +115,7 @@ from src.runtime.orchestration import (
     ContinuousWorkerBindingResolveRequest,
     ContinuousWorkerBindingReuseRequest,
     ContinuousWorkerBinding,
+    ContinuousWorkerBindingEventRecord,
     ContinuousWorkerCompactContextBuildRequest,
     ContinuousWorkerSessionSelector,
     ServerApiCreatedSessionPromotionRequest,
@@ -112,6 +123,7 @@ from src.runtime.orchestration import (
     DeliveryLease,
     DeliveryLeaseBeginRequest,
     DeliveryLeaseCompleteRequest,
+    DeliveryLeaseEventRecord,
     DeliveryLeaseFailRequest,
     DeliveryLeaseInspectRequest,
     DeliveryLeaseReleaseRequest,
@@ -119,7 +131,13 @@ from src.runtime.orchestration import (
     JsonlDeliveryLeaseEventLog,
     JsonlContinuousWorkerBindingEventLog,
     JsonlLaneOwnershipEventLog,
+    JsonlTrajectoryTeamContinuityEventLog,
+    LogDecorationPipeline,
+    LogDecorationRecord,
+    LeaderWorkerDeliveryEventRecord,
+    TrajectoryTeamContinuitySurfaceRequest,
     LaneOwnership,
+    LaneOwnershipEventRecord,
     LaneOwnershipActivateRequest,
     LaneOwnershipClaimRequest,
     LaneOwnershipInspectRequest,
@@ -159,12 +177,14 @@ from src.runtime.orchestration import (
     selectable_lane_ownership_conflicts,
     suspend_lane_ownership,
     transfer_lane_ownership,
+    run_trajectory_team_continuity_surface,
     validate_no_active_delivery_lease_conflicts,
     validate_no_selectable_lane_ownership_conflicts,
     inspect_opencode_serve_lifecycle_receipts,
     record_opencode_serve_lifecycle_receipt,
     LeaderWorkerDispatcherLoopRequest,
     LeaderWorkerDispatcherTickRequest,
+    LeaderWorkerDispatcherTickRecord,
     SandboxAllocation,
     SandboxLeaseMountAuthorization,
     SandboxProviderRegistry,
@@ -188,6 +208,7 @@ from src.runtime.orchestration import (
     RuntimeCapabilities,
     RuntimeProviderKind,
     RuntimeHostInvocation,
+    RunEvent,
     RuntimeInvocationRecord,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
@@ -234,10 +255,15 @@ from src.runtime.orchestration import (
     WorkerTrajectoryReportConsumerRequest,
     WorkerTrajectoryReportConsumerResult,
     acknowledge_leader_worker_delivery,
+    accept_advisory_input,
     admit_exchange_artifact_version_to_scheduler,
     admit_exchange_artifact_version_with_ledger,
+    advisory_product_from_artifact,
+    advisory_product_to_artifact,
     agent_home_registration_to_artifact,
     apply_scheduler_daemon_lifecycle_action,
+    agent_activation_event_to_decoration_record,
+    audit_event_to_decoration_record,
     build_supervisor_agent_storage_binding,
     cleanup_receipt_to_artifact,
     classify_edit_lease_conflict,
@@ -260,12 +286,14 @@ from src.runtime.orchestration import (
     seed_scheduler_operator_multilane_dogfood_fixture,
     drain_preflighted_ready_tasks,
     drain_ready_tasks,
+    emit_advisory_output,
     evaluate_stop_condition,
     evaluate_leader_worker_policy,
     evaluate_task_admission,
     expire_edit_leases,
     exchange_artifact_from_json_dict,
     exchange_artifact_to_json_dict,
+    exchange_log_to_decoration_record,
     inspect_exchange_artifact_admission_ledger,
     inspect_exchange_artifact_store,
     inspect_supervisor_storage_binding_artifact_refs_for_submission,
@@ -307,6 +335,22 @@ from src.runtime.orchestration import (
     run_scheduler_daemon_tick,
     run_guide_worker_local_trajectory_orchestration,
     run_leader_worker_activation_pass,
+    assign_trajectory_lane_worker,
+    activate_trajectory_lane_worker,
+    record_trajectory_lane_no_continuity,
+    release_trajectory_lane_worker,
+    resolve_trajectory_lane_worker,
+    transfer_trajectory_lane_worker,
+    TrajectoryTeamContinuityActivateRequest,
+    TrajectoryTeamContinuityAssignRequest,
+    TrajectoryTeamContinuityForkRequest,
+    TrajectoryTeamContinuityNoContinuityRequest,
+    TrajectoryTeamContinuityReleaseRequest,
+    TrajectoryTeamContinuityResumeRequest,
+    TrajectoryTeamContinuityResolveRequest,
+    TrajectoryTeamContinuitySuspendRequest,
+    TrajectoryTeamContinuityTransferRequest,
+    TrajectoryTeamContinuityEventRecord,
     run_bounded_codex_delivery_supervisor_loop,
     run_bounded_opencode_delivery_supervisor_loop,
     run_bounded_provider_delivery_supervisor_loop_for_codex,
@@ -317,7 +361,11 @@ from src.runtime.orchestration import (
     run_provider_delivery_e2e_smoke_for_opencode,
     run_live_codex_concurrent_worker_smoke,
     run_live_opencode_concurrent_worker_smoke,
+    fork_trajectory_lane_worker,
     inspect_monitoring_snapshot,
+    resume_trajectory_lane_worker,
+    RequiredFieldsLogDecorator,
+    suspend_trajectory_lane_worker,
     run_codex_delivery_e2e_smoke,
     run_opencode_delivery_e2e_smoke,
     run_codex_delivery_supervisor_once,
@@ -335,10 +383,28 @@ from src.runtime.orchestration import (
     run_with_runtime_invocation_audit,
     roll_up_work_item,
     sandbox_capability_placeholder,
+    coordination_event_to_decoration_record,
+    continuous_worker_binding_event_to_decoration_record,
+    decorate_log_like_records,
+    decision_log_entry_to_decoration_record,
+    delivery_lease_event_to_decoration_record,
+    exchange_artifact_admission_record_to_decoration_record,
+    cleanup_receipt_to_decoration_record,
+    git_worktree_command_receipt_to_decoration_record,
+    git_worktree_sandbox_receipt_to_decoration_record,
+    lane_ownership_event_to_decoration_record,
+    leader_worker_dispatcher_tick_record_to_decoration_record,
+    leader_worker_delivery_event_to_decoration_record,
+    log_like_record_to_decoration_record,
+    opencode_serve_lifecycle_receipt_to_decoration_record,
+    sandbox_allocation_receipt_evidence_to_decoration_record,
+    sandbox_allocation_to_decoration_record,
     scheduler_task_batch_submission_from_artifact,
     scheduler_task_batch_submission_to_artifact,
     scheduler_task_submission_from_artifact,
     scheduler_task_submission_to_artifact,
+    scheduler_event_to_decoration_record,
+    trajectory_team_continuity_event_to_decoration_record,
     scratch_manifest_to_artifact,
     submit_scheduler_task_batch,
     submit_scheduler_task_batch_with_persistence,
@@ -346,6 +412,7 @@ from src.runtime.orchestration import (
     sync_leader_worker_delivery_from_dispatch_log,
     supervisor_storage_binding_evidence_summary_to_artifact,
     validate_supervisor_storage_binding_artifact_refs,
+    validate_advisory_product_common,
     validate_exchange_artifact,
     summarize_scheduler_queue,
     select_ready_worker_parallel_wave,
@@ -367,6 +434,9 @@ from src.runtime.orchestration import (
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
     write_supervisor_storage_binding_evidence,
+    runtime_invocation_record_to_decoration_record,
+    run_event_to_decoration_record,
+    scheduler_merge_gate_event_to_decoration_record,
 )
 from tools.progress_graph import (
     EvidencePublishToConsumerClosureRequest,
@@ -1192,6 +1262,931 @@ def test_exchange_part_specific_validation_reports_missing_payloads() -> None:
         "payload part 2 is 'contract' but contract payload is missing",
         "payload part 3 is 'log' but log payload is missing",
     )
+
+
+def test_log_decoration_pipeline_appends_fields_without_rewrite() -> None:
+    record = LogDecorationRecord(
+        record_id="log:1",
+        timestamp="2026-07-05T12:00:00+08:00",
+        actor="agent:leader",
+        action="lane_split_reviewed",
+        message="Lane split reviewed.",
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            AppendFieldsLogDecorator(
+                decorator_id="lane-clues",
+                fields={"trajectory_id": "local-work:demo", "lane_id": "lane:server"},
+            ),
+        )
+    )
+
+    result = pipeline.run(record)
+
+    assert result.ok is True
+    assert result.rewrote_record is False
+    assert result.record.message == "Lane split reviewed."
+    assert result.record.decorations == {
+        "trajectory_id": "local-work:demo",
+        "lane_id": "lane:server",
+    }
+    assert result.results[0].appended_keys == ("trajectory_id", "lane_id")
+    assert result.to_json_dict()["authority_split"]["persistence_mutated"] is False
+
+
+def test_log_decoration_pipeline_rewrites_bounded_text_with_evidence() -> None:
+    record = LogDecorationRecord(
+        record_id="log:secret",
+        timestamp="2026-07-05T12:05:00+08:00",
+        actor="runtime",
+        action="runtime_message",
+        message="token=abc123 and a very long diagnostic message",
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            BoundedTextRewriteLogDecorator(
+                decorator_id="redact-token",
+                redaction_patterns=(r"token=[^\s]+",),
+                max_message_chars=30,
+            ),
+        )
+    )
+
+    result = pipeline.run(record)
+
+    assert result.ok is True
+    assert result.rewrote_record is True
+    assert result.record.message == "[redacted] and a very long..."
+    assert result.results[0].rewrote_record is True
+    assert result.results[0].mode == "rewrite_allowed"
+
+
+def test_log_decoration_required_fields_validator_reports_errors() -> None:
+    record = LogDecorationRecord(
+        record_id="",
+        timestamp="",
+        actor="agent:reviewer",
+        action="",
+        message="Cannot audit this yet.",
+    )
+
+    result = LogDecorationPipeline(
+        (RequiredFieldsLogDecorator(decorator_id="required-core"),)
+    ).run(record)
+
+    assert result.ok is False
+    assert result.errors == (
+        "log record '' requires non-empty field 'record_id'",
+        "log record '' requires non-empty field 'timestamp'",
+        "log record '' requires non-empty field 'action'",
+    )
+    assert result.results[0].mode == "validator"
+    assert result.results[0].status == "failed"
+
+
+def test_log_decoration_pipeline_runs_append_validate_and_rewrite_in_order() -> None:
+    record = LogDecorationRecord(
+        record_id="log:review",
+        timestamp="2026-07-05T12:10:00+08:00",
+        actor="agent:reviewer",
+        action="review_recorded",
+        message="api_key=sk-test should not be visible",
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            AppendFieldsLogDecorator(
+                decorator_id="review-scope",
+                fields={"review_id": "review:1"},
+            ),
+            RequiredFieldsLogDecorator(
+                decorator_id="required-core",
+                required_fields=("record_id", "timestamp", "actor", "action", "review_id"),
+            ),
+            BoundedTextRewriteLogDecorator(
+                decorator_id="redact-key",
+                redaction_patterns=(r"api_key=[^\s]+",),
+                max_message_chars=100,
+            ),
+        )
+    )
+
+    result = pipeline.run(record)
+
+    assert result.ok is True
+    assert result.record.decorations["review_id"] == "review:1"
+    assert result.record.message == "[redacted] should not be visible"
+    assert [item.decorator_id for item in result.results] == [
+        "review-scope",
+        "required-core",
+        "redact-key",
+    ]
+    assert result.to_json_dict()["results"][2]["rewrote_record"] is True
+
+
+def test_log_decoration_adapters_project_exchange_and_coordination_records() -> None:
+    exchange_record = exchange_log_to_decoration_record(
+        ExchangeLog(
+            timestamp="2026-07-05T12:15:00+08:00",
+            actor="agent:leader",
+            action="sent_worker_instruction",
+            channel="mailbox:server",
+            summary="Worker instruction posted.",
+            related_artifact_ids=("artifact:instruction",),
+            related_event_ids=("event:instruction",),
+            related_run_ids=("run:1",),
+            sequence=7,
+        )
+    )
+    coordination_record = coordination_event_to_decoration_record(
+        CoordinationEvent(
+            event_id="coordination:1",
+            event_kind="artifact_recorded",
+            timestamp="2026-07-05T12:16:00+08:00",
+            actor="exchange-store",
+            artifact_id="artifact:instruction",
+            artifact_version="v1",
+            summary="Instruction artifact recorded.",
+            sequence=8,
+        )
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="projection-check",
+                fields={"decorated_by": "runtime-log-decoration-adapter-test"},
+            ),
+        )
+    )
+
+    exchange_result = pipeline.run(exchange_record)
+    coordination_result = pipeline.run(coordination_record)
+
+    assert exchange_result.ok is True
+    assert exchange_result.record.record_id == "exchange_log:7"
+    assert exchange_result.record.fields["source_record_kind"] == "exchange_log"
+    assert exchange_result.record.fields["related_artifact_ids"] == ["artifact:instruction"]
+    assert exchange_result.record.decorations["decorated_by"] == "runtime-log-decoration-adapter-test"
+    assert exchange_result.to_json_dict()["authority_split"]["exchange_store_mutated"] is False
+    assert coordination_result.ok is True
+    assert coordination_result.record.record_id == "coordination:1"
+    assert coordination_result.record.fields["event_kind"] == "artifact_recorded"
+    assert coordination_result.record.fields["related_event_ids"] == ["coordination:1"]
+
+
+def test_log_decoration_adapters_project_scheduler_runtime_and_audit_records() -> None:
+    scheduler_record = scheduler_event_to_decoration_record(
+        SchedulerEvent(
+            event_id="scheduler-event:1",
+            event_kind="task_run_failed",
+            timestamp="2026-07-05T12:20:00+08:00",
+            task_id="task:server",
+            from_state="running",
+            to_state="blocked",
+            reason="runtime failure",
+            run_id="run:server",
+            session_id="session:server",
+            related_dependency_ids=("dependency:api",),
+            related_artifact_ids=("artifact:report",),
+            metadata={"raw_error": "do not copy", "retryable": True},
+        )
+    )
+    runtime_record = runtime_invocation_record_to_decoration_record(
+        RuntimeInvocationRecord(
+            invocation_id="invocation:1",
+            provider="opencode",
+            status="failed",
+            started_at="2026-07-05T12:21:00+08:00",
+            ended_at="2026-07-05T12:22:00+08:00",
+            task_id="task:server",
+            session_id="session:server",
+            run_id="run:server",
+            agent_id="worker:server",
+            runtime_surface="server-api",
+            attempt_count=2,
+            retry_policy=RuntimeRetryPolicy(max_attempts=3, backoff_seconds=0.1),
+            final_error_kind="NetworkError",
+            final_summary="Network interruption after retry.",
+            metadata={"raw_stderr": "do not copy"},
+        )
+    )
+    audit_record = audit_event_to_decoration_record(
+        AuditEvent(
+            event_id="audit:1",
+            trace_id="trace:1",
+            timestamp="2026-07-05T12:23:00+08:00",
+            event_type="gate_resolved",
+            phase="pep",
+            detail={
+                "summary": "Gate resolved for writeback.",
+                "sensitive_blob": "do not copy",
+            },
+            parent_trace_id="trace:parent",
+        )
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="review-scope",
+                fields={"review_surface": "runtime-log-decoration-adoption"},
+            ),
+        )
+    )
+
+    scheduler_result = pipeline.run(scheduler_record)
+    runtime_result = pipeline.run(runtime_record)
+    audit_result = pipeline.run(audit_record)
+
+    assert scheduler_result.ok is True
+    assert scheduler_result.record.action == "task_run_failed"
+    assert scheduler_result.record.fields["metadata_keys"] == ["raw_error", "retryable"]
+    assert "raw_error" not in scheduler_result.record.fields
+    assert runtime_result.ok is True
+    assert runtime_result.record.actor == "worker:server"
+    assert runtime_result.record.action == "runtime_invocation_failed"
+    assert runtime_result.record.fields["provider"] == "opencode"
+    assert runtime_result.record.fields["metadata_keys"] == ["raw_stderr"]
+    assert "raw_stderr" not in runtime_result.record.fields
+    assert audit_result.ok is True
+    assert audit_result.record.actor == "audit:pep"
+    assert audit_result.record.fields["detail_keys"] == ["sensitive_blob", "summary"]
+    assert audit_result.record.message == "Gate resolved for writeback."
+    assert "sensitive_blob" not in audit_result.record.fields
+    assert audit_result.to_json_dict()["authority_split"]["persistence_mutated"] is False
+
+
+def test_log_decoration_adapters_project_runtime_lifecycle_events() -> None:
+    events = (
+        continuous_worker_binding_event_to_decoration_record(
+            ContinuousWorkerBindingEventRecord(
+                event_id="binding-event:1",
+                event_kind="binding_claimed",
+                timestamp="2026-07-05T13:10:00+08:00",
+                binding_id="binding:server",
+                worker_id="worker:server",
+                runtime_provider="opencode",
+                scope_kind="lane",
+                scope_id="lane:server",
+                previous_status="",
+                next_status="active",
+                reason="binding claimed",
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+        lane_ownership_event_to_decoration_record(
+            LaneOwnershipEventRecord(
+                event_id="ownership-event:1",
+                event_kind="ownership_claimed",
+                timestamp="2026-07-05T13:11:00+08:00",
+                ownership_id="ownership:server",
+                scope_kind="lane",
+                scope_id="lane:server",
+                binding_id="binding:server",
+                previous_status="",
+                next_status="claimed",
+                reason="ownership claimed",
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+        delivery_lease_event_to_decoration_record(
+            DeliveryLeaseEventRecord(
+                event_id="lease-event:1",
+                event_kind="delivery_lease_started",
+                timestamp="2026-07-05T13:12:00+08:00",
+                lease_id="lease:server",
+                binding_id="binding:server",
+                task_id="task:server",
+                delivery_id="delivery:server",
+                previous_status="reserved",
+                next_status="active",
+                reason="delivery lease started",
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+        leader_worker_delivery_event_to_decoration_record(
+            LeaderWorkerDeliveryEventRecord(
+                event_id="delivery-event:1",
+                event_kind="delivery_acknowledged",
+                timestamp="2026-07-05T13:13:00+08:00",
+                delivery_id="leader-worker-delivery",
+                source_key="task:server",
+                decision_id="decision:server",
+                tick_id="tick:1",
+                dispatcher_id="dispatcher:1",
+                agent_id="worker:server",
+                role="worker",
+                previous_state="delivered",
+                next_state="acknowledged",
+                changed=True,
+                runtime_provider="opencode",
+                invocation_id="invocation:server",
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+        trajectory_team_continuity_event_to_decoration_record(
+            TrajectoryTeamContinuityEventRecord(
+                event_id="team-event:1",
+                event_kind="trajectory_team_lane_worker_assigned",
+                timestamp="2026-07-05T13:14:00+08:00",
+                trajectory_id="local-work:demo",
+                lane_id="lane:server",
+                worker_id="worker:server",
+                leader_id="agent:guide",
+                binding_id="binding:server",
+                ownership_id="ownership:server",
+                action="assign",
+                reason="worker assigned",
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="lifecycle-adapter-scope",
+                fields={"decorated_by": "lifecycle-adapter-test"},
+            ),
+        )
+    )
+
+    results = tuple(pipeline.run(record) for record in events)
+
+    assert all(result.ok for result in results)
+    assert [result.record.fields["source_record_kind"] for result in results] == [
+        "continuous_worker_binding_event",
+        "lane_ownership_event",
+        "delivery_lease_event",
+        "leader_worker_delivery_event",
+        "trajectory_team_continuity_event",
+    ]
+    assert results[0].record.fields["binding_id"] == "binding:server"
+    assert results[1].record.fields["ownership_id"] == "ownership:server"
+    assert results[2].record.fields["lease_id"] == "lease:server"
+    assert results[3].record.fields["invocation_id"] == "invocation:server"
+    assert results[4].record.fields["trajectory_id"] == "local-work:demo"
+    for result in results:
+        assert result.record.fields["metadata_keys"] == ["lane_id", "raw_note"]
+        assert "raw_note" not in result.record.fields
+        assert result.record.decorations["decorated_by"] == "lifecycle-adapter-test"
+
+
+def test_log_decoration_adapters_project_core_log_records() -> None:
+    records = (
+        scheduler_merge_gate_event_to_decoration_record(
+            SchedulerMergeGateEvent(
+                event_id="merge-event:1",
+                event_kind="merge_gate_completed",
+                timestamp="2026-07-05T13:20:00+08:00",
+                gate_id="gate:server-client",
+                target_task_id="task:merge",
+                from_state="ready",
+                to_state="complete",
+                reason="merge completed",
+                decision_artifact_id="artifact:decision",
+                decision_artifact_version="v1",
+                related_dependency_ids=("dep:server",),
+                related_task_ids=("task:server", "task:client"),
+                sequence=5,
+            )
+        ),
+        agent_activation_event_to_decoration_record(
+            AgentActivationEvent(
+                event_id="activation-event:1",
+                event_kind="task_ready",
+                agent_id="worker:server",
+                role="worker",
+                lane_id="lane:server",
+                task_id="task:server",
+                source="scheduler",
+                reason="task ready",
+                next_action="run_agent",
+            )
+        ),
+        leader_worker_dispatcher_tick_record_to_decoration_record(
+            LeaderWorkerDispatcherTickRecord(
+                tick_id="dispatcher:tick-1",
+                dispatcher_id="dispatcher",
+                timestamp="2026-07-05T13:21:00+08:00",
+                scheduler_snapshot_path=".codex/scheduler/state.json",
+                scheduler_event_log_path=".codex/scheduler/events.jsonl",
+                artifact_store_path=".codex/orchestration/exchange-artifacts.json",
+                recovery_event_count=2,
+                exchange_record_count=3,
+                decision_count=1,
+                suppressed_decision_count=0,
+                activation_event_count=1,
+                lifecycle_count=2,
+                policy={"leader_worker_required": True, "notes": "do not copy"},
+                metadata={"raw_note": "do not copy", "lane_id": "lane:server"},
+            )
+        ),
+        run_event_to_decoration_record(
+            RunEvent(
+                event_id="run-event:1",
+                event_kind="task_completed",
+                run_id="run:server",
+                task_id="task:server",
+                timestamp="2026-07-05T13:22:00+08:00",
+                artifact_id="artifact:server-result",
+                artifact_version="v1",
+                summary="runtime completed",
+            )
+        ),
+        exchange_artifact_admission_record_to_decoration_record(
+            ExchangeArtifactAdmissionRecord(
+                ledger_id="admission:1",
+                artifact_store_path=Path(".codex/orchestration/exchange-artifacts.json"),
+                artifact_id="artifact:submission",
+                artifact_version="v1",
+                product_type="scheduler_task_submission",
+                surface="scheduler-admission",
+                actor="agent:guide",
+                timestamp="2026-07-05T13:23:00+08:00",
+                snapshot_path=Path(".codex/scheduler/state.json"),
+                event_log_path=Path(".codex/scheduler/events.jsonl"),
+                status="admitted",
+                submitted_task_ids=("task:server",),
+                dependency_ids=("dep:server",),
+                submission_event_ids=("scheduler-event:1",),
+                binding_reference_summary={"raw_detail": "do not copy", "status": "ok"},
+            )
+        ),
+        decision_log_entry_to_decoration_record(
+            DecisionLogEntry(
+                log_id="decision-log:1",
+                decision_id="decision:1",
+                trace_id="trace:1",
+                timestamp="2026-07-05T13:24:00+08:00",
+                input_summary="Run scheduler admission.",
+                scope_path="src/app.py",
+                decision="ALLOW",
+                intent="implement",
+                gate="allow",
+                constraint_violated=("none",),  # type: ignore[arg-type]
+                pack_names=("pack-a",),  # type: ignore[arg-type]
+                pack_versions=("1.0.0",),  # type: ignore[arg-type]
+                pep_action_count=2,
+                final_state="complete",
+                audit_event_count=3,
+                merge_conflicts=({"raw": "do not copy"},),
+            )
+        ),
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(
+                decorator_id="required-core",
+                required_fields=("record_id", "actor", "action"),
+            ),
+            AppendFieldsLogDecorator(
+                decorator_id="core-log-scope",
+                fields={"decorated_by": "core-log-adapter-test"},
+            ),
+        )
+    )
+
+    results = tuple(pipeline.run(record) for record in records)
+
+    assert all(result.ok for result in results)
+    assert [result.record.fields["source_record_kind"] for result in results] == [
+        "scheduler_merge_gate_event",
+        "agent_activation_event",
+        "leader_worker_dispatcher_tick_record",
+        "run_event",
+        "exchange_artifact_admission_record",
+        "decision_log_entry",
+    ]
+    assert results[0].record.fields["gate_id"] == "gate:server-client"
+    assert results[1].record.fields["next_action"] == "run_agent"
+    assert results[2].record.fields["policy_keys"] == [
+        "leader_worker_required",
+        "notes",
+    ]
+    assert results[2].record.fields["metadata_keys"] == ["lane_id", "raw_note"]
+    assert "raw_note" not in results[2].record.fields
+    assert "notes" not in results[2].record.fields
+    assert results[3].record.fields["artifact_id"] == "artifact:server-result"
+    assert results[4].record.fields["binding_reference_summary_keys"] == [
+        "raw_detail",
+        "status",
+    ]
+    assert "raw_detail" not in results[4].record.fields
+    assert results[5].record.fields["merge_conflict_count"] == 1
+    assert "merge_conflicts" not in results[5].record.fields
+    for result in results:
+        assert result.record.decorations["decorated_by"] == "core-log-adapter-test"
+
+
+def test_log_decoration_adapters_project_runtime_receipts_and_evidence() -> None:
+    sandbox_allocation = SandboxAllocation(
+        allocation_id="sandbox:server",
+        provider="git-worktree",
+        task_id="task:server",
+        profile=SandboxProfile(
+            profile_id="profile:worktree",
+            profile_kind="git-worktree",
+            network_policy="restricted",
+            secret_policy="deny",
+        ),
+        workspace_root="E:/workspace/source",
+        scratch_path=".codex/scratch/task-server",
+        visible_mounts=("src/server.py", "tests/test_server.py"),
+        cleanup_required=True,
+        lease_authorized_mounts=(
+            SandboxLeaseMountAuthorization(
+                lease_id="lease:server",
+                task_id="task:server",
+                lifecycle_state="acquired",
+                authorized_mounts=("src/server.py",),
+                reason="lease authorized",
+            ),
+        ),
+        lease_authorization_state="authorized",
+        lease_authorization_reason="lease authorized",
+        git_worktree_receipt=GitWorktreeSandboxReceipt(
+            source_repository_root="E:/workspace/source",
+            sandbox_root="E:/workspace/sandbox",
+            worktree_path="E:/workspace/sandbox/task-server",
+            branch_name="dbc-sandbox/task-server",
+            base_ref="HEAD",
+            authorized_writable_paths=("src/server.py",),
+            denied_writable_paths=("secrets.env",),
+            cleanup_state="required",
+            allocation=GitWorktreeCommandReceipt(
+                command=("git", "worktree", "add", "E:/workspace/sandbox/task-server"),
+                returncode=0,
+                stdout="created worktree with path details",
+                stderr="",
+            ),
+            cleanup=GitWorktreeCommandReceipt(
+                command=("git", "worktree", "remove", "E:/workspace/sandbox/task-server"),
+                returncode=1,
+                stdout="",
+                stderr="full cleanup stderr should not be copied",
+            ),
+        ),
+        reason="do not copy reason body",
+    )
+    records = (
+        opencode_serve_lifecycle_receipt_to_decoration_record(
+            OpenCodeServeLifecycleReceipt(
+                receipt_id="opencode-serve:start:1",
+                action="start",
+                status="succeeded",
+                attach_url="http://127.0.0.1:4096",
+                command_preview=("opencode", "serve", "--port", "4096"),
+                timestamp="2026-07-05T14:00:00+08:00",
+                hostname="127.0.0.1",
+                port=4096,
+                executable="C:/Tools/opencode.exe",
+                pid="1234",
+                process_ref="proc:opencode",
+                actor="host",
+                reason="OpenCode serve started.",
+                note="operator note should stay message-bounded",
+                metadata={"raw_token": "do not copy", "host": "local"},
+            )
+        ),
+        cleanup_receipt_to_decoration_record(
+            CleanupReceipt(
+                receipt_id="cleanup:1",
+                scratch_id="scratch:server",
+                agent_id="worker:server",
+                cleaned_at="2026-07-05T14:01:00+08:00",
+                archived_paths=("private/notes.md",),
+                promoted_paths=("docs/result.md",),
+                deleted_paths=("tmp/raw.log",),
+                retained_paths=("keep/index.md",),
+                reviewed_by="agent:leader",
+                summary="Scratch cleanup completed.",
+            )
+        ),
+        git_worktree_command_receipt_to_decoration_record(
+            GitWorktreeCommandReceipt(
+                command=("C:/Program Files/Git/bin/git.exe", "status", "--short"),
+                returncode=1,
+                stdout="raw stdout should not be copied",
+                stderr="raw stderr should not be copied",
+            ),
+            command_role="allocation",
+        ),
+        git_worktree_sandbox_receipt_to_decoration_record(
+            sandbox_allocation.git_worktree_receipt
+            or GitWorktreeSandboxReceipt()
+        ),
+        sandbox_allocation_to_decoration_record(sandbox_allocation),
+        sandbox_allocation_receipt_evidence_to_decoration_record(
+            build_sandbox_allocation_receipt_evidence(
+                (sandbox_allocation,),
+                evidence_id="sandbox-evidence:1",
+                timestamp="2026-07-05T14:02:00+08:00",
+                evidence_path=".codex/scheduler/evidence/sandbox-evidence.json",
+                metadata={"raw_detail": "do not copy"},
+                authority_split={"sandbox_provider_executed": True},
+            )
+        ),
+    )
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(
+                decorator_id="required-core",
+                required_fields=("record_id", "actor", "action"),
+            ),
+            AppendFieldsLogDecorator(
+                decorator_id="receipt-scope",
+                fields={"decorated_by": "receipt-adapter-test"},
+            ),
+        )
+    )
+
+    results = tuple(pipeline.run(record) for record in records)
+
+    assert all(result.ok for result in results)
+    assert [result.record.fields["source_record_kind"] for result in results] == [
+        "opencode_serve_lifecycle_receipt",
+        "cleanup_receipt",
+        "git_worktree_command_receipt",
+        "git_worktree_sandbox_receipt",
+        "sandbox_allocation",
+        "sandbox_allocation_receipt_evidence",
+    ]
+    assert results[0].record.fields["executable"] == "opencode.exe"
+    assert results[0].record.fields["metadata_keys"] == ["host", "raw_token"]
+    assert "raw_token" not in results[0].record.fields
+    assert results[1].record.fields["archived_path_count"] == 1
+    assert results[1].record.fields["deleted_path_count"] == 1
+    assert "archived_paths" not in results[1].record.fields
+    assert results[2].record.fields["command_head"] == "git.exe"
+    assert results[2].record.fields["stderr_present"] is True
+    assert "stderr" not in results[2].record.fields
+    assert results[3].record.fields["cleanup_state"] == "required"
+    assert results[3].record.fields["denied_writable_path_count"] == 1
+    assert "worktree_path" not in results[3].record.fields
+    assert results[4].record.fields["visible_mount_count"] == 2
+    assert results[4].record.fields["reason_present"] is True
+    assert "reason" not in results[4].record.fields
+    assert results[5].record.fields["allocation_count"] == 1
+    assert results[5].record.fields["metadata_keys"] == ["raw_detail"]
+    assert results[5].record.fields["authority_split_keys"] == [
+        "sandbox_provider_executed"
+    ]
+    assert "raw_detail" not in results[5].record.fields
+    for result in results:
+        assert result.record.decorations["decorated_by"] == "receipt-adapter-test"
+
+
+def test_log_like_record_to_decoration_record_dispatches_supported_records() -> None:
+    runtime_record = RuntimeInvocationRecord(
+        invocation_id="inv-dispatch",
+        provider="codex",
+        status="succeeded",
+        started_at="2026-07-05T13:30:00+08:00",
+        ended_at="2026-07-05T13:31:00+08:00",
+        task_id="task:dispatch",
+    )
+    audit_record = AuditEvent(
+        event_id="audit-dispatch",
+        trace_id="trace-dispatch",
+        timestamp="2026-07-05T13:32:00+08:00",
+        event_type="policy_checked",
+        phase="pdp",
+    )
+    pipeline = LogDecorationPipeline(
+        (RequiredFieldsLogDecorator(decorator_id="required-core"),)
+    )
+    cleanup_receipt = CleanupReceipt(
+        receipt_id="cleanup-dispatch",
+        scratch_id="scratch-dispatch",
+        agent_id="worker:dispatch",
+        cleaned_at="2026-07-05T13:33:00+08:00",
+    )
+    serve_receipt = OpenCodeServeLifecycleReceipt(
+        receipt_id="serve-dispatch",
+        action="status",
+        status="observed",
+        attach_url="http://127.0.0.1:4096",
+        timestamp="2026-07-05T13:34:00+08:00",
+    )
+
+    runtime_result = pipeline.run(log_like_record_to_decoration_record(runtime_record))
+    audit_result = pipeline.run(log_like_record_to_decoration_record(audit_record))
+    cleanup_result = pipeline.run(log_like_record_to_decoration_record(cleanup_receipt))
+    serve_result = pipeline.run(log_like_record_to_decoration_record(serve_receipt))
+
+    assert runtime_result.ok is True
+    assert runtime_result.record.fields["source_record_kind"] == (
+        "runtime_invocation_record"
+    )
+    assert audit_result.ok is True
+    assert audit_result.record.fields["source_record_kind"] == "audit_event"
+    assert cleanup_result.ok is True
+    assert cleanup_result.record.fields["source_record_kind"] == "cleanup_receipt"
+    assert serve_result.ok is True
+    assert serve_result.record.fields["source_record_kind"] == (
+        "opencode_serve_lifecycle_receipt"
+    )
+    with pytest.raises(TypeError, match="unsupported log-like record"):
+        log_like_record_to_decoration_record(object())
+
+
+def test_decorate_log_like_records_batches_supported_records_and_errors() -> None:
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="batch-scope",
+                fields={"decorated_by": "batch-test"},
+            ),
+        )
+    )
+
+    result = decorate_log_like_records(
+        (
+            RuntimeInvocationRecord(
+                invocation_id="inv-batch",
+                provider="codex",
+                status="succeeded",
+                started_at="2026-07-05T13:40:00+08:00",
+                ended_at="2026-07-05T13:41:00+08:00",
+            ),
+            object(),
+            ExchangeLog(
+                timestamp="2026-07-05T13:42:00+08:00",
+                actor="agent:guide",
+                action="batch_message",
+                summary="Batch message.",
+                sequence=42,
+            ),
+        ),
+        decoration_pipeline=pipeline,
+    )
+
+    assert result.ok is False
+    assert len(result.results) == 2
+    assert len(result.errors) == 1
+    assert "unsupported log-like record" in result.errors[0]
+    assert [item.record.fields["source_record_kind"] for item in result.results] == [
+        "runtime_invocation_record",
+        "exchange_log",
+    ]
+    assert result.results[0].record.decorations["decorated_by"] == "batch-test"
+    payload = result.to_json_dict()
+    assert payload["authority_split"]["persistence_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_advisory_product_common_validator_accepts_free_payload_fields() -> None:
+    product = AdvisoryProduct(
+        product_id="advice:assign-server",
+        product_class="assignment_advice",
+        product_kind="worker_binding_recommendation",
+        producer="agent:assignment-advisor",
+        audience=("agent:leader",),
+        scope=ExchangeScope(trajectory_id="local-work:demo", lane_id="lane:server"),
+        priority=5,
+        created_at="2026-07-05T09:00:00+08:00",
+        common={"summary": "Prefer the existing server worker."},
+        payload={
+            "recommended_worker_id": "worker:server",
+            "confidence": 0.82,
+            "free_role_field": {"reason": "owns server context"},
+        },
+        logs=(
+            ExchangeLog(
+                timestamp="2026-07-05T09:00:00+08:00",
+                actor="agent:assignment-advisor",
+                action="assignment_advice_created",
+            ),
+        ),
+    )
+
+    assert validate_advisory_product_common(product) == ()
+
+    registry = AdvisoryProductValidatorRegistry()
+    item = accept_advisory_input(
+        pool_id="pool:assignment",
+        product=product,
+        registry=registry,
+        owner_agent_id="agent:assignment-advisor",
+        role_kind="assignment_advisor",
+    )
+
+    payload = item.to_json_dict()
+    assert item.status == "accepted"
+    assert payload["status"] == "accepted"
+    assert payload["product"]["payload"]["free_role_field"] == {"reason": "owns server context"}
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+
+
+def test_advisory_product_common_validator_reports_missing_fields() -> None:
+    product = AdvisoryProduct(
+        product_id="",
+        product_class="",
+        product_kind="",
+        producer="",
+        version="",
+        validation_profile="",
+        logs=(ExchangeLog(timestamp="", actor="", action=""),),
+    )
+
+    errors = validate_advisory_product_common(product)
+
+    assert "advisory product requires non-empty product_id" in errors
+    assert "requires non-empty product_class" in errors[1]
+    assert "requires non-empty producer" in errors[3]
+    assert "requires non-empty validation_profile" in errors[5]
+    assert "logs[0].timestamp is empty" in errors[6]
+    assert "logs[0].actor is empty" in errors[7]
+    assert "logs[0].action is empty" in errors[8]
+
+
+def test_advisory_product_registry_dispatches_profile_validator() -> None:
+    def require_confidence(product: AdvisoryProduct) -> tuple[str, ...]:
+        confidence = product.payload.get("confidence")
+        if not isinstance(confidence, (int, float)) or confidence < 0.7:
+            return ("assignment_advice payload requires confidence >= 0.7",)
+        return ()
+
+    registry = AdvisoryProductValidatorRegistry()
+    registry.register("assignment-advice/v1", require_confidence)
+    product = AdvisoryProduct(
+        product_id="advice:weak",
+        product_class="assignment_advice",
+        product_kind="worker_binding_recommendation",
+        producer="agent:assignment-advisor",
+        validation_profile="assignment-advice/v1",
+        payload={"confidence": 0.3},
+    )
+
+    item = emit_advisory_output(
+        pool_id="pool:assignment-output",
+        product=product,
+        registry=registry,
+        owner_agent_id="agent:assignment-advisor",
+        role_kind="assignment_advisor",
+    )
+
+    assert item.status == "rejected"
+    assert item.validation.errors == ("assignment_advice payload requires confidence >= 0.7",)
+
+
+def test_advisory_product_registry_reports_unregistered_profile() -> None:
+    product = AdvisoryProduct(
+        product_id="advice:custom",
+        product_class="assignment_advice",
+        product_kind="worker_binding_recommendation",
+        producer="agent:assignment-advisor",
+        validation_profile="missing-profile/v1",
+    )
+
+    result = AdvisoryProductValidatorRegistry().validate(product)
+
+    assert result.ok is False
+    assert result.errors == (
+        "advisory product 'advice:custom' references unregistered validation_profile "
+        "'missing-profile/v1'",
+    )
+
+
+def test_advisory_product_round_trips_through_exchange_artifact() -> None:
+    product = AdvisoryProduct(
+        product_id="question:billing-ui",
+        product_class="business_block_question",
+        product_kind="query",
+        producer="agent:leader",
+        audience=("agent:billing-advisor",),
+        scope=ExchangeScope(context_id="context:billing", agent_id="agent:billing-advisor"),
+        causality=ExchangeCausality(correlation_id="corr:billing-question"),
+        lifecycle_state="proposed",
+        priority=2,
+        created_at="2026-07-05T10:00:00+08:00",
+        updated_at="2026-07-05T10:01:00+08:00",
+        validation_profile="common",
+        common={"question": "Which files own the billing settings UI?"},
+        payload={"requested_depth": "summary", "allow_stale_answer": False},
+        logs=(
+            ExchangeLog(
+                timestamp="2026-07-05T10:00:00+08:00",
+                actor="agent:leader",
+                action="business_block_question_created",
+                related_artifact_ids=("source:planning",),
+            ),
+        ),
+        decorators={"ttl": "short"},
+    )
+
+    artifact = advisory_product_to_artifact(product)
+    restored = advisory_product_from_artifact(artifact)
+
+    assert artifact.artifact_id == "advisory-product:question:billing-ui"
+    assert artifact.parts[0].data["product_type"] == ADVISORY_PRODUCT_POOL_PRODUCT_TYPE
+    assert artifact.parts[0].data["schema_version"] == ADVISORY_PRODUCT_POOL_SCHEMA_VERSION
+    assert artifact.parts[1].log is not None
+    assert restored == product
+    assert validate_exchange_artifact(artifact) == ()
 
 
 def test_agent_home_registration_maps_to_retention_exchange_artifact() -> None:
@@ -5116,10 +6111,13 @@ def test_run_self_check_doctor_codex_profile_uses_injected_codex_mcp_check(
 
     assert payload["schema_version"] == "self-check-report/v1"
     assert payload["overall_status"] == "ok"
-    assert payload["counts"] == {"ok": 1, "warning": 0, "failed": 0, "skipped": 0}
-    assert payload["checks"][0]["check_id"] == "codex.mcp_exposure"
-    assert payload["checks"][0]["secret_safe"] is True
-    assert payload["checks"][0]["authority_split"]["mcp_tool_called"] is False
+    assert payload["counts"] == {"ok": 2, "warning": 0, "failed": 0, "skipped": 0}
+    checks = {check["check_id"]: check for check in payload["checks"]}
+    assert "workspace.dbc_command_relay" in checks
+    assert "codex.mcp_exposure" in checks
+    assert checks["workspace.dbc_command_relay"]["evidence"]["tool_name"] == "workspaceDbcCommand"
+    assert checks["codex.mcp_exposure"]["secret_safe"] is True
+    assert checks["codex.mcp_exposure"]["authority_split"]["mcp_tool_called"] is False
     assert "token" not in json.dumps(payload).lower()
 
 
@@ -5236,6 +6234,25 @@ def test_scheduler_storage_visibility_reports_missing_storage(tmp_path: Path) ->
     assert payload["checks"][0]["authority_split"]["provider_executed"] is False
 
 
+def test_scheduler_storage_visibility_reports_legacy_codex_storage(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    (tmp_path / ".codex" / "scheduler").mkdir(parents=True)
+
+    report = run_self_check_doctor(tmp_path, profile="scheduler")
+    payload = report.to_json_dict()
+
+    assert payload["overall_status"] == "warning"
+    check = payload["checks"][0]
+    assert check["suspected_problem"] == "scheduler_storage_missing"
+    assert check["evidence"]["scheduler_dir"].endswith(".dbc\\scheduler") or check[
+        "evidence"
+    ]["scheduler_dir"].endswith(".dbc/scheduler")
+    assert check["evidence"]["legacy_scheduler_dir_exists"] is True
+
+
 def test_scheduler_storage_visibility_reads_default_snapshot_and_event_log(
     tmp_path: Path,
 ) -> None:
@@ -5248,7 +6265,7 @@ def test_scheduler_storage_visibility_reads_default_snapshot_and_event_log(
         write_scheduler_state_snapshot,
     )
 
-    scheduler_dir = tmp_path / ".codex" / "scheduler"
+    scheduler_dir = tmp_path / ".dbc" / "scheduler"
     snapshot = scheduler_dir / "state.json"
     event_log = scheduler_dir / "events.jsonl"
     write_scheduler_state_snapshot(
@@ -13947,6 +14964,56 @@ def test_replay_scheduler_events_recovers_task_state_and_run_records(tmp_path) -
     assert recovered.run_records[0].session_id == "session-1"
 
 
+def test_replay_scheduler_events_preserves_and_skips_trajectory_team_audit_events(
+    tmp_path,
+) -> None:
+    scheduler_log = JsonlSchedulerEventLog(
+        tmp_path / "scheduler-team-audit-events.jsonl"
+    )
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-audit:team-1",
+            event_kind="trajectory_team_worker_assigned",
+            timestamp="2026-07-04T10:00:00+00:00",
+            task_id="",
+            related_artifact_ids=(
+                "continuous-worker:lane:server",
+                "lane-ownership:server",
+            ),
+            metadata={
+                "audit_only": True,
+                "audit_source": "trajectory_team_continuity",
+                "trajectory_id": "local-work:team",
+                "lane_id": "lane:server",
+                "binding_id": "continuous-worker:lane:server",
+            },
+            sequence=1,
+        )
+    )
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-1",
+            event_kind="task_ready",
+            timestamp="2026-07-04T10:01:00+00:00",
+            task_id="task-1",
+            from_state="proposed",
+            to_state="ready",
+            sequence=2,
+        )
+    )
+    events = scheduler_log.read_all()
+    baseline = SchedulerState(tasks={"task-1": _scheduled_task("task-1")})
+
+    recovered = replay_scheduler_events(baseline, events)
+
+    assert events[0].metadata["audit_source"] == "trajectory_team_continuity"
+    assert events[0].related_artifact_ids == (
+        "continuous-worker:lane:server",
+        "lane-ownership:server",
+    )
+    assert recovered.tasks["task-1"].state == "ready"
+
+
 def test_replay_scheduler_events_recovers_edit_lease_lifecycle_record(tmp_path) -> None:
     scheduler_log = JsonlSchedulerEventLog(tmp_path / "lease-replay-events.jsonl")
     scheduler_log.append(
@@ -15885,6 +16952,63 @@ def test_runtime_invocation_log_inspection_and_compaction(tmp_path: Path) -> Non
     assert [record.invocation_id for record in JsonlRuntimeInvocationLog(log_path).read_all()] == ["inv-2"]
 
 
+def test_runtime_invocation_log_inspection_can_decorate_latest_records(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "invocations.jsonl"
+    JsonlRuntimeInvocationLog(log_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-decoration",
+            provider="opencode",
+            status="failed",
+            started_at="2026-07-05T12:00:00+00:00",
+            ended_at="2026-07-05T12:00:05+00:00",
+            task_id="task-decoration",
+            session_id="session-decoration",
+            run_id="run-decoration",
+            agent_id="worker:decoration",
+            runtime_surface="server-api",
+            attempt_count=1,
+            retry_policy=RuntimeRetryPolicy(max_attempts=1),
+            final_error_kind="NetworkError",
+            final_summary="Network failed before completion.",
+            metadata={"raw_stderr": "do not project value", "lane_id": "lane:runtime"},
+        )
+    )
+    before = log_path.read_text(encoding="utf-8")
+    pipeline = LogDecorationPipeline(
+        (
+            RequiredFieldsLogDecorator(decorator_id="required-core"),
+            AppendFieldsLogDecorator(
+                decorator_id="runtime-readback-scope",
+                fields={"readback_surface": "runtime-invocation-log"},
+            ),
+        )
+    )
+
+    summary = inspect_runtime_invocation_log(
+        log_path,
+        latest_limit=1,
+        decoration_pipeline=pipeline,
+    )
+
+    assert log_path.read_text(encoding="utf-8") == before
+    assert summary.record_count == 1
+    assert summary.latest_records[0].invocation_id == "inv-decoration"
+    assert len(summary.latest_decoration_results) == 1
+    decoration = summary.latest_decoration_results[0]
+    assert decoration.ok is True
+    assert decoration.record.record_id == "inv-decoration"
+    assert decoration.record.action == "runtime_invocation_failed"
+    assert decoration.record.fields["metadata_keys"] == ["lane_id", "raw_stderr"]
+    assert "raw_stderr" not in decoration.record.fields
+    assert decoration.record.decorations["readback_surface"] == "runtime-invocation-log"
+    payload = summary.to_json_dict()
+    assert payload["latest_decoration_results"][0]["record"]["record_id"] == "inv-decoration"
+    assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
+    assert payload["authority_split"]["raw_transcript_exposed"] is False
+
+
 def test_worker_binding_promotion_candidate_readback_from_runtime_invocation_log(
     tmp_path: Path,
 ) -> None:
@@ -17744,6 +18868,706 @@ def test_opencode_bounded_loop_reuses_same_continuous_worker_across_lane_chain(
         smoke_request.followup_task_id,
     ]
     assert ledger.bindings[0].last_used_at == "2026-06-29T11:20:00+00:00"
+
+
+def test_trajectory_team_continuity_reuses_worker_across_same_trajectory_nodes(
+    tmp_path: Path,
+) -> None:
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    lease_ledger_path = tmp_path / ".codex/runtime/continuous-worker-delivery-leases.json"
+    lease_event_log_path = tmp_path / ".codex/runtime/continuous-worker-delivery-lease-events.jsonl"
+    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    smoke_request = CodexDeliveryE2ESmokeRequest(
+        scheduler_snapshot_path=tmp_path / ".codex/scheduler/team-continuity-state.json",
+        scheduler_event_log_path=tmp_path / ".codex/scheduler/team-continuity-events.jsonl",
+        artifact_store_path=tmp_path / ".codex/orchestration/team-continuity-exchange.json",
+        dispatcher_state_path=tmp_path / ".codex/scheduler/team-continuity-dispatcher-state.json",
+        dispatch_event_log_path=tmp_path / ".codex/scheduler/team-continuity-dispatcher-events.jsonl",
+        delivery_state_path=tmp_path / ".codex/scheduler/team-continuity-delivery-state.json",
+        delivery_event_log_path=tmp_path / ".codex/scheduler/team-continuity-delivery-events.jsonl",
+        runtime_invocation_log_path=tmp_path / ".codex/runtime/team-continuity-invocations.jsonl",
+        initialize_fixture=True,
+        require_host_ready=False,
+        timestamp="2026-07-04T10:00:00+00:00",
+        runtime_invocation_max_attempts=1,
+        host_id="host:trajectory-team-continuity-test",
+        host_invocation_id="host-owned-trajectory-team-continuity-test",
+        trajectory_id="local-work:team-continuity",
+        continuous_worker_binding_ledger_path=worker_ledger_path,
+        continuous_worker_binding_event_log_path=worker_event_log_path,
+        continuous_worker_delivery_lease_ledger_path=lease_ledger_path,
+        continuous_worker_delivery_lease_event_log_path=lease_event_log_path,
+        continuous_worker_lane_ownership_ledger_path=ownership_ledger_path,
+        enable_continuous_worker_binding_lookup=True,
+    )
+    initialized = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=smoke_request,
+            max_ticks=0,
+        ),
+        opencode_cli_client=_SequenceOpenCodeCliClient(()),
+    )
+    assigned = assign_trajectory_lane_worker(
+        TrajectoryTeamContinuityAssignRequest(
+            trajectory_id=smoke_request.trajectory_id,
+            lane_id=smoke_request.codex_lane_id,
+            leader_id=smoke_request.leader_agent_id,
+            worker_id="worker:team-opencode",
+            runtime_provider="opencode",
+            binding_ledger_path=worker_ledger_path,
+            binding_event_log_path=worker_event_log_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-team-opencode",
+            ),
+            compact_context_ref="dbc://context/team-worker-v1",
+            mailbox_cursor_ref="dbc://mailbox/team@1",
+            worker_report_refs=("report:team-initial",),
+            timestamp="2026-07-04T09:59:50+00:00",
+        )
+    )
+    first_client = _SequenceOpenCodeCliClient(
+        (OpenCodeCliResult(summary="first node complete", output_text="first"),)
+    )
+
+    first = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=replace(smoke_request, initialize_fixture=False),
+            max_ticks=4,
+            max_deliveries=1,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=first_client,
+    )
+    first_record = next(
+        record
+        for record in first.iterations[0].codex_delivery.records
+        if record.status == "acknowledged"
+    )
+    activated = activate_trajectory_lane_worker(
+        TrajectoryTeamContinuityActivateRequest(
+            trajectory_id=smoke_request.trajectory_id,
+            lane_id=smoke_request.codex_lane_id,
+            leader_id=smoke_request.leader_agent_id,
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            task_id=first_record.task_id,
+            delivery_id=first_record.delivery_record_id,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            timestamp="2026-07-04T10:00:30+00:00",
+        )
+    )
+    resolved = resolve_trajectory_lane_worker(
+        TrajectoryTeamContinuityResolveRequest(
+            trajectory_id=smoke_request.trajectory_id,
+            lane_id=smoke_request.codex_lane_id,
+            leader_id=smoke_request.leader_agent_id,
+            binding_ledger_path=worker_ledger_path,
+            ownership_ledger_path=ownership_ledger_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=smoke_request.scheduler_event_log_path,
+            timestamp="2026-07-04T10:00:31+00:00",
+        )
+    )
+    second_client = _SequenceOpenCodeCliClient(
+        (OpenCodeCliResult(summary="followup node complete", output_text="second"),)
+    )
+    second = run_bounded_opencode_delivery_supervisor_loop(
+        CodexDeliveryBoundedLoopRequest(
+            smoke_request=replace(
+                smoke_request,
+                initialize_fixture=False,
+                timestamp="2026-07-04T10:01:00+00:00",
+            ),
+            max_ticks=4,
+            max_deliveries=1,
+            max_runtime_failures=1,
+        ),
+        opencode_cli_client=second_client,
+    )
+    team_events = JsonlTrajectoryTeamContinuityEventLog(team_event_log_path).read_all()
+    binding_events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+    ownerships = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(ledger_path=ownership_ledger_path)
+    )
+    lease_events = JsonlDeliveryLeaseEventLog(lease_event_log_path).read_all()
+    runtime_records = JsonlRuntimeInvocationLog(
+        smoke_request.runtime_invocation_log_path
+    ).read_all()
+    scheduler_events = JsonlSchedulerEventLog(
+        smoke_request.scheduler_event_log_path
+    ).read_all()
+    scheduler_audit_events = tuple(
+        event
+        for event in scheduler_events
+        if event.metadata.get("audit_source") == "trajectory_team_continuity"
+    )
+    scheduler_delivery_audit_events = tuple(
+        event
+        for event in scheduler_events
+        if event.metadata.get("audit_source") == "continuous_worker_delivery"
+    )
+    recovered_after_audit = recover_scheduler_state(
+        smoke_request.scheduler_snapshot_path,
+        smoke_request.scheduler_event_log_path,
+    )
+
+    assert initialized.fixture.initialized is True
+    assert assigned.ok is True
+    assert assigned.assignment.binding_id == "continuous-worker:lane:lane-codex-smoke"
+    assert first.ok is False
+    assert first.stop_reason == "max_deliveries_reached"
+    assert first_client.requests[0].host_session.session_id == "session-team-opencode"
+    assert activated.ok is True
+    assert resolved.ok is True
+    assert resolved.assignment.worker_id == "worker:team-opencode"
+    assert resolved.assignment.continuity_status == "active"
+    assert second.ok is True
+    assert second_client.requests[0].task.task_id == smoke_request.followup_task_id
+    assert second_client.requests[0].host_session.session_id == "session-team-opencode"
+    assert second_client.requests[0].host_session.worker_binding_id == (
+        assigned.assignment.binding_id
+    )
+    assert second_client.requests[0].host_session.mailbox_cursor_ref == (
+        "dbc://mailbox/team@1"
+    )
+    assert second_client.requests[0].host_session.worker_report_refs == (
+        "report:team-initial",
+    )
+    assert [event.event_kind for event in team_events] == [
+        "trajectory_team_lane_worker_assigned",
+        "trajectory_team_lane_worker_activated",
+        "trajectory_team_lane_worker_resolved",
+    ]
+    assert [event.event_kind for event in scheduler_audit_events] == [
+        "trajectory_team_worker_assigned",
+        "trajectory_team_worker_activated",
+        "trajectory_team_worker_resolved",
+    ]
+    assert scheduler_audit_events[0].metadata["trajectory_id"] == (
+        "local-work:team-continuity"
+    )
+    assert scheduler_audit_events[0].metadata["binding_id"] == (
+        assigned.assignment.binding_id
+    )
+    assert scheduler_audit_events[1].metadata["delivery_id"] == (
+        first_record.delivery_record_id
+    )
+    assert [event.event_kind for event in scheduler_delivery_audit_events] == [
+        "continuous_worker_delivery_lease_reserved",
+        "continuous_worker_delivery_lease_started",
+        "continuous_worker_delivery_lease_completed",
+        "continuous_worker_binding_reused",
+        "continuous_worker_delivery_lease_reserved",
+        "continuous_worker_delivery_lease_started",
+        "continuous_worker_delivery_lease_completed",
+        "continuous_worker_binding_reused",
+    ]
+    assert {
+        event.metadata["binding_id"]
+        for event in scheduler_delivery_audit_events
+    } == {assigned.assignment.binding_id}
+    assert [event.task_id for event in scheduler_delivery_audit_events] == [
+        smoke_request.target_task_id,
+        smoke_request.target_task_id,
+        smoke_request.target_task_id,
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+        smoke_request.followup_task_id,
+        smoke_request.followup_task_id,
+        smoke_request.followup_task_id,
+    ]
+    assert recovered_after_audit.recovered_state.tasks[
+        smoke_request.target_task_id
+    ].state == "complete"
+    assert recovered_after_audit.recovered_state.tasks[
+        smoke_request.followup_task_id
+    ].state == "complete"
+    assert [event.event_kind for event in binding_events] == [
+        "binding_claimed",
+        "binding_reused",
+        "binding_reused",
+    ]
+    assert [event.metadata["task_id"] for event in binding_events if event.event_kind == "binding_reused"] == [
+        smoke_request.target_task_id,
+        smoke_request.followup_task_id,
+    ]
+    assert ownerships.ownerships[0].status == "active"
+    assert [event.event_kind for event in lease_events] == [
+        "delivery_lease_reserved",
+        "delivery_lease_started",
+        "delivery_lease_completed",
+        "delivery_lease_reserved",
+        "delivery_lease_started",
+        "delivery_lease_completed",
+    ]
+    assert [record.metadata["session_selector_source"] for record in runtime_records] == [
+        "continuous_worker_binding",
+        "continuous_worker_binding",
+    ]
+    assert [record.metadata["continuous_worker_id"] for record in runtime_records] == [
+        "worker:team-opencode",
+        "worker:team-opencode",
+    ]
+
+
+def test_trajectory_team_continuity_records_transfer_release_and_no_continuity(
+    tmp_path: Path,
+) -> None:
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-transfer-events.jsonl"
+    assigned = assign_trajectory_lane_worker(
+        TrajectoryTeamContinuityAssignRequest(
+            trajectory_id="local-work:team-transfer",
+            lane_id="lane:server",
+            worker_id="worker:server-a",
+            runtime_provider="opencode",
+            binding_ledger_path=worker_ledger_path,
+            binding_event_log_path=worker_event_log_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server-a",
+            ),
+            timestamp="2026-07-04T11:00:00+00:00",
+        )
+    )
+    transfer = transfer_trajectory_lane_worker(
+        TrajectoryTeamContinuityTransferRequest(
+            trajectory_id="local-work:team-transfer",
+            lane_id="lane:server",
+            worker_id="worker:server-b",
+            binding_id=assigned.assignment.binding_id,
+            replacement_binding_id="continuous-worker:lane:lane-server-generation-2",
+            ownership_id=assigned.assignment.ownership_id,
+            binding_ledger_path=worker_ledger_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T11:01:00+00:00",
+            reason="replacement worker needed after review",
+        )
+    )
+    no_continuity = record_trajectory_lane_no_continuity(
+        TrajectoryTeamContinuityNoContinuityRequest(
+            trajectory_id="local-work:team-transfer",
+            lane_id="lane:docs",
+            no_continuity_reason="explicit_no_continuity",
+            leader_id="agent:guide",
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T11:02:00+00:00",
+            reason="documentation lane will run one-shot",
+        )
+    )
+    released = release_trajectory_lane_worker(
+        TrajectoryTeamContinuityReleaseRequest(
+            trajectory_id="local-work:team-transfer",
+            lane_id="lane:server",
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T11:03:00+00:00",
+            reason="server lane merged and ownership intentionally released",
+        )
+    )
+    team_events = JsonlTrajectoryTeamContinuityEventLog(team_event_log_path).read_all()
+    ownerships = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(
+            ledger_path=ownership_ledger_path,
+            include_inactive=True,
+        )
+    )
+    scheduler_audit_events = tuple(
+        event
+        for event in JsonlSchedulerEventLog(scheduler_event_log_path).read_all()
+        if event.metadata.get("audit_source") == "trajectory_team_continuity"
+    )
+
+    assert assigned.ok is True
+    assert transfer.ok is True
+    assert no_continuity.ok is False
+    assert no_continuity.assignment.no_continuity_reason == "explicit_no_continuity"
+    assert released.ok is False
+    assert released.status == "invalid_status"
+    assert [event.event_kind for event in team_events] == [
+        "trajectory_team_lane_worker_assigned",
+        "trajectory_team_lane_worker_transferred",
+        "trajectory_team_no_continuity_recorded",
+        "trajectory_team_lane_worker_released",
+    ]
+    assert [event.event_kind for event in scheduler_audit_events] == [
+        "trajectory_team_worker_assigned",
+        "trajectory_team_worker_transferred",
+        "trajectory_team_no_continuity",
+        "trajectory_team_worker_released",
+    ]
+    assert team_events[1].previous_binding_id == assigned.assignment.binding_id
+    assert team_events[1].replacement_binding_id == (
+        "continuous-worker:lane:lane-server-generation-2"
+    )
+    assert team_events[2].no_continuity_reason == "explicit_no_continuity"
+    assert scheduler_audit_events[1].metadata["replacement_binding_id"] == (
+        "continuous-worker:lane:lane-server-generation-2"
+    )
+    assert scheduler_audit_events[2].metadata["no_continuity_reason"] == (
+        "explicit_no_continuity"
+    )
+    assert ownerships.ownerships[0].status == "transferred"
+    assert ownerships.ownerships[0].replacement_binding_id == (
+        "continuous-worker:lane:lane-server-generation-2"
+    )
+
+
+def test_trajectory_team_continuity_records_suspend_resume_and_fork(
+    tmp_path: Path,
+) -> None:
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-fork-events.jsonl"
+    assigned = assign_trajectory_lane_worker(
+        TrajectoryTeamContinuityAssignRequest(
+            trajectory_id="local-work:team-fork",
+            lane_id="lane:server",
+            leader_id="agent:guide",
+            worker_id="worker:server-a",
+            runtime_provider="opencode",
+            binding_ledger_path=worker_ledger_path,
+            binding_event_log_path=worker_event_log_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server-a",
+            ),
+            timestamp="2026-07-04T12:00:00+00:00",
+        )
+    )
+    activated = activate_trajectory_lane_worker(
+        TrajectoryTeamContinuityActivateRequest(
+            trajectory_id="local-work:team-fork",
+            lane_id="lane:server",
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            task_id="task:server-initial",
+            delivery_id="delivery:server-initial",
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T12:00:30+00:00",
+        )
+    )
+    suspended = suspend_trajectory_lane_worker(
+        TrajectoryTeamContinuitySuspendRequest(
+            trajectory_id="local-work:team-fork",
+            lane_id="lane:server",
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T12:01:00+00:00",
+            reason="waiting for client review",
+        )
+    )
+    resumed = resume_trajectory_lane_worker(
+        TrajectoryTeamContinuityResumeRequest(
+            trajectory_id="local-work:team-fork",
+            lane_id="lane:server",
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T12:02:00+00:00",
+            reason="client review complete",
+        )
+    )
+    forked = fork_trajectory_lane_worker(
+        TrajectoryTeamContinuityForkRequest(
+            trajectory_id="local-work:team-fork",
+            lane_id="lane:server",
+            source_binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            new_binding_id="continuous-worker:lane:lane-server-fork",
+            worker_id="worker:server-fork",
+            binding_ledger_path=worker_ledger_path,
+            binding_event_log_path=worker_event_log_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            scheduler_event_log_path=scheduler_event_log_path,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-server-fork",
+                fork_session=True,
+            ),
+            worker_report_refs=("report:server-fork",),
+            timestamp="2026-07-04T12:03:00+00:00",
+            reason="explore alternate server design with preserved lineage",
+        )
+    )
+    team_events = JsonlTrajectoryTeamContinuityEventLog(team_event_log_path).read_all()
+    binding_events = JsonlContinuousWorkerBindingEventLog(worker_event_log_path).read_all()
+    ownerships = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(
+            ledger_path=ownership_ledger_path,
+            include_inactive=True,
+        )
+    )
+    bindings = inspect_continuous_worker_bindings(
+        ContinuousWorkerBindingInspectRequest(
+            ledger_path=worker_ledger_path,
+            include_inactive=True,
+        )
+    )
+    scheduler_audit_events = tuple(
+        event
+        for event in JsonlSchedulerEventLog(scheduler_event_log_path).read_all()
+        if event.metadata.get("audit_source") == "trajectory_team_continuity"
+    )
+
+    assert assigned.ok is True
+    assert activated.ok is True
+    assert suspended.ok is True
+    assert suspended.assignment.continuity_status == "suspended"
+    assert resumed.ok is True
+    assert resumed.assignment.continuity_status == "active"
+    assert forked.ok is True
+    assert forked.assignment.binding_id == "continuous-worker:lane:lane-server-fork"
+    assert forked.assignment.binding.parent_binding_id == assigned.assignment.binding_id
+    assert [event.event_kind for event in team_events] == [
+        "trajectory_team_lane_worker_assigned",
+        "trajectory_team_lane_worker_activated",
+        "trajectory_team_lane_worker_suspended",
+        "trajectory_team_lane_worker_resumed",
+        "trajectory_team_lane_worker_forked",
+    ]
+    assert [event.event_kind for event in scheduler_audit_events] == [
+        "trajectory_team_worker_assigned",
+        "trajectory_team_worker_activated",
+        "trajectory_team_worker_suspended",
+        "trajectory_team_worker_resumed",
+        "trajectory_team_worker_forked",
+    ]
+    assert team_events[-1].previous_binding_id == assigned.assignment.binding_id
+    assert team_events[-1].replacement_binding_id == (
+        "continuous-worker:lane:lane-server-fork"
+    )
+    assert scheduler_audit_events[-1].metadata["replacement_binding_id"] == (
+        "continuous-worker:lane:lane-server-fork"
+    )
+    assert [event.event_kind for event in binding_events] == [
+        "binding_claimed",
+        "binding_forked",
+    ]
+    assert ownerships.ownerships[0].status == "transferred"
+    assert ownerships.ownerships[0].replacement_binding_id == (
+        "continuous-worker:lane:lane-server-fork"
+    )
+    assert {binding.binding_id for binding in bindings.bindings} == {
+        assigned.assignment.binding_id,
+        "continuous-worker:lane:lane-server-fork",
+    }
+
+
+def test_trajectory_team_continuity_records_successful_release(
+    tmp_path: Path,
+) -> None:
+    worker_ledger_path = tmp_path / ".codex/runtime/continuous-worker-bindings.json"
+    worker_event_log_path = tmp_path / ".codex/runtime/continuous-worker-binding-events.jsonl"
+    ownership_ledger_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownerships.json"
+    ownership_event_log_path = tmp_path / ".codex/runtime/continuous-worker-lane-ownership-events.jsonl"
+    team_event_log_path = tmp_path / ".codex/runtime/trajectory-team-continuity-events.jsonl"
+    assigned = assign_trajectory_lane_worker(
+        TrajectoryTeamContinuityAssignRequest(
+            trajectory_id="local-work:team-release",
+            lane_id="lane:validation",
+            leader_id="agent:guide",
+            worker_id="worker:validation",
+            runtime_provider="opencode",
+            binding_ledger_path=worker_ledger_path,
+            binding_event_log_path=worker_event_log_path,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            active_session_selector=ContinuousWorkerSessionSelector(
+                provider="opencode",
+                attach_url="http://127.0.0.1:4096",
+                session_id="session-validation",
+            ),
+            timestamp="2026-07-04T13:00:00+00:00",
+        )
+    )
+    released = release_trajectory_lane_worker(
+        TrajectoryTeamContinuityReleaseRequest(
+            trajectory_id="local-work:team-release",
+            lane_id="lane:validation",
+            leader_id="agent:guide",
+            binding_id=assigned.assignment.binding_id,
+            ownership_id=assigned.assignment.ownership_id,
+            ownership_ledger_path=ownership_ledger_path,
+            ownership_event_log_path=ownership_event_log_path,
+            team_event_log_path=team_event_log_path,
+            timestamp="2026-07-04T13:01:00+00:00",
+            reason="validation lane completed and merged",
+        )
+    )
+    team_events = JsonlTrajectoryTeamContinuityEventLog(team_event_log_path).read_all()
+    ownerships = inspect_lane_ownerships(
+        LaneOwnershipInspectRequest(
+            ledger_path=ownership_ledger_path,
+            include_inactive=True,
+        )
+    )
+
+    assert assigned.ok is True
+    assert released.ok is True
+    assert released.status == "released"
+    assert [event.event_kind for event in team_events] == [
+        "trajectory_team_lane_worker_assigned",
+        "trajectory_team_lane_worker_released",
+    ]
+    assert team_events[-1].reason == "validation lane completed and merged"
+    assert ownerships.ownerships[0].status == "released"
+
+
+def test_trajectory_team_continuity_surface_assign_inspect_and_resolve(
+    tmp_path: Path,
+) -> None:
+    scheduler_event_log_path = tmp_path / ".codex/scheduler/team-surface-events.jsonl"
+    assign = run_trajectory_team_continuity_surface(
+        TrajectoryTeamContinuitySurfaceRequest(
+            action="assign",
+            project_root=tmp_path,
+            trajectory_id="local-work:surface",
+            lane_id="lane:server",
+            leader_id="agent:guide",
+            worker_id="worker:server",
+            runtime_provider="opencode",
+            scheduler_event_log_path=scheduler_event_log_path,
+            session_id="session-server",
+            compact_context_ref="dbc://context/server",
+            mailbox_cursor_ref="dbc://mailbox/server@1",
+            worker_report_refs=("report:server",),
+            audit_refs=("audit:assign",),
+            timestamp="2026-07-04T12:00:00+00:00",
+        )
+    )
+    inspect = run_trajectory_team_continuity_surface(
+        TrajectoryTeamContinuitySurfaceRequest(
+            action="inspect",
+            project_root=tmp_path,
+            trajectory_id="local-work:surface",
+            lane_id="lane:server",
+            runtime_provider="opencode",
+        )
+    )
+    resolve = run_trajectory_team_continuity_surface(
+        TrajectoryTeamContinuitySurfaceRequest(
+            action="resolve",
+            project_root=tmp_path,
+            trajectory_id="local-work:surface",
+            lane_id="lane:server",
+            runtime_provider="opencode",
+            scheduler_event_log_path=scheduler_event_log_path,
+            timestamp="2026-07-04T12:01:00+00:00",
+        )
+    )
+    scheduler_events = JsonlSchedulerEventLog(scheduler_event_log_path).read_all()
+
+    assert assign.ok is True
+    assert assign.bridge_result is not None
+    assert assign.to_json_dict()["authority_split"]["provider_executed"] is False
+    assert assign.to_json_dict()["authority_split"]["local_work_trajectory_mutated"] is False
+    assert inspect.ok is True
+    assert len(inspect.rows) == 1
+    assert inspect.rows[0].worker_id == "worker:server"
+    assert inspect.rows[0].binding_id == "continuous-worker:lane:lane-server"
+    assert inspect.rows[0].ownership_status == "claimed"
+    assert inspect.rows[0].compact_context_ref == "dbc://context/server"
+    assert inspect.rows[0].mailbox_cursor_ref == "dbc://mailbox/server@1"
+    assert inspect.rows[0].worker_report_refs == ("report:server",)
+    assert inspect.rows[0].audit_refs == ("audit:assign",)
+    assert inspect.rows[0].last_team_event_kind == "trajectory_team_lane_worker_assigned"
+    assert resolve.ok is True
+    assert resolve.rows[0].last_team_event_kind == "trajectory_team_lane_worker_resolved"
+    assert [event.event_kind for event in scheduler_events] == [
+        "trajectory_team_worker_assigned",
+        "trajectory_team_worker_resolved",
+    ]
+
+
+def test_trajectory_team_continuity_surface_rejects_worker_mutation(
+    tmp_path: Path,
+) -> None:
+    result = run_trajectory_team_continuity_surface(
+        TrajectoryTeamContinuitySurfaceRequest(
+            action="assign",
+            project_root=tmp_path,
+            caller_role="worker",
+            trajectory_id="local-work:surface",
+            lane_id="lane:worker",
+            worker_id="worker:worker",
+        )
+    )
+
+    assert result.ok is False
+    assert result.status == "caller_role_rejected"
+    assert "docs/worker-trajectory-update-reporting.md" in result.message
+    assert result.to_json_dict()["authority_split"]["worker_direct_mutation_allowed"] is False
+
+
+def test_trajectory_team_continuity_surface_rejects_secret_like_metadata(
+    tmp_path: Path,
+) -> None:
+    result = run_trajectory_team_continuity_surface(
+        TrajectoryTeamContinuitySurfaceRequest(
+            action="inspect",
+            project_root=tmp_path,
+            trajectory_id="local-work:surface",
+            lane_id="lane:secret",
+            metadata={"raw_transcript": "provider transcript body"},
+        )
+    )
+
+    assert result.ok is False
+    assert result.status == "invalid_request"
+    assert "raw transcript or secret value is not allowed" in result.message
+    assert result.to_json_dict()["authority_split"]["secret_value_persisted"] is False
 
 
 def test_opencode_delivery_supervisor_marks_continuous_worker_binding_stale_on_retryable_failure(

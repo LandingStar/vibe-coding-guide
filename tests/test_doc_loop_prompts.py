@@ -158,6 +158,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "schedulerOperatorWorkflow" in text
         assert "schedulerOperatorDogfoodClosure" in text
         assert "schedulerGuideWorkerLocalOrchestration" in text
+        assert "workspaceDbcCommand" in text
+        assert "DBC argv shorthand" in text
+        assert "instead of resolving a bare" in text
         assert "workerInstructions" in text
         assert "guideTask" in text
         assert "plannerLaneSpecs" in text
@@ -223,8 +226,8 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "doc-based-coding scheduler supervisor-dogfood-workflow" in text
         assert "cancellation-source metadata" in text
         assert "localTrajectory" in text
-        assert ".codex/progress-graph/local-work-trajectory.json" in text
-        assert ".codex/progress-graph/scheduler-work-trajectory.json" in text
+        assert ".dbc/progress-graph/local-work-trajectory.json" in text
+        assert ".dbc/progress-graph/scheduler-work-trajectory.json" in text
         assert "snapshotPath" in text
         assert "eventLogPath" in text
         assert "source_log.timestamp" in text
@@ -238,9 +241,9 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "run_host_runtime_dogfood_harness" in text
         assert "host_scheduler_run_evidence" in text
         assert "scheduler_loop_evidence" in text
-        assert ".codex/scheduler/evidence/<evidence-id>.json" in text
-        assert ".codex/scheduler/evidence/<safe-id>.json" in text
-        assert ".codex/scheduler/scheduler-daemon-control.json" in text
+        assert ".dbc/scheduler/evidence/<evidence-id>.json" in text
+        assert ".dbc/scheduler/evidence/<safe-id>.json" in text
+        assert ".dbc/scheduler/scheduler-daemon-control.json" in text
         assert "host-authorized-adapter" in text
         assert "host_runtime_wiring" in text
         assert "CLI or MCP tool" in text
@@ -301,17 +304,17 @@ def test_scheduler_mcp_smoke_prompt_covers_submit_project_run_lifecycle() -> Non
         assert "scheduler projection path/role/refreshed state" in text
         assert "legacy scheduler-loop evidence without projection metadata" in text
         assert "--artifact-id <artifact-id>" in text
-        assert "--admission-ledger-path .codex/orchestration/exchange-artifact-admissions.json" in text
+        assert "--admission-ledger-path .dbc/orchestration/exchange-artifact-admissions.json" in text
         assert "--allow-duplicate-admission" in text
         assert "duplicate admission controls ledger replay policy" in text
-        assert "--event-log-path .codex/scheduler/scheduler-events.jsonl" in text
+        assert "--event-log-path .dbc/scheduler/scheduler-events.jsonl" in text
         assert "operator-triggered admission outside Python" in text
         assert "Recommended operator workflow" in text
         assert "Expected ledger behavior" in text
         assert "Expected readback behavior" in text
         assert "Expected projection CLI behavior" in text
-        assert ".codex/orchestration/exchange-artifacts.json" in text
-        assert ".codex/orchestration/exchange-artifact-admissions.json" in text
+        assert ".dbc/orchestration/exchange-artifacts.json" in text
+        assert ".dbc/orchestration/exchange-artifact-admissions.json" in text
         assert "doc-based-coding qoder readiness" in text
         assert "doc-based-coding qoder smoke" in text
         assert "QoderSDKHostReadinessReport" in text
@@ -409,14 +412,14 @@ def test_host_evidence_resources_read_scheduler_loop_evidence(tmp_path: Path) ->
                     "provider_executed": True,
                     "scheduler_projection_refreshed": False,
                     "scheduler_projection_role": "read-only-view",
-                    "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+                    "scheduler_projection_path": ".dbc/progress-graph/scheduler-work-trajectory.json",
                     "local_work_trajectory_mutated": False,
                 },
                 "metadata": {
                     "surface": "host-authorized-scheduler-daemon-loop",
                     "runtime_host_surface": "host-authorized-adapter",
                     "host_invocation_id": "host-loop-smoke",
-                    "scheduler_projection_path": ".codex/progress-graph/scheduler-work-trajectory.json",
+                    "scheduler_projection_path": ".dbc/progress-graph/scheduler-work-trajectory.json",
                 },
             },
             ensure_ascii=False,
@@ -441,12 +444,12 @@ def test_host_evidence_resources_read_scheduler_loop_evidence(tmp_path: Path) ->
     assert card["host_surface"] == "host-authorized-adapter"
     assert card["invocation_id"] == "host-loop-smoke"
     assert card["metadata"]["evidence_product_type"] == "scheduler_loop_evidence"
-    assert card["metadata"]["scheduler_projection_path"] == ".codex/progress-graph/scheduler-work-trajectory.json"
+    assert card["metadata"]["scheduler_projection_path"] == ".dbc/progress-graph/scheduler-work-trajectory.json"
     assert {"label": "Runtime provider", "value": "fake"} in card["key_facts"]
     assert {"label": "Host invocation", "value": "host-loop-smoke"} in card["key_facts"]
     assert {
         "label": "Scheduler projection path",
-        "value": ".codex/progress-graph/scheduler-work-trajectory.json",
+        "value": ".dbc/progress-graph/scheduler-work-trajectory.json",
     } in card["key_facts"]
     assert any(ref["label"] == "Scheduler projection" for ref in card["refs"])
     assert {
@@ -475,9 +478,9 @@ def test_exchange_artifacts_bundle_resource_is_listed_and_read_only_when_empty(t
     assert payload["version_count"] == 0
     assert payload["admission_candidate_count"] == 0
     assert payload["admission_ledger_path"].endswith(
-        ".codex\\orchestration\\exchange-artifact-admissions.json"
+        ".dbc\\orchestration\\exchange-artifact-admissions.json"
     ) or payload["admission_ledger_path"].endswith(
-        ".codex/orchestration/exchange-artifact-admissions.json"
+        ".dbc/orchestration/exchange-artifact-admissions.json"
     )
     assert payload["admission_ledger_exists"] is False
     assert payload["error_count"] == 0
@@ -614,9 +617,9 @@ def test_cli_resources_list_and_read_host_evidence_bundle() -> None:
     assert any(item["uri"] == "dbc://host-evidence/bundle" for item in resources)
     assert read.returncode == 0
     bundle = json.loads(read.stdout)
-    assert bundle["evidence_dir"].endswith(".codex\\scheduler\\evidence") or bundle[
+    assert bundle["evidence_dir"].endswith(".dbc\\scheduler\\evidence") or bundle[
         "evidence_dir"
-    ].endswith(".codex/scheduler/evidence")
+    ].endswith(".dbc/scheduler/evidence")
     assert "evidence_count" in bundle
     assert "error_count" in bundle
     assert "summaries" in bundle
@@ -634,9 +637,9 @@ def test_cli_resources_read_host_evidence_presentation() -> None:
 
     assert read.returncode == 0
     presentation = json.loads(read.stdout)
-    assert presentation["evidence_dir"].endswith(".codex\\scheduler\\evidence") or presentation[
+    assert presentation["evidence_dir"].endswith(".dbc\\scheduler\\evidence") or presentation[
         "evidence_dir"
-    ].endswith(".codex/scheduler/evidence")
+    ].endswith(".dbc/scheduler/evidence")
     assert "status" in presentation
     assert "card_count" in presentation
     assert "error_count" in presentation
@@ -655,9 +658,9 @@ def test_cli_resources_read_exchange_artifacts_bundle() -> None:
 
     assert read.returncode == 0
     bundle = json.loads(read.stdout)
-    assert bundle["store_path"].endswith(".codex\\orchestration\\exchange-artifacts.json") or bundle[
+    assert bundle["store_path"].endswith(".dbc\\orchestration\\exchange-artifacts.json") or bundle[
         "store_path"
-    ].endswith(".codex/orchestration/exchange-artifacts.json")
+    ].endswith(".dbc/orchestration/exchange-artifacts.json")
     assert "exists" in bundle
     assert "artifact_count" in bundle
     assert "version_count" in bundle
@@ -776,3 +779,72 @@ def test_worker_trajectory_update_reporting_is_linked_and_schema_backed() -> Non
     assert "advance" in schema["$defs"]["trajectoryUpdate"]["properties"][
         "suggested_action"
     ]["enum"]
+
+
+def test_workspace_dbc_command_relay_guide_is_linked_and_actionable() -> None:
+    docs_readme = _read("docs/README.md")
+    install = _read("docs/installation-guide.md")
+    codex_contract = _read("docs/codex-entry-contract.md")
+    doctor_contract = _read("docs/self-check-doctor-contract.md")
+    guide = _read("docs/workspace-dbc-command-relay.md")
+
+    for text in (docs_readme, install, codex_contract, doctor_contract):
+        assert "workspace-dbc-command-relay.md" in text
+
+    assert "workspaceDbcCommand" in guide
+    assert "workspace.dbc_command_relay" in guide
+    assert "per-agent MCP server package instance" in guide
+    assert "path_fallback_required" in guide
+    assert "generic_shell" in guide
+    assert "argv" in guide
+    assert "mode=\"mutate\"" in guide
+
+
+def test_local_work_lane_splitting_standard_is_discoverable() -> None:
+    root_readme = _read("design_docs/tooling/README.md")
+    bootstrap_readme = _read(
+        "doc-loop-vibe-coding/assets/bootstrap/design_docs/tooling/README.md"
+    )
+
+    for prefix in (
+        "design_docs/tooling/local-work-lane-splitting",
+        "doc-loop-vibe-coding/assets/bootstrap/design_docs/tooling/local-work-lane-splitting",
+    ):
+        index = _read(f"{prefix}/README.md")
+        preflight = _read(f"{prefix}/lane-split-preflight.md")
+        user_change = _read(f"{prefix}/user-requested-lane-change.md")
+
+        assert "Lane Split Preflight" in index
+        assert "user-requested lane change" in index
+        assert "Do not copy the full criteria" in index
+        assert "Frontend, backend, API contract" in preflight
+        assert "localTrajectory addLanes" in preflight
+        assert "record the rationale" in preflight
+        assert "blind command" in user_change
+        assert "Accept and execute" in user_change
+        assert "propose a better lane plan" in user_change
+
+    assert "local-work-lane-splitting/" in root_readme
+    assert "local-work-lane-splitting/" in bootstrap_readme
+
+
+def test_agents_surfaces_point_to_lane_splitting_standard_without_full_criteria() -> None:
+    for rel_path in [
+        "AGENTS.md",
+        "doc-loop-vibe-coding/assets/bootstrap/AGENTS.md",
+    ]:
+        text = _read(rel_path)
+        assert "Before substantial task work begins" in text
+        assert "design_docs/tooling/local-work-lane-splitting/README.md" in text
+        assert "detailed lane split criteria" in text
+        assert "different files, protocols, validation surfaces" not in text
+
+
+def test_host_ux_prompt_points_to_lane_splitting_standard_without_full_criteria() -> None:
+    text = _read("vscode-extension/src/views/aiChatToolLoop.ts")
+
+    assert "Before substantial task work begins" in text
+    assert "design_docs/tooling/local-work-lane-splitting/README.md" in text
+    assert "detailed lane split criteria" in text
+    assert "server/client/API contract/testing" not in text
+    assert "Use localTrajectory addLane when a distinct work context must begin" in text

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .agent_storage import AgentScratchSpace
+from .artifact_paths import DEFAULT_DBC_SCRATCH_ROOT
 from .runtime_adapter import AgentRuntimeAdapterRegistry, RuntimeRunResult, TaskSpec
 from .sandbox import SandboxAllocation, SandboxProviderRegistry, SandboxRequest
 from .scheduler import (
@@ -61,7 +62,7 @@ def build_orchestration_preflight_bundle(
     sandbox_registry: SandboxProviderRegistry,
     scheduler_state: SchedulerState | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     created_at: str = "",
     expires_at: str = "",
 ) -> OrchestrationPreflightBundle:
@@ -122,7 +123,7 @@ def drain_preflighted_ready_tasks(
     policy: SchedulerRunPolicy | None = None,
     max_runs: int | None = None,
     workspace_root: str = "",
-    scratch_root: str = ".codex/scratch",
+    scratch_root: str = DEFAULT_DBC_SCRATCH_ROOT,
     created_at: str = "",
     expires_at: str = "",
     event_log: SchedulerEventSink | None = None,

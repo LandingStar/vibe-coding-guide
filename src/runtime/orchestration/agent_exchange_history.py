@@ -7,8 +7,10 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .exchange import ExchangeArtifact, ExchangePayloadPart, ExchangeReference
+from .exchange import ExchangeArtifact, ExchangeLog, ExchangePayloadPart, ExchangeReference
 from .exchange_store import ArtifactVersionRecord, JsonArtifactVersionStore
+from .log_decoration import LogDecorationPipeline, LogDecorationPipelineResult
+from .log_decoration_adapters import exchange_log_to_decoration_record
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,7 @@ class AgentExchangeHistorySummary:
     lifecycle_counts: Mapping[str, int] = field(default_factory=dict)
     causality_edges: tuple[AgentExchangeCausalityEdge, ...] = ()
     log_entries: tuple[AgentExchangeHistoryLogEntry, ...] = ()
+    log_decoration_results: tuple[LogDecorationPipelineResult, ...] = ()
     errors: tuple[str, ...] = ()
 
     @property
@@ -110,6 +113,10 @@ class AgentExchangeHistorySummary:
             "causality_edges": [edge.to_json_dict() for edge in self.causality_edges],
             "log_entry_count": self.log_entry_count,
             "log_entries": [entry.to_json_dict() for entry in self.log_entries],
+            "log_decoration_results": [
+                result.to_json_dict()
+                for result in self.log_decoration_results
+            ],
             "errors": list(self.errors),
             "authority_split": {
                 "exchange_store_authority": "JsonArtifactVersionStore",
@@ -130,6 +137,7 @@ def build_agent_exchange_history_summary(
     agent_id: str = "",
     correlation_id: str = "",
     include_archived: bool = False,
+    decoration_pipeline: LogDecorationPipeline | None = None,
 ) -> AgentExchangeHistorySummary:
     """Build a read-only communication history summary over loaded records."""
 
@@ -169,6 +177,12 @@ def build_agent_exchange_history_summary(
             ),
         )
     )
+    decoration_results: tuple[LogDecorationPipelineResult, ...] = ()
+    if decoration_pipeline is not None:
+        decoration_results = tuple(
+            decoration_pipeline.run(_log_entry_decoration_record(entry))
+            for entry in ordered_logs
+        )
     return AgentExchangeHistorySummary(
         agent_id_filter=agent_id,
         correlation_id_filter=correlation_id,
@@ -178,6 +192,7 @@ def build_agent_exchange_history_summary(
         lifecycle_counts=dict(sorted(lifecycle_counts.items())),
         causality_edges=tuple(causality_edges),
         log_entries=ordered_logs,
+        log_decoration_results=decoration_results,
     )
 
 
@@ -187,6 +202,7 @@ def inspect_agent_exchange_history_summary(
     agent_id: str = "",
     correlation_id: str = "",
     include_archived: bool = False,
+    decoration_pipeline: LogDecorationPipeline | None = None,
 ) -> AgentExchangeHistorySummary:
     """Read a JSON artifact store into a non-mutating history summary."""
 
@@ -215,6 +231,7 @@ def inspect_agent_exchange_history_summary(
         agent_id=agent_id,
         correlation_id=correlation_id,
         include_archived=include_archived,
+        decoration_pipeline=decoration_pipeline,
     )
     return AgentExchangeHistorySummary(
         store_path=store_path,
@@ -227,6 +244,7 @@ def inspect_agent_exchange_history_summary(
         lifecycle_counts=summary.lifecycle_counts,
         causality_edges=summary.causality_edges,
         log_entries=summary.log_entries,
+        log_decoration_results=summary.log_decoration_results,
         errors=summary.errors,
     )
 
@@ -333,6 +351,38 @@ def _log_entry(
         sequence=part.log.sequence,
         clock=part.log.clock,
         source_redacted=redacted,
+    )
+
+
+def _log_entry_decoration_record(entry: AgentExchangeHistoryLogEntry):
+    return exchange_log_to_decoration_record(
+        ExchangeLog(
+            timestamp=entry.timestamp,
+            actor=entry.actor,
+            action=entry.action,
+            channel=entry.channel,
+            summary=entry.summary,
+            related_artifact_ids=entry.related_artifact_ids,
+            related_event_ids=entry.related_event_ids,
+            related_run_ids=entry.related_run_ids,
+            sequence=entry.sequence,
+            clock=entry.clock,  # type: ignore[arg-type]
+        ),
+        record_id=(
+            f"exchange_history:{entry.source_artifact_id}@"
+            f"{entry.source_version}:{entry.sequence}"
+            if entry.sequence is not None
+            else f"exchange_history:{entry.source_artifact_id}@{entry.source_version}"
+        ),
+        fields={
+            "source_artifact_id": entry.source_artifact_id,
+            "source_version": entry.source_version,
+            "source": _artifact_version_token(
+                entry.source_artifact_id,
+                entry.source_version,
+            ),
+            "source_redacted": entry.source_redacted,
+        },
     )
 
 

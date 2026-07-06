@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .artifact_paths import dbc_artifact_path
 from .sandbox import (
     GitWorktreeCommandReceipt,
     GitWorktreeSandboxReceipt,
@@ -133,7 +134,7 @@ def default_sandbox_allocation_receipt_evidence_path(
         for character in evidence_id
     )
     safe_id = safe_id.strip("-") or "sandbox-allocation-receipt"
-    return Path(project_root) / ".codex/scheduler/evidence" / f"{safe_id}.json"
+    return Path(project_root) / dbc_artifact_path("scheduler", "evidence", f"{safe_id}.json")
 
 
 def build_sandbox_allocation_receipt_evidence(
