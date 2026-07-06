@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Prepare current results commit and release package",
-  "recorded_at": "2026-07-06T00:28:18.285117+00:00",
+  "recorded_at": "2026-07-06T01:05:31.880524+00:00",
   "source_graph_id": "",
   "source_node_id": "",
   "guide_context": "codex-mcp-agent",
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "当前工作",
-      "status": "pending",
+      "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -67,12 +67,13 @@
       "lane_id": "lane:main",
       "title": "Rebuild release artifacts",
       "kind": "validation",
-      "status": "pending",
+      "status": "completed",
       "order": 3,
       "summary": "Run release packaging for version 0.9.8 without bumping semver; verify zip, wheels, VSIX, and packaged vendor artifacts.",
       "metadata": {
         "created_at": "2026-07-06T00:28:18.285117+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-06T01:05:31.880524+00:00"
       }
     }
   },
