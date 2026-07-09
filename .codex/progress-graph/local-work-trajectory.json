@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Review dbc-test solutions smoke output",
-  "recorded_at": "2026-07-09T07:40:44.550519+00:00",
+  "recorded_at": "2026-07-09T07:53:02.896903+00:00",
   "source_graph_id": "",
   "source_node_id": "",
   "guide_context": "codex-mcp-agent",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Review dbc-test solutions smoke output",
     "lane_count": 1,
-    "event_count": 17,
-    "relation_count": 16,
+    "event_count": 18,
+    "relation_count": 17,
     "source_graph_id": "",
     "source_node_id": ""
   },
@@ -286,6 +286,21 @@
         "activated_at": "2026-07-09T07:40:30.356395+00:00",
         "completed_at": "2026-07-09T07:40:44.549517+00:00"
       }
+    },
+    "event:018": {
+      "id": "event:018",
+      "lane_id": "lane:main",
+      "title": "实现 Readback Timeline MCP Parity",
+      "kind": "task",
+      "status": "completed",
+      "order": 18,
+      "summary": "在 explicit-source readback timeline runtime/CLI 已完成后，新增 MCP readbackTimelineInspect 工具；范围保持 explicit-source-only、read-only，不引入 manifest/index/UI 或自动扫描。",
+      "metadata": {
+        "created_at": "2026-07-09T07:45:40.867986+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-09T07:52:47.092548+00:00",
+        "completed_at": "2026-07-09T07:53:02.896903+00:00"
+      }
     }
   },
   "relations": [
@@ -427,6 +442,15 @@
     {
       "source_event_id": "event:016",
       "target_event_id": "event:017",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:017",
+      "target_event_id": "event:018",
       "kind": "sequence",
       "summary": "",
       "metadata": {

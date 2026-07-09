@@ -30,9 +30,10 @@ If repository documents disagree, use this order:
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `Readback explicit-source timeline projection complete`
-- Current Todo: Review the new readback timeline follow-up direction analysis;
-  default recommendation is the narrow `Readback Timeline MCP Parity` gate.
+- Current Focus: `Readback Timeline MCP Parity complete`
+- Current Todo: Review the completed timeline MCP parity and choose the next
+  readback direction: persistent `.dbc` source manifest, monitoring UI binding,
+  or promotion of the log-like record standard.
 - Current Standard: Use `design_docs/tooling/Log-like Record Standard Draft.md`
   as the internal standard for upcoming log-like record work; after enough
   practice, promote the stable parts to an authoritative `docs/` contract.
@@ -48,9 +49,13 @@ If repository documents disagree, use this order:
   persistent `.dbc` manifest/index or monitoring UI binding.
 - Active Planning Gate: `none`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`
-- Latest Completed Slice: `Readback Explicit-Source Timeline Projection`
+  `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`
+- Latest Completed Slice: `Readback Timeline MCP Parity`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`,
+  `src/mcp/tools.py`,
+  `src/mcp/server.py`,
+  `tests/test_mcp_tools.py`,
   `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`,
   `src/runtime/orchestration/readback_timeline.py`,
   `src/runtime/orchestration/__init__.py`,
@@ -298,6 +303,7 @@ Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
 1. `design_docs/readback-timeline-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`
 1. `design_docs/readback-inspection-followup-direction-analysis.md`
 1. `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`
 1. `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`

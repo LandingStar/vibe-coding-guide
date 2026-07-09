@@ -432,6 +432,149 @@ class TestReadbackInspectMcp:
         asyncio.run(exercise_server())
 
 
+class TestReadbackTimelineInspectMcp:
+    """readbackTimelineInspect MCP tool tests."""
+
+    def test_tools_method_projects_timeline_and_partial_failure(self, tmp_path):
+        report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "report_id": "report-mcp-timeline-worker",
+                    "contract_id": "contract-mcp-timeline-worker",
+                    "status": "completed",
+                    "changed_artifacts": ["server.js"],
+                    "verification_results": [],
+                    "trajectory_update": {
+                        "lane_id": "lane:server",
+                        "task_id": "task/server",
+                        "event_status": "completed",
+                        "summary": "Server worker finished.",
+                        "suggested_action": "append",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        tools = GovernanceTools(tmp_path, dry_run=True)
+
+        result = tools.readback_timeline_inspect(
+            sources=[
+                {
+                    "kind": "worker-report",
+                    "path": ".dbc/agent-output/missing.json",
+                    "label": "missing",
+                },
+                {
+                    "kind": "worker-report",
+                    "path": ".dbc/agent-output/report-worker.json",
+                    "timestamp": "2026-07-09T10:00:00+00:00",
+                    "label": "worker",
+                },
+            ]
+        )
+
+        assert result["ok"] is True
+        assert result["source_count"] == 2
+        assert result["successful_source_count"] == 1
+        assert result["failed_source_count"] == 1
+        assert result["record_count"] == 1
+        assert result["rows"][0]["record_id"] == "report-mcp-timeline-worker"
+        assert result["rows"][0]["source_label"] == "worker"
+        assert result["rows"][0]["ordering_confidence"] == "timestamp"
+        assert "source[0]" in result["errors"][0]
+        assert result["authority_split"]["read_model_only"] is True
+        assert result["authority_split"]["workspace_scanned"] is False
+        assert result["authority_split"]["persistent_manifest_written"] is False
+        assert result["authority_split"]["local_work_trajectory_mutated"] is False
+
+    def test_mcp_server_exposes_and_routes_readback_timeline_inspect(self, tmp_path):
+        import asyncio
+
+        from mcp.types import (
+            CallToolRequest,
+            CallToolRequestParams,
+            ListToolsRequest,
+        )
+        from src.mcp.server import create_server
+
+        report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "report_id": "report-mcp-timeline-route-worker",
+                    "contract_id": "contract-mcp-timeline-route-worker",
+                    "status": "completed",
+                    "changed_artifacts": [],
+                    "verification_results": [],
+                    "trajectory_update": {
+                        "lane_id": "lane:docs",
+                        "task_id": "task/docs",
+                        "event_status": "completed",
+                        "summary": "Docs worker finished.",
+                        "suggested_action": "append",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        server = create_server(tmp_path, dry_run=True)
+
+        async def exercise_server():
+            list_result = await server.request_handlers[ListToolsRequest](
+                ListToolsRequest()
+            )
+            tools = list_result.root.tools
+            names = {tool.name for tool in tools}
+            assert "readbackTimelineInspect" in names
+            timeline_tool = next(tool for tool in tools if tool.name == "readbackTimelineInspect")
+            schema = timeline_tool.inputSchema
+            assert schema["required"] == ["sources"]
+            source_schema = schema["properties"]["sources"]["items"]
+            assert source_schema["required"] == ["kind"]
+            assert {
+                "kind",
+                "path",
+                "artifactId",
+                "version",
+                "sourceKind",
+                "latestLimit",
+                "label",
+            } <= set(source_schema["properties"])
+            assert "explicit-source readback timeline inspection" in timeline_tool.description
+            assert "does not scan the workspace" in timeline_tool.description
+            assert "persistent manifest" in timeline_tool.description
+
+            call_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="readbackTimelineInspect",
+                        arguments={
+                            "sources": [
+                                {
+                                    "kind": "worker-report",
+                                    "path": ".dbc/agent-output/report-worker.json",
+                                    "timestamp": "2026-07-09T10:00:00+00:00",
+                                    "label": "worker",
+                                }
+                            ]
+                        },
+                    )
+                )
+            )
+            payload = json.loads(call_result.root.content[0].text)
+            assert payload["ok"] is True
+            assert payload["source_count"] == 1
+            assert payload["record_count"] == 1
+            assert payload["rows"][0]["record_id"] == "report-mcp-timeline-route-worker"
+            assert payload["authority_split"]["workspace_scanned"] is False
+            assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+        asyncio.run(exercise_server())
+
+
 class TestTrajectoryTeamContinuityMcp:
     """trajectoryTeamContinuity MCP tool tests."""
 

@@ -185,6 +185,23 @@
 
 ### Post-v1.0 工作（无 Phase 编号，按方向候选推进）
 
+- Readback Timeline MCP Parity 完成：explicit-source timeline projection
+  已具备 Codex/agent-facing MCP surface。实现包括
+  `GovernanceTools.readback_timeline_inspect()`、MCP tool
+  `readbackTimelineInspect`、server schema/routing，以及 focused MCP tests。
+  新 tool 接受显式 `sources` 列表，每个 source 支持 `kind`、`path`、
+  `artifactId`、`version`、`sourceKind`、`latestLimit`、`actor`、
+  `timestamp` 与 `label`，复用 `inspect_readback_timeline()` 并返回同一
+  timeline result JSON。该切片不引入 persistent `.dbc` manifest/index、
+  不扫描 workspace、不做 monitoring UI、不改变 timeline row schema、不运行
+  provider/browser/validation/doctor、不突变 scheduler/exchange/evidence/config
+  或 Local Work Trajectory。planning gate 位于
+  `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`；
+  validation 为 focused MCP readback tests `4 passed, 114 deselected` 与
+  compileall passed。后续方向仍参考
+  `design_docs/readback-timeline-followup-direction-analysis.md`，下一步可在
+  persistent source manifest、monitoring UI consumption、或 log-like record
+  standard promotion 中选择。
 - Readback Explicit-Source Timeline Projection 完成：readback 方向在统一
   `inspect_readback()` surface 之后，新增显式来源的跨 family timeline 投影。
   实现包括 `src/runtime/orchestration/readback_timeline.py`、

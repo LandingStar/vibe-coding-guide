@@ -219,6 +219,82 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="readbackTimelineInspect",
+                description=(
+                    "Read-only explicit-source readback timeline inspection. "
+                    "Accepts caller-provided source specs, reuses existing readback "
+                    "envelope inspection, and returns compact timeline rows with "
+                    "ordering confidence. This does not scan the workspace, write "
+                    "a persistent manifest, consume worker reports, run validation/"
+                    "doctor, execute providers, launch browsers, capture screenshots, "
+                    "mutate scheduler/exchange/evidence/config state, or mutate "
+                    "Local Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "sources": {
+                            "type": "array",
+                            "description": (
+                                "Explicit readback source specs. Each source supports "
+                                "kind, path, artifactId, version, sourceKind, latestLimit, "
+                                "actor, timestamp, and label."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "description": (
+                                            "Readback kind: worker-report, validation-receipt, "
+                                            "runtime-invocation-log, scheduler-event-log, "
+                                            "exchange-artifact, or host-evidence."
+                                        ),
+                                    },
+                                    "path": {
+                                        "type": "string",
+                                        "description": (
+                                            "Optional source file or directory path. Relative "
+                                            "paths resolve under the MCP project root."
+                                        ),
+                                    },
+                                    "artifactId": {
+                                        "type": "string",
+                                        "description": "ExchangeArtifact id for kind=exchange-artifact.",
+                                    },
+                                    "version": {
+                                        "type": "string",
+                                        "description": "Optional ExchangeArtifact version.",
+                                    },
+                                    "sourceKind": {
+                                        "type": "string",
+                                        "description": "Optional validation source kind override.",
+                                    },
+                                    "latestLimit": {
+                                        "type": "integer",
+                                        "description": "Latest record limit for log-backed kinds. Default 20.",
+                                    },
+                                    "actor": {
+                                        "type": "string",
+                                        "description": "Actor label recorded in readback envelopes.",
+                                    },
+                                    "timestamp": {
+                                        "type": "string",
+                                        "description": "Optional deterministic timestamp.",
+                                    },
+                                    "label": {
+                                        "type": "string",
+                                        "description": "Compact source label copied to timeline rows.",
+                                    },
+                                },
+                                "required": ["kind"],
+                            },
+                        },
+                    },
+                    "required": ["sources"],
+                },
+            ),
+            Tool(
                 name="writeback_notify",
                 description=(
                     "Notify that a phase or slice writeback has been completed. "
@@ -3117,6 +3193,10 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 latest_limit=arguments.get("latestLimit", 20),
                 actor=arguments.get("actor", "readback-inspection-mcp"),
                 timestamp=arguments.get("timestamp", ""),
+            )
+        elif name == "readbackTimelineInspect":
+            result = tools.readback_timeline_inspect(
+                sources=arguments.get("sources", []),
             )
         elif name == "writeback_notify":
             result = tools.writeback_notify(arguments["phase_description"])

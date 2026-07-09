@@ -372,6 +372,31 @@ class GovernanceTools:
         )
         return result.to_json_dict()
 
+    def readback_timeline_inspect(
+        self,
+        *,
+        sources: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+    ) -> dict[str, Any]:
+        """Project explicit readback sources into one timeline."""
+
+        from ..runtime.orchestration import (
+            ReadbackTimelineInspectionRequest,
+            ReadbackTimelineSource,
+            inspect_readback_timeline,
+        )
+
+        timeline_sources = tuple(
+            _readback_timeline_source_from_mapping(source, index=index)
+            for index, source in enumerate(sources or ())
+        )
+        result = inspect_readback_timeline(
+            ReadbackTimelineInspectionRequest(
+                project_root=self._project_root,
+                sources=timeline_sources,
+            )
+        )
+        return result.to_json_dict()
+
     def write_output(self, content: str, *, title: str = "") -> str:
         """Write agent analysis to a visible surface and return the file path.
 
@@ -4443,4 +4468,44 @@ def _extract_gate_status(head: str) -> str:
         m = re.match(r"^-\s*Status:\s*\*{0,2}(\w[\w\s-]*\w?)\*{0,2}", line, re.IGNORECASE)
         if m:
             return m.group(1).strip().lower()
+    return ""
+
+
+def _readback_timeline_source_from_mapping(
+    source: dict[str, Any],
+    *,
+    index: int,
+):
+    """Convert one MCP source mapping into a readback timeline source."""
+
+    from ..runtime.orchestration import ReadbackTimelineSource
+
+    if not isinstance(source, dict):
+        raise ValueError(f"sources[{index}] must be an object")
+    kind = _timeline_string_field(source, "kind")
+    if not kind:
+        raise ValueError(f"sources[{index}] requires kind")
+    latest_limit_value = source.get("latestLimit", source.get("latest_limit", 20))
+    try:
+        latest_limit = int(latest_limit_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"sources[{index}].latestLimit must be an integer") from exc
+    return ReadbackTimelineSource(
+        kind=kind,
+        path=_timeline_string_field(source, "path"),
+        artifact_id=_timeline_string_field(source, "artifactId", "artifact_id"),
+        version=_timeline_string_field(source, "version"),
+        source_kind=_timeline_string_field(source, "sourceKind", "source_kind"),
+        latest_limit=latest_limit,
+        actor=_timeline_string_field(source, "actor") or "readback-timeline-mcp",
+        timestamp=_timeline_string_field(source, "timestamp"),
+        label=_timeline_string_field(source, "label"),
+    )
+
+
+def _timeline_string_field(source: dict[str, Any], *names: str) -> str:
+    for name in names:
+        value = source.get(name)
+        if value is not None:
+            return str(value)
     return ""
