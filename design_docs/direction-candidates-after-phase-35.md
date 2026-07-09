@@ -1,5 +1,19 @@
 # Direction Candidates — After Phase 35
 
+## 2026-07-08 补充候选：Scheduler Event Readback Envelope 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-07-08-scheduler-event-readback-envelope.md` 已完成；当前 `SchedulerEvent` 已具备只读 draft envelope projection，能暴露 readable summary/reason/next_hint、typed refs、related record ids、redaction/sensitivity clue 与 `replay_effect=state_mutating|audit_only`，并保持 JSONL persistence 与 replay semantics 不变。
+- 候选 1：`Runtime Invocation Readback Envelope`
+  - 做什么：为 `RuntimeInvocationRecord` 增加同类只读 draft envelope projection，覆盖 success、retryable failure、non-retryable failure、compacted/readback 路径，明确 typed refs、summary/reason/next_hint 与 raw transcript safety。
+  - 依据：`design_docs/log-like-record-alignment-followup-direction-analysis.md`、`design_docs/tooling/Log-like Record Family Gap Inventory.md`、`src/runtime/orchestration/runtime_invocation_audit.py`、`docs/runtime-log-decoration-contract.md`
+- 候选 2：`ExchangeArtifact Communication History Envelope`
+  - 做什么：为 agent communication history/mailbox records 增加 compact envelope/readback，突出 producer/audience/lifecycle/causality/action expectation。
+  - 依据：`design_docs/log-like-record-alignment-followup-direction-analysis.md`、`src/runtime/orchestration/agent_exchange_history.py`、`design_docs/agent-coordination-exchange-artifact-design-record.md`
+- 候选 3：`Worker Report / Trajectory Suggestion Envelope`
+  - 做什么：为 worker report 和 `Subagent Report.trajectory_update` 增加可审计 readback，突出 worker scope、validation evidence、changed surfaces 与 leader-owned trajectory mutation authority。
+  - 依据：`design_docs/log-like-record-alignment-followup-direction-analysis.md`、`docs/worker-trajectory-update-reporting.md`、`src/runtime/orchestration/worker_trajectory_report_consumer.py`
+- 当前倾向：默认进入候选 1。原因是 runtime invocation 与刚完成的 scheduler event 同属核心执行/审计链，且 scheduler failure 的 `next_hint` 往往会指向 runtime invocation records；先补 runtime readback 能最大化这次 scheduler readback 的实际审计价值。
+
 ## 2026-06-24 补充候选：Worker Patch Composition Preflight 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-06-24-worker-patch-composition-preflight.md` 已完成并在 `cd31275` 提交；当前 runtime/CLI 已能读取多个 exact `worker_patch_review_proposal` artifacts，在临时 workspace 中按调用者顺序执行非突变 composition preflight，并报告首个失败 patch 与 touched-path collisions。

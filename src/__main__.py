@@ -6,6 +6,7 @@ Installed entry point:
     doc-based-coding validate                  — Check project constraints
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
+    doc-based-coding readback inspect          — Inspect readback envelopes
     doc-based-coding codex readiness           — Check Codex CLI host readiness
     doc-based-coding opencode readiness        — Check OpenCode CLI host readiness
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
@@ -292,6 +293,13 @@ _DOCTOR_USAGE = (
     "Usage: doc-based-coding doctor "
     "[--profile codex|opencode|vscode|runtime|scheduler|mcp|all] "
     "[--project-root PATH] [--timeout-seconds N]"
+)
+
+_READBACK_INSPECT_USAGE = (
+    "Usage: doc-based-coding readback inspect "
+    "--kind worker-report|validation-receipt|runtime-invocation-log|scheduler-event-log|exchange-artifact|host-evidence "
+    "[--path PATH] [--artifact-id ID] [--version VERSION] "
+    "[--source-kind KIND] [--latest-limit N] [--actor ACTOR] [--timestamp TIMESTAMP]"
 )
 
 _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
@@ -729,6 +737,122 @@ def cmd_doctor(args: list[str]) -> int:
 
     _print_json(report.to_json_dict())
     return doctor_exit_code(report)
+
+
+def cmd_readback(args: list[str]) -> int:
+    """Unified read-only readback inspection helpers."""
+
+    if not args or args[0] in ("-h", "--help"):
+        print(
+            "Usage: doc-based-coding readback <subcommand> [args]\n\n"
+            "Subcommands:\n"
+            "  inspect    Project known log/evidence records into readback envelopes\n",
+        )
+        return 0
+
+    sub = args[0]
+    if sub == "inspect":
+        return cmd_readback_inspect(args[1:])
+
+    print(f"Unknown readback subcommand: {sub}", file=sys.stderr)
+    print("Usage: doc-based-coding readback <inspect> [args]", file=sys.stderr)
+    return 1
+
+
+def cmd_readback_inspect(args: list[str]) -> int:
+    """Inspect one readback family without mutation."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _READBACK_INSPECT_USAGE + "\n\n"
+            "This command reads existing records and returns draft readback "
+            "envelopes. It does not consume worker trajectory reports, run "
+            "validation or doctor, execute providers, launch browsers, capture "
+            "screenshots, mutate scheduler/exchange/evidence/config state, or "
+            "mutate Local Work Trajectory.",
+        )
+        return 0
+
+    kind = ""
+    path = ""
+    artifact_id = ""
+    version = ""
+    source_kind = ""
+    latest_limit = 20
+    actor = "readback-inspection-cli"
+    timestamp = ""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {
+            "--kind",
+            "--path",
+            "--artifact-id",
+            "--version",
+            "--source-kind",
+            "--latest-limit",
+            "--actor",
+            "--timestamp",
+        }:
+            if i + 1 >= len(args):
+                print(_READBACK_INSPECT_USAGE, file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--kind":
+                kind = value
+            elif arg == "--path":
+                path = value
+            elif arg == "--artifact-id":
+                artifact_id = value
+            elif arg == "--version":
+                version = value
+            elif arg == "--source-kind":
+                source_kind = value
+            elif arg == "--latest-limit":
+                try:
+                    latest_limit = int(value)
+                except ValueError:
+                    print("--latest-limit must be an integer", file=sys.stderr)
+                    return 1
+            elif arg == "--actor":
+                actor = value
+            elif arg == "--timestamp":
+                timestamp = value
+            i += 2
+            continue
+        print(f"Unknown readback inspect option: {arg}", file=sys.stderr)
+        print(_READBACK_INSPECT_USAGE, file=sys.stderr)
+        return 1
+
+    if not kind:
+        print(_READBACK_INSPECT_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import ReadbackInspectionRequest, inspect_readback
+
+        result = inspect_readback(
+            ReadbackInspectionRequest(
+                project_root=_find_project_root(),
+                kind=kind,
+                path=path,
+                artifact_id=artifact_id,
+                version=version,
+                source_kind=source_kind,
+                latest_limit=latest_limit,
+                actor=actor,
+                timestamp=timestamp,
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting readback",
+            e,
+            category="readback_inspection_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
 
 
 def cmd_codex_guide_worker_smoke(args: list[str]) -> int:
@@ -13073,6 +13197,7 @@ _COMMANDS = {
     "validate": cmd_validate,
     "check": cmd_check,
     "resources": cmd_resources,
+    "readback": cmd_readback,
     "codex": cmd_codex,
     "opencode": cmd_opencode,
     "provider": cmd_provider,
@@ -13104,6 +13229,7 @@ def main() -> int:
             "  validate                Check project constraints\n"
             "  check [text]            Constraint/state check only\n"
             "  resources <sub>         Inspect MCP resources (list/read)\n"
+            "  readback <sub>          Inspect readback envelopes\n"
             "  codex <sub>             Codex CLI host readiness helpers\n"
             "  opencode <sub>          OpenCode CLI host readiness helpers\n"
             "  provider <sub>          Mixed runtime provider host helpers\n"

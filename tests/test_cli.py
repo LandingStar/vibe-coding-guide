@@ -147,6 +147,49 @@ def test_help_text_describes_check_as_constraints_only() -> None:
     assert "scheduler <sub>" in proc.stdout
 
 
+def test_readback_inspect_help_describes_read_only_non_goals() -> None:
+    proc = _run_cli(["readback", "inspect", "--help"])
+
+    assert proc.returncode == 0
+    assert "doc-based-coding readback inspect" in proc.stdout
+    assert "worker-report" in proc.stdout
+    assert "host-evidence" in proc.stdout
+    assert "does not consume worker trajectory reports" in proc.stdout
+    assert "execute providers" in proc.stdout
+    assert "capture screenshots" in proc.stdout
+    assert "mutate Local Work Trajectory" in proc.stdout
+
+
+def test_readback_inspect_worker_report_cli_projects_envelope(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    report_path = project / ".dbc" / "agent-output" / "report-worker.json"
+    _write_cli_worker_trajectory_report(report_path, suggested_action="append")
+
+    proc = _run_cli(
+        [
+            "readback",
+            "inspect",
+            "--kind",
+            "worker-report",
+            "--path",
+            ".dbc/agent-output/report-worker.json",
+        ],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["kind"] == "worker-report"
+    assert payload["record_count"] == 1
+    assert payload["source_path"] == str(report_path.resolve())
+    assert payload["envelopes"][0]["record_id"] == "report-cli-worker"
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["worker_report_consumed"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
 def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     proc = _run_cli(["scheduler", "--help"])
 
@@ -3872,6 +3915,73 @@ def test_validate_includes_governance_status_fields() -> None:
     assert "command_status" in payload
     assert "governance_status" in payload
     assert "blocking_constraints" in payload
+
+
+def test_validate_prefers_checklist_hot_state_over_stale_checkpoint(tmp_path) -> None:
+    project = tmp_path / "project"
+    pack_dir = project / "test-pack"
+    pack_dir.mkdir(parents=True)
+    (pack_dir / "pack-manifest.json").write_text(
+        json.dumps({
+            "name": "test-pack",
+            "version": "0.1",
+            "kind": "project-local",
+        }),
+        encoding="utf-8",
+    )
+
+    gate_dir = project / "design_docs" / "stages" / "planning-gate"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "old-active.md").write_text(
+        "# Old Gate\n\n- Status: **ACTIVE**\n",
+        encoding="utf-8",
+    )
+    (gate_dir / "latest-completed.md").write_text(
+        "# Latest Gate\n\n- Status: **COMPLETED**\n",
+        encoding="utf-8",
+    )
+
+    (project / "design_docs" / "Project Master Checklist.md").write_text(
+        "# Project Master Checklist\n\n"
+        "## Current Snapshot\n\n"
+        "- Current Phase: `Post-v1.0 - current hot state`\n"
+        "- Current Focus: `Latest completed gate`\n"
+        "- Latest Completed Planning Gate:\n"
+        "  `design_docs/stages/planning-gate/latest-completed.md`\n"
+        "- Active Planning Gate: `none`\n",
+        encoding="utf-8",
+    )
+    (project / "design_docs" / "Global Phase Map and Current Position.md").write_text(
+        "# Phase Map\n",
+        encoding="utf-8",
+    )
+    cp_dir = project / ".codex" / "checkpoints"
+    cp_dir.mkdir(parents=True)
+    (cp_dir / "latest.md").write_text(
+        "# Checkpoint — stale\n"
+        "## Current Phase\n"
+        "Old phase\n"
+        "## Active Planning Gate\n"
+        "design_docs/stages/planning-gate/old-active.md\n"
+        "## Current Todo\n"
+        "- stale\n"
+        "## Pending User Decision\n"
+        "(none)\n"
+        "## Direction Candidates\n"
+        "(none)\n"
+        "## Key Context Files\n"
+        "- design_docs/stages/planning-gate/old-active.md\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_cli(["validate"], cwd=project)
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["state_source"] == "checklist"
+    assert payload["current_phase"] == "Post-v1.0 - current hot state"
+    assert payload["active_planning_gate"] == ""
+    assert payload["governance_status"] == "passed"
 
 
 def test_scheduler_inspect_binding_refs_cli_reports_submission_refs(tmp_path) -> None:

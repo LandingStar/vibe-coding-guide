@@ -215,6 +215,63 @@ class TestCheckConstraints:
         assert len(c5) == 1
         assert c5[0]["severity"] == "warn"
 
+    def test_check_constraints_prefers_checklist_hot_state_over_stale_checkpoint(
+        self,
+        tmp_path,
+    ):
+        gate_dir = tmp_path / "design_docs" / "stages" / "planning-gate"
+        gate_dir.mkdir(parents=True)
+        (gate_dir / "old-active.md").write_text(
+            "# Old Gate\n\n- Status: **ACTIVE**\n",
+            encoding="utf-8",
+        )
+        (gate_dir / "latest-completed.md").write_text(
+            "# Latest Gate\n\n- Status: **COMPLETED**\n",
+            encoding="utf-8",
+        )
+
+        (tmp_path / "design_docs" / "Project Master Checklist.md").write_text(
+            "# Project Master Checklist\n\n"
+            "## Current Snapshot\n\n"
+            "- Current Phase: `Post-v1.0 - current hot state`\n"
+            "- Current Focus: `Latest completed gate`\n"
+            "- Latest Completed Planning Gate:\n"
+            "  `design_docs/stages/planning-gate/latest-completed.md`\n"
+            "- Active Planning Gate: `none`\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "design_docs" / "Global Phase Map and Current Position.md").write_text(
+            "# Phase Map\n",
+            encoding="utf-8",
+        )
+        cp_dir = tmp_path / ".codex" / "checkpoints"
+        cp_dir.mkdir(parents=True)
+        (cp_dir / "latest.md").write_text(
+            "# Checkpoint — stale\n"
+            "## Current Phase\n"
+            "Old phase\n"
+            "## Active Planning Gate\n"
+            "design_docs/stages/planning-gate/old-active.md\n"
+            "## Current Todo\n"
+            "- stale\n"
+            "## Pending User Decision\n"
+            "(none)\n"
+            "## Direction Candidates\n"
+            "(none)\n"
+            "## Key Context Files\n"
+            "- design_docs/stages/planning-gate/old-active.md\n",
+            encoding="utf-8",
+        )
+
+        from src.workflow.pipeline import _check_constraints
+
+        result = _check_constraints(tmp_path).to_dict()
+
+        assert result["state_source"] == "checklist"
+        assert result["current_phase"] == "Post-v1.0 - current hot state"
+        assert result["active_planning_gate"] == ""
+        assert result["governance_status"] == "passed"
+
 
 class TestWorkspaceDbcCommandRelay:
     """workspaceDbcCommand MCP relay tests."""
@@ -262,6 +319,115 @@ class TestWorkspaceDbcCommandRelay:
             assert payload["command_preview"][:3][1:] == ["-m", "src"]
             assert payload["authority_split"]["generic_shell"] is False
             assert payload["authority_split"]["workspace_bound"] is True
+
+        asyncio.run(exercise_server())
+
+
+class TestReadbackInspectMcp:
+    """readbackInspect MCP tool tests."""
+
+    def test_tools_method_projects_worker_report_readback(self, tmp_path):
+        report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "report_id": "report-mcp-worker",
+                    "contract_id": "contract-mcp-worker",
+                    "status": "completed",
+                    "changed_artifacts": ["server.js"],
+                    "verification_results": ["node --check server.js passed"],
+                    "trajectory_update": {
+                        "lane_id": "lane:server",
+                        "task_id": "task/server",
+                        "event_status": "completed",
+                        "summary": "Server worker finished.",
+                        "suggested_action": "append",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        tools = GovernanceTools(tmp_path, dry_run=True)
+
+        result = tools.readback_inspect(
+            kind="worker-report",
+            path=".dbc/agent-output/report-worker.json",
+        )
+
+        assert result["ok"] is True
+        assert result["record_count"] == 1
+        assert result["envelopes"][0]["record_id"] == "report-mcp-worker"
+        assert result["authority_split"]["worker_report_consumed"] is False
+        assert result["authority_split"]["local_work_trajectory_mutated"] is False
+
+    def test_mcp_server_exposes_and_routes_readback_inspect(self, tmp_path):
+        import asyncio
+
+        from mcp.types import (
+            CallToolRequest,
+            CallToolRequestParams,
+            ListToolsRequest,
+        )
+        from src.mcp.server import create_server
+
+        report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "report_id": "report-mcp-route-worker",
+                    "contract_id": "contract-mcp-route-worker",
+                    "status": "completed",
+                    "changed_artifacts": [],
+                    "verification_results": [],
+                    "trajectory_update": {
+                        "lane_id": "lane:docs",
+                        "task_id": "task/docs",
+                        "event_status": "completed",
+                        "summary": "Docs worker finished.",
+                        "suggested_action": "append",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        server = create_server(tmp_path, dry_run=True)
+
+        async def exercise_server():
+            list_result = await server.request_handlers[ListToolsRequest](
+                ListToolsRequest()
+            )
+            tools = list_result.root.tools
+            names = {tool.name for tool in tools}
+            assert "readbackInspect" in names
+            readback_tool = next(tool for tool in tools if tool.name == "readbackInspect")
+            schema = readback_tool.inputSchema
+            assert schema["required"] == ["kind"]
+            assert {"kind", "path", "artifactId", "version", "sourceKind", "latestLimit"} <= set(
+                schema["properties"]
+            )
+            assert "Unified read-only readback inspection" in readback_tool.description
+            assert "does not consume worker reports" in readback_tool.description
+            assert "capture screenshots" in readback_tool.description
+
+            call_result = await server.request_handlers[CallToolRequest](
+                CallToolRequest(
+                    params=CallToolRequestParams(
+                        name="readbackInspect",
+                        arguments={
+                            "kind": "worker-report",
+                            "path": ".dbc/agent-output/report-worker.json",
+                        },
+                    )
+                )
+            )
+            payload = json.loads(call_result.root.content[0].text)
+            assert payload["ok"] is True
+            assert payload["record_count"] == 1
+            assert payload["envelopes"][0]["record_id"] == "report-mcp-route-worker"
+            assert payload["authority_split"]["worker_report_consumed"] is False
+            assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
         asyncio.run(exercise_server())
 

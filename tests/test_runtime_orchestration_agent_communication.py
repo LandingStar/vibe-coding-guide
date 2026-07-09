@@ -9,6 +9,7 @@ from src.review.feedback_api import FeedbackAPI
 from src.runtime.orchestration import (
     AgentHomeRegistration,
     ExchangeArtifact,
+    ExchangeCommunicationReadbackEnvelope,
     ExchangeCausality,
     ExchangeContract,
     ExchangeLog,
@@ -27,6 +28,7 @@ from src.runtime.orchestration import (
     build_agent_exchange_action_candidates,
     build_agent_exchange_mailbox,
     build_agent_exchange_history_summary,
+    exchange_artifact_record_to_readback_envelope,
     LogDecorationPipeline,
     RequiredFieldsLogDecorator,
     FeedbackAPIReviewIntakeConsumer,
@@ -685,6 +687,334 @@ def test_agent_exchange_history_reports_missing_or_invalid_store(tmp_path) -> No
     assert invalid.exists is True
     assert invalid.errors
     assert "invalid exchange artifact store JSON" in invalid.errors[0]
+
+
+def test_exchange_communication_readback_envelope_projects_query_without_mutation(
+    tmp_path,
+) -> None:
+    store_path = tmp_path / "exchange-artifacts.json"
+    store = JsonArtifactVersionStore(store_path)
+    store.put(
+        ExchangeArtifact(
+            artifact_id="ex-question",
+            version="v1",
+            kind="query",
+            intent="ask",
+            producer="agent:guide",
+            audience=("agent:client",),
+            lifecycle_state="proposed",
+            created_at="2026-07-09T14:00:00+08:00",
+            scope=ExchangeScope(
+                trajectory_id="trajectory:local",
+                lane_id="lane:client",
+                task_id="task:client",
+                context_id="ctx:client",
+                runtime_session_id="session:client",
+            ),
+            parts=(
+                ExchangePayloadPart(part_type="text", text="Please inspect the client API."),
+                ExchangePayloadPart(
+                    part_type="log",
+                    log=ExchangeLog(
+                        timestamp="2026-07-09T14:00:01+08:00",
+                        actor="agent:guide",
+                        action="asked_client",
+                        summary="Guide asked client for API review.",
+                        related_artifact_ids=("ex-question",),
+                        related_event_ids=("event:question",),
+                        related_run_ids=("run:client",),
+                        sequence=1,
+                    ),
+                ),
+            ),
+        )
+    )
+    before = store_path.read_text(encoding="utf-8")
+
+    record = JsonArtifactVersionStore(store_path).list_records()[0]
+    envelope = exchange_artifact_record_to_readback_envelope(record)
+    payload = envelope.to_json_dict()
+
+    assert isinstance(envelope, ExchangeCommunicationReadbackEnvelope)
+    assert store_path.read_text(encoding="utf-8") == before
+    assert payload["schema_version"] == "exchange-communication-readback-envelope.v1"
+    assert payload["record_id"] == "ex-question@v1"
+    assert payload["record_kind"] == "exchange_communication"
+    assert payload["timestamp"] == "2026-07-09T14:00:00+08:00"
+    assert payload["actor"] == "agent:guide"
+    assert payload["action"] == "exchange_ask"
+    assert payload["status"] == "proposed"
+    assert payload["summary"] == (
+        "Exchange artifact ex-question@v1 is a proposed query from agent:guide "
+        "to agent:client with intent ask. Log summary: Guide asked client for API review."
+    )
+    assert payload["reason"] == (
+        "Artifact kind, intent, lifecycle, or relation indicates expected next action: reply."
+    )
+    assert payload["run_id"] == "run:client"
+    assert payload["correlation_id"] == "run:client"
+    assert payload["next_hint"] == "Inspect replies to ex-question@v1 or the audience mailbox."
+    assert payload["action_expected"] is True
+    assert payload["action_expectation"] == "reply"
+    assert payload["part_types"] == ["text", "log"]
+    assert payload["raw_payload_persisted"] is False
+    assert {
+        "kind": "task",
+        "id": "task:client",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in payload["subject_refs"]
+    assert {
+        "kind": "provider_session",
+        "id": "session:client",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in payload["subject_refs"]
+    assert {
+        "kind": "exchange_log",
+        "id": "ex-question@v1:log-1",
+        "path": "",
+        "version": "",
+        "label": "asked_client",
+        "role": "evidence",
+    } in payload["evidence_refs"]
+    assert "event:question" in payload["related_record_ids"]
+    encoded = json.dumps(payload, ensure_ascii=False)
+    assert "Please inspect the client API" not in encoded
+
+
+def test_exchange_communication_readback_envelope_projects_reply_and_relations() -> None:
+    record = _records(
+        ExchangeArtifact(
+            artifact_id="ex-answer",
+            version="v2",
+            kind="message",
+            intent="inform",
+            producer="agent:client",
+            audience=("agent:guide",),
+            lifecycle_state="accepted",
+            causality=ExchangeCausality(
+                replies_to=("ex-question@v1",),
+                caused_by=("ex-question@v1",),
+                correlation_id="thread:api-review",
+            ),
+            parts=(
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-answer-depends",
+                        relation_kind="depends_on",
+                        source=ExchangeReference(ref_kind="agent", ref_id="agent:client"),
+                        target=ExchangeReference(ref_kind="task", ref_id="task:server"),
+                    ),
+                ),
+                ExchangePayloadPart(
+                    part_type="ref",
+                    ref=ExchangeReference(
+                        ref_kind="artifact",
+                        ref_id="artifact:api-spec",
+                        version="v1",
+                        label="API spec",
+                    ),
+                ),
+            ),
+        )
+    )[0]
+
+    envelope = exchange_artifact_record_to_readback_envelope(record)
+    payload = envelope.to_json_dict()
+
+    assert payload["correlation_id"] == "thread:api-review"
+    assert payload["action_expected"] is False
+    assert payload["reason"] == "Communication artifact is linked to an existing exchange thread."
+    assert payload["next_hint"] == "Inspect exchange thread thread:api-review."
+    assert payload["relation_kinds"] == ["depends_on"]
+    assert {
+        "kind": "exchange_artifact",
+        "id": "ex-question@v1",
+        "path": "",
+        "version": "",
+        "label": "replies_to",
+        "role": "input",
+    } in payload["input_refs"]
+    assert {
+        "kind": "artifact",
+        "id": "artifact:api-spec",
+        "path": "",
+        "version": "v1",
+        "label": "API spec",
+        "role": "input",
+    } in payload["input_refs"]
+    assert {
+        "kind": "task",
+        "id": "task:server",
+        "path": "",
+        "version": "",
+        "label": "depends_on:target",
+        "role": "output",
+    } in payload["output_refs"]
+    assert "replies_to:ex-question@v1" in payload["related_record_ids"]
+    assert "relation:rel-answer-depends" in payload["related_record_ids"]
+
+
+def test_exchange_communication_readback_envelope_projects_action_expectations() -> None:
+    records = _records(
+        ExchangeArtifact(
+            artifact_id="ex-schedule",
+            version="v1",
+            kind="request",
+            intent="propose",
+            producer="agent:guide",
+            audience=("scheduler",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={
+                        "product_type": "scheduler_task_submission",
+                        "task_id": "task:client",
+                        "instruction": "do not expose full instructions",
+                    },
+                ),
+            ),
+        ),
+        ExchangeArtifact(
+            artifact_id="ex-review",
+            version="v1",
+            kind="review",
+            intent="require_review",
+            producer="agent:client",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(part_type="structured", data={"review": "required"}),
+            ),
+        ),
+        ExchangeArtifact(
+            artifact_id="ex-blocker",
+            version="v1",
+            kind="blocker",
+            intent="declare_blocked",
+            producer="agent:client",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-block",
+                        relation_kind="blocks",
+                        source=ExchangeReference(ref_kind="task", ref_id="task:client"),
+                        target=ExchangeReference(ref_kind="task", ref_id="task:server"),
+                    ),
+                ),
+            ),
+        ),
+        ExchangeArtifact(
+            artifact_id="ex-merge",
+            version="v1",
+            kind="proposal",
+            intent="request_merge",
+            producer="agent:client",
+            audience=("agent:guide",),
+            lifecycle_state="proposed",
+            parts=(
+                ExchangePayloadPart(
+                    part_type="relation",
+                    relation=ExchangeRelation(
+                        relation_id="rel-merge",
+                        relation_kind="merges_into",
+                        source=ExchangeReference(ref_kind="lane", ref_id="lane:client"),
+                        target=ExchangeReference(ref_kind="lane", ref_id="lane:main"),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    envelopes = {
+        record.artifact_id: exchange_artifact_record_to_readback_envelope(record).to_json_dict()
+        for record in records
+    }
+
+    assert envelopes["ex-schedule"]["action_expectation"] == "scheduler_admission"
+    assert envelopes["ex-schedule"]["next_hint"] == (
+        "Inspect scheduler admission candidates for ex-schedule@v1."
+    )
+    assert {
+        "kind": "task",
+        "id": "task:client",
+        "path": "",
+        "version": "",
+        "label": "scheduler_task_submission",
+        "role": "output",
+    } in envelopes["ex-schedule"]["output_refs"]
+    assert "do not expose full instructions" not in json.dumps(envelopes["ex-schedule"])
+
+    assert envelopes["ex-review"]["action_expectation"] == "review"
+    assert envelopes["ex-review"]["next_hint"] == (
+        "Inspect review intake or action candidates for ex-review@v1."
+    )
+    assert envelopes["ex-blocker"]["action_expectation"] == "blocker_state"
+    assert envelopes["ex-blocker"]["next_hint"] == (
+        "Inspect blocker state or action candidates for ex-blocker@v1."
+    )
+    assert envelopes["ex-merge"]["action_expectation"] == "merge_intake"
+    assert envelopes["ex-merge"]["next_hint"] == (
+        "Inspect merge intake or worker patch review candidates for ex-merge@v1."
+    )
+
+
+def test_exchange_communication_readback_envelope_redacts_sensitive_payload_body() -> None:
+    record = _records(
+        ExchangeArtifact(
+            artifact_id="ex-sensitive",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:secret",
+            audience=("agent:guide",),
+            visibility_policy=VisibilityPolicy(
+                audience=("agent:guide",),
+                contains_sensitive_content=True,
+                redaction_required=True,
+            ),
+            parts=(
+                ExchangePayloadPart(part_type="text", text="secret text must not leak"),
+                ExchangePayloadPart(
+                    part_type="structured",
+                    data={"token": "should-not-leak", "product_type": "status"},
+                ),
+                ExchangePayloadPart(
+                    part_type="log",
+                    log=ExchangeLog(
+                        timestamp="2026-07-09T15:00:00+08:00",
+                        actor="agent:secret",
+                        action="reported_sensitive_status",
+                        summary="safe compact sensitive status summary",
+                    ),
+                ),
+            ),
+        )
+    )[0]
+
+    envelope = exchange_artifact_record_to_readback_envelope(record)
+    payload = envelope.to_json_dict()
+    encoded = json.dumps(payload, ensure_ascii=False)
+
+    assert payload["sensitivity"] == "secret-bearing-redacted"
+    assert payload["redaction_state"] == "redacted"
+    assert payload["reason"] == (
+        "Visibility policy requires redaction; payload body is omitted from readback."
+    )
+    assert payload["raw_payload_persisted"] is False
+    assert "safe compact sensitive status summary" in encoded
+    assert "secret text must not leak" not in encoded
+    assert "should-not-leak" not in encoded
 
 
 def test_agent_exchange_action_candidates_classify_scheduler_and_coordination_actions() -> None:

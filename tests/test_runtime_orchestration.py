@@ -62,6 +62,8 @@ from src.runtime.orchestration import (
     HostSchedulerRunEvidence,
     HostSchedulerRunEvidenceSummary,
     HostSchedulerRunResult,
+    HostEvidenceErrorReadbackEnvelope,
+    HostEvidenceReadbackEnvelope,
     InMemoryArtifactVersionStore,
     JsonArtifactVersionStore,
     JsonExchangeArtifactAdmissionLedger,
@@ -164,6 +166,7 @@ from src.runtime.orchestration import (
     lane_ownership_from_json_dict,
     record_continuous_worker_binding_reuse,
     promote_server_api_created_session_to_continuous_worker_binding,
+    inspect_readback,
     inspect_worker_binding_promotion_candidates,
     read_delivery_lease_ledger,
     read_lane_ownership_ledger,
@@ -210,6 +213,7 @@ from src.runtime.orchestration import (
     RuntimeHostInvocation,
     RunEvent,
     RuntimeInvocationRecord,
+    RuntimeInvocationReadbackEnvelope,
     RuntimeProviderPermissionGrant,
     RuntimeRegistryWiringConfig,
     RuntimeRegistryWiringResult,
@@ -245,6 +249,9 @@ from src.runtime.orchestration import (
     GuideWorkerParallelWave,
     GuideWorkerPlannerLaneSpec,
     GuideWorkerPlanningRequest,
+    READBACK_INSPECTION_SUPPORTED_KINDS,
+    ReadbackInspectionRequest,
+    ReadbackInspectionResult,
     execute_guide_worker_parallel_wave,
     guide_worker_instructions_from_sequence,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
@@ -252,6 +259,8 @@ from src.runtime.orchestration import (
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_SCHEMA_VERSION,
     SupervisorAgentStorageBindingRequest,
     SupervisorStorageBindingEvidenceSummary,
+    ValidationReceiptReadbackEnvelope,
+    WorkerReportReadbackEnvelope,
     WorkerTrajectoryReportConsumerRequest,
     WorkerTrajectoryReportConsumerResult,
     acknowledge_leader_worker_delivery,
@@ -320,6 +329,11 @@ from src.runtime.orchestration import (
     replay_scheduler_events,
     resolve_scheduler_merge_gate,
     resolve_task_permission_review,
+    scheduler_event_to_readback_envelope,
+    host_evidence_card_to_readback_envelope,
+    host_evidence_error_to_readback_envelope,
+    host_evidence_presentation_to_readback_envelopes,
+    host_evidence_summary_to_readback_envelope,
     run_preflighted_task,
     run_persisted_scheduler_once,
     run_persisted_scheduler_once_with_wiring,
@@ -417,6 +431,7 @@ from src.runtime.orchestration import (
     summarize_scheduler_queue,
     select_ready_worker_parallel_wave,
     wake_dependent_tasks,
+    validation_receipt_to_readback_envelope,
     write_compacted_scheduler_snapshot,
     read_scheduler_daemon_lifecycle_control,
     write_host_scheduler_run_evidence,
@@ -430,11 +445,13 @@ from src.runtime.orchestration import (
     preflight_worker_patch_composition,
     review_worker_patch_action_candidate,
     worker_patch_composition_refs_from_tokens,
+    worker_report_to_readback_envelope,
     write_scheduler_state_snapshot,
     write_sandbox_allocation_receipt_evidence,
     write_scheduler_loop_evidence,
     write_supervisor_storage_binding_evidence,
     runtime_invocation_record_to_decoration_record,
+    runtime_invocation_record_to_readback_envelope,
     run_event_to_decoration_record,
     scheduler_merge_gate_event_to_decoration_record,
 )
@@ -6119,6 +6136,181 @@ def test_run_self_check_doctor_codex_profile_uses_injected_codex_mcp_check(
     assert checks["codex.mcp_exposure"]["secret_safe"] is True
     assert checks["codex.mcp_exposure"]["authority_split"]["mcp_tool_called"] is False
     assert "token" not in json.dumps(payload).lower()
+
+
+def test_validation_receipt_readback_envelope_projects_doctor_report(
+    tmp_path: Path,
+) -> None:
+    from src.runtime.orchestration import run_self_check_doctor
+
+    report = run_self_check_doctor(
+        tmp_path,
+        profile="runtime",
+        which=lambda executable: None,
+    )
+    payload = validation_receipt_to_readback_envelope(
+        report.to_json_dict(),
+        receipt_path=tmp_path / ".dbc" / "doctor-runtime.json",
+        timestamp="2026-07-09T12:00:00+08:00",
+        actor="doctor",
+    ).to_json_dict()
+
+    assert isinstance(
+        validation_receipt_to_readback_envelope(report.to_json_dict()),
+        ValidationReceiptReadbackEnvelope,
+    )
+    assert payload["schema_version"] == "validation-receipt-readback-envelope.v1"
+    assert payload["record_id"] == "doctor:runtime"
+    assert payload["record_kind"] == "validation_receipt"
+    assert payload["timestamp"] == "2026-07-09T12:00:00+08:00"
+    assert payload["actor"] == "doctor"
+    assert payload["action"] == "doctor_profile_ok"
+    assert payload["status"] == "ok"
+    assert payload["source_kind"] == "self_check_report"
+    assert payload["profile"] == "runtime"
+    assert payload["overall_status"] == "ok"
+    assert payload["has_blocking"] is False
+    assert payload["counts"] == {"ok": 1, "warning": 0, "failed": 0, "skipped": 2}
+    assert "Doctor profile runtime completed" in payload["summary"]
+    assert payload["reason"] == "Doctor checks completed without warning or failure status."
+    assert payload["next_hint"] == (
+        "Install OpenCode CLI or pass the expected executable through future doctor context."
+    )
+    assert {
+        "kind": "doctor_profile",
+        "id": "runtime",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in payload["subject_refs"]
+    assert {
+        "kind": "contract",
+        "id": "",
+        "path": "docs/self-check-doctor-contract.md",
+        "version": "",
+        "label": "Self-check / Doctor Contract",
+        "role": "input",
+    } in payload["input_refs"]
+    assert "doctor_profile:runtime" in payload["related_record_ids"]
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["raw_payload_persisted"] is False
+
+
+def test_validation_receipt_readback_envelope_projects_self_check_result_without_secret_value() -> None:
+    check = {
+        "schema_version": "self-check-result/v1",
+        "check_id": "codex.mcp_exposure",
+        "profiles": ["codex", "mcp"],
+        "title": "Codex MCP Exposure",
+        "status": "warning",
+        "summary": "Codex MCP config needs attention.",
+        "evidence": {
+            "command_preview": ["codex", "mcp", "list"],
+            "raw_env_value": "OPENAI_API_KEY=should-not-leak",
+        },
+        "suspected_problem": "project_codex_config_missing",
+        "remediation": ["Create .codex/config.toml for this workspace."],
+        "authority_split": {
+            "read_only": True,
+            "provider_executed": False,
+            "mcp_server_started": False,
+            "mcp_tool_called": False,
+            "config_mutated": False,
+            "secret_material_read": False,
+        },
+        "secret_safe": True,
+    }
+
+    envelope = validation_receipt_to_readback_envelope(check)
+    payload = envelope.to_json_dict()
+    payload_text = json.dumps(payload, ensure_ascii=False)
+
+    assert payload["record_id"] == "doctor-check:codex.mcp_exposure"
+    assert payload["source_kind"] == "self_check_result"
+    assert payload["action"] == "doctor_check_warning"
+    assert payload["status"] == "warning"
+    assert payload["check_id"] == "codex.mcp_exposure"
+    assert payload["profile"] == "codex,mcp"
+    assert payload["reason"] == "Suspected problem: project_codex_config_missing."
+    assert payload["next_hint"] == "Create .codex/config.toml for this workspace."
+    assert payload["remediation_count"] == 1
+    assert payload["evidence_key_count"] == 2
+    assert {
+        "kind": "evidence_key",
+        "id": "raw_env_value",
+        "path": "",
+        "version": "",
+        "label": "value omitted",
+        "role": "evidence",
+    } in payload["evidence_refs"]
+    assert "should-not-leak" not in payload_text
+    assert "OPENAI_API_KEY=should-not-leak" not in payload_text
+
+
+def test_validation_receipt_readback_envelope_projects_constraint_result() -> None:
+    receipt = {
+        "command_status": "ok",
+        "governance_status": "blocked",
+        "blocking_constraints": ["C5"],
+        "violations": [
+            {
+                "constraint": "C5",
+                "message": "No planning-gate document found. Create one before implementation.",
+                "severity": "block",
+            }
+        ],
+        "has_blocking": True,
+        "files_to_reread": [
+            "design_docs/Project Master Checklist.md",
+            "design_docs/Global Phase Map and Current Position.md",
+        ],
+        "current_phase": "Post-v1.0",
+        "active_planning_gate": "",
+        "state_source": "checklist",
+        "machine_checked_constraints": [
+            {"constraint": "C4", "enforcement": "machine-checked"}
+        ],
+        "instruction_layer_constraints": [
+            {"constraint": "C6", "enforcement": "instruction-layer"}
+        ],
+        "runtime_enforcement_summary": "Runtime currently machine-checks C4.",
+    }
+
+    payload = validation_receipt_to_readback_envelope(receipt).to_json_dict()
+
+    assert payload["record_id"] == "validate:checklist"
+    assert payload["source_kind"] == "constraint_result"
+    assert payload["action"] == "validate_blocked"
+    assert payload["status"] == "blocked"
+    assert payload["governance_status"] == "blocked"
+    assert payload["overall_status"] == "ok"
+    assert payload["has_blocking"] is True
+    assert payload["counts"] == {
+        "blocking_constraints": 1,
+        "violations": 1,
+        "files_to_reread": 2,
+        "machine_checked_constraints": 1,
+        "instruction_layer_constraints": 1,
+    }
+    assert payload["summary"] == "Validation for Post-v1.0 is blocked by C5."
+    assert payload["reason"] == (
+        "No planning-gate document found. Create one before implementation."
+    )
+    assert payload["next_hint"] == (
+        "No planning-gate document found. Create one before implementation."
+    )
+    assert {
+        "kind": "constraint",
+        "id": "C5",
+        "path": "",
+        "version": "",
+        "label": "blocking",
+        "role": "evidence",
+    } in payload["evidence_refs"]
+    assert "constraint:C5" in payload["related_record_ids"]
+    assert "file:design_docs/Project Master Checklist.md" in payload["related_record_ids"]
 
 
 def test_opencode_cli_readiness_self_check_uses_injected_which(tmp_path: Path) -> None:
@@ -14908,6 +15100,309 @@ def test_scheduler_event_log_rejects_invalid_jsonl(tmp_path) -> None:
         event_log.read_all()
 
 
+def test_scheduler_event_readback_envelope_projects_task_lifecycle_events() -> None:
+    ready = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-ready",
+            event_kind="task_ready",
+            timestamp="2026-07-08T10:00:00+08:00",
+            task_id="task:server",
+            from_state="proposed",
+            to_state="ready",
+            sequence=1,
+        ),
+        actor="scheduler-test",
+    ).to_json_dict()
+
+    assert ready["schema_version"] == "scheduler-event-readback-envelope.v1"
+    assert ready["record_id"] == "scheduler-event-ready"
+    assert ready["record_kind"] == "scheduler_event"
+    assert ready["actor"] == "scheduler-test"
+    assert ready["action"] == "task_ready"
+    assert ready["status"] == "ready"
+    assert ready["summary"] == "Task task:server is ready."
+    assert ready["reason"] == "Scheduler lifecycle transition recorded."
+    assert ready["subject_refs"] == [
+        {
+            "kind": "task",
+            "id": "task:server",
+            "path": "",
+            "version": "",
+            "label": "",
+            "role": "subject",
+        }
+    ]
+    assert ready["next_hint"] == "Inspect scheduler task task:server."
+    assert ready["sensitivity"] == "internal"
+    assert ready["redaction_state"] == "contains_no_raw_secret"
+    assert ready["raw_payload_persisted"] is False
+    assert ready["replay_effect"] == "state_mutating"
+
+    running = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-running",
+            event_kind="task_running",
+            timestamp="2026-07-08T10:01:00+08:00",
+            task_id="task:server",
+            from_state="ready",
+            to_state="running",
+            session_id="session:server",
+            sequence=2,
+        )
+    ).to_json_dict()
+
+    assert running["status"] == "running"
+    assert running["summary"] == "Task task:server started running."
+    assert {
+        "kind": "provider_session",
+        "id": "session:server",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in running["subject_refs"]
+
+    completed = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-completed",
+            event_kind="task_completed",
+            timestamp="2026-07-08T10:02:00+08:00",
+            task_id="task:server",
+            from_state="running",
+            to_state="complete",
+            run_id="run:server",
+            session_id="session:server",
+            output_artifact_id="artifact:server-report",
+            output_artifact_version="v1",
+            related_artifact_ids=("artifact:server-report", "artifact:run-receipt"),
+            sequence=3,
+        )
+    ).to_json_dict()
+
+    assert completed["status"] == "complete"
+    assert (
+        completed["summary"]
+        == "Task task:server completed with output artifact:server-report."
+    )
+    assert completed["run_id"] == "run:server"
+    assert completed["correlation_id"] == "run:server"
+    assert completed["output_refs"] == [
+        {
+            "kind": "artifact",
+            "id": "artifact:server-report",
+            "path": "",
+            "version": "v1",
+            "label": "",
+            "role": "output",
+        }
+    ]
+    assert {
+        "kind": "artifact",
+        "id": "artifact:run-receipt",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "evidence",
+    } in completed["evidence_refs"]
+    assert completed["next_hint"] == "Inspect output artifact artifact:server-report."
+    assert "scheduler-event-sequence:3" in completed["related_record_ids"]
+
+
+def test_scheduler_event_readback_envelope_projects_waiting_and_failed_events() -> None:
+    waiting = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-waiting",
+            event_kind="task_waiting",
+            timestamp="2026-07-08T11:00:00+08:00",
+            task_id="task:client",
+            from_state="proposed",
+            to_state="waiting",
+            related_dependency_ids=("dependency:server-before-client",),
+            sequence=4,
+        )
+    ).to_json_dict()
+
+    assert waiting["status"] == "waiting"
+    assert waiting["summary"] == "Task task:client is waiting."
+    assert waiting["reason"] == "Waiting on or blocked by related scheduler dependencies."
+    assert waiting["input_refs"] == [
+        {
+            "kind": "dependency",
+            "id": "dependency:server-before-client",
+            "path": "",
+            "version": "",
+            "label": "",
+            "role": "input",
+        }
+    ]
+    assert waiting["next_hint"] == "Inspect related scheduler dependencies and their source tasks."
+
+    blocked = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-blocked",
+            event_kind="task_blocked",
+            timestamp="2026-07-08T11:00:30+08:00",
+            task_id="task:client",
+            from_state="waiting",
+            to_state="blocked",
+            related_dependency_ids=("dependency:server-before-client",),
+        )
+    ).to_json_dict()
+
+    assert blocked["status"] == "blocked"
+    assert blocked["summary"] == "Task task:client is blocked."
+    assert blocked["reason"] == "Waiting on or blocked by related scheduler dependencies."
+    assert blocked["next_hint"] == "Inspect scheduler task task:client and related dependencies."
+
+    review = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-review",
+            event_kind="task_review_required",
+            timestamp="2026-07-08T11:00:45+08:00",
+            task_id="task:client",
+            from_state="ready",
+            to_state="review_required",
+        )
+    ).to_json_dict()
+
+    assert review["status"] == "review_required"
+    assert review["summary"] == "Task task:client requires review."
+    assert review["reason"] == "Scheduler event requires review before the task can continue."
+    assert review["next_hint"] == "Inspect review or permission artifacts for task task:client."
+
+    failed = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-failed",
+            event_kind="task_run_failed",
+            timestamp="2026-07-08T11:01:00+08:00",
+            task_id="task:client",
+            from_state="running",
+            to_state="blocked",
+            run_id="run:client",
+            session_id="session:client",
+            related_dependency_ids=("dependency:server-before-client",),
+            related_artifact_ids=("artifact:failure-report",),
+            metadata={"raw_stderr": "must not be copied"},
+            sequence=5,
+        )
+    ).to_json_dict()
+
+    assert failed["status"] == "failed"
+    assert failed["summary"] == "Task task:client failed during runtime execution."
+    assert failed["reason"] == "Runtime execution failed or scheduler marked the task failed."
+    assert failed["correlation_id"] == "run:client"
+    assert failed["next_hint"] == (
+        "Inspect runtime invocation and delivery records for run run:client."
+    )
+    assert {
+        "kind": "run",
+        "id": "run:client",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in failed["subject_refs"]
+    assert {
+        "kind": "provider_session",
+        "id": "session:client",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in failed["subject_refs"]
+    assert {
+        "kind": "artifact",
+        "id": "artifact:failure-report",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "evidence",
+    } in failed["evidence_refs"]
+    assert "raw_stderr" not in json.dumps(failed)
+
+
+def test_scheduler_event_readback_envelope_marks_audit_only_and_lease_events() -> None:
+    audit_only = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-audit:continuous-worker-lease-started",
+            event_kind="continuous_worker_delivery_lease_started",
+            timestamp="2026-07-08T12:00:00+08:00",
+            task_id="",
+            related_artifact_ids=("delivery-lease:lane:server",),
+            metadata={
+                "audit_only": True,
+                "lane_id": "lane:server",
+                "worker_binding_id": "continuous-worker:lane:server",
+            },
+            sequence=6,
+        )
+    ).to_json_dict()
+
+    assert audit_only["status"] == "running"
+    assert audit_only["replay_effect"] == "audit_only"
+    assert audit_only["summary"] == (
+        "Audit-only scheduler event continuous_worker_delivery_lease_started "
+        "recorded for scheduler-audit:continuous-worker-lease-started."
+    )
+    assert audit_only["reason"] == (
+        "Scheduler audit-only event recorded for orchestration readback."
+    )
+    assert audit_only["next_hint"] == (
+        "Inspect orchestration continuity or delivery readback for this audit-only event."
+    )
+    assert {
+        "kind": "artifact",
+        "id": "delivery-lease:lane:server",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "evidence",
+    } in audit_only["evidence_refs"]
+
+    lease = scheduler_event_to_readback_envelope(
+        SchedulerEvent(
+            event_id="scheduler-event-lease",
+            event_kind="lease_acquired",
+            timestamp="2026-07-08T12:01:00+08:00",
+            task_id="task:server",
+            from_state="requested",
+            to_state="acquired",
+            lease_id="lease:server",
+            edit_lease_lifecycle=EditLeaseLifecycleRecord(
+                lease_id="lease:server",
+                task_id="task:server",
+                state="acquired",
+                mode="write",
+                allowed_artifacts=("src/server.py",),
+                acquired_at="2026-07-08T12:01:00+08:00",
+            ),
+            sequence=7,
+        )
+    ).to_json_dict()
+
+    assert lease["status"] == "acquired"
+    assert lease["summary"] == "Lease lease:server recorded lease_acquired."
+    assert lease["reason"] == "Edit lease lifecycle changed."
+    assert {
+        "kind": "lease",
+        "id": "lease:server",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in lease["subject_refs"]
+    assert {
+        "kind": "lease_lifecycle",
+        "id": "lease:server",
+        "path": "",
+        "version": "",
+        "label": "acquired",
+        "role": "input",
+    } in lease["input_refs"]
+    assert lease["next_hint"] == "Inspect edit lease lease:server."
+    assert "lease:server" in lease["related_record_ids"]
+
+
 def test_replay_scheduler_events_recovers_task_state_and_run_records(tmp_path) -> None:
     scheduler_log = JsonlSchedulerEventLog(tmp_path / "scheduler-replay-events.jsonl")
     scheduler_log.append(
@@ -17007,6 +17502,217 @@ def test_runtime_invocation_log_inspection_can_decorate_latest_records(
     assert payload["latest_decoration_results"][0]["record"]["record_id"] == "inv-decoration"
     assert payload["authority_split"]["runtime_invocation_log_mutated"] is False
     assert payload["authority_split"]["raw_transcript_exposed"] is False
+
+
+def test_runtime_invocation_readback_envelope_projects_success_without_mutation(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "invocations.jsonl"
+    log = JsonlRuntimeInvocationLog(log_path)
+    log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-success",
+            provider="opencode",
+            status="succeeded",
+            started_at="2026-07-09T10:00:00+00:00",
+            ended_at="2026-07-09T10:00:02+00:00",
+            task_id="task-success",
+            session_id="session-success",
+            run_id="run-success",
+            agent_id="worker:success",
+            runtime_surface="opencode-delivery-supervisor",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-09T10:00:00+00:00",
+                    ended_at="2026-07-09T10:00:02+00:00",
+                    status="succeeded",
+                    summary="worker completed",
+                    stdout_bytes=123,
+                    stderr_bytes=4,
+                    metadata={
+                        "raw_transcript": "do not copy transcript",
+                        "api_key": "secret-token",
+                    },
+                ),
+            ),
+            metadata={
+                "lane_id": "lane:success",
+                "context_id": "ctx:success",
+                "host_invocation_id": "host:success",
+                "output_artifact_id": "artifact:success",
+                "output_artifact_version": "v2",
+                "raw_transcript": "do not copy raw metadata",
+                "secret_value": "secret-token",
+            },
+        )
+    )
+    before = log_path.read_text(encoding="utf-8")
+
+    record = JsonlRuntimeInvocationLog(log_path).read_all()[0]
+    envelope = runtime_invocation_record_to_readback_envelope(record)
+    payload = envelope.to_json_dict()
+
+    assert isinstance(envelope, RuntimeInvocationReadbackEnvelope)
+    assert log_path.read_text(encoding="utf-8") == before
+    assert payload["record_id"] == "inv-success"
+    assert payload["record_kind"] == "runtime_invocation"
+    assert payload["actor"] == "worker:success"
+    assert payload["action"] == "run_provider_succeeded"
+    assert payload["summary"] == (
+        "Runtime provider opencode completed task-success: worker completed"
+    )
+    assert payload["reason"] == "Runtime invocation completed successfully."
+    assert payload["run_id"] == "run-success"
+    assert payload["correlation_id"] == "run-success"
+    assert payload["stdout_bytes"] == 123
+    assert payload["stderr_bytes"] == 4
+    assert payload["raw_payload_persisted"] is False
+    assert {"kind": "task", "id": "task-success", "path": "", "version": "", "label": "", "role": "subject"} in payload["subject_refs"]
+    assert {"kind": "lane", "id": "lane:success", "path": "", "version": "", "label": "", "role": "input"} in payload["input_refs"]
+    assert {"kind": "artifact", "id": "artifact:success", "path": "", "version": "v2", "label": "", "role": "output"} in payload["output_refs"]
+    assert any(ref["kind"] == "runtime_attempt" for ref in payload["evidence_refs"])
+    encoded = json.dumps(payload, ensure_ascii=False)
+    assert "raw_transcript" not in encoded
+    assert "secret-token" not in encoded
+
+
+def test_runtime_invocation_readback_envelope_marks_retryable_failure() -> None:
+    record = RuntimeInvocationRecord(
+        invocation_id="inv-retry-failed",
+        provider="codex",
+        status="failed",
+        started_at="2026-07-09T11:00:00+00:00",
+        ended_at="2026-07-09T11:00:05+00:00",
+        task_id="task-retry",
+        session_id="session-retry",
+        agent_id="worker:retry",
+        runtime_surface="codex-delivery-supervisor",
+        attempt_count=2,
+        retry_policy=RuntimeRetryPolicy(max_attempts=2, backoff_seconds=0.1),
+        attempts=(
+            RuntimeAttemptRecord(
+                attempt_index=1,
+                started_at="2026-07-09T11:00:00+00:00",
+                ended_at="2026-07-09T11:00:01+00:00",
+                status="failed",
+                retryable=True,
+                error_kind="timeout",
+                summary="temporary timeout",
+            ),
+            RuntimeAttemptRecord(
+                attempt_index=2,
+                started_at="2026-07-09T11:00:02+00:00",
+                ended_at="2026-07-09T11:00:05+00:00",
+                status="failed",
+                retryable=True,
+                error_kind="timeout",
+                summary="timeout again",
+            ),
+        ),
+        final_error_kind="timeout",
+        final_summary="provider timed out",
+    )
+
+    envelope = runtime_invocation_record_to_readback_envelope(record)
+
+    assert envelope.status == "failed"
+    assert envelope.retryable is True
+    assert envelope.retry_exhausted is True
+    assert envelope.final_error_kind == "timeout"
+    assert "Retryable failure exhausted" in envelope.reason
+    assert envelope.next_hint == (
+        "Inspect delivery retry policy and runtime attempts for invocation "
+        "inv-retry-failed."
+    )
+    payload = envelope.to_json_dict()
+    assert len(payload["evidence_refs"]) == 3
+    assert any("retryable" in ref["label"] for ref in payload["evidence_refs"])
+
+
+def test_runtime_invocation_readback_envelope_marks_non_retryable_failure() -> None:
+    record = RuntimeInvocationRecord(
+        invocation_id="inv-auth-failed",
+        provider="qoder",
+        status="failed",
+        started_at="2026-07-09T12:00:00+00:00",
+        ended_at="2026-07-09T12:00:01+00:00",
+        task_id="task-auth",
+        run_id="run-auth",
+        attempt_count=1,
+        retry_policy=RuntimeRetryPolicy(max_attempts=3),
+        attempts=(
+            RuntimeAttemptRecord(
+                attempt_index=1,
+                started_at="2026-07-09T12:00:00+00:00",
+                ended_at="2026-07-09T12:00:01+00:00",
+                status="failed",
+                retryable=False,
+                error_kind="authentication_failed",
+                summary="auth rejected",
+            ),
+        ),
+        final_error_kind="authentication_failed",
+        final_summary="auth rejected",
+    )
+
+    envelope = runtime_invocation_record_to_readback_envelope(record)
+
+    assert envelope.retryable is False
+    assert envelope.retry_exhausted is False
+    assert "not marked retryable" in envelope.reason
+    assert envelope.next_hint == "Inspect scheduler and delivery records for run run-auth."
+    assert "run:run-auth" in envelope.related_record_ids
+
+
+def test_runtime_invocation_readback_envelope_projects_compacted_retained_record(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "invocations.jsonl"
+    archive_path = tmp_path / "archive.jsonl"
+    log = JsonlRuntimeInvocationLog(log_path)
+    log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-archived",
+            provider="fake",
+            status="succeeded",
+            started_at="2026-07-09T13:00:00+00:00",
+            ended_at="2026-07-09T13:00:01+00:00",
+            attempt_count=1,
+        )
+    )
+    log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-retained",
+            provider="fake",
+            status="succeeded",
+            started_at="2026-07-09T13:01:00+00:00",
+            ended_at="2026-07-09T13:01:01+00:00",
+            task_id="task-retained",
+            attempt_count=1,
+            attempts=(
+                RuntimeAttemptRecord(
+                    attempt_index=1,
+                    started_at="2026-07-09T13:01:00+00:00",
+                    ended_at="2026-07-09T13:01:01+00:00",
+                    status="succeeded",
+                    summary="retained ok",
+                ),
+            ),
+        )
+    )
+
+    compact_runtime_invocation_log(log_path, archive_path, retain_latest=1)
+    retained = inspect_runtime_invocation_log(log_path, latest_limit=1).latest_records[0]
+    envelope = runtime_invocation_record_to_readback_envelope(retained)
+
+    assert envelope.record_id == "inv-retained"
+    assert envelope.summary == "Runtime provider fake completed task-retained: retained ok"
+    assert envelope.next_hint == (
+        "Inspect scheduler task task-retained and delivery acknowledgement."
+    )
+    assert [record.invocation_id for record in JsonlRuntimeInvocationLog(archive_path).read_all()] == ["inv-archived"]
 
 
 def test_worker_binding_promotion_candidate_readback_from_runtime_invocation_log(
@@ -22738,6 +23444,575 @@ def test_worker_trajectory_report_consumer_advances_existing_trajectory(
     assert result.consumed_action == "advance"
     trajectory = load_local_work_trajectory(tmp_path)
     assert trajectory.events["event:001"].status == "completed"
+
+
+def test_worker_report_readback_envelope_projects_trajectory_update_without_mutation(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import trajectory_json_path
+
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="advance")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    envelope = worker_report_to_readback_envelope(
+        report,
+        report_path=report_path,
+        timestamp="2026-07-09T10:00:00+08:00",
+        actor="agent:server-worker",
+    )
+    payload = envelope.to_json_dict()
+
+    assert isinstance(envelope, WorkerReportReadbackEnvelope)
+    assert payload["schema_version"] == "worker-report-readback-envelope.v1"
+    assert payload["record_id"] == "report-worker-trajectory"
+    assert payload["record_kind"] == "worker_report"
+    assert payload["timestamp"] == "2026-07-09T10:00:00+08:00"
+    assert payload["actor"] == "agent:server-worker"
+    assert payload["action"] == "worker_report_suggests_advance"
+    assert payload["status"] == "completed"
+    assert payload["contract_id"] == "contract-worker-trajectory"
+    assert payload["lane_id"] == "lane:server"
+    assert payload["task_id"] == "task/server"
+    assert payload["event_status"] == "completed"
+    assert payload["suggested_action"] == "advance"
+    assert payload["trajectory_update_present"] is True
+    assert payload["leader_consumption_required"] is True
+    assert payload["worker_direct_mutation_allowed"] is False
+    assert payload["changed_artifact_count"] == 1
+    assert payload["verification_count"] == 1
+    assert payload["artifact_payload_count"] == 0
+    assert payload["correlation_id"] == "task/server"
+    assert "Server lane finished and validated." in payload["summary"]
+    assert "leader/main/supervisor" in payload["reason"]
+    assert "consumeWorkerTrajectoryReport" in payload["next_hint"]
+    assert {
+        "kind": "worker_report",
+        "id": "report-worker-trajectory",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in payload["subject_refs"]
+    assert {
+        "kind": "task",
+        "id": "task/server",
+        "path": "",
+        "version": "",
+        "label": "",
+        "role": "subject",
+    } in payload["subject_refs"]
+    assert {
+        "kind": "procedure",
+        "id": "",
+        "path": "docs/worker-trajectory-update-reporting.md",
+        "version": "",
+        "label": "Worker trajectory update reporting",
+        "role": "input",
+    } in payload["input_refs"]
+    assert {
+        "kind": "changed_artifact",
+        "id": "",
+        "path": "server.js",
+        "version": "",
+        "label": "",
+        "role": "output",
+    } in payload["output_refs"]
+    assert any(
+        ref["kind"] == "verification_result" and ref["label"] == "npm test passed"
+        for ref in payload["evidence_refs"]
+    )
+    assert "worker_report:report-worker-trajectory" in payload["related_record_ids"]
+    assert "task:task/server" in payload["related_record_ids"]
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["authority_split"]["worker_direct_mutation_allowed"] is False
+    assert not trajectory_json_path(tmp_path).exists()
+
+
+def test_worker_report_readback_envelope_projects_blocked_report_without_action() -> None:
+    report = {
+        "report_id": "report-worker-blocked",
+        "contract_id": "contract-worker-blocked",
+        "status": "blocked",
+        "changed_artifacts": [],
+        "verification_results": ["pytest not run because upstream API is missing"],
+        "unresolved_items": ["Need server API contract."],
+        "trajectory_update": {
+            "lane_id": "lane:client",
+            "task_id": "task/client",
+            "event_status": "blocked",
+            "summary": "Client lane is blocked by missing API contract.",
+            "suggested_action": "none",
+            "evidence_refs": ["artifact:blocker-note"],
+        },
+    }
+
+    payload = worker_report_to_readback_envelope(report).to_json_dict()
+
+    assert payload["action"] == "worker_report_blocked"
+    assert payload["status"] == "blocked"
+    assert payload["trajectory_update_present"] is True
+    assert payload["leader_consumption_required"] is False
+    assert payload["suggested_action"] == "none"
+    assert payload["reason"] == (
+        "Worker report includes trajectory_update but requests no Local Work mutation."
+    )
+    assert payload["next_hint"] == (
+        "Inspect unresolved items and evidence in worker report report-worker-blocked."
+    )
+    assert payload["unresolved_item_count"] == 1
+    assert "evidence:artifact:blocker-note" in payload["related_record_ids"]
+
+
+def test_worker_report_readback_envelope_omits_artifact_payload_content() -> None:
+    report = {
+        "report_id": "report-worker-payload",
+        "contract_id": "contract-worker-payload",
+        "status": "partial",
+        "changed_artifacts": ["docs/output.md"],
+        "verification_results": ["manual review only"],
+        "artifact_payloads": [
+            {
+                "path": "docs/output.md",
+                "content": "SECRET BODY OPENAI_API_KEY=should-not-leak",
+                "operation": "update",
+                "content_type": "markdown",
+            }
+        ],
+        "trajectory_update": {
+            "lane_id": "lane:docs",
+            "task_id": "task/docs",
+            "event_status": "partial",
+            "summary": "Payload candidate created.",
+            "suggested_action": "append",
+            "leader_notes": ["Token marker OPENAI_API_KEY=should-redact in note"],
+        },
+    }
+
+    payload_text = json.dumps(
+        worker_report_to_readback_envelope(report).to_json_dict(),
+        ensure_ascii=False,
+    )
+
+    assert "SECRET BODY" not in payload_text
+    assert "should-not-leak" not in payload_text
+    assert "OPENAI_API_KEY=should-not-leak" not in payload_text
+    assert "OPENAI_API_KEY=[redacted]" in payload_text
+    payload = json.loads(payload_text)
+    assert payload["artifact_payload_count"] == 1
+    assert {
+        "kind": "artifact_payload",
+        "id": "artifact-payload-0",
+        "path": "docs/output.md",
+        "version": "",
+        "label": "update, markdown",
+        "role": "output",
+    } in payload["output_refs"]
+
+
+def test_host_evidence_card_readback_envelope_projects_screenshot_metadata() -> None:
+    card = {
+        "id": "host-ui-smoke",
+        "title": "Host evidence host-ui-smoke",
+        "subtitle": "monitoring-ui · no_ready_tasks · 2 run(s)",
+        "status": "completed",
+        "severity": "info",
+        "timestamp": "2026-07-09T11:00:00+08:00",
+        "runtime_providers": ["fake"],
+        "host_surface": "monitoring-ui",
+        "invocation_id": "host-run-1",
+        "requested_by": "agent:leader",
+        "stop_reason": "no_ready_tasks",
+        "stop_detail": "All visual smoke checks completed.",
+        "run_count": 2,
+        "output_count": 1,
+        "permission_review_count": 0,
+        "key_facts": [{"label": "Viewport", "value": "1200x800"}],
+        "refs": [
+            {
+                "label": "Evidence",
+                "target": ".dbc/scheduler/evidence/host-ui-smoke.json",
+                "ref_kind": "path",
+            },
+            {
+                "label": "Screenshot",
+                "target": "output/playwright/monitoring-ui/host-ui-smoke.png",
+                "ref_kind": "path",
+            },
+            {
+                "label": "Scheduler projection",
+                "target": ".dbc/progress-graph/scheduler-work-trajectory.json",
+                "ref_kind": "path",
+            },
+        ],
+        "authority_clues": [{"label": "Local trajectory mutated", "value": "false"}],
+        "metadata": {
+            "evidence_product_type": "host_scheduler_run_evidence",
+            "viewport": {"width": 1200, "height": 800},
+            "visual_validation_summary": "Screenshot is nonblank and readable.",
+            "completed_task_ids": ["task:ui"],
+            "evidence_metadata": {
+                "screenshot_path": "output/playwright/monitoring-ui/host-ui-smoke.png",
+            },
+        },
+    }
+
+    envelope = host_evidence_card_to_readback_envelope(
+        card,
+        actor="host-evidence-reader",
+    )
+    payload = envelope.to_json_dict()
+
+    assert isinstance(envelope, HostEvidenceReadbackEnvelope)
+    assert payload["schema_version"] == "host-evidence-readback-envelope.v1"
+    assert payload["record_id"] == "host-ui-smoke"
+    assert payload["record_kind"] == "host_evidence"
+    assert payload["timestamp"] == "2026-07-09T11:00:00+08:00"
+    assert payload["actor"] == "host-evidence-reader"
+    assert payload["action"] == "host_scheduler_run_evidence_completed"
+    assert payload["status"] == "completed"
+    assert payload["evidence_product_type"] == "host_scheduler_run_evidence"
+    assert payload["evidence_path"] == ".dbc/scheduler/evidence/host-ui-smoke.json"
+    assert payload["host_surface"] == "monitoring-ui"
+    assert payload["runtime_providers"] == ["fake"]
+    assert payload["viewport"] == {"width": 1200, "height": 800}
+    assert payload["screenshot_paths"] == [
+        "output/playwright/monitoring-ui/host-ui-smoke.png"
+    ]
+    assert payload["visual_validation_summary"] == (
+        "Screenshot is nonblank and readable."
+    )
+    assert "All visual smoke checks completed." in payload["reason"]
+    assert "Inspect screenshot evidence" in payload["next_hint"]
+    assert {
+        "kind": "screenshot",
+        "id": "",
+        "path": "output/playwright/monitoring-ui/host-ui-smoke.png",
+        "version": "",
+        "label": "Screenshot",
+        "role": "evidence",
+    } in payload["evidence_refs"]
+    assert {
+        "kind": "file",
+        "id": "",
+        "path": ".dbc/progress-graph/scheduler-work-trajectory.json",
+        "version": "",
+        "label": "Scheduler projection",
+        "role": "output",
+    } in payload["output_refs"]
+    assert payload["raw_payload_persisted"] is False
+    assert payload["authority_split"]["browser_executed"] is False
+    assert payload["authority_split"]["screenshot_captured"] is False
+    assert payload["authority_split"]["raw_screenshot_bytes_persisted_inline"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_host_evidence_summary_readback_envelope_projects_sandbox_cleanup() -> None:
+    summary = {
+        "product_type": "sandbox_allocation_receipt_evidence",
+        "schema_version": "1",
+        "evidence_path": ".dbc/scheduler/evidence/sandbox-cleanup.json",
+        "evidence_id": "sandbox-cleanup",
+        "timestamp": "2026-07-09T11:05:00+08:00",
+        "allocation_count": 1,
+        "allocations": [
+            {
+                "allocation_id": "allocation:worker-a",
+                "provider": "git-worktree",
+                "task_id": "task:a",
+                "cleanup_required": True,
+                "git_worktree_receipt": {
+                    "worktree_path": ".dbc/sandboxes/worker-a",
+                    "branch_name": "dbc-sandbox-worker-a",
+                    "cleanup_state": "required",
+                },
+            }
+        ],
+        "authority_split": {
+            "cleanup_executed": False,
+            "local_work_trajectory_mutated": False,
+        },
+        "metadata": {
+            "surface": "sandbox-cleanup",
+            "screenshot_path": "output/playwright/sandbox-cleanup/receipt.png",
+            "viewport_width": "1440",
+            "viewport_height": "900",
+        },
+    }
+
+    payload = host_evidence_summary_to_readback_envelope(
+        summary,
+        actor="host-evidence-reader",
+    ).to_json_dict()
+
+    assert payload["record_id"] == "sandbox-cleanup"
+    assert payload["action"] == "sandbox_allocation_receipt_evidence_partial"
+    assert payload["status"] == "partial"
+    assert payload["severity"] == "warning"
+    assert payload["stop_reason"] == "cleanup_required"
+    assert payload["evidence_path"] == ".dbc/scheduler/evidence/sandbox-cleanup.json"
+    assert payload["runtime_providers"] == ["git-worktree"]
+    assert payload["viewport"] == {"width": "1440", "height": "900"}
+    assert payload["screenshot_paths"] == [
+        "output/playwright/sandbox-cleanup/receipt.png"
+    ]
+    assert "still require explicit cleanup" in payload["reason"]
+    assert payload["authority_split"]["sandbox_cleanup_executed"] is False
+
+
+def test_host_evidence_presentation_readback_projects_errors_without_raw_payload() -> None:
+    presentation = {
+        "generated_at": "2026-07-09T11:10:00+08:00",
+        "cards": [],
+        "error_rows": [
+            {
+                "id": "host-evidence-error:1",
+                "status": "read-error",
+                "severity": "error",
+                "evidence_path": ".dbc/scheduler/evidence/bad.json",
+                "error_kind": "invalid_evidence",
+                "message": "bad token OPENAI_API_KEY=secret-value in evidence parse error",
+            }
+        ],
+    }
+
+    envelopes = host_evidence_presentation_to_readback_envelopes(
+        presentation,
+        actor="host-evidence-reader",
+    )
+    payload = envelopes[0].to_json_dict()
+
+    assert len(envelopes) == 1
+    assert isinstance(envelopes[0], HostEvidenceErrorReadbackEnvelope)
+    assert payload["record_id"] == "host-evidence-error:1"
+    assert payload["record_kind"] == "host_evidence_error"
+    assert payload["timestamp"] == "2026-07-09T11:10:00+08:00"
+    assert payload["status"] == "failed"
+    assert payload["error_kind"] == "invalid_evidence"
+    assert "OPENAI_API_KEY=[redacted]" in payload["reason"]
+    assert "secret-value" not in json.dumps(payload, ensure_ascii=False)
+    assert payload["raw_payload_persisted"] is False
+    assert payload["authority_split"]["provider_executed"] is False
+    assert payload["authority_split"]["scheduler_state_mutated"] is False
+
+
+def test_readback_inspection_runtime_helper_projects_supported_file_families(
+    tmp_path: Path,
+) -> None:
+    assert set(READBACK_INSPECTION_SUPPORTED_KINDS) == {
+        "worker-report",
+        "validation-receipt",
+        "runtime-invocation-log",
+        "scheduler-event-log",
+        "exchange-artifact",
+        "host-evidence",
+    }
+
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="advance")
+    worker = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="worker_report",
+            path=".dbc/agent-output/report-worker.json",
+            timestamp="2026-07-09T12:00:00+08:00",
+        )
+    )
+
+    receipt_path = tmp_path / ".dbc" / "validation" / "validate.json"
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_text(
+        json.dumps(
+            {
+                "command_status": "ok",
+                "governance_status": "passed",
+                "blocking_constraints": [],
+                "violations": [],
+                "files_to_reread": [],
+                "current_phase": "Post-v1.0",
+                "active_planning_gate": "",
+                "state_source": "checklist",
+            }
+        ),
+        encoding="utf-8",
+    )
+    validation = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="validation-receipt",
+            path=receipt_path,
+            source_kind="constraint_result",
+        )
+    )
+
+    runtime_path = tmp_path / ".dbc" / "runtime" / "invocations.jsonl"
+    runtime_log = JsonlRuntimeInvocationLog(runtime_path)
+    runtime_log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-old",
+            provider="codex",
+            status="succeeded",
+            started_at="2026-07-09T10:00:00+00:00",
+            ended_at="2026-07-09T10:00:01+00:00",
+            task_id="task-old",
+        )
+    )
+    runtime_log.append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-latest",
+            provider="opencode",
+            status="failed",
+            started_at="2026-07-09T10:01:00+00:00",
+            ended_at="2026-07-09T10:01:01+00:00",
+            task_id="task-latest",
+            final_error_kind="network",
+            final_summary="temporary service failure",
+        )
+    )
+    runtime = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="runtime-invocation-log",
+            path=".dbc/runtime/invocations.jsonl",
+            latest_limit=1,
+        )
+    )
+    runtime_zero = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="runtime-invocation-log",
+            path=".dbc/runtime/invocations.jsonl",
+            latest_limit=0,
+        )
+    )
+
+    scheduler_path = tmp_path / ".dbc" / "scheduler" / "events.jsonl"
+    scheduler_log = JsonlSchedulerEventLog(scheduler_path)
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-old",
+            event_kind="task_ready",
+            timestamp="2026-07-09T10:00:00+00:00",
+            task_id="task-old",
+            to_state="ready",
+        )
+    )
+    scheduler_log.append(
+        SchedulerEvent(
+            event_id="scheduler-event-latest",
+            event_kind="task_completed",
+            timestamp="2026-07-09T10:01:00+00:00",
+            task_id="task-latest",
+            to_state="complete",
+            output_artifact_id="artifact-latest",
+            output_artifact_version="v1",
+        )
+    )
+    scheduler = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="scheduler-event-log",
+            path=".dbc/scheduler/events.jsonl",
+            latest_limit=1,
+        )
+    )
+
+    for result in (worker, validation, runtime, scheduler):
+        assert isinstance(result, ReadbackInspectionResult)
+        assert result.ok is True
+        assert result.record_count == 1
+        payload = result.to_json_dict()
+        assert payload["authority_split"]["read_model_only"] is True
+        assert payload["authority_split"]["provider_executed"] is False
+        assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+    assert worker.envelopes[0]["record_kind"] == "worker_report"
+    assert validation.envelopes[0]["record_kind"] == "validation_receipt"
+    assert runtime.envelopes[0]["record_id"] == "inv-latest"
+    assert runtime_zero.ok is True
+    assert runtime_zero.record_count == 0
+    assert scheduler.envelopes[0]["record_id"] == "scheduler-event-latest"
+
+
+def test_readback_inspection_runtime_helper_projects_exchange_and_host_evidence(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / ".dbc" / "orchestration" / "exchange-artifacts.json"
+    JsonArtifactVersionStore(store_path).put(
+        ExchangeArtifact(
+            artifact_id="ex-readback",
+            version="v1",
+            kind="message",
+            intent="inform",
+            producer="agent:guide",
+            audience=("agent:worker",),
+            lifecycle_state="proposed",
+            created_at="2026-07-09T14:00:00+08:00",
+            parts=(ExchangePayloadPart(part_type="text", text="Do not expose raw text."),),
+        )
+    )
+    exchange = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="exchange-artifact",
+            path=".dbc/orchestration/exchange-artifacts.json",
+            artifact_id="ex-readback",
+        )
+    )
+
+    evidence_dir = tmp_path / ".dbc" / "scheduler" / "evidence"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "bad.json").write_text("{not-json}", encoding="utf-8")
+    host = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="host-evidence",
+            path=".dbc/scheduler/evidence",
+            timestamp="2026-07-09T15:00:00+08:00",
+        )
+    )
+
+    assert exchange.ok is True
+    assert exchange.record_count == 1
+    assert exchange.envelopes[0]["record_id"] == "ex-readback@v1"
+    assert exchange.envelopes[0]["record_kind"] == "exchange_communication"
+    assert "Do not expose raw text" not in json.dumps(exchange.to_json_dict())
+    assert exchange.to_json_dict()["authority_split"]["exchange_store_mutated"] is False
+
+    assert host.ok is True
+    assert host.record_count == 1
+    assert host.envelopes[0]["record_kind"] == "host_evidence_error"
+    assert host.envelopes[0]["status"] == "failed"
+    assert host.to_json_dict()["authority_split"]["browser_executed"] is False
+    assert host.to_json_dict()["authority_split"]["screenshot_captured"] is False
+
+
+def test_readback_inspection_reports_selector_errors_without_mutation(
+    tmp_path: Path,
+) -> None:
+    unsupported = inspect_readback(
+        ReadbackInspectionRequest(project_root=tmp_path, kind="unknown-kind")
+    )
+    missing_path = inspect_readback(
+        ReadbackInspectionRequest(project_root=tmp_path, kind="worker-report")
+    )
+    escaping_path = inspect_readback(
+        ReadbackInspectionRequest(
+            project_root=tmp_path,
+            kind="worker-report",
+            path="../outside.json",
+        )
+    )
+
+    assert unsupported.ok is False
+    assert "unsupported readback kind" in unsupported.errors[0]
+    assert missing_path.ok is False
+    assert "--path is required for worker-report" in missing_path.errors[0]
+    assert missing_path.to_json_dict()["authority_split"]["worker_report_consumed"] is False
+    assert escaping_path.ok is False
+    assert "path escapes project root" in escaping_path.errors[0]
+    assert escaping_path.source_path is None
+    assert escaping_path.to_json_dict()["authority_split"]["local_work_trajectory_mutated"] is False
 
 
 def _write_worker_trajectory_report(

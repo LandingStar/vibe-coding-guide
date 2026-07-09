@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 import jsonschema
+
+from .log_readback import LogRecordRef
 
 WorkerTrajectoryReportConsumerStatus = Literal[
     "consumed",
@@ -35,6 +39,92 @@ _DENIED_CALLER_ROLES = {
 }
 _ALLOWED_CALLER_ROLES = {"", "leader", "main", "supervisor", "guide"}
 _SUPPORTED_ACTIONS = {"append", "advance", "block", "wait", "resume", "close", "none"}
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerReportReadbackEnvelope:
+    """Human/audit-oriented readback projection for one Subagent Report."""
+
+    schema_version: str
+    record_id: str
+    record_kind: str
+    timestamp: str
+    actor: str
+    action: str
+    status: str
+    summary: str
+    reason: str = ""
+    run_id: str = ""
+    correlation_id: str = ""
+    subject_refs: tuple[LogRecordRef, ...] = ()
+    input_refs: tuple[LogRecordRef, ...] = ()
+    output_refs: tuple[LogRecordRef, ...] = ()
+    evidence_refs: tuple[LogRecordRef, ...] = ()
+    related_record_ids: tuple[str, ...] = ()
+    next_hint: str = ""
+    sensitivity: str = "internal"
+    redaction_state: str = "contains_no_raw_secret"
+    raw_payload_persisted: bool = False
+    contract_id: str = ""
+    lane_id: str = ""
+    task_id: str = ""
+    event_status: str = ""
+    suggested_action: str = ""
+    trajectory_update_present: bool = False
+    leader_consumption_required: bool = False
+    worker_direct_mutation_allowed: bool = False
+    changed_artifact_count: int = 0
+    verification_count: int = 0
+    unresolved_item_count: int = 0
+    artifact_payload_count: int = 0
+
+    def to_json_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "record_id": self.record_id,
+            "record_kind": self.record_kind,
+            "timestamp": self.timestamp,
+            "actor": self.actor,
+            "action": self.action,
+            "status": self.status,
+            "summary": self.summary,
+            "reason": self.reason,
+            "run_id": self.run_id,
+            "correlation_id": self.correlation_id,
+            "subject_refs": [ref.to_json_dict() for ref in self.subject_refs],
+            "input_refs": [ref.to_json_dict() for ref in self.input_refs],
+            "output_refs": [ref.to_json_dict() for ref in self.output_refs],
+            "evidence_refs": [ref.to_json_dict() for ref in self.evidence_refs],
+            "related_record_ids": list(self.related_record_ids),
+            "next_hint": self.next_hint,
+            "sensitivity": self.sensitivity,
+            "redaction_state": self.redaction_state,
+            "raw_payload_persisted": self.raw_payload_persisted,
+            "contract_id": self.contract_id,
+            "lane_id": self.lane_id,
+            "task_id": self.task_id,
+            "event_status": self.event_status,
+            "suggested_action": self.suggested_action,
+            "trajectory_update_present": self.trajectory_update_present,
+            "leader_consumption_required": self.leader_consumption_required,
+            "worker_direct_mutation_allowed": self.worker_direct_mutation_allowed,
+            "changed_artifact_count": self.changed_artifact_count,
+            "verification_count": self.verification_count,
+            "unresolved_item_count": self.unresolved_item_count,
+            "artifact_payload_count": self.artifact_payload_count,
+            "authority_split": {
+                "source": "Subagent Report",
+                "trajectory_update_source": "Subagent Report.trajectory_update",
+                "leader_review_required": self.leader_consumption_required,
+                "worker_report_read": True,
+                "local_work_trajectory_mutated": False,
+                "worker_direct_mutation_allowed": self.worker_direct_mutation_allowed,
+                "provider_executed": False,
+                "scheduler_state_mutated": False,
+                "exchange_store_mutated": False,
+            },
+            "worker_report_procedure": "docs/worker-trajectory-update-reporting.md",
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -373,6 +463,116 @@ def consume_worker_trajectory_report(
     )
 
 
+def worker_report_to_readback_envelope(
+    report: Mapping[str, Any],
+    *,
+    report_path: str | Path = "",
+    timestamp: str = "",
+    actor: str = "worker-report",
+) -> WorkerReportReadbackEnvelope:
+    """Project one Subagent Report mapping into a draft readback envelope.
+
+    This is a read-only projection. It does not validate/consume
+    `trajectory_update`, mutate Local Work Trajectory, run providers, or expose
+    raw `artifact_payloads.content`.
+    """
+
+    report_id = _mapping_text(report, "report_id")
+    contract_id = _mapping_text(report, "contract_id")
+    status = _mapping_text(report, "status") or "unknown"
+    trajectory_update = report.get("trajectory_update")
+    update = trajectory_update if isinstance(trajectory_update, Mapping) else {}
+    lane_id = _mapping_text(update, "lane_id")
+    task_id = _mapping_text(update, "task_id")
+    event_status = _mapping_text(update, "event_status")
+    suggested_action = _mapping_text(update, "suggested_action")
+    update_summary = _mapping_text(update, "summary")
+    changed_artifacts = _string_tuple(report.get("changed_artifacts"))
+    artifact_payloads = _artifact_payload_refs(report.get("artifact_payloads"))
+    verification_results = _string_tuple(report.get("verification_results"))
+    unresolved_items = _string_tuple(report.get("unresolved_items"))
+    evidence_ref_values = _string_tuple(update.get("evidence_refs"))
+    leader_notes = _string_tuple(update.get("leader_notes"))
+    record_id = report_id or _path_or_default(report_path, "worker-report")
+    trajectory_update_present = bool(update)
+    leader_consumption_required = bool(
+        trajectory_update_present and suggested_action and suggested_action != "none"
+    )
+    action = (
+        f"worker_report_suggests_{suggested_action}"
+        if leader_consumption_required
+        else f"worker_report_{status}"
+    )
+    return WorkerReportReadbackEnvelope(
+        schema_version="worker-report-readback-envelope.v1",
+        record_id=record_id,
+        record_kind="worker_report",
+        timestamp=timestamp,
+        actor=actor,
+        action=action,
+        status=status,
+        summary=_worker_report_summary(
+            report_id=record_id,
+            contract_id=contract_id,
+            status=status,
+            lane_id=lane_id,
+            task_id=task_id,
+            event_status=event_status,
+            suggested_action=suggested_action,
+            update_summary=update_summary,
+        ),
+        reason=_worker_report_reason(
+            status=status,
+            trajectory_update_present=trajectory_update_present,
+            suggested_action=suggested_action,
+            unresolved_items=unresolved_items,
+        ),
+        correlation_id=_first_non_empty(task_id, contract_id, report_id),
+        subject_refs=_worker_report_subject_refs(
+            report_id=record_id,
+            contract_id=contract_id,
+            lane_id=lane_id,
+            task_id=task_id,
+        ),
+        input_refs=_worker_report_input_refs(contract_id=contract_id),
+        output_refs=_worker_report_output_refs(changed_artifacts, artifact_payloads),
+        evidence_refs=_worker_report_evidence_refs(
+            report_id=record_id,
+            report_path=report_path,
+            verification_results=verification_results,
+            evidence_ref_values=evidence_ref_values,
+            leader_notes=leader_notes,
+        ),
+        related_record_ids=_worker_report_related_record_ids(
+            report_id=record_id,
+            contract_id=contract_id,
+            lane_id=lane_id,
+            task_id=task_id,
+            changed_artifacts=changed_artifacts,
+            evidence_ref_values=evidence_ref_values,
+        ),
+        next_hint=_worker_report_next_hint(
+            report_id=record_id,
+            suggested_action=suggested_action,
+            status=status,
+            unresolved_items=unresolved_items,
+        ),
+        raw_payload_persisted=False,
+        contract_id=contract_id,
+        lane_id=lane_id,
+        task_id=task_id,
+        event_status=event_status,
+        suggested_action=suggested_action,
+        trajectory_update_present=trajectory_update_present,
+        leader_consumption_required=leader_consumption_required,
+        worker_direct_mutation_allowed=False,
+        changed_artifact_count=len(changed_artifacts),
+        verification_count=len(verification_results),
+        unresolved_item_count=len(unresolved_items),
+        artifact_payload_count=len(artifact_payloads),
+    )
+
+
 def _resolve_under_root(root: Path, value: str | Path) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -484,8 +684,275 @@ def _active_event_ids(trajectory: Any) -> list[str]:
     ]
 
 
+def _mapping_text(mapping: Mapping[str, Any], key: str) -> str:
+    value = mapping.get(key, "")
+    if value is None or isinstance(value, (list, tuple, dict, set)):
+        return ""
+    return str(value).strip()
+
+
+def _artifact_payload_refs(value: object) -> tuple[LogRecordRef, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    refs: list[LogRecordRef] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, Mapping):
+            continue
+        path = _mapping_text(item, "path")
+        operation = _mapping_text(item, "operation")
+        content_type = _mapping_text(item, "content_type")
+        refs.append(
+            LogRecordRef(
+                kind="artifact_payload",
+                id=f"artifact-payload-{index}",
+                path=path,
+                label=", ".join(part for part in (operation, content_type) if part),
+                role="output",
+            )
+        )
+    return tuple(refs)
+
+
+def _path_or_default(value: str | Path, default: str) -> str:
+    if not value:
+        return default
+    return str(value)
+
+
+def _worker_report_summary(
+    *,
+    report_id: str,
+    contract_id: str,
+    status: str,
+    lane_id: str,
+    task_id: str,
+    event_status: str,
+    suggested_action: str,
+    update_summary: str,
+) -> str:
+    subject = report_id or "worker report"
+    parts = [f"Worker report {subject} is {status}"]
+    if contract_id:
+        parts.append(f"for contract {contract_id}")
+    if lane_id or task_id:
+        parts.append(f"on {', '.join(item for item in (lane_id, task_id) if item)}")
+    sentence = " ".join(parts) + "."
+    if suggested_action:
+        sentence += f" It suggests Local Work action {suggested_action}."
+    if event_status and event_status != status:
+        sentence += f" Worker-observed event status is {event_status}."
+    if update_summary:
+        sentence += f" Summary: {_bounded_redacted_text(update_summary)}"
+    return sentence
+
+
+def _worker_report_reason(
+    *,
+    status: str,
+    trajectory_update_present: bool,
+    suggested_action: str,
+    unresolved_items: tuple[str, ...],
+) -> str:
+    if trajectory_update_present and suggested_action and suggested_action != "none":
+        return (
+            "Subagent Report.trajectory_update is advisory; leader/main/supervisor "
+            "must review evidence before mutating Local Work Trajectory."
+        )
+    if trajectory_update_present:
+        return "Worker report includes trajectory_update but requests no Local Work mutation."
+    if status == "blocked":
+        return "Worker reported a blocked outcome; inspect unresolved items and evidence."
+    if unresolved_items:
+        return "Worker report has unresolved items that require leader review."
+    return "Worker report recorded for leader review and audit."
+
+
+def _worker_report_subject_refs(
+    *,
+    report_id: str,
+    contract_id: str,
+    lane_id: str,
+    task_id: str,
+) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(kind="worker_report", id=report_id, role="subject")
+    ]
+    if contract_id:
+        refs.append(LogRecordRef(kind="contract", id=contract_id, role="subject"))
+    if lane_id:
+        refs.append(LogRecordRef(kind="lane", id=lane_id, role="subject"))
+    if task_id:
+        refs.append(LogRecordRef(kind="task", id=task_id, role="subject"))
+    return tuple(refs)
+
+
+def _worker_report_input_refs(*, contract_id: str) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(
+            kind="schema",
+            path="docs/specs/subagent-report.schema.json",
+            label="Subagent Report schema",
+            role="input",
+        ),
+        LogRecordRef(
+            kind="procedure",
+            path="docs/worker-trajectory-update-reporting.md",
+            label="Worker trajectory update reporting",
+            role="input",
+        ),
+    ]
+    if contract_id:
+        refs.append(LogRecordRef(kind="contract", id=contract_id, role="input"))
+    return tuple(refs)
+
+
+def _worker_report_output_refs(
+    changed_artifacts: tuple[str, ...],
+    artifact_payloads: tuple[LogRecordRef, ...],
+) -> tuple[LogRecordRef, ...]:
+    refs = [
+        LogRecordRef(kind="changed_artifact", path=path, role="output")
+        for path in changed_artifacts
+    ]
+    refs.extend(artifact_payloads)
+    return tuple(refs)
+
+
+def _worker_report_evidence_refs(
+    *,
+    report_id: str,
+    report_path: str | Path,
+    verification_results: tuple[str, ...],
+    evidence_ref_values: tuple[str, ...],
+    leader_notes: tuple[str, ...],
+) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(
+            kind="worker_report",
+            id=report_id,
+            path=str(report_path) if report_path else "",
+            role="evidence",
+        )
+    ]
+    refs.extend(
+        LogRecordRef(
+            kind="verification_result",
+            id=f"{report_id}:verification-{index}",
+            label=_bounded_redacted_text(result),
+            role="evidence",
+        )
+        for index, result in enumerate(verification_results)
+    )
+    refs.extend(
+        _evidence_ref_from_value(value, index)
+        for index, value in enumerate(evidence_ref_values)
+    )
+    refs.extend(
+        LogRecordRef(
+            kind="leader_note",
+            id=f"{report_id}:leader-note-{index}",
+            label=_bounded_redacted_text(note),
+            role="evidence",
+        )
+        for index, note in enumerate(leader_notes)
+    )
+    return tuple(refs)
+
+
+def _evidence_ref_from_value(value: str, index: int) -> LogRecordRef:
+    if "/" in value or "\\" in value or value.startswith("."):
+        return LogRecordRef(kind="evidence", path=value, role="evidence")
+    return LogRecordRef(kind="evidence", id=value or f"evidence-{index}", role="evidence")
+
+
+def _worker_report_related_record_ids(
+    *,
+    report_id: str,
+    contract_id: str,
+    lane_id: str,
+    task_id: str,
+    changed_artifacts: tuple[str, ...],
+    evidence_ref_values: tuple[str, ...],
+) -> tuple[str, ...]:
+    related: list[str] = []
+    for kind, value in (
+        ("worker_report", report_id),
+        ("contract", contract_id),
+        ("lane", lane_id),
+        ("task", task_id),
+    ):
+        if value:
+            related.append(_related_record_id(kind, value))
+    related.extend(
+        _related_record_id("changed_artifact", artifact)
+        for artifact in changed_artifacts
+    )
+    related.extend(
+        _related_record_id("evidence", evidence)
+        for evidence in evidence_ref_values
+    )
+    return tuple(dict.fromkeys(related))
+
+
+def _worker_report_next_hint(
+    *,
+    report_id: str,
+    suggested_action: str,
+    status: str,
+    unresolved_items: tuple[str, ...],
+) -> str:
+    if suggested_action and suggested_action != "none":
+        return (
+            f"Leader/main/supervisor should review {report_id} and consume "
+            f"trajectory_update.{suggested_action} through consumeWorkerTrajectoryReport "
+            "or an equivalent host-owned call."
+        )
+    if status == "blocked" or unresolved_items:
+        return f"Inspect unresolved items and evidence in worker report {report_id}."
+    return f"Inspect changed artifacts and verification evidence in worker report {report_id}."
+
+
+def _related_record_id(kind: str, value: str) -> str:
+    if value.startswith(f"{kind}:"):
+        return value
+    return f"{kind}:{value}"
+
+
+def _first_non_empty(*values: str) -> str:
+    for value in values:
+        if value:
+            return value
+    return ""
+
+
+def _bounded_redacted_text(value: str, *, limit: int = 240) -> str:
+    text = str(value or "").replace("\r\n", "\n").strip()
+    redacted = text
+    for marker in (
+        "OPENAI_API_KEY",
+        "CODEX_AUTH_TOKEN",
+        "QODER_PERSONAL_ACCESS_TOKEN",
+        "DASHSCOPE_API_KEY",
+    ):
+        redacted = re.sub(
+            rf"{re.escape(marker)}\s*=\s*[^\s,;]+",
+            f"{marker}=[redacted]",
+            redacted,
+        )
+        redacted = re.sub(
+            rf"\b{re.escape(marker)}\b(?!=\[redacted\])",
+            f"{marker}[redacted]",
+            redacted,
+        )
+    if len(redacted) <= limit:
+        return redacted
+    return redacted[: limit - 3].rstrip() + "..."
+
+
 __all__ = [
+    "WorkerReportReadbackEnvelope",
     "WorkerTrajectoryReportConsumerRequest",
     "WorkerTrajectoryReportConsumerResult",
     "consume_worker_trajectory_report",
+    "worker_report_to_readback_envelope",
 ]

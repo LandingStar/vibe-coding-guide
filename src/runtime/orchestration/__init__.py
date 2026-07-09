@@ -44,7 +44,9 @@ from .agent_exchange_history import (
     AgentExchangeCausalityEdge,
     AgentExchangeHistoryLogEntry,
     AgentExchangeHistorySummary,
+    ExchangeCommunicationReadbackEnvelope,
     build_agent_exchange_history_summary,
+    exchange_artifact_record_to_readback_envelope,
     inspect_agent_exchange_history_summary,
 )
 from .agent_exchange_action_candidates import (
@@ -321,6 +323,7 @@ from .log_decoration import (
     LogDecoratorMode,
     RequiredFieldsLogDecorator,
 )
+from .log_readback import LogRecordRef
 from .log_decoration_adapters import (
     agent_activation_event_to_decoration_record,
     audit_event_to_decoration_record,
@@ -485,12 +488,14 @@ from .runtime_invocation_audit import (
     RuntimeInvocationCompactionResult,
     RuntimeInvocationLogSummary,
     RuntimeInvocationRecord,
+    RuntimeInvocationReadbackEnvelope,
     RuntimeInvocationStatus,
     RuntimeRetryPolicy,
     compact_runtime_invocation_log,
     inspect_runtime_invocation_log,
     run_with_runtime_invocation_audit,
     runtime_invocation_record_from_json_dict,
+    runtime_invocation_record_to_readback_envelope,
     utc_runtime_invocation_timestamp,
 )
 from .worker_binding_promotion_readback import (
@@ -498,6 +503,25 @@ from .worker_binding_promotion_readback import (
     WorkerBindingPromotionCandidateReadbackRequest,
     WorkerBindingPromotionCandidateReadbackResult,
     inspect_worker_binding_promotion_candidates,
+)
+from .validation_readback import (
+    ValidationReceiptReadbackEnvelope,
+    validation_receipt_to_readback_envelope,
+)
+from .host_evidence_readback import (
+    HostEvidenceErrorReadbackEnvelope,
+    HostEvidenceReadbackEnvelope,
+    host_evidence_card_to_readback_envelope,
+    host_evidence_error_to_readback_envelope,
+    host_evidence_presentation_to_readback_envelopes,
+    host_evidence_summary_to_readback_envelope,
+)
+from .readback_inspection import (
+    READBACK_INSPECTION_SUPPORTED_KINDS,
+    ReadbackInspectionKind,
+    ReadbackInspectionRequest,
+    ReadbackInspectionResult,
+    inspect_readback,
 )
 from .codex_cli_client import (
     CodexCliApprovalPolicy,
@@ -749,9 +773,11 @@ from .worker_patch_composition import (
     worker_patch_composition_refs_from_tokens,
 )
 from .worker_trajectory_report_consumer import (
+    WorkerReportReadbackEnvelope,
     WorkerTrajectoryReportConsumerRequest,
     WorkerTrajectoryReportConsumerResult,
     consume_worker_trajectory_report,
+    worker_report_to_readback_envelope,
 )
 from .sandbox import (
     GitWorktreeCleanupState,
@@ -837,10 +863,12 @@ from .scheduler_store import (
     JsonlSchedulerMergeGateEventLog,
     SCHEDULER_STATE_SNAPSHOT_VERSION,
     SchedulerCompactionResult,
+    SchedulerEventReadbackEnvelope,
     SchedulerRecoveryResult,
     read_scheduler_state_snapshot,
     recover_scheduler_state,
     replay_scheduler_events,
+    scheduler_event_to_readback_envelope,
     write_compacted_scheduler_snapshot,
     write_scheduler_state_snapshot,
 )
@@ -1136,6 +1164,7 @@ __all__ = [
     "ExchangeArtifactIntent",
     "ExchangeArtifactKind",
     "ExchangeArtifactLifecycleState",
+    "ExchangeCommunicationReadbackEnvelope",
     "DEFAULT_EXCHANGE_ARTIFACT_STORE_RELATIVE_PATH",
     "DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_EVENT_LOG_RELATIVE_PATH",
     "DEFAULT_GUIDE_WORKER_EXCHANGE_DOGFOOD_PREFIX",
@@ -1225,6 +1254,7 @@ __all__ = [
     "JsonlLeaderWorkerDeliveryEventLog",
     "JsonlSchedulerEventLog",
     "JsonlSchedulerMergeGateEventLog",
+    "LogRecordRef",
     "git_worktree_command_receipt_to_decoration_record",
     "git_worktree_sandbox_receipt_to_decoration_record",
     "lane_ownership_event_to_decoration_record",
@@ -1395,6 +1425,7 @@ __all__ = [
     "RuntimeInvocationCompactionResult",
     "RuntimeInvocationLogSummary",
     "RuntimeInvocationRecord",
+    "RuntimeInvocationReadbackEnvelope",
     "RuntimeInvocationStatus",
     "RuntimeProviderPermissionGrant",
     "RuntimeProviderKind",
@@ -1413,6 +1444,14 @@ __all__ = [
     "WorkerPatchCompositionPreflightResult",
     "WorkerPatchCompositionRef",
     "WorkerPatchCompositionStep",
+    "WorkerReportReadbackEnvelope",
+    "ValidationReceiptReadbackEnvelope",
+    "HostEvidenceErrorReadbackEnvelope",
+    "HostEvidenceReadbackEnvelope",
+    "READBACK_INSPECTION_SUPPORTED_KINDS",
+    "ReadbackInspectionKind",
+    "ReadbackInspectionRequest",
+    "ReadbackInspectionResult",
     "WorkerBindingPromotionCandidate",
     "WorkerBindingPromotionCandidateReadbackRequest",
     "WorkerBindingPromotionCandidateReadbackResult",
@@ -1451,6 +1490,7 @@ __all__ = [
     "SCHEDULER_DAEMON_LIFECYCLE_SCHEMA_VERSION",
     "SCHEDULER_STATE_SNAPSHOT_VERSION",
     "SchedulerCompactionResult",
+    "SchedulerEventReadbackEnvelope",
     "SchedulerRecoveryResult",
     "SchedulerDrainResult",
     "SchedulerDrainStopReason",
@@ -1614,6 +1654,12 @@ __all__ = [
     "qoder_query_result_from_response",
     "preflight_worker_patch_composition",
     "consume_worker_trajectory_report",
+    "worker_report_to_readback_envelope",
+    "host_evidence_card_to_readback_envelope",
+    "host_evidence_error_to_readback_envelope",
+    "host_evidence_presentation_to_readback_envelopes",
+    "host_evidence_summary_to_readback_envelope",
+    "inspect_readback",
     "reply_to_exchange_artifact",
     "run_leader_worker_activation_pass",
     "acknowledge_leader_worker_delivery",
@@ -1644,6 +1690,7 @@ __all__ = [
     "exchange_artifact_from_json_dict",
     "exchange_artifact_admission_record_from_json_dict",
     "exchange_artifact_to_json_dict",
+    "exchange_artifact_record_to_readback_envelope",
     "classify_edit_lease_conflict",
     "drain_ready_tasks",
     "evaluate_task_admission",
@@ -1662,6 +1709,7 @@ __all__ = [
     "recover_scheduler_state",
     "request_edit_lease_for_task",
     "replay_scheduler_events",
+    "scheduler_event_to_readback_envelope",
     "resolve_scheduler_merge_gate",
     "resolve_task_permission_review",
     "run_ready_task",
@@ -1832,6 +1880,7 @@ __all__ = [
     "leader_worker_delivery_record_from_json_dict",
     "leader_worker_delivery_state_from_json_dict",
     "runtime_invocation_record_from_json_dict",
+    "runtime_invocation_record_to_readback_envelope",
     "runtime_invocation_record_to_decoration_record",
     "run_event_to_decoration_record",
     "scheduler_event_to_decoration_record",
@@ -1845,6 +1894,7 @@ __all__ = [
     "validate_exchange_artifact",
     "validate_advisory_product_common",
     "validate_no_active_delivery_lease_conflicts",
+    "validation_receipt_to_readback_envelope",
     "wake_dependent_tasks",
     "worker_patch_composition_refs_from_tokens",
     "write_compacted_scheduler_snapshot",

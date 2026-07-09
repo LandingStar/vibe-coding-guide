@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .exchange import ExchangeReference
+from .log_readback import LogRecordRef
 from .runtime_adapter import AgentSpec
 from .scheduler import (
     ContextScope,
@@ -91,6 +92,58 @@ class SchedulerCompactionResult:
             "archive_requested": self.archive_requested,
             "reset_event_log_requested": self.reset_event_log_requested,
             "event_log_truncated": self.event_log_truncated,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SchedulerEventReadbackEnvelope:
+    """Human/audit-oriented readback projection for a SchedulerEvent."""
+
+    schema_version: str
+    record_id: str
+    record_kind: str
+    timestamp: str
+    actor: str
+    action: str
+    status: str
+    summary: str
+    reason: str = ""
+    run_id: str = ""
+    correlation_id: str = ""
+    subject_refs: tuple[LogRecordRef, ...] = ()
+    input_refs: tuple[LogRecordRef, ...] = ()
+    output_refs: tuple[LogRecordRef, ...] = ()
+    evidence_refs: tuple[LogRecordRef, ...] = ()
+    related_record_ids: tuple[str, ...] = ()
+    next_hint: str = ""
+    sensitivity: str = "internal"
+    redaction_state: str = "contains_no_raw_secret"
+    raw_payload_persisted: bool = False
+    replay_effect: str = "state_mutating"
+
+    def to_json_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "record_id": self.record_id,
+            "record_kind": self.record_kind,
+            "timestamp": self.timestamp,
+            "actor": self.actor,
+            "action": self.action,
+            "status": self.status,
+            "summary": self.summary,
+            "reason": self.reason,
+            "run_id": self.run_id,
+            "correlation_id": self.correlation_id,
+            "subject_refs": [ref.to_json_dict() for ref in self.subject_refs],
+            "input_refs": [ref.to_json_dict() for ref in self.input_refs],
+            "output_refs": [ref.to_json_dict() for ref in self.output_refs],
+            "evidence_refs": [ref.to_json_dict() for ref in self.evidence_refs],
+            "related_record_ids": list(self.related_record_ids),
+            "next_hint": self.next_hint,
+            "sensitivity": self.sensitivity,
+            "redaction_state": self.redaction_state,
+            "raw_payload_persisted": self.raw_payload_persisted,
+            "replay_effect": self.replay_effect,
         }
 
 
@@ -826,6 +879,236 @@ def _state_from_scheduler_event(event: SchedulerEvent) -> ScheduledTaskState:
     }:
         return event.to_state
     return "proposed"
+
+
+def scheduler_event_to_readback_envelope(
+    event: SchedulerEvent,
+    *,
+    actor: str = "scheduler",
+) -> SchedulerEventReadbackEnvelope:
+    """Project a scheduler event into a draft log-like readback envelope.
+
+    This is a read-only projection. It does not change scheduler replay or JSONL
+    persistence semantics.
+    """
+
+    status = _scheduler_event_status(event)
+    replay_effect = "audit_only" if _scheduler_event_is_audit_only(event) else "state_mutating"
+    subject_refs = _scheduler_event_subject_refs(event)
+    input_refs = _scheduler_event_input_refs(event)
+    output_refs = _scheduler_event_output_refs(event)
+    evidence_refs = _scheduler_event_evidence_refs(event)
+    reason = event.reason or _scheduler_event_generated_reason(event)
+    return SchedulerEventReadbackEnvelope(
+        schema_version="scheduler-event-readback-envelope.v1",
+        record_id=event.event_id,
+        record_kind="scheduler_event",
+        timestamp=event.timestamp,
+        actor=actor,
+        action=event.event_kind,
+        status=status,
+        summary=_scheduler_event_summary(event, status=status, replay_effect=replay_effect),
+        reason=reason,
+        run_id=event.run_id,
+        correlation_id=_scheduler_event_correlation_id(event),
+        subject_refs=subject_refs,
+        input_refs=input_refs,
+        output_refs=output_refs,
+        evidence_refs=evidence_refs,
+        related_record_ids=_scheduler_event_related_record_ids(event),
+        next_hint=_scheduler_event_next_hint(event, status=status, replay_effect=replay_effect),
+        replay_effect=replay_effect,
+    )
+
+
+def _scheduler_event_status(event: SchedulerEvent) -> str:
+    if event.event_kind == "task_run_failed":
+        return "failed"
+    if event.event_kind == "task_permission_rejected":
+        return "rejected"
+    if event.event_kind == "task_permission_approved":
+        return "accepted"
+    if event.to_state:
+        return event.to_state
+    if event.event_kind.startswith("lease_"):
+        return event.event_kind.removeprefix("lease_")
+    if _scheduler_event_is_audit_only(event):
+        if event.event_kind.endswith("_failed"):
+            return "failed"
+        if event.event_kind.endswith("_completed"):
+            return "complete"
+        if event.event_kind.endswith("_started"):
+            return "running"
+        if event.event_kind.endswith("_suspended"):
+            return "suspended"
+        if event.event_kind.endswith("_released"):
+            return "released"
+        if event.event_kind.endswith("_activated"):
+            return "active"
+        return "recorded"
+    return _state_from_scheduler_event(event)
+
+
+def _scheduler_event_subject_refs(event: SchedulerEvent) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = []
+    if event.task_id:
+        refs.append(LogRecordRef(kind="task", id=event.task_id, role="subject"))
+    if event.lease_id:
+        refs.append(LogRecordRef(kind="lease", id=event.lease_id, role="subject"))
+    if event.run_id:
+        refs.append(LogRecordRef(kind="run", id=event.run_id, role="subject"))
+    if event.session_id:
+        refs.append(LogRecordRef(kind="provider_session", id=event.session_id, role="subject"))
+    return tuple(refs)
+
+
+def _scheduler_event_input_refs(event: SchedulerEvent) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = []
+    refs.extend(
+        LogRecordRef(kind="dependency", id=dependency_id, role="input")
+        for dependency_id in event.related_dependency_ids
+    )
+    if event.edit_lease_lifecycle is not None:
+        refs.append(
+            LogRecordRef(
+                kind="lease_lifecycle",
+                id=event.edit_lease_lifecycle.lease_id,
+                role="input",
+                label=event.edit_lease_lifecycle.state,
+            )
+        )
+    return tuple(refs)
+
+
+def _scheduler_event_output_refs(event: SchedulerEvent) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = []
+    if event.output_artifact_id:
+        refs.append(
+            LogRecordRef(
+                kind="artifact",
+                id=event.output_artifact_id,
+                version=event.output_artifact_version,
+                role="output",
+            )
+        )
+    return tuple(refs)
+
+
+def _scheduler_event_evidence_refs(event: SchedulerEvent) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(kind="event", id=event.event_id, role="evidence", label=event.event_kind)
+    ]
+    refs.extend(
+        LogRecordRef(kind="artifact", id=artifact_id, role="evidence")
+        for artifact_id in event.related_artifact_ids
+        if artifact_id != event.output_artifact_id
+    )
+    return tuple(refs)
+
+
+def _scheduler_event_related_record_ids(event: SchedulerEvent) -> tuple[str, ...]:
+    related: list[str] = []
+    if event.sequence is not None:
+        related.append(f"scheduler-event-sequence:{event.sequence}")
+    related.extend(
+        _related_record_id("dependency", item) for item in event.related_dependency_ids
+    )
+    related.extend(_related_record_id("artifact", item) for item in event.related_artifact_ids)
+    if event.lease_id:
+        related.append(_related_record_id("lease", event.lease_id))
+    return tuple(related)
+
+
+def _related_record_id(kind: str, value: str) -> str:
+    if value.startswith(f"{kind}:"):
+        return value
+    return f"{kind}:{value}"
+
+
+def _scheduler_event_correlation_id(event: SchedulerEvent) -> str:
+    if event.run_id:
+        return event.run_id
+    if event.task_id:
+        return event.task_id
+    if event.lease_id:
+        return event.lease_id
+    return event.event_id
+
+
+def _scheduler_event_generated_reason(event: SchedulerEvent) -> str:
+    status = _scheduler_event_status(event)
+    if event.related_dependency_ids and status in {"waiting", "blocked"}:
+        return "Waiting on or blocked by related scheduler dependencies."
+    if status == "failed":
+        return "Runtime execution failed or scheduler marked the task failed."
+    if status == "review_required":
+        return "Scheduler event requires review before the task can continue."
+    if event.lease_id and event.event_kind.startswith("lease_"):
+        return "Edit lease lifecycle changed."
+    if event.output_artifact_id:
+        return "Scheduler event produced an output artifact reference."
+    if _scheduler_event_is_audit_only(event):
+        return "Scheduler audit-only event recorded for orchestration readback."
+    return "Scheduler lifecycle transition recorded."
+
+
+def _scheduler_event_summary(
+    event: SchedulerEvent,
+    *,
+    status: str,
+    replay_effect: str,
+) -> str:
+    target = event.task_id or event.lease_id or event.event_id
+    if event.event_kind == "task_ready":
+        return f"Task {target} is ready."
+    if event.event_kind == "task_waiting":
+        return f"Task {target} is waiting."
+    if event.event_kind == "task_running":
+        return f"Task {target} started running."
+    if event.event_kind == "task_completed":
+        if event.output_artifact_id:
+            return f"Task {target} completed with output {event.output_artifact_id}."
+        return f"Task {target} completed."
+    if event.event_kind == "task_run_failed":
+        return f"Task {target} failed during runtime execution."
+    if event.event_kind == "task_blocked":
+        return f"Task {target} is blocked."
+    if event.event_kind == "task_review_required":
+        return f"Task {target} requires review."
+    if event.event_kind == "task_permission_approved":
+        return f"Task {target} permission request was approved."
+    if event.event_kind == "task_permission_rejected":
+        return f"Task {target} permission request was rejected."
+    if event.event_kind.startswith("lease_"):
+        return f"Lease {event.lease_id or target} recorded {event.event_kind}."
+    if replay_effect == "audit_only":
+        return f"Audit-only scheduler event {event.event_kind} recorded for {target}."
+    return f"Scheduler event {event.event_kind} recorded for {target} with status {status}."
+
+
+def _scheduler_event_next_hint(
+    event: SchedulerEvent,
+    *,
+    status: str,
+    replay_effect: str,
+) -> str:
+    if status in {"failed", "blocked"}:
+        if event.run_id:
+            return f"Inspect runtime invocation and delivery records for run {event.run_id}."
+        return f"Inspect scheduler task {event.task_id} and related dependencies."
+    if status == "waiting":
+        if event.related_dependency_ids:
+            return "Inspect related scheduler dependencies and their source tasks."
+        return f"Inspect scheduler task {event.task_id} for wait conditions."
+    if status == "review_required":
+        return f"Inspect review or permission artifacts for task {event.task_id}."
+    if event.output_artifact_id:
+        return f"Inspect output artifact {event.output_artifact_id}."
+    if event.lease_id:
+        return f"Inspect edit lease {event.lease_id}."
+    if replay_effect == "audit_only":
+        return "Inspect orchestration continuity or delivery readback for this audit-only event."
+    return f"Inspect scheduler task {event.task_id}."
 
 
 def _scheduler_event_is_audit_only(event: SchedulerEvent) -> bool:

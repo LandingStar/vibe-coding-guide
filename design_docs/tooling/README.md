@@ -6,6 +6,8 @@
 
 - `Document-Driven Workflow Standard.md`
 - `Dual-Package Distribution Standard.md`
+- `Log-like Record Family Gap Inventory.md`
+- `Log-like Record Standard Draft.md`
 - `Module Dependency Direction Standard.md`
 - `local-work-lane-splitting/`
 - `Session Handoff Standard.md`

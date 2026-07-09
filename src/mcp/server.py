@@ -153,6 +153,72 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 },
             ),
             Tool(
+                name="readbackInspect",
+                description=(
+                    "Unified read-only readback inspection over existing records. "
+                    "Supports worker-report, validation-receipt, runtime-invocation-log, "
+                    "scheduler-event-log, exchange-artifact, and host-evidence. "
+                    "This does not consume worker reports, run validation/doctor, "
+                    "execute providers, launch browsers, capture screenshots, mutate "
+                    "scheduler/exchange/evidence/config state, or mutate Local Work Trajectory."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "kind": {
+                            "type": "string",
+                            "description": (
+                                "Readback kind: worker-report, validation-receipt, "
+                                "runtime-invocation-log, scheduler-event-log, "
+                                "exchange-artifact, or host-evidence."
+                            ),
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": (
+                                "Optional source file or directory path. Relative paths "
+                                "resolve under the MCP project root. Required for most "
+                                "file-backed kinds except host-evidence and exchange-artifact."
+                            ),
+                        },
+                        "artifactId": {
+                            "type": "string",
+                            "description": "ExchangeArtifact id for kind=exchange-artifact.",
+                        },
+                        "version": {
+                            "type": "string",
+                            "description": (
+                                "Optional ExchangeArtifact version. If omitted, latest "
+                                "stored version is inspected."
+                            ),
+                        },
+                        "sourceKind": {
+                            "type": "string",
+                            "description": (
+                                "Optional validation source kind override: "
+                                "self_check_report, self_check_result, or constraint_result."
+                            ),
+                        },
+                        "latestLimit": {
+                            "type": "integer",
+                            "description": (
+                                "Latest record limit for log-backed kinds. Default 20; "
+                                "negative means all records."
+                            ),
+                        },
+                        "actor": {
+                            "type": "string",
+                            "description": "Actor label recorded in readback envelopes.",
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional deterministic timestamp for readback envelopes.",
+                        },
+                    },
+                    "required": ["kind"],
+                },
+            ),
+            Tool(
                 name="writeback_notify",
                 description=(
                     "Notify that a phase or slice writeback has been completed. "
@@ -3040,6 +3106,17 @@ def create_server(project_root: Path, *, dry_run: bool = True) -> Server:
                 arguments.get("argv"),
                 mode=arguments.get("mode", "read"),
                 timeout_seconds=arguments.get("timeoutSeconds", 30),
+            )
+        elif name == "readbackInspect":
+            result = tools.readback_inspect(
+                kind=arguments.get("kind", ""),
+                path=arguments.get("path", ""),
+                artifact_id=arguments.get("artifactId", ""),
+                version=arguments.get("version", ""),
+                source_kind=arguments.get("sourceKind", ""),
+                latest_limit=arguments.get("latestLimit", 20),
+                actor=arguments.get("actor", "readback-inspection-mcp"),
+                timestamp=arguments.get("timestamp", ""),
             )
         elif name == "writeback_notify":
             result = tools.writeback_notify(arguments["phase_description"])

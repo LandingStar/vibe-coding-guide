@@ -29,6 +29,7 @@ from ..workflow.pipeline import (
     ErrorInfo,
     Pipeline,
     PipelineResult,
+    _read_checklist_hot_state,
 )
 
 _log = logging.getLogger(__name__)
@@ -39,20 +40,6 @@ HOST_EVIDENCE_PRESENTATION_RESOURCE_URI = "dbc://host-evidence/presentation"
 EXCHANGE_ARTIFACTS_BUNDLE_RESOURCE_URI = "dbc://exchange-artifacts/bundle"
 AGENT_EXCHANGE_HISTORY_RESOURCE_URI = "dbc://agent-exchange/history"
 AGENT_EXCHANGE_ACTION_CANDIDATES_RESOURCE_URI = "dbc://agent-exchange/action-candidates"
-
-_EMPTY_PLANNING_GATE_MARKERS = {
-    "",
-    "(none)",
-    "-",
-    "—",
-    "none",
-    "n/a",
-    "无",
-    "无活跃",
-    "无活跃 gate",
-    "无活跃gate",
-}
-
 
 _SCHEDULER_SUBMISSION_KEY_ALIASES = {
     "artifactId": "artifact_id",
@@ -94,65 +81,6 @@ _SCHEDULER_SUBMISSION_KEY_ALIASES = {
     "dependencyKind": "dependency_kind",
     "requiredState": "required_state",
 }
-
-
-def _read_checklist_hot_state(project_root: Path) -> dict[str, str]:
-    checklist_path = project_root / "design_docs" / "Project Master Checklist.md"
-    if not checklist_path.exists():
-        return {}
-    try:
-        lines = checklist_path.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return {}
-
-    state = {
-        "current_phase": "",
-        "current_focus": "",
-        "active_planning_gate": "",
-        "latest_completed_planning_gate": "",
-    }
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped.startswith("- Current Phase:"):
-            state["current_phase"] = _strip_markdown_value(
-                stripped.split(":", 1)[1]
-            )
-        elif stripped.startswith("- Current Focus:"):
-            state["current_focus"] = _strip_markdown_value(
-                stripped.split(":", 1)[1]
-            )
-        elif stripped.startswith("- Active Planning Gate:"):
-            state["active_planning_gate"] = _normalize_planning_gate_marker(
-                _checklist_value_or_next_line(lines, index)
-            )
-        elif stripped.startswith("- Latest Completed Planning Gate:"):
-            state["latest_completed_planning_gate"] = _normalize_planning_gate_marker(
-                _checklist_value_or_next_line(lines, index)
-            )
-    return {key: value for key, value in state.items() if value}
-
-
-def _checklist_value_or_next_line(lines: list[str], index: int) -> str:
-    value = lines[index].split(":", 1)[1].strip()
-    if value:
-        return _strip_markdown_value(value)
-    if index + 1 < len(lines):
-        return _strip_markdown_value(lines[index + 1].strip())
-    return ""
-
-
-def _strip_markdown_value(value: str) -> str:
-    cleaned = value.strip()
-    if cleaned.startswith("`") and cleaned.endswith("`") and len(cleaned) >= 2:
-        cleaned = cleaned[1:-1].strip()
-    return cleaned.strip()
-
-
-def _normalize_planning_gate_marker(value: str) -> str:
-    cleaned = _strip_markdown_value(value)
-    if cleaned.lower() in _EMPTY_PLANNING_GATE_MARKERS:
-        return ""
-    return cleaned
 
 
 def _normalize_scheduler_submission_keys(value: Any) -> Any:
@@ -409,6 +337,37 @@ class GovernanceTools:
                 argv=clean_argv,
                 mode=clean_mode,  # type: ignore[arg-type]
                 timeout_seconds=clean_timeout,
+            )
+        )
+        return result.to_json_dict()
+
+    def readback_inspect(
+        self,
+        *,
+        kind: str,
+        path: str = "",
+        artifact_id: str = "",
+        version: str = "",
+        source_kind: str = "",
+        latest_limit: int = 20,
+        actor: str = "readback-inspection-mcp",
+        timestamp: str = "",
+    ) -> dict[str, Any]:
+        """Inspect an existing record family as readback envelopes."""
+
+        from ..runtime.orchestration import ReadbackInspectionRequest, inspect_readback
+
+        result = inspect_readback(
+            ReadbackInspectionRequest(
+                project_root=self._project_root,
+                kind=kind,
+                path=path,
+                artifact_id=artifact_id,
+                version=version,
+                source_kind=source_kind,
+                latest_limit=int(latest_limit),
+                actor=actor,
+                timestamp=timestamp,
             )
         )
         return result.to_json_dict()
@@ -3813,19 +3772,9 @@ class GovernanceTools:
         constraints = self._pipeline.check_constraints()
 
         # Determine next action based on state
-        checklist_state = _read_checklist_hot_state(self._project_root)
         active_planning_gate = constraints.active_planning_gate
         current_phase = constraints.current_phase
-        state_source = "constraints"
-        if checklist_state:
-            current_phase = checklist_state.get("current_phase") or current_phase
-            checklist_active_gate = checklist_state.get("active_planning_gate", "")
-            if checklist_active_gate:
-                active_planning_gate = checklist_active_gate
-                state_source = "checklist"
-            elif checklist_state.get("latest_completed_planning_gate"):
-                active_planning_gate = ""
-                state_source = "checklist"
+        state_source = constraints.state_source
 
         action: dict[str, Any] = {
             "files_to_reread": constraints.files_to_reread,

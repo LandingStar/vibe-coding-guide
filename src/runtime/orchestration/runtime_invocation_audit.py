@@ -14,6 +14,7 @@ from typing import Any, Literal, TypeVar
 
 from .artifact_paths import dbc_artifact_path
 from .log_decoration import LogDecorationPipeline, LogDecorationPipelineResult
+from .log_readback import LogRecordRef
 
 RuntimeInvocationStatus = Literal["succeeded", "failed"]
 
@@ -134,6 +135,74 @@ class RuntimeInvocationRecord:
                 "exchange_store_mutated": False,
                 "local_work_trajectory_mutated": False,
             },
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInvocationReadbackEnvelope:
+    """Human/audit-oriented readback projection for a runtime invocation."""
+
+    schema_version: str
+    record_id: str
+    record_kind: str
+    timestamp: str
+    actor: str
+    action: str
+    status: str
+    summary: str
+    reason: str = ""
+    run_id: str = ""
+    correlation_id: str = ""
+    subject_refs: tuple[LogRecordRef, ...] = ()
+    input_refs: tuple[LogRecordRef, ...] = ()
+    output_refs: tuple[LogRecordRef, ...] = ()
+    evidence_refs: tuple[LogRecordRef, ...] = ()
+    related_record_ids: tuple[str, ...] = ()
+    next_hint: str = ""
+    sensitivity: str = "internal"
+    redaction_state: str = "contains_no_raw_secret"
+    raw_payload_persisted: bool = False
+    provider: str = ""
+    runtime_surface: str = ""
+    attempt_count: int = 0
+    max_attempts: int = 1
+    retryable: bool = False
+    retry_exhausted: bool = False
+    final_error_kind: str = ""
+    stdout_bytes: int = 0
+    stderr_bytes: int = 0
+
+    def to_json_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "record_id": self.record_id,
+            "record_kind": self.record_kind,
+            "timestamp": self.timestamp,
+            "actor": self.actor,
+            "action": self.action,
+            "status": self.status,
+            "summary": self.summary,
+            "reason": self.reason,
+            "run_id": self.run_id,
+            "correlation_id": self.correlation_id,
+            "subject_refs": [ref.to_json_dict() for ref in self.subject_refs],
+            "input_refs": [ref.to_json_dict() for ref in self.input_refs],
+            "output_refs": [ref.to_json_dict() for ref in self.output_refs],
+            "evidence_refs": [ref.to_json_dict() for ref in self.evidence_refs],
+            "related_record_ids": list(self.related_record_ids),
+            "next_hint": self.next_hint,
+            "sensitivity": self.sensitivity,
+            "redaction_state": self.redaction_state,
+            "raw_payload_persisted": self.raw_payload_persisted,
+            "provider": self.provider,
+            "runtime_surface": self.runtime_surface,
+            "attempt_count": self.attempt_count,
+            "max_attempts": self.max_attempts,
+            "retryable": self.retryable,
+            "retry_exhausted": self.retry_exhausted,
+            "final_error_kind": self.final_error_kind,
+            "stdout_bytes": self.stdout_bytes,
+            "stderr_bytes": self.stderr_bytes,
         }
 
 
@@ -459,6 +528,64 @@ def utc_runtime_invocation_timestamp() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def runtime_invocation_record_to_readback_envelope(
+    record: RuntimeInvocationRecord,
+    *,
+    actor: str = "runtime-invocation-wrapper",
+) -> RuntimeInvocationReadbackEnvelope:
+    """Project a runtime invocation record into a draft readback envelope.
+
+    This is a read-only projection. It does not change invocation JSONL
+    persistence, retry behavior, compaction behavior, or provider execution.
+    """
+
+    retryable = any(attempt.retryable for attempt in record.attempts)
+    retry_exhausted = (
+        record.status == "failed"
+        and retryable
+        and record.attempt_count >= record.retry_policy.max_attempts
+    )
+    stdout_bytes = sum(
+        attempt.stdout_bytes or 0
+        for attempt in record.attempts
+        if attempt.stdout_bytes is not None
+    )
+    stderr_bytes = sum(
+        attempt.stderr_bytes or 0
+        for attempt in record.attempts
+        if attempt.stderr_bytes is not None
+    )
+    return RuntimeInvocationReadbackEnvelope(
+        schema_version="runtime-invocation-readback-envelope.v1",
+        record_id=record.invocation_id,
+        record_kind="runtime_invocation",
+        timestamp=record.ended_at or record.started_at,
+        actor=record.agent_id or actor,
+        action=f"run_provider_{record.status}",
+        status=record.status,
+        summary=_runtime_invocation_readback_summary(record),
+        reason=_runtime_invocation_readback_reason(record, retryable=retryable),
+        run_id=record.run_id,
+        correlation_id=_runtime_invocation_correlation_id(record),
+        subject_refs=_runtime_invocation_subject_refs(record),
+        input_refs=_runtime_invocation_input_refs(record),
+        output_refs=_runtime_invocation_output_refs(record),
+        evidence_refs=_runtime_invocation_evidence_refs(record),
+        related_record_ids=_runtime_invocation_related_record_ids(record),
+        next_hint=_runtime_invocation_next_hint(record, retryable=retryable),
+        raw_payload_persisted=False,
+        provider=record.provider,
+        runtime_surface=record.runtime_surface,
+        attempt_count=record.attempt_count,
+        max_attempts=record.retry_policy.max_attempts,
+        retryable=retryable,
+        retry_exhausted=retry_exhausted,
+        final_error_kind=record.final_error_kind,
+        stdout_bytes=stdout_bytes,
+        stderr_bytes=stderr_bytes,
+    )
+
+
 def _attempt_from_json_dict(payload: Mapping[str, Any]) -> RuntimeAttemptRecord:
     return RuntimeAttemptRecord(
         attempt_index=int(payload.get("attempt_index", 0) or 0),
@@ -473,6 +600,241 @@ def _attempt_from_json_dict(payload: Mapping[str, Any]) -> RuntimeAttemptRecord:
         stderr_bytes=_int_or_none(payload.get("stderr_bytes")),
         metadata=dict(payload.get("metadata", {}) or {}),
     )
+
+
+def _runtime_invocation_readback_summary(record: RuntimeInvocationRecord) -> str:
+    target = _first_non_empty(record.task_id, record.agent_id, record.invocation_id)
+    if record.status == "succeeded":
+        summary = _first_non_empty(record.final_summary, _latest_attempt_summary(record))
+        if summary:
+            return f"Runtime provider {record.provider} completed {target}: {summary}"
+        return f"Runtime provider {record.provider} completed {target}."
+    summary = _first_non_empty(record.final_summary, _latest_attempt_summary(record))
+    if summary:
+        return f"Runtime provider {record.provider} failed for {target}: {summary}"
+    return f"Runtime provider {record.provider} failed for {target}."
+
+
+def _runtime_invocation_readback_reason(
+    record: RuntimeInvocationRecord,
+    *,
+    retryable: bool,
+) -> str:
+    if record.status == "succeeded":
+        if record.attempt_count > 1:
+            return "Runtime invocation succeeded after one or more retry attempts."
+        return "Runtime invocation completed successfully."
+    parts: list[str] = []
+    if record.final_error_kind:
+        parts.append(f"Final error kind: {record.final_error_kind}.")
+    if retryable:
+        if record.attempt_count >= record.retry_policy.max_attempts:
+            parts.append("Retryable failure exhausted the configured attempt limit.")
+        else:
+            parts.append("Failure was marked retryable by at least one attempt.")
+    else:
+        parts.append("Failure was not marked retryable by the runtime audit record.")
+    summary = _first_non_empty(record.final_summary, _latest_attempt_summary(record))
+    if summary:
+        parts.append(f"Summary: {summary}")
+    return " ".join(parts)
+
+
+def _runtime_invocation_subject_refs(record: RuntimeInvocationRecord) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(kind="runtime_invocation", id=record.invocation_id, role="subject")
+    ]
+    if record.task_id:
+        refs.append(LogRecordRef(kind="task", id=record.task_id, role="subject"))
+    if record.agent_id:
+        refs.append(LogRecordRef(kind="worker", id=record.agent_id, role="subject"))
+    if record.run_id:
+        refs.append(LogRecordRef(kind="run", id=record.run_id, role="subject"))
+    if record.session_id:
+        refs.append(
+            LogRecordRef(kind="provider_session", id=record.session_id, role="subject")
+        )
+    if record.provider:
+        refs.append(LogRecordRef(kind="provider", id=record.provider, role="subject"))
+    if record.runtime_surface:
+        refs.append(
+            LogRecordRef(
+                kind="runtime_surface",
+                id=record.runtime_surface,
+                role="subject",
+            )
+        )
+    return tuple(refs)
+
+
+def _runtime_invocation_input_refs(record: RuntimeInvocationRecord) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = []
+    lane_id = _metadata_text(record.metadata, "lane_id")
+    if lane_id:
+        refs.append(LogRecordRef(kind="lane", id=lane_id, role="input"))
+    context_id = _metadata_text(record.metadata, "context_id")
+    if context_id:
+        refs.append(LogRecordRef(kind="context", id=context_id, role="input"))
+    host_invocation_id = _metadata_text(record.metadata, "host_invocation_id")
+    if host_invocation_id:
+        refs.append(
+            LogRecordRef(kind="host_invocation", id=host_invocation_id, role="input")
+        )
+    binding_id = _metadata_text(record.metadata, "continuous_worker_binding_id")
+    if binding_id:
+        refs.append(
+            LogRecordRef(kind="continuous_worker_binding", id=binding_id, role="input")
+        )
+    worker_id = _metadata_text(record.metadata, "continuous_worker_id")
+    if worker_id:
+        refs.append(LogRecordRef(kind="continuous_worker", id=worker_id, role="input"))
+    return tuple(refs)
+
+
+def _runtime_invocation_output_refs(record: RuntimeInvocationRecord) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = []
+    output_artifact_id = _metadata_text(record.metadata, "output_artifact_id")
+    if output_artifact_id:
+        refs.append(
+            LogRecordRef(
+                kind="artifact",
+                id=output_artifact_id,
+                version=_metadata_text(record.metadata, "output_artifact_version"),
+                role="output",
+            )
+        )
+    result_artifact_id = _metadata_text(record.metadata, "result_artifact_id")
+    if result_artifact_id and result_artifact_id != output_artifact_id:
+        refs.append(
+            LogRecordRef(
+                kind="artifact",
+                id=result_artifact_id,
+                version=_metadata_text(record.metadata, "result_artifact_version"),
+                role="output",
+            )
+        )
+    return tuple(refs)
+
+
+def _runtime_invocation_evidence_refs(record: RuntimeInvocationRecord) -> tuple[LogRecordRef, ...]:
+    refs: list[LogRecordRef] = [
+        LogRecordRef(
+            kind="runtime_invocation",
+            id=record.invocation_id,
+            label=record.status,
+            role="evidence",
+        )
+    ]
+    for attempt in record.attempts:
+        label_parts = [attempt.status]
+        if attempt.error_kind:
+            label_parts.append(attempt.error_kind)
+        if attempt.retryable:
+            label_parts.append("retryable")
+        byte_parts: list[str] = []
+        if attempt.stdout_bytes is not None:
+            byte_parts.append(f"stdout_bytes={attempt.stdout_bytes}")
+        if attempt.stderr_bytes is not None:
+            byte_parts.append(f"stderr_bytes={attempt.stderr_bytes}")
+        if byte_parts:
+            label_parts.append(", ".join(byte_parts))
+        refs.append(
+            LogRecordRef(
+                kind="runtime_attempt",
+                id=f"{record.invocation_id}:attempt-{attempt.attempt_index}",
+                label="; ".join(label_parts),
+                role="evidence",
+            )
+        )
+    return tuple(refs)
+
+
+def _runtime_invocation_related_record_ids(
+    record: RuntimeInvocationRecord,
+) -> tuple[str, ...]:
+    related: list[str] = []
+    for prefix, value in (
+        ("task", record.task_id),
+        ("agent", record.agent_id),
+        ("provider_session", record.session_id),
+        ("run", record.run_id),
+        ("provider", record.provider),
+        ("runtime_surface", record.runtime_surface),
+    ):
+        if value:
+            related.append(_related_record_id(prefix, value))
+    for key in (
+        "lane_id",
+        "context_id",
+        "host_invocation_id",
+        "continuous_worker_binding_id",
+        "continuous_worker_id",
+    ):
+        value = _metadata_text(record.metadata, key)
+        if value:
+            related.append(_related_record_id(key.removesuffix("_id"), value))
+    return tuple(related)
+
+
+def _runtime_invocation_next_hint(
+    record: RuntimeInvocationRecord,
+    *,
+    retryable: bool,
+) -> str:
+    if record.status == "failed":
+        if retryable:
+            return (
+                f"Inspect delivery retry policy and runtime attempts for "
+                f"invocation {record.invocation_id}."
+            )
+        if record.run_id:
+            return f"Inspect scheduler and delivery records for run {record.run_id}."
+        if record.task_id:
+            return f"Inspect scheduler task and worker delivery state for {record.task_id}."
+        return f"Inspect runtime invocation {record.invocation_id} failure context."
+    outputs = _runtime_invocation_output_refs(record)
+    if outputs:
+        return f"Inspect output artifact {outputs[0].id}."
+    if record.run_id:
+        return f"Inspect scheduler run {record.run_id} and output artifacts."
+    if record.task_id:
+        return f"Inspect scheduler task {record.task_id} and delivery acknowledgement."
+    return f"Inspect runtime invocation {record.invocation_id}."
+
+
+def _runtime_invocation_correlation_id(record: RuntimeInvocationRecord) -> str:
+    return _first_non_empty(
+        record.run_id,
+        _metadata_text(record.metadata, "host_invocation_id"),
+        record.task_id,
+        record.invocation_id,
+    )
+
+
+def _latest_attempt_summary(record: RuntimeInvocationRecord) -> str:
+    if not record.attempts:
+        return ""
+    return record.attempts[-1].summary
+
+
+def _metadata_text(metadata: Mapping[str, object], key: str) -> str:
+    value = metadata.get(key, "")
+    if value is None or isinstance(value, (list, tuple, dict, set)):
+        return ""
+    return str(value)
+
+
+def _related_record_id(kind: str, value: str) -> str:
+    if value.startswith(f"{kind}:"):
+        return value
+    return f"{kind}:{value}"
+
+
+def _first_non_empty(*values: str) -> str:
+    for value in values:
+        if value:
+            return value
+    return ""
 
 
 def _result_metadata(result: object) -> dict[str, object]:

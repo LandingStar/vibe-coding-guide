@@ -122,6 +122,7 @@ class ConstraintResult:
     files_to_reread: list[str] = field(default_factory=list)
     current_phase: str = ""
     active_planning_gate: str = ""
+    state_source: str = "constraints"
     machine_checked_constraints: list[ConstraintScope] = field(default_factory=list)
     instruction_layer_constraints: list[ConstraintScope] = field(default_factory=list)
     active_overrides: list[dict[str, Any]] = field(default_factory=list)
@@ -157,6 +158,7 @@ class ConstraintResult:
             "files_to_reread": self.files_to_reread,
             "current_phase": self.current_phase,
             "active_planning_gate": self.active_planning_gate,
+            "state_source": self.state_source,
             "machine_checked_constraints": [
                 scope.to_dict() for scope in self.machine_checked_constraints
             ],
@@ -269,6 +271,65 @@ _INSTRUCTION_LAYER_CONSTRAINTS = (
 )
 
 
+def _read_checklist_hot_state(project_root: Path) -> dict[str, str]:
+    checklist_path = project_root / "design_docs" / "Project Master Checklist.md"
+    if not checklist_path.exists():
+        return {}
+    try:
+        lines = checklist_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+
+    state = {
+        "current_phase": "",
+        "current_focus": "",
+        "active_planning_gate": "",
+        "latest_completed_planning_gate": "",
+    }
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("- Current Phase:"):
+            state["current_phase"] = _strip_markdown_value(
+                stripped.split(":", 1)[1]
+            )
+        elif stripped.startswith("- Current Focus:"):
+            state["current_focus"] = _strip_markdown_value(
+                stripped.split(":", 1)[1]
+            )
+        elif stripped.startswith("- Active Planning Gate:"):
+            state["active_planning_gate"] = _normalize_planning_gate_marker(
+                _checklist_value_or_next_line(lines, index)
+            )
+        elif stripped.startswith("- Latest Completed Planning Gate:"):
+            state["latest_completed_planning_gate"] = _normalize_planning_gate_marker(
+                _checklist_value_or_next_line(lines, index)
+            )
+    return {key: value for key, value in state.items() if value}
+
+
+def _checklist_value_or_next_line(lines: list[str], index: int) -> str:
+    value = lines[index].split(":", 1)[1].strip()
+    if value:
+        return _strip_markdown_value(value)
+    if index + 1 < len(lines):
+        return _strip_markdown_value(lines[index + 1].strip())
+    return ""
+
+
+def _strip_markdown_value(value: str) -> str:
+    cleaned = value.strip()
+    if cleaned.startswith("`") and cleaned.endswith("`") and len(cleaned) >= 2:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned.strip()
+
+
+def _normalize_planning_gate_marker(value: str) -> str:
+    cleaned = _strip_markdown_value(value)
+    if cleaned.lower() in _EMPTY_PLANNING_GATE_MARKERS:
+        return ""
+    return cleaned
+
+
 def _check_constraints(project_root: Path) -> ConstraintResult:
     """Report project-level constraint status and runtime coverage.
 
@@ -335,6 +396,19 @@ def _check_constraints(project_root: Path) -> ConstraintResult:
     if result.active_planning_gate in _EMPTY_PLANNING_GATE_MARKERS:
         result.active_planning_gate = ""
 
+    checklist_state = _read_checklist_hot_state(project_root)
+    if checklist_state:
+        result.current_phase = (
+            checklist_state.get("current_phase") or result.current_phase
+        )
+        checklist_active_gate = checklist_state.get("active_planning_gate", "")
+        if checklist_active_gate:
+            result.active_planning_gate = checklist_active_gate
+            result.state_source = "checklist"
+        elif checklist_state.get("latest_completed_planning_gate"):
+            result.active_planning_gate = ""
+            result.state_source = "checklist"
+
     # C5: Check for active planning-gate
     planning_dir = project_root / "design_docs" / "stages" / "planning-gate"
     has_planning_gate = False
@@ -344,7 +418,7 @@ def _check_constraints(project_root: Path) -> ConstraintResult:
                 has_planning_gate = True
                 # If no active_planning_gate from checkpoint, try to find
                 # an APPROVED or DRAFT gate from the directory.
-                if not result.active_planning_gate:
+                if not result.active_planning_gate and result.state_source != "checklist":
                     try:
                         head = f.read_text(encoding="utf-8")[:500]
                         status = _extract_gate_status(head)

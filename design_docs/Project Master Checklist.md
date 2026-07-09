@@ -26,16 +26,79 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-07-05`
+- Snapshot Date: `2026-07-09`
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `Next: test workspace .dbc migration and unified artifact index planning`
+- Current Focus: `Log-like readback unified inspection surface complete`
+- Current Todo: Keep the completed readback helpers and unified inspection
+  surface stable; a later gate can add batch/index timeline aggregation over
+  the same readback families.
+- Current Standard: Use `design_docs/tooling/Log-like Record Standard Draft.md`
+  as the internal standard for upcoming log-like record work; after enough
+  practice, promote the stable parts to an authoritative `docs/` contract.
+- Current Log-like Record Finding:
+  `design_docs/tooling/Log-like Record Family Gap Inventory.md` recommends
+  runtime invocation, ExchangeArtifact communication history, worker report /
+  trajectory suggestions, validation receipts, UI screenshot evidence, and
+  sandbox/host evidence as later readback-envelope alignment candidates after
+  the completed scheduler event slice.
+- Latest Direction Analysis:
+  `design_docs/validation-readback-followup-direction-analysis.md`
+  led to the completed UI Screenshot / Host Evidence readback coverage slice;
+  the follow-up unified read-only inspection CLI/MCP surface is now complete.
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
-- Latest Completed Slice: `DBC Runtime Artifact Root Defaults`
+  `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`
+- Latest Completed Slice: `Readback Inspection CLI/MCP Surface`
 - Active Planning Gate: `none`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`,
+  `src/runtime/orchestration/readback_inspection.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/__main__.py`,
+  `src/mcp/tools.py`,
+  `src/mcp/server.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
+  `tests/test_mcp_tools.py`,
+  `design_docs/stages/planning-gate/2026-07-09-ui-screenshot-host-evidence-readback-envelope.md`,
+  `src/runtime/orchestration/host_evidence_readback.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-07-09-validation-doctor-self-check-readback-envelope.md`,
+  `design_docs/validation-readback-followup-direction-analysis.md`,
+  `src/runtime/orchestration/validation_readback.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-07-09-worker-report-trajectory-suggestion-readback-envelope.md`,
+  `design_docs/worker-report-readback-followup-direction-analysis.md`,
+  `src/runtime/orchestration/worker_trajectory_report_consumer.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-07-09-exchange-communication-readback-envelope.md`,
+  `design_docs/exchange-communication-readback-followup-direction-analysis.md`,
+  `src/runtime/orchestration/agent_exchange_history.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration_agent_communication.py`,
+  `design_docs/stages/planning-gate/2026-07-09-runtime-invocation-readback-envelope.md`,
+  `design_docs/runtime-invocation-readback-followup-direction-analysis.md`,
+  `src/runtime/orchestration/runtime_invocation_audit.py`,
+  `src/runtime/orchestration/log_readback.py`,
+  `src/runtime/orchestration/scheduler_store.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `design_docs/stages/planning-gate/2026-07-08-validate-checklist-state-source-sync.md`,
+  `src/workflow/pipeline.py`,
+  `src/mcp/tools.py`,
+  `tests/test_mcp_tools.py`,
+  `tests/test_cli.py`,
+  `design_docs/stages/planning-gate/2026-07-08-scheduler-event-readback-envelope.md`,
+  `design_docs/log-like-record-alignment-followup-direction-analysis.md`,
+  `design_docs/tooling/Log-like Record Standard Draft.md`,
+  `design_docs/tooling/Log-like Record Family Gap Inventory.md`,
+  `src/runtime/orchestration/scheduler_store.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `tests/test_runtime_orchestration.py`,
   `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`,
   `src/runtime/orchestration/artifact_paths.py`,
   `src/runtime/orchestration/self_check.py`,
@@ -229,6 +292,21 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`
+1. `design_docs/stages/planning-gate/2026-07-09-ui-screenshot-host-evidence-readback-envelope.md`
+1. `design_docs/stages/planning-gate/2026-07-09-validation-doctor-self-check-readback-envelope.md`
+1. `design_docs/validation-readback-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-09-worker-report-trajectory-suggestion-readback-envelope.md`
+1. `design_docs/worker-report-readback-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-09-exchange-communication-readback-envelope.md`
+1. `design_docs/exchange-communication-readback-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-09-runtime-invocation-readback-envelope.md`
+1. `design_docs/runtime-invocation-readback-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-08-validate-checklist-state-source-sync.md`
+1. `design_docs/stages/planning-gate/2026-07-08-scheduler-event-readback-envelope.md`
+1. `design_docs/log-like-record-alignment-followup-direction-analysis.md`
+1. `design_docs/tooling/Log-like Record Family Gap Inventory.md`
+1. `design_docs/tooling/Log-like Record Standard Draft.md`
 1. `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
 1. `design_docs/stages/planning-gate/2026-07-05-runtime-receipt-evidence-log-decoration-adapters.md`
 1. `design_docs/stages/planning-gate/2026-07-05-log-like-record-batch-decoration.md`

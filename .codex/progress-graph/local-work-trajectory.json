@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
-  "title": "Prepare current results commit and release package",
-  "recorded_at": "2026-07-06T01:05:31.880524+00:00",
+  "title": "Review dbc-test solutions smoke output",
+  "recorded_at": "2026-07-09T06:47:03.777081+00:00",
   "source_graph_id": "",
   "source_node_id": "",
   "guide_context": "codex-mcp-agent",
@@ -13,10 +13,10 @@
   },
   "summary": {
     "trajectory_id": "local-work:single-line-current",
-    "title": "Prepare current results commit and release package",
+    "title": "Review dbc-test solutions smoke output",
     "lane_count": 1,
-    "event_count": 3,
-    "relation_count": 2,
+    "event_count": 14,
+    "relation_count": 13,
     "source_graph_id": "",
     "source_node_id": ""
   },
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "当前工作",
-      "status": "done",
+      "status": "pending",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -36,44 +36,209 @@
     "event:001": {
       "id": "event:001",
       "lane_id": "lane:main",
-      "title": "Prepare current results commit and release package",
-      "kind": "start",
+      "title": "Review dbc-test solutions smoke output",
+      "kind": "review",
       "status": "completed",
       "order": 1,
       "summary": "",
       "metadata": {
-        "created_at": "2026-07-06T00:16:14.958304+00:00",
-        "activated_at": "2026-07-06T00:16:14.958304+00:00",
+        "created_at": "2026-07-06T12:15:47.929834+00:00",
+        "activated_at": "2026-07-06T12:15:47.929834+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-07-06T00:18:17.761447+00:00"
+        "completed_at": "2026-07-06T12:24:22.201985+00:00"
       }
     },
     "event:002": {
       "id": "event:002",
       "lane_id": "lane:main",
-      "title": "Run validation and staging hygiene checks",
-      "kind": "validation",
+      "title": "检查 solutions 测试产物与 orchestration 证据",
+      "kind": "review",
       "status": "completed",
       "order": 2,
-      "summary": "Run focused tests/secret scans, stage intended source docs tests and tracked trajectory, then verify staged set excludes local machine config and ignored runtime artifacts.",
+      "summary": "读取 dbc-test/solutions、测试 prompt、.dbc/.codex 中间产物与日志，判断本轮拟真测试是否符合预期。",
       "metadata": {
-        "created_at": "2026-07-06T00:18:28.577521+00:00",
+        "created_at": "2026-07-06T12:17:06.117937+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-07-06T00:28:06.797107+00:00"
+        "activated_at": "2026-07-06T12:24:22.201985+00:00",
+        "completed_at": "2026-07-06T13:05:40.412015+00:00"
       }
     },
     "event:003": {
       "id": "event:003",
       "lane_id": "lane:main",
-      "title": "Rebuild release artifacts",
-      "kind": "validation",
+      "title": "Inspect completed dbc-test full run artifacts",
+      "kind": "review",
       "status": "completed",
       "order": 3,
-      "summary": "Run release packaging for version 0.9.8 without bumping semver; verify zip, wheels, VSIX, and packaged vendor artifacts.",
+      "summary": "Review C:\\Users\\16329\\OneDrive\\Desktop\\tmp\\dbc-test results, prompt, scheduler logs, agent reports, trajectory artifacts, and assess whether the run matches the intended leader-worker / lane behavior.",
       "metadata": {
-        "created_at": "2026-07-06T00:28:18.285117+00:00",
+        "created_at": "2026-07-06T12:56:58.603366+00:00",
         "source": "single-line-lifecycle",
-        "completed_at": "2026-07-06T01:05:31.880524+00:00"
+        "activated_at": "2026-07-06T13:05:40.412015+00:00",
+        "completed_at": "2026-07-07T05:35:31.030839+00:00"
+      }
+    },
+    "event:004": {
+      "id": "event:004",
+      "lane_id": "lane:main",
+      "title": "Draft internal log-like record standard",
+      "kind": "task",
+      "status": "completed",
+      "order": 4,
+      "summary": "Create an internal tooling draft for shared log-like record expectations and record the future promotion-to-authoritative-doc todo after sufficient practice.",
+      "metadata": {
+        "created_at": "2026-07-07T05:33:22.045420+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-07T05:35:31.030839+00:00",
+        "completed_at": "2026-07-07T05:47:29.977132+00:00"
+      }
+    },
+    "event:005": {
+      "id": "event:005",
+      "lane_id": "lane:main",
+      "title": "Implement Scheduler Event Readback Envelope",
+      "kind": "review",
+      "status": "completed",
+      "order": 5,
+      "summary": "Continuing focused implementation: add tests for scheduler event readback envelope, run validation, then close the planning gate without changing scheduler persistence or replay semantics.",
+      "metadata": {
+        "created_at": "2026-07-07T05:44:48.587879+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-07T05:47:29.977132+00:00",
+        "updated_at": "2026-07-08T01:05:29.303073+00:00",
+        "completed_at": "2026-07-08T01:16:06.067023+00:00"
+      }
+    },
+    "event:006": {
+      "id": "event:006",
+      "lane_id": "lane:main",
+      "title": "Implement Scheduler Event Readback Envelope",
+      "kind": "task",
+      "status": "completed",
+      "order": 6,
+      "summary": "Create a narrow planning gate and implement read-only SchedulerEvent draft-envelope projection with focused tests, without changing scheduler replay or JSONL persistence.",
+      "metadata": {
+        "created_at": "2026-07-08T01:00:47.154542+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-08T01:16:06.067023+00:00",
+        "completed_at": "2026-07-08T01:16:33.559176+00:00"
+      }
+    },
+    "event:007": {
+      "id": "event:007",
+      "lane_id": "lane:main",
+      "title": "Fix validate current-state source priority",
+      "kind": "task",
+      "status": "completed",
+      "order": 7,
+      "summary": "Open a narrow gate to align doc-based-coding validate/governance current-state readback with Checklist-first current-state resolution, avoiding stale checkpoint/handoff or historical phase-map active gate leakage.",
+      "metadata": {
+        "created_at": "2026-07-08T12:37:08.506859+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-08T12:46:06.116787+00:00",
+        "completed_at": "2026-07-08T12:46:16.642960+00:00"
+      }
+    },
+    "event:008": {
+      "id": "event:008",
+      "lane_id": "lane:main",
+      "title": "Runtime Invocation Readback Envelope completed",
+      "kind": "task",
+      "status": "completed",
+      "order": 8,
+      "summary": "Completed and validated runtime invocation readback envelope slice; no active planning gate remains in Checklist.",
+      "metadata": {
+        "created_at": "2026-07-08T16:29:31.350289+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-08T16:49:50.827916+00:00",
+        "updated_at": "2026-07-08T16:50:07.322818+00:00",
+        "completed_at": "2026-07-08T17:27:31.958755+00:00"
+      }
+    },
+    "event:009": {
+      "id": "event:009",
+      "lane_id": "lane:main",
+      "title": "ExchangeArtifact Communication History Readback Envelope",
+      "kind": "task",
+      "status": "completed",
+      "order": 9,
+      "summary": "Begin narrow contract-first slice: add read-only ExchangeArtifact communication history/mailbox draft envelope projection aligned with log-like record draft; avoid lifecycle mutation and candidate consumption changes.",
+      "metadata": {
+        "created_at": "2026-07-08T17:09:03.180728+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-08T17:27:31.958755+00:00",
+        "completed_at": "2026-07-08T17:27:47.865994+00:00"
+      }
+    },
+    "event:010": {
+      "id": "event:010",
+      "lane_id": "lane:main",
+      "title": "Worker Report / Trajectory Suggestion Readback Envelope",
+      "kind": "task",
+      "status": "completed",
+      "order": 10,
+      "summary": "Create and complete the next narrow log-like record alignment gate: read-only projection for worker Subagent Report and trajectory_update suggestions, preserving leader-owned Local Work mutation authority.",
+      "metadata": {
+        "created_at": "2026-07-08T17:28:16.899005+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-08T17:45:08.457669+00:00"
+      }
+    },
+    "event:011": {
+      "id": "event:011",
+      "lane_id": "lane:main",
+      "title": "Validation / Doctor / Self-check Receipt Readback Envelope",
+      "kind": "task",
+      "status": "completed",
+      "order": 11,
+      "summary": "Open the next narrow log-like record alignment gate: add read-only envelope projection for validation, doctor, and self-check receipts without changing validation semantics, profiles, install behavior, or host configuration.",
+      "metadata": {
+        "created_at": "2026-07-09T04:46:16.726257+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-09T04:59:05.283685+00:00"
+      }
+    },
+    "event:012": {
+      "id": "event:012",
+      "lane_id": "lane:main",
+      "title": "补齐 UI/host evidence readback 覆盖后推进统一入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 12,
+      "summary": "按用户要求先覆盖缺失 readback evidence family，再进行统一 readback inspection 入口工作。",
+      "metadata": {
+        "created_at": "2026-07-09T05:26:57.157037+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-09T05:31:24.514959+00:00",
+        "completed_at": "2026-07-09T05:39:07.366110+00:00"
+      }
+    },
+    "event:013": {
+      "id": "event:013",
+      "lane_id": "lane:main",
+      "title": "实现统一只读 readback inspection 入口",
+      "kind": "task",
+      "status": "completed",
+      "order": 13,
+      "summary": "继续统一只读 readback inspection 入口：已确认覆盖切片完成，正在补路径保护、runtime/CLI/MCP 测试与状态文档收束。",
+      "metadata": {
+        "created_at": "2026-07-09T05:39:20.906647+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-07-09T05:52:49.524730+00:00",
+        "completed_at": "2026-07-09T06:03:42.094778+00:00"
+      }
+    },
+    "event:014": {
+      "id": "event:014",
+      "lane_id": "lane:main",
+      "title": "整理 readback 系列变更并提交",
+      "kind": "writeback",
+      "status": "pending",
+      "order": 14,
+      "summary": "按用户要求先将已完成的 readback 覆盖与统一入口成果整理为本地提交，随后再进行下一步方向分析。",
+      "metadata": {
+        "created_at": "2026-07-09T06:47:03.773169+00:00",
+        "source": "single-line-lifecycle"
       }
     }
   },
@@ -90,6 +255,105 @@
     {
       "source_event_id": "event:002",
       "target_event_id": "event:003",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:003",
+      "target_event_id": "event:004",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:004",
+      "target_event_id": "event:005",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:005",
+      "target_event_id": "event:006",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:006",
+      "target_event_id": "event:007",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:007",
+      "target_event_id": "event:008",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:008",
+      "target_event_id": "event:009",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:009",
+      "target_event_id": "event:010",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:010",
+      "target_event_id": "event:011",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:011",
+      "target_event_id": "event:012",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:012",
+      "target_event_id": "event:013",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:013",
+      "target_event_id": "event:014",
       "kind": "sequence",
       "summary": "",
       "metadata": {
