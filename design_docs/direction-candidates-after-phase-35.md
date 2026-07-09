@@ -1,5 +1,39 @@
 # Direction Candidates — After Phase 35
 
+## 2026-07-09 补充候选：Readback Explicit-Source Timeline Projection 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md` 已完成；当前 `inspect_readback_timeline()` 与 CLI `doc-based-coding readback timeline` 已能接受显式 source specs，复用 `inspect_readback()`，保留 source results，并输出带 ordering confidence 的 compact timeline rows。该 surface 仍是只读、explicit-source-only，不扫描 workspace、不写 persistent manifest、不突变 scheduler/exchange/evidence/config/Local Work。
+- 候选 1：`Readback Timeline MCP Parity`
+  - 做什么：新增 MCP tool `readbackTimelineInspect`，复用 runtime helper，接受显式 sources 并返回同一 timeline result JSON。
+  - 依据：`design_docs/readback-timeline-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`
+- 候选 2：`Readback Source Index / Manifest`
+  - 做什么：设计 generated `.dbc` artifact/log manifest，使 readback/monitoring 工具能发现 source records。
+  - 依据：`design_docs/readback-timeline-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
+- 候选 3：`Monitoring UI Readback Consumption`
+  - 做什么：把 readback inspection / timeline output 接到 monitoring UI 的记录表与详情视图。
+  - 依据：`design_docs/readback-timeline-followup-direction-analysis.md`、`review/research-compass.md`
+- 候选 4：`Promote Log-like Record Standard`
+  - 做什么：将 `design_docs/tooling/Log-like Record Standard Draft.md` 的稳定 base envelope、reference、redaction 与 readability contract 提升到 `docs/`。
+  - 依据：`design_docs/readback-timeline-followup-direction-analysis.md`、`docs/runtime-log-decoration-contract.md`
+- 当前倾向：默认进入候选 1。原因是 runtime helper 与 CLI 已完成，但 Codex/agent-facing MCP parity 仍缺失；它是最窄的下一步，不会过早扩大到 manifest/index 或 UI。
+
+## 2026-07-09 补充候选：Readback Inspection CLI/MCP Surface 收口后的下一步
+
+- 已完成边界：`design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md` 已完成；当前 `inspect_readback()`、CLI `doc-based-coding readback inspect` 与 MCP tool `readbackInspect` 已能以只读方式检查 `worker-report`、`validation-receipt`、`runtime-invocation-log`、`scheduler-event-log`、`exchange-artifact` 与 `host-evidence`，并返回 draft envelope、source/count/error metadata 与 authority split。
+- 候选 1：`Readback Explicit-Source Timeline Projection`
+  - 做什么：新增只读 timeline/batch helper，接受显式 source specs，复用现有 `inspect_readback()`，把多个 family 的 envelope 展平成按 timestamp/source-order 排序的 compact timeline rows。
+  - 依据：`design_docs/readback-inspection-followup-direction-analysis.md`、`design_docs/tooling/Log-like Record Standard Draft.md`、`design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`
+- 候选 2：`Readback Source Index / Manifest`
+  - 做什么：设计 generated `.dbc` artifact/log manifest，使 readback/monitoring 工具能发现 source records，减少硬编码 path 扫描。
+  - 依据：`design_docs/readback-inspection-followup-direction-analysis.md`、`design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`
+- 候选 3：`Promote Log-like Record Standard`
+  - 做什么：将 `design_docs/tooling/Log-like Record Standard Draft.md` 中已稳定的 base envelope、reference、redaction 与 readability contract 提升到 `docs/` 权威文档。
+  - 依据：`design_docs/readback-inspection-followup-direction-analysis.md`、`docs/runtime-log-decoration-contract.md`
+- 候选 4：`Monitoring UI Readback Consumption`
+  - 做什么：把 readback envelope / unified inspection output 接到 monitoring UI 的记录表与详情视图。
+  - 依据：`design_docs/readback-inspection-followup-direction-analysis.md`、`review/research-compass.md`
+- 当前倾向：默认进入候选 1。原因是 per-family readback 已完成，下一瓶颈是跨 family 审计故事；显式 source timeline 能验证排序、分组与 provenance，而不提前承诺 workspace-wide index、UI 或标准提升。
+
 ## 2026-07-08 补充候选：Scheduler Event Readback Envelope 收口后的下一步
 
 - 已完成边界：`design_docs/stages/planning-gate/2026-07-08-scheduler-event-readback-envelope.md` 已完成；当前 `SchedulerEvent` 已具备只读 draft envelope projection，能暴露 readable summary/reason/next_hint、typed refs、related record ids、redaction/sensitivity clue 与 `replay_effect=state_mutating|audit_only`，并保持 JSONL persistence 与 replay semantics 不变。

@@ -190,6 +190,78 @@ def test_readback_inspect_worker_report_cli_projects_envelope(tmp_path) -> None:
     assert payload["authority_split"]["local_work_trajectory_mutated"] is False
 
 
+def test_readback_timeline_help_describes_explicit_source_non_goals() -> None:
+    proc = _run_cli(["readback", "timeline", "--help"])
+
+    assert proc.returncode == 0
+    assert "doc-based-coding readback timeline" in proc.stdout
+    assert "--source-spec" in proc.stdout
+    assert "--source-json" in proc.stdout
+    assert "does not scan the workspace" in proc.stdout
+    assert "write a persistent manifest" in proc.stdout
+    assert "execute providers" in proc.stdout
+    assert "mutate Local Work Trajectory" in proc.stdout
+
+
+def test_readback_timeline_cli_projects_explicit_source_spec(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "design_docs").mkdir(parents=True)
+    runtime_path = project / ".dbc" / "runtime" / "invocations.jsonl"
+    JsonlRuntimeInvocationLog(runtime_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-cli-late",
+            provider="codex",
+            status="succeeded",
+            started_at="2026-07-09T10:02:00+00:00",
+            ended_at="2026-07-09T10:02:01+00:00",
+            task_id="task-cli",
+        )
+    )
+    report_path = project / ".dbc" / "agent-output" / "report-worker.json"
+    _write_cli_worker_trajectory_report(report_path, suggested_action="append")
+    source_spec = project / "tmp" / "timeline-sources.json"
+    source_spec.parent.mkdir(parents=True, exist_ok=True)
+    source_spec.write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "kind": "runtime-invocation-log",
+                        "path": ".dbc/runtime/invocations.jsonl",
+                        "label": "runtime",
+                    },
+                    {
+                        "kind": "worker-report",
+                        "path": ".dbc/agent-output/report-worker.json",
+                        "timestamp": "2026-07-09T10:01:00+00:00",
+                        "label": "worker",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    proc = _run_cli(
+        ["readback", "timeline", "--source-spec", "tmp/timeline-sources.json"],
+        cwd=project,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["source_count"] == 2
+    assert payload["record_count"] == 2
+    assert [row["record_id"] for row in payload["rows"]] == [
+        "report-cli-worker",
+        "inv-cli-late",
+    ]
+    assert [row["source_label"] for row in payload["rows"]] == ["worker", "runtime"]
+    assert payload["authority_split"]["workspace_scanned"] is False
+    assert payload["authority_split"]["persistent_manifest_written"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+
+
 def test_scheduler_help_includes_exchange_artifact_admission() -> None:
     proc = _run_cli(["scheduler", "--help"])
 

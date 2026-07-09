@@ -30,10 +30,9 @@ If repository documents disagree, use this order:
 - Project Name: `doc-based-coding-platform`
 - Version: `0.9.8` (preview)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `Log-like readback unified inspection surface complete`
-- Current Todo: Keep the completed readback helpers and unified inspection
-  surface stable; a later gate can add batch/index timeline aggregation over
-  the same readback families.
+- Current Focus: `Readback explicit-source timeline projection complete`
+- Current Todo: Review the new readback timeline follow-up direction analysis;
+  default recommendation is the narrow `Readback Timeline MCP Parity` gate.
 - Current Standard: Use `design_docs/tooling/Log-like Record Standard Draft.md`
   as the internal standard for upcoming log-like record work; after enough
   practice, promote the stable parts to an authoritative `docs/` contract.
@@ -44,14 +43,20 @@ If repository documents disagree, use this order:
   sandbox/host evidence as later readback-envelope alignment candidates after
   the completed scheduler event slice.
 - Latest Direction Analysis:
-  `design_docs/validation-readback-followup-direction-analysis.md`
-  led to the completed UI Screenshot / Host Evidence readback coverage slice;
-  the follow-up unified read-only inspection CLI/MCP surface is now complete.
-- Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`
-- Latest Completed Slice: `Readback Inspection CLI/MCP Surface`
+  `design_docs/readback-timeline-followup-direction-analysis.md`
+  recommends narrow MCP parity for the explicit-source timeline before a
+  persistent `.dbc` manifest/index or monitoring UI binding.
 - Active Planning Gate: `none`
+- Latest Completed Planning Gate:
+  `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`
+- Latest Completed Slice: `Readback Explicit-Source Timeline Projection`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`,
+  `src/runtime/orchestration/readback_timeline.py`,
+  `src/runtime/orchestration/__init__.py`,
+  `src/__main__.py`,
+  `tests/test_runtime_orchestration.py`,
+  `tests/test_cli.py`,
   `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`,
   `src/runtime/orchestration/readback_inspection.py`,
   `src/runtime/orchestration/__init__.py`,
@@ -292,6 +297,9 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/readback-timeline-followup-direction-analysis.md`
+1. `design_docs/readback-inspection-followup-direction-analysis.md`
+1. `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`
 1. `design_docs/stages/planning-gate/2026-07-09-readback-inspection-cli-mcp-surface.md`
 1. `design_docs/stages/planning-gate/2026-07-09-ui-screenshot-host-evidence-readback-envelope.md`
 1. `design_docs/stages/planning-gate/2026-07-09-validation-doctor-self-check-readback-envelope.md`

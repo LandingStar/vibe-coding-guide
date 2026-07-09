@@ -167,6 +167,7 @@ from src.runtime.orchestration import (
     record_continuous_worker_binding_reuse,
     promote_server_api_created_session_to_continuous_worker_binding,
     inspect_readback,
+    inspect_readback_timeline,
     inspect_worker_binding_promotion_candidates,
     read_delivery_lease_ledger,
     read_lane_ownership_ledger,
@@ -252,6 +253,9 @@ from src.runtime.orchestration import (
     READBACK_INSPECTION_SUPPORTED_KINDS,
     ReadbackInspectionRequest,
     ReadbackInspectionResult,
+    ReadbackTimelineInspectionRequest,
+    ReadbackTimelineInspectionResult,
+    ReadbackTimelineSource,
     execute_guide_worker_parallel_wave,
     guide_worker_instructions_from_sequence,
     SUPERVISOR_STORAGE_BINDING_ARTIFACT_PRODUCT_TYPE,
@@ -24013,6 +24017,153 @@ def test_readback_inspection_reports_selector_errors_without_mutation(
     assert "path escapes project root" in escaping_path.errors[0]
     assert escaping_path.source_path is None
     assert escaping_path.to_json_dict()["authority_split"]["local_work_trajectory_mutated"] is False
+
+
+def test_readback_timeline_runtime_helper_orders_explicit_sources(
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(report_path, suggested_action="advance")
+    runtime_path = tmp_path / ".dbc" / "runtime" / "invocations.jsonl"
+    JsonlRuntimeInvocationLog(runtime_path).append(
+        RuntimeInvocationRecord(
+            invocation_id="inv-timeline-late",
+            provider="codex",
+            status="succeeded",
+            started_at="2026-07-09T10:02:00+00:00",
+            ended_at="2026-07-09T10:02:03+00:00",
+            task_id="task-runtime",
+            run_id="run-timeline",
+        )
+    )
+    scheduler_path = tmp_path / ".dbc" / "scheduler" / "events.jsonl"
+    JsonlSchedulerEventLog(scheduler_path).append(
+        SchedulerEvent(
+            event_id="scheduler-event-early",
+            event_kind="task_ready",
+            timestamp="2026-07-09T10:01:00+00:00",
+            task_id="task-runtime",
+            to_state="ready",
+            run_id="run-timeline",
+        )
+    )
+
+    result = inspect_readback_timeline(
+        ReadbackTimelineInspectionRequest(
+            project_root=tmp_path,
+            sources=(
+                ReadbackTimelineSource(
+                    kind="runtime-invocation-log",
+                    path=".dbc/runtime/invocations.jsonl",
+                    label="runtime",
+                ),
+                ReadbackTimelineSource(
+                    kind="scheduler-event-log",
+                    path=".dbc/scheduler/events.jsonl",
+                    label="scheduler",
+                ),
+                ReadbackTimelineSource(
+                    kind="worker-report",
+                    path=".dbc/agent-output/report-worker.json",
+                    timestamp="2026-07-09T10:03:00+00:00",
+                    label="worker",
+                ),
+            ),
+        )
+    )
+
+    assert isinstance(result, ReadbackTimelineInspectionResult)
+    assert result.ok is True
+    assert result.source_count == 3
+    assert result.successful_source_count == 3
+    assert result.failed_source_count == 0
+    assert result.record_count == 3
+    assert [row.record_id for row in result.rows] == [
+        "scheduler-event-early",
+        "inv-timeline-late",
+        "report-worker-trajectory",
+    ]
+    assert [row.source_label for row in result.rows] == ["scheduler", "runtime", "worker"]
+    assert {row.ordering_confidence for row in result.rows} == {"timestamp"}
+    payload = result.to_json_dict()
+    assert payload["authority_split"]["read_model_only"] is True
+    assert payload["authority_split"]["workspace_scanned"] is False
+    assert payload["authority_split"]["persistent_manifest_written"] is False
+    assert payload["authority_split"]["local_work_trajectory_mutated"] is False
+    assert payload["source_results"][0]["envelopes"][0]["record_id"] == "inv-timeline-late"
+
+
+def test_readback_timeline_marks_missing_and_unknown_timestamps(
+    tmp_path: Path,
+) -> None:
+    first_path = tmp_path / ".dbc" / "agent-output" / "first.json"
+    second_path = tmp_path / ".dbc" / "agent-output" / "second.json"
+    _write_worker_trajectory_report(first_path, suggested_action="append")
+    _write_worker_trajectory_report(second_path, suggested_action="append")
+
+    result = inspect_readback_timeline(
+        ReadbackTimelineInspectionRequest(
+            project_root=tmp_path,
+            sources=(
+                ReadbackTimelineSource(
+                    kind="worker-report",
+                    path=".dbc/agent-output/first.json",
+                    timestamp="not-a-timestamp",
+                ),
+                ReadbackTimelineSource(
+                    kind="worker-report",
+                    path=".dbc/agent-output/second.json",
+                ),
+            ),
+        )
+    )
+
+    assert result.ok is True
+    assert [row.source_index for row in result.rows] == [0, 1]
+    assert [row.ordering_confidence for row in result.rows] == [
+        "unknown_timestamp",
+        "source_order",
+    ]
+
+
+def test_readback_timeline_isolates_partial_source_failures(
+    tmp_path: Path,
+) -> None:
+    scheduler_path = tmp_path / ".dbc" / "scheduler" / "events.jsonl"
+    JsonlSchedulerEventLog(scheduler_path).append(
+        SchedulerEvent(
+            event_id="scheduler-event-survives",
+            event_kind="task_completed",
+            timestamp="2026-07-09T11:01:00+00:00",
+            task_id="task-survives",
+            to_state="complete",
+        )
+    )
+
+    result = inspect_readback_timeline(
+        ReadbackTimelineInspectionRequest(
+            project_root=tmp_path,
+            sources=(
+                ReadbackTimelineSource(
+                    kind="worker-report",
+                    path=".dbc/agent-output/missing.json",
+                ),
+                ReadbackTimelineSource(
+                    kind="scheduler-event-log",
+                    path=".dbc/scheduler/events.jsonl",
+                ),
+            ),
+        )
+    )
+
+    assert result.ok is True
+    assert result.source_count == 2
+    assert result.successful_source_count == 1
+    assert result.failed_source_count == 1
+    assert result.record_count == 1
+    assert result.rows[0].record_id == "scheduler-event-survives"
+    assert "source[0]" in result.errors[0]
+    assert "No such file or directory" in result.errors[0]
 
 
 def _write_worker_trajectory_report(

@@ -7,6 +7,7 @@ Installed entry point:
     doc-based-coding check [input text]        — Run constraint/state check only
     doc-based-coding resources <subcommand>    — Inspect MCP resources
     doc-based-coding readback inspect          — Inspect readback envelopes
+    doc-based-coding readback timeline         — Project explicit readback sources into a timeline
     doc-based-coding codex readiness           — Check Codex CLI host readiness
     doc-based-coding opencode readiness        — Check OpenCode CLI host readiness
     doc-based-coding qoder readiness           — Check Qoder SDK host readiness
@@ -300,6 +301,11 @@ _READBACK_INSPECT_USAGE = (
     "--kind worker-report|validation-receipt|runtime-invocation-log|scheduler-event-log|exchange-artifact|host-evidence "
     "[--path PATH] [--artifact-id ID] [--version VERSION] "
     "[--source-kind KIND] [--latest-limit N] [--actor ACTOR] [--timestamp TIMESTAMP]"
+)
+
+_READBACK_TIMELINE_USAGE = (
+    "Usage: doc-based-coding readback timeline "
+    "[--source-spec PATH] [--source-json JSON]..."
 )
 
 _CODEX_GUIDE_WORKER_SMOKE_USAGE = (
@@ -746,16 +752,19 @@ def cmd_readback(args: list[str]) -> int:
         print(
             "Usage: doc-based-coding readback <subcommand> [args]\n\n"
             "Subcommands:\n"
-            "  inspect    Project known log/evidence records into readback envelopes\n",
+            "  inspect    Project known log/evidence records into readback envelopes\n"
+            "  timeline   Project explicit readback sources into a compact timeline\n",
         )
         return 0
 
     sub = args[0]
     if sub == "inspect":
         return cmd_readback_inspect(args[1:])
+    if sub == "timeline":
+        return cmd_readback_timeline(args[1:])
 
     print(f"Unknown readback subcommand: {sub}", file=sys.stderr)
-    print("Usage: doc-based-coding readback <inspect> [args]", file=sys.stderr)
+    print("Usage: doc-based-coding readback <inspect|timeline> [args]", file=sys.stderr)
     return 1
 
 
@@ -853,6 +862,170 @@ def cmd_readback_inspect(args: list[str]) -> int:
 
     _print_json(result.to_json_dict())
     return 0 if result.ok else 1
+
+
+def cmd_readback_timeline(args: list[str]) -> int:
+    """Project explicit readback sources into a read-only timeline."""
+
+    if args and args[0] in ("-h", "--help"):
+        print(
+            _READBACK_TIMELINE_USAGE + "\n\n"
+            "This command reads only explicitly provided source specs and returns "
+            "a compact timeline projection over existing readback envelopes. "
+            "It does not scan the workspace, write a persistent manifest, expose "
+            "MCP, run validation or doctor, execute providers, launch browsers, "
+            "capture screenshots, mutate scheduler/exchange/evidence/config "
+            "state, or mutate Local Work Trajectory.\n\n"
+            "Source spec shape: {\"kind\":\"scheduler-event-log\", "
+            "\"path\":\".dbc/scheduler/events.jsonl\", \"latest_limit\":20, "
+            "\"label\":\"scheduler\"}. Use artifact_id/version for "
+            "exchange-artifact sources.",
+        )
+        return 0
+
+    source_spec_path = ""
+    source_json_values: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"--source-spec", "--source-json"}:
+            if i + 1 >= len(args):
+                print(_READBACK_TIMELINE_USAGE, file=sys.stderr)
+                return 1
+            value = args[i + 1]
+            if arg == "--source-spec":
+                source_spec_path = value
+            elif arg == "--source-json":
+                source_json_values.append(value)
+            i += 2
+            continue
+        print(f"Unknown readback timeline option: {arg}", file=sys.stderr)
+        print(_READBACK_TIMELINE_USAGE, file=sys.stderr)
+        return 1
+
+    if not source_spec_path and not source_json_values:
+        print(_READBACK_TIMELINE_USAGE, file=sys.stderr)
+        return 1
+
+    try:
+        from .runtime.orchestration import (
+            ReadbackTimelineInspectionRequest,
+            ReadbackTimelineSource,
+            inspect_readback_timeline,
+        )
+
+        root = _find_project_root()
+        sources = _read_readback_timeline_sources(
+            root,
+            source_spec_path=source_spec_path,
+            source_json_values=source_json_values,
+            source_cls=ReadbackTimelineSource,
+        )
+        result = inspect_readback_timeline(
+            ReadbackTimelineInspectionRequest(
+                project_root=root,
+                sources=tuple(sources),
+            )
+        )
+    except Exception as e:
+        return _handle_error(
+            "Error inspecting readback timeline",
+            e,
+            category="readback_timeline_failed",
+        )
+
+    _print_json(result.to_json_dict())
+    return 0 if result.ok else 1
+
+
+def _read_readback_timeline_sources(
+    root: Path,
+    *,
+    source_spec_path: str,
+    source_json_values: list[str],
+    source_cls: type,
+) -> list[object]:
+    payloads: list[dict[str, object]] = []
+    if source_spec_path:
+        spec_path = _resolve_cli_path(root, source_spec_path)
+        decoded = json.loads(spec_path.read_text(encoding="utf-8"))
+        payloads.extend(_readback_timeline_source_payloads(decoded, source_label=str(spec_path)))
+    for raw in source_json_values:
+        decoded = json.loads(raw)
+        payloads.extend(_readback_timeline_source_payloads(decoded, source_label="--source-json"))
+    return [
+        _readback_timeline_source_from_mapping(source_cls, payload, index=index)
+        for index, payload in enumerate(payloads)
+    ]
+
+
+def _resolve_cli_path(root: Path, value: str) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path.resolve()
+    resolved_root = root.resolve()
+    resolved_path = (resolved_root / path).resolve()
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"path escapes project root: {value}; project_root={resolved_root}"
+        ) from exc
+    return resolved_path
+
+
+def _readback_timeline_source_payloads(
+    decoded: object,
+    *,
+    source_label: str,
+) -> list[dict[str, object]]:
+    if isinstance(decoded, dict) and isinstance(decoded.get("sources"), list):
+        decoded = decoded["sources"]
+    if isinstance(decoded, dict):
+        decoded = [decoded]
+    if not isinstance(decoded, list):
+        raise ValueError(f"{source_label} must be a source object, a source array, or an object with sources")
+    payloads: list[dict[str, object]] = []
+    for index, item in enumerate(decoded):
+        if not isinstance(item, dict):
+            raise ValueError(f"{source_label}[{index}] must be an object")
+        payloads.append(dict(item))
+    return payloads
+
+
+def _readback_timeline_source_from_mapping(
+    source_cls: type,
+    payload: dict[str, object],
+    *,
+    index: int,
+) -> object:
+    kind = _string_field(payload, "kind")
+    if not kind:
+        raise ValueError(f"timeline source[{index}] requires kind")
+    latest_limit_value = payload.get("latest_limit", payload.get("latestLimit", 20))
+    try:
+        latest_limit = int(latest_limit_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"timeline source[{index}] latest_limit must be an integer") from exc
+    return source_cls(
+        kind=kind,
+        path=_string_field(payload, "path"),
+        artifact_id=_string_field(payload, "artifact_id", "artifactId"),
+        version=_string_field(payload, "version"),
+        source_kind=_string_field(payload, "source_kind", "sourceKind"),
+        latest_limit=latest_limit,
+        actor=_string_field(payload, "actor") or "readback-timeline-cli",
+        timestamp=_string_field(payload, "timestamp"),
+        label=_string_field(payload, "label"),
+    )
+
+
+def _string_field(payload: dict[str, object], *names: str) -> str:
+    for name in names:
+        value = payload.get(name)
+        if value is not None:
+            return str(value)
+    return ""
 
 
 def cmd_codex_guide_worker_smoke(args: list[str]) -> int:

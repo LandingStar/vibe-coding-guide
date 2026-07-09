@@ -185,6 +185,30 @@
 
 ### Post-v1.0 工作（无 Phase 编号，按方向候选推进）
 
+- Readback Explicit-Source Timeline Projection 完成：readback 方向在统一
+  `inspect_readback()` surface 之后，新增显式来源的跨 family timeline 投影。
+  实现包括 `src/runtime/orchestration/readback_timeline.py`、
+  `ReadbackTimelineSource`、`ReadbackTimelineInspectionRequest`、
+  `ReadbackTimelineRow`、`ReadbackTimelineInspectionResult` 与
+  `inspect_readback_timeline()`，并通过 CLI
+  `doc-based-coding readback timeline --source-spec PATH` /
+  `--source-json JSON` 暴露。该 helper 只接受 caller 显式提供的 source
+  specs，逐项复用 `inspect_readback()`，保留 source results 与原 envelope，
+  并输出带 `ordering_confidence=timestamp|source_order|unknown_timestamp` 的
+  compact timeline rows；partial source failure 会隔离报告，只要至少一个
+  source 成功就保留成功 rows。该切片不引入 persistent `.dbc` manifest/index、
+  不扫描 workspace、不暴露 MCP、不做 monitoring UI、不变更 source schema、
+  不运行 provider/browser/validation/doctor、不突变 scheduler/exchange/evidence/
+  config 或 Local Work Trajectory。planning gate 位于
+  `design_docs/stages/planning-gate/2026-07-09-readback-explicit-source-timeline-projection.md`；
+  validation 为 focused runtime timeline tests `3 passed, 498 deselected`、
+  focused CLI timeline tests `2 passed, 184 deselected`、readback runtime
+  regression `6 passed, 495 deselected`、readback CLI regression
+  `4 passed, 182 deselected`、compileall passed、`python -m src validate`
+  passed、`git diff --check` passed with Windows line-ending warnings only。
+  后续方向分析位于
+  `design_docs/readback-timeline-followup-direction-analysis.md`，当前倾向下一条
+  窄 gate 为 `Readback Timeline MCP Parity`。
 - Readback Inspection CLI/MCP Surface 完成：log-like record 标准化方向在
   六条 readback envelope 覆盖后，新增统一只读检查入口。实现包括
   `src/runtime/orchestration/readback_inspection.py`、

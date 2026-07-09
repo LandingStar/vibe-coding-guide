@@ -523,6 +523,14 @@ from .readback_inspection import (
     ReadbackInspectionResult,
     inspect_readback,
 )
+from .readback_timeline import (
+    ReadbackTimelineInspectionRequest,
+    ReadbackTimelineInspectionResult,
+    ReadbackTimelineOrderingConfidence,
+    ReadbackTimelineRow,
+    ReadbackTimelineSource,
+    inspect_readback_timeline,
+)
 from .codex_cli_client import (
     CodexCliApprovalPolicy,
     CodexCliClientConfig,
@@ -1452,6 +1460,11 @@ __all__ = [
     "ReadbackInspectionKind",
     "ReadbackInspectionRequest",
     "ReadbackInspectionResult",
+    "ReadbackTimelineInspectionRequest",
+    "ReadbackTimelineInspectionResult",
+    "ReadbackTimelineOrderingConfidence",
+    "ReadbackTimelineRow",
+    "ReadbackTimelineSource",
     "WorkerBindingPromotionCandidate",
     "WorkerBindingPromotionCandidateReadbackRequest",
     "WorkerBindingPromotionCandidateReadbackResult",
@@ -1660,6 +1673,7 @@ __all__ = [
     "host_evidence_presentation_to_readback_envelopes",
     "host_evidence_summary_to_readback_envelope",
     "inspect_readback",
+    "inspect_readback_timeline",
     "reply_to_exchange_artifact",
     "run_leader_worker_activation_pass",
     "acknowledge_leader_worker_delivery",

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "trajectory_id": "local-work:single-line-current",
   "title": "Review dbc-test solutions smoke output",
-  "recorded_at": "2026-07-09T06:47:03.777081+00:00",
+  "recorded_at": "2026-07-09T07:40:44.550519+00:00",
   "source_graph_id": "",
   "source_node_id": "",
   "guide_context": "codex-mcp-agent",
@@ -15,8 +15,8 @@
     "trajectory_id": "local-work:single-line-current",
     "title": "Review dbc-test solutions smoke output",
     "lane_count": 1,
-    "event_count": 14,
-    "relation_count": 13,
+    "event_count": 17,
+    "relation_count": 16,
     "source_graph_id": "",
     "source_node_id": ""
   },
@@ -24,7 +24,7 @@
     "lane:main": {
       "id": "lane:main",
       "label": "当前工作",
-      "status": "pending",
+      "status": "done",
       "summary": "Single-line local work lifecycle.",
       "metadata": {
         "line_kind": "single",
@@ -233,12 +233,58 @@
       "lane_id": "lane:main",
       "title": "整理 readback 系列变更并提交",
       "kind": "writeback",
-      "status": "pending",
+      "status": "completed",
       "order": 14,
       "summary": "按用户要求先将已完成的 readback 覆盖与统一入口成果整理为本地提交，随后再进行下一步方向分析。",
       "metadata": {
         "created_at": "2026-07-09T06:47:03.773169+00:00",
-        "source": "single-line-lifecycle"
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-09T06:49:27.930538+00:00"
+      }
+    },
+    "event:015": {
+      "id": "event:015",
+      "lane_id": "lane:main",
+      "title": "编写 readback 后续方向分析",
+      "kind": "decision",
+      "status": "completed",
+      "order": 15,
+      "summary": "在 readback unified inspection surface 完成后，依据 Checklist、Global Phase Map、direction candidates、research compass 与 log-like standard 草案，整理下一步候选方向与推荐。",
+      "metadata": {
+        "created_at": "2026-07-09T06:50:06.676036+00:00",
+        "source": "single-line-lifecycle",
+        "completed_at": "2026-07-09T06:52:41.827773+00:00"
+      }
+    },
+    "event:016": {
+      "id": "event:016",
+      "lane_id": "lane:main",
+      "title": "实现 explicit-source readback timeline runtime helper 与 CLI",
+      "kind": "task",
+      "status": "completed",
+      "order": 16,
+      "summary": "按用户指定顺序推进：先落 runtime helper 与测试，再接薄 CLI；范围保持 explicit-source、read-only、无 MCP/UI/index。",
+      "metadata": {
+        "created_at": "2026-07-09T07:14:04.772583+00:00",
+        "source": "single-line-lifecycle",
+        "updated_at": "2026-07-09T07:16:35.358898+00:00",
+        "activated_at": "2026-07-09T07:35:08.201529+00:00",
+        "completed_at": "2026-07-09T07:40:30.356395+00:00"
+      }
+    },
+    "event:017": {
+      "id": "event:017",
+      "lane_id": "lane:main",
+      "title": "实现 explicit-source readback timeline runtime helper 与 CLI",
+      "kind": "task",
+      "status": "completed",
+      "order": 17,
+      "summary": "先新增 runtime helper 与 focused tests，再新增 readback timeline CLI；不引入 MCP、UI、manifest/index 或自动扫描。",
+      "metadata": {
+        "created_at": "2026-07-09T07:16:56.514246+00:00",
+        "source": "single-line-lifecycle",
+        "activated_at": "2026-07-09T07:40:30.356395+00:00",
+        "completed_at": "2026-07-09T07:40:44.549517+00:00"
       }
     }
   },
@@ -354,6 +400,33 @@
     {
       "source_event_id": "event:013",
       "target_event_id": "event:014",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:014",
+      "target_event_id": "event:015",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:015",
+      "target_event_id": "event:016",
+      "kind": "sequence",
+      "summary": "",
+      "metadata": {
+        "source": "single-line-lifecycle"
+      }
+    },
+    {
+      "source_event_id": "event:016",
+      "target_event_id": "event:017",
       "kind": "sequence",
       "summary": "",
       "metadata": {
