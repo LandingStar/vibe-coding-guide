@@ -1,34 +1,20 @@
 # Commit Message (English)
 
 ```text
-release: rebuild the v0.9.8 preview release
+release: package the v0.9.9 installed-contract fix
 
-Package the current Local Work Trajectory and host coordination work into a new
-preview release batch: move the runtime and official instance to 0.9.8, bump the
-VS Code extension to 0.2.1, keep the graph component dependency pinned, and add
-release-time secret hygiene checks.
-This is a same-version rebuild and does not bump runtime, instance, or VSIX
-versions. It also includes the askQuestions-specific contract cleanup, replacing
-that obsolete host binding with host-neutral analysis-first forward questions.
-The release checklist now also proves the VS Code webview path through a
-pre-provisioned Electron smoke gate.
+Resolve the Subagent Report schema from the target workspace when consuming
+worker trajectory updates from an installed wheel. Bootstrap the report schema
+and worker procedure with the official instance, and make the build prove this
+path through an isolated dual-wheel install and CLI consumption smoke.
+Exclude root build/dist outputs from pack hashes so packaging no longer causes
+post-build lock drift while source and nested pack content remain protected.
 
-## Changes
+Clarify that Local Work lane count proves logical decomposition rather than
+scheduler/provider concurrency. Package the current readback and orchestration
+baseline without starting host inversion; keep the Direct/Managed mode facility
+matrix as follow-up work. The independently versioned VSIX remains 0.2.1.
 
-- Add the Local Work Trajectory MCP lifecycle surface and React Flow / ELK UI
-- Support multi-line trajectory mapping for lane opening, merge/fan-in, and auxiliary relations
-- Re-align docs and generated prompts so Codex remains the primary supported host chain
-- Remove the askQuestions-specific requirement from active rules, bootstrap templates, and MCP interaction metadata
-- Add secret scanning and the Secret Hygiene / Log Redaction standard
-- Keep the VSIX graph runtime self-contained with the pinned graph engine tarball
-- Refresh package versions, release docs, and official instance pack lock
-- Run the pre-provisioned VS Code 1.93.1 Electron smoke gate during release packaging
-
-## Verified
-
-- `python release/verify_version_consistency.py`: passed
-- `python scripts/scan_secrets.py --scope worktree`: passed
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: 3 passed
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`: 100 passed
-- `python scripts/release.py --no-isolation`: built wheels, ran full pytest (`1754 passed, 3 skipped`), packaged `doc-based-coding-0.2.1.vsix`, ran Electron smoke (`ok=true`, `lanes=4`, `events=6`, `relations=12`), and generated `release/doc-based-coding-v0.9.8.zip`
+Verified by the full release flow: `2371 passed, 3 skipped`, isolated installed
+smoke and Electron smoke passed, and `doc-based-coding-v0.9.9.zip` was created.
 ```

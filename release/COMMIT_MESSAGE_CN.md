@@ -1,33 +1,21 @@
 # Commit Message（中文）
 
 ```text
-release: 重新打包 v0.9.8 preview release
+release: 发布 v0.9.9 安装态合同修复包
 
-将当前 Local Work Trajectory 与宿主协同相关成果收口到新的 preview release
-批次：runtime 与 official instance 提升到 0.9.8，VS Code extension 提升到
-0.2.1，继续固定 graph component 依赖边界，并将 secret hygiene 检查接入发布流程。
-本次为同版本重新打包，不递增 runtime / instance / VSIX 版本号；额外纳入
-askQuestions 专用接口绑定清理，改为宿主无关的“先分析/推荐，再推进式提问”
-规则。发布检查清单现在也通过预置 VS Code 的 Electron smoke gate 验证真实
-webview 路径。
+修复 consumeWorkerTrajectoryReport 在 wheel 安装态下错误地从
+site-packages/docs 解析 Subagent Report schema 的问题，改为使用目标工作区
+docs/specs/subagent-report.schema.json，并将 schema 与 worker 回写流程文档纳入
+官方实例 bootstrap。
 
-## 变更
+同时收口 Spirebound 全量测试暴露的协作证据语义：多 lane 只证明逻辑拆分，
+不再被当作 scheduler/provider 并发证据。构建门新增隔离安装双 wheel、从安装
+目录导入、bootstrap 临时工作区并通过 CLI 消费 worker report 的强制 smoke。
+同时修复 pack hash 纳入根部 build/dist 生成物导致构建后 lock 漂移的问题。
 
-- 新增 Local Work Trajectory MCP 生命周期接口与 React Flow / ELK UI
-- 支持多线轨迹中的开线、merge/fan-in 与辅助关系展示
-- 对齐文档与生成提示词，使 Codex 继续作为主要支持宿主链路
-- 移除当前生效规则、bootstrap 模板、MCP interaction contract 中的 askQuestions
-  专用要求
-- 新增 secret scanner 与 Secret Hygiene / Log Redaction 标准
-- 保持 VSIX graph runtime 自包含，并继续携带固定 graph engine tarball
-- 刷新包版本、release 文档与 official instance pack lock
-- 在发布打包流程中运行预置 VS Code 1.93.1 的 Electron smoke gate
+本批次包含当前 readback/orchestration 基线，但不实现宿主反转；Direct/Managed
+模式设施矩阵保留为后续待办。VSIX 无源码变更，保持独立版本 0.2.1。
 
-## 验证
-
-- `python release/verify_version_consistency.py`：通过
-- `python scripts/scan_secrets.py --scope worktree`：通过
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`：3 passed
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`：100 passed
-- `python scripts/release.py --no-isolation`：构建双 wheel，运行全量 pytest（`1754 passed, 3 skipped`），打包 `doc-based-coding-0.2.1.vsix`，运行 Electron smoke（`ok=true`，`lanes=4`，`events=6`，`relations=12`），并生成 `release/doc-based-coding-v0.9.8.zip`
+验证：完整 release flow 通过，Python `2371 passed, 3 skipped`，隔离安装
+smoke 与 Electron smoke 均通过，生成 `doc-based-coding-v0.9.9.zip`。
 ```

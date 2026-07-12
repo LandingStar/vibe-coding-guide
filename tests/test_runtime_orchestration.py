@@ -23373,6 +23373,70 @@ def test_worker_trajectory_report_consumer_starts_missing_trajectory_from_append
     assert event.metadata["worker_evidence_refs"] == ".dbc/agent-output/report-worker.json"
 
 
+def test_worker_trajectory_report_consumer_requires_workspace_schema(
+    tmp_path: Path,
+) -> None:
+    from tools.progress_graph import trajectory_json_path
+
+    report_path = tmp_path / ".dbc" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(
+        report_path,
+        suggested_action="append",
+        write_workspace_schema=False,
+    )
+
+    result = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=tmp_path,
+            report_path=report_path,
+            caller_role="leader",
+        )
+    )
+
+    assert result.ok is False
+    assert result.status == "validation_failed"
+    assert "docs" in result.errors[0]
+    assert "subagent-report.schema.json" in result.errors[0]
+    assert "Bootstrap or restore" in result.errors[1]
+    assert not trajectory_json_path(tmp_path).exists()
+
+
+def test_worker_trajectory_report_consumer_isolates_schema_by_workspace(
+    tmp_path: Path,
+) -> None:
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    first_report = first_root / ".dbc" / "agent-output" / "report-worker.json"
+    second_report = second_root / ".dbc" / "agent-output" / "report-worker.json"
+    _write_worker_trajectory_report(first_report, suggested_action="append")
+    _write_worker_trajectory_report(second_report, suggested_action="append")
+
+    second_schema_path = second_root / "docs" / "specs" / "subagent-report.schema.json"
+    second_schema = json.loads(second_schema_path.read_text(encoding="utf-8"))
+    second_schema["properties"]["status"]["enum"] = ["blocked"]
+    second_schema_path.write_text(json.dumps(second_schema), encoding="utf-8")
+
+    first = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=first_root,
+            report_path=first_report,
+            caller_role="leader",
+        )
+    )
+    second = consume_worker_trajectory_report(
+        WorkerTrajectoryReportConsumerRequest(
+            project_root=second_root,
+            report_path=second_report,
+            caller_role="leader",
+        )
+    )
+
+    assert first.ok is True
+    assert second.ok is False
+    assert second.status == "validation_failed"
+    assert any("status" in error and "blocked" in error for error in second.errors)
+
+
 def test_worker_trajectory_report_consumer_rejects_worker_role_before_mutation(
     tmp_path: Path,
 ) -> None:
@@ -24170,7 +24234,20 @@ def _write_worker_trajectory_report(
     report_path: Path,
     *,
     suggested_action: str,
+    write_workspace_schema: bool = True,
 ) -> None:
+    if write_workspace_schema:
+        project_root = next(
+            parent for parent in report_path.parents if parent.name == ".dbc"
+        ).parent
+        schema_path = project_root / "docs" / "specs" / "subagent-report.schema.json"
+        schema_path.parent.mkdir(parents=True, exist_ok=True)
+        schema_path.write_text(
+            (Path(__file__).resolve().parents[1] / "docs" / "specs" / "subagent-report.schema.json").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
+        )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         json.dumps(

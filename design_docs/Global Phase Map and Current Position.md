@@ -783,3 +783,5 @@ Release 封装已通过完整验证链：构建（双包 wheel/sdist）→ 测�
 
 子 agent 机制 5 项需求全部完成。Phase 33 已完成：Pipeline 初始化容错、MCP 降级模式、CLI --debug 模式。首个稳定 release 的边界与收口条件已写入 `docs/first-stable-release-boundary.md`。
 
+2026-07-12 继续新增：`design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md` 已完成。`consumeWorkerTrajectoryReport` 现从目标工作区读取 `docs/specs/subagent-report.schema.json`，官方实例 bootstrap 已携带 schema 与 worker 回写流程文档；build gate 会在隔离 target 安装双 wheel、确认从安装目录导入、bootstrap 临时工作区并通过 installed CLI 消费 worker report。pack integrity 同时排除了 pack 根部 `build/` / `dist/` 生成物，避免构建后 lock 漂移。最终 release flow 通过 `2371 passed, 3 skipped`、VSIX `0.2.1` 打包与 Electron smoke，并生成 `release/doc-based-coding-v0.9.9.zip`。Direct Assistant / Managed 双模式设施矩阵只登记为待办；宿主反转尚未开 gate，必须等待用户发布、另一会话更新本工作区 runtime，并获得用户明确许可后再建立新节点与 Local Work Trajectory。
+

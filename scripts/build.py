@@ -14,9 +14,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -200,6 +203,155 @@ def _verify_wheel(
     return ok
 
 
+def _run_installed_worker_report_smoke(
+    runtime_wheel: Path,
+    instance_wheel: Path,
+) -> bool:
+    """Prove worker-report consumption from isolated installed wheel contents."""
+
+    print("\nRunning installed-layout worker-report smoke...")
+    with tempfile.TemporaryDirectory(prefix="dbc-installed-worker-report-") as temp_dir:
+        smoke_root = Path(temp_dir)
+        install_root = smoke_root / "installed"
+        workspace_root = smoke_root / "workspace"
+        install_root.mkdir()
+        workspace_root.mkdir()
+
+        install = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--quiet",
+                "--no-deps",
+                "--target",
+                str(install_root),
+                str(runtime_wheel),
+                str(instance_wheel),
+            ],
+            cwd=str(smoke_root),
+            capture_output=True,
+            text=True,
+        )
+        if install.returncode != 0:
+            print("  ERROR: isolated wheel installation failed", file=sys.stderr)
+            print(install.stdout, end="")
+            print(install.stderr, end="", file=sys.stderr)
+            return False
+
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(install_root)
+        import_probe = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import json, pathlib, src, doc_loop_vibe_coding; "
+                    "root=pathlib.Path(r'" + str(install_root) + "').resolve(); "
+                    "paths=[pathlib.Path(src.__file__).resolve(), "
+                    "pathlib.Path(doc_loop_vibe_coding.__file__).resolve()]; "
+                    "assert all(path.is_relative_to(root) for path in paths), paths; "
+                    "print(json.dumps([str(path) for path in paths]))"
+                ),
+            ],
+            cwd=str(smoke_root),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if import_probe.returncode != 0:
+            print("  ERROR: wheel import isolation probe failed", file=sys.stderr)
+            print(import_probe.stdout, end="")
+            print(import_probe.stderr, end="", file=sys.stderr)
+            return False
+
+        bootstrap = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "doc_loop_vibe_coding.scripts.bootstrap_doc_loop",
+                "--target",
+                str(workspace_root),
+                "--project-name",
+                "installed-worker-report-smoke",
+                "--force",
+            ],
+            cwd=str(smoke_root),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if bootstrap.returncode != 0:
+            print("  ERROR: installed instance bootstrap failed", file=sys.stderr)
+            print(bootstrap.stdout, end="")
+            print(bootstrap.stderr, end="", file=sys.stderr)
+            return False
+
+        report_path = workspace_root / ".dbc" / "agent-output" / "report-smoke.json"
+        report_path.parent.mkdir(parents=True)
+        report_path.write_text(
+            json.dumps(
+                {
+                    "report_id": "report-installed-wheel-smoke",
+                    "contract_id": "contract-installed-wheel-smoke",
+                    "status": "completed",
+                    "changed_artifacts": ["smoke.txt"],
+                    "verification_results": ["installed-layout smoke"],
+                    "trajectory_update": {
+                        "lane_id": "lane:installed-smoke",
+                        "task_id": "task/installed-smoke",
+                        "event_status": "completed",
+                        "summary": "Installed wheel consumed the workspace report contract.",
+                        "suggested_action": "append",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        consume = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src",
+                "scheduler",
+                "consume-worker-trajectory-report",
+                "--report-path",
+                ".dbc/agent-output/report-smoke.json",
+                "--caller-role",
+                "leader",
+            ],
+            cwd=str(workspace_root),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if consume.returncode != 0:
+            print("  ERROR: installed runtime could not consume worker report", file=sys.stderr)
+            print(consume.stdout, end="")
+            print(consume.stderr, end="", file=sys.stderr)
+            return False
+
+        try:
+            payload = json.loads(consume.stdout)
+        except json.JSONDecodeError as exc:
+            print(f"  ERROR: installed runtime returned invalid JSON: {exc}", file=sys.stderr)
+            print(consume.stdout, end="")
+            return False
+        trajectory_path = workspace_root / ".dbc" / "progress-graph" / "local-work-trajectory.json"
+        if payload.get("status") != "consumed" or not trajectory_path.is_file():
+            print(
+                "  ERROR: installed runtime did not produce the expected consumed trajectory state",
+                file=sys.stderr,
+            )
+            print(consume.stdout, end="")
+            return False
+
+        print(f"  Imported from isolated target: {import_probe.stdout.strip()}")
+        print("  Bootstrap contract and CLI consumption: PASSED")
+        return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build doc-based-coding dual-package wheels")
     parser.add_argument("--dry-run", action="store_true", help="Show build plan without building")
@@ -228,6 +380,7 @@ def main() -> int:
         print(f"  3. Build runtime wheel: doc_based_coding_runtime-{version}-py3-none-any.whl")
         print(f"  4. Build instance wheel: doc_loop_vibe_coding-{instance_version}-py3-none-any.whl")
         print(f"  5. Verify wheel contents")
+        print(f"  6. Run installed-layout worker-report smoke")
         return 0
 
     # Step 1: Clean
@@ -290,7 +443,17 @@ def main() -> int:
         "instance",
         MIN_INSTANCE_FILES,
         ["doc-loop-bootstrap", "doc-loop-validate-doc", "doc-loop-validate-instance"],
+        [
+            "doc_loop_vibe_coding/assets/bootstrap/docs/worker-trajectory-update-reporting.md",
+            "doc_loop_vibe_coding/assets/bootstrap/docs/specs/subagent-report.schema.json",
+        ],
     )
+    installed_smoke_ok = False
+    if r_ok and i_ok:
+        installed_smoke_ok = _run_installed_worker_report_smoke(
+            runtime_wheel,
+            instance_wheel,
+        )
 
     # Summary
     print(f"\n{'='*60}")
@@ -298,14 +461,15 @@ def main() -> int:
     print(f"{'='*60}")
     print(f"  Runtime wheel:  {runtime_wheel.name} ({'OK' if r_ok else 'WARNINGS'})")
     print(f"  Instance wheel: {instance_wheel.name} ({'OK' if i_ok else 'WARNINGS'})")
+    print(f"  Installed smoke: {'OK' if installed_smoke_ok else 'FAILED'}")
     print(f"  Output: {DIST_DIR.relative_to(ROOT)}/")
 
-    if r_ok and i_ok:
+    if r_ok and i_ok and installed_smoke_ok:
         print(f"\nBuild completed successfully.")
         return 0
-    else:
-        print(f"\nBuild completed with warnings.", file=sys.stderr)
-        return 0  # Warnings don't fail the build
+
+    print(f"\nBuild failed verification.", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

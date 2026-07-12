@@ -11,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from release import _assert_electron_smoke_summary, _preflight_electron_smoke_executable  # noqa: E402
+from src.pack.pack_integrity import compute_pack_hash
 from scripts.release_versioning import is_normal_semver, is_semver, require_normal_semver
 
 
@@ -56,6 +57,39 @@ def test_packageable_release_versions_are_normal_semver_only() -> None:
 
     with pytest.raises(ValueError, match="MAJOR.MINOR.PATCH"):
         require_normal_semver("1.0.0-rc.1", "test")
+
+
+def test_pack_hash_ignores_root_build_outputs(tmp_path: Path) -> None:
+    pack_root = tmp_path / "pack"
+    pack_root.mkdir()
+    (pack_root / "pack-manifest.json").write_text("{}", encoding="utf-8")
+    source_hash = compute_pack_hash(pack_root)
+
+    (pack_root / "build" / "lib").mkdir(parents=True)
+    (pack_root / "build" / "lib" / "generated.py").write_text(
+        "generated = True\n",
+        encoding="utf-8",
+    )
+    (pack_root / "dist").mkdir()
+    (pack_root / "dist" / "pack.whl").write_bytes(b"wheel")
+
+    assert compute_pack_hash(pack_root) == source_hash
+
+
+def test_pack_hash_keeps_nested_build_named_content(tmp_path: Path) -> None:
+    pack_root = tmp_path / "pack"
+    pack_root.mkdir()
+    (pack_root / "pack-manifest.json").write_text("{}", encoding="utf-8")
+    source_hash = compute_pack_hash(pack_root)
+
+    nested_build = pack_root / "assets" / "build"
+    nested_build.mkdir(parents=True)
+    (nested_build / "contract.md").write_text(
+        "pack-owned build contract\n",
+        encoding="utf-8",
+    )
+
+    assert compute_pack_hash(pack_root) != source_hash
 
 
 def test_release_dry_run_rejects_non_semver_override() -> None:

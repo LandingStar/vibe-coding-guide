@@ -781,6 +781,37 @@ def test_worker_trajectory_update_reporting_is_linked_and_schema_backed() -> Non
     ]["enum"]
 
 
+def test_bootstrap_carries_worker_trajectory_report_contract(tmp_path: Path) -> None:
+    assert _read(
+        "doc-loop-vibe-coding/assets/bootstrap/docs/worker-trajectory-update-reporting.md"
+    ) == _read("docs/worker-trajectory-update-reporting.md")
+    assert json.loads(
+        _read("doc-loop-vibe-coding/assets/bootstrap/docs/specs/subagent-report.schema.json")
+    ) == json.loads(_read("docs/specs/subagent-report.schema.json"))
+
+    bootstrap = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "doc-loop-vibe-coding" / "scripts" / "bootstrap_doc_loop.py"),
+            "--target",
+            str(tmp_path),
+            "--force",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
+    )
+
+    assert bootstrap.returncode == 0, bootstrap.stdout + bootstrap.stderr
+    assert (tmp_path / "docs" / "worker-trajectory-update-reporting.md").is_file()
+    copied_schema = json.loads(
+        (tmp_path / "docs" / "specs" / "subagent-report.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert copied_schema["properties"]["trajectory_update"]["$ref"] == "#/$defs/trajectoryUpdate"
+
+
 def test_workspace_dbc_command_relay_guide_is_linked_and_actionable() -> None:
     docs_readme = _read("docs/README.md")
     install = _read("docs/installation-guide.md")
@@ -817,6 +848,10 @@ def test_local_work_lane_splitting_standard_is_discoverable() -> None:
         assert "Lane Split Preflight" in index
         assert "user-requested lane change" in index
         assert "Do not copy the full criteria" in index
+        assert "proves only a logical split" in index
+        assert "auditable collaboration" in index
+        assert "evidence through worker reports" in index
+        assert "orchestration blocker" in index
         assert "Frontend, backend, API contract" in preflight
         assert "localTrajectory addLanes" in preflight
         assert "record the rationale" in preflight
@@ -837,6 +872,7 @@ def test_agents_surfaces_point_to_lane_splitting_standard_without_full_criteria(
         assert "Before substantial task work begins" in text
         assert "design_docs/tooling/local-work-lane-splitting/README.md" in text
         assert "detailed lane split criteria" in text
+        assert "Leader-worker is the recommended execution structure" in text
         assert "different files, protocols, validation surfaces" not in text
 
 

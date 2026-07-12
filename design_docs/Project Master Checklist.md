@@ -26,14 +26,16 @@ If repository documents disagree, use this order:
 
 ## Current Snapshot
 
-- Snapshot Date: `2026-07-09`
+- Snapshot Date: `2026-07-12`
 - Project Name: `doc-based-coding-platform`
-- Version: `0.9.8` (preview)
+- Version: `0.9.9` (preview release ready locally)
 - Current Phase: `Post-v1.0 - Agent orchestration / Codex stable worker runtime`
-- Current Focus: `Readback Timeline MCP Parity complete`
-- Current Todo: Review the completed timeline MCP parity and choose the next
-  readback direction: persistent `.dbc` source manifest, monitoring UI binding,
-  or promotion of the log-like record standard.
+- Current Focus: `0.9.9 release ready; host inversion intentionally unopened`
+- Current Todo: Wait for the user to publish `0.9.9`, then let another session
+  update this workspace's installed runtime. After that update and explicit user
+  approval, verify the installed runtime/tool exposure and open a new global-map
+  node plus Local Work Trajectory for host inversion. Do not start that work
+  from the current release trajectory.
 - Current Standard: Use `design_docs/tooling/Log-like Record Standard Draft.md`
   as the internal standard for upcoming log-like record work; after enough
   practice, promote the stable parts to an authoritative `docs/` contract.
@@ -49,9 +51,18 @@ If repository documents disagree, use this order:
   persistent `.dbc` manifest/index or monitoring UI binding.
 - Active Planning Gate: `none`
 - Latest Completed Planning Gate:
-  `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`
-- Latest Completed Slice: `Readback Timeline MCP Parity`
+  `design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md`
+- Latest Completed Slice: `Installed Worker Report Contract And 0.9.9 Release`
 - Latest Completion Evidence:
+  `design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md`,
+  `release/doc-based-coding-v0.9.9.zip`,
+  `release/doc_based_coding_runtime-0.9.9-py3-none-any.whl`,
+  `release/doc_loop_vibe_coding-0.9.9-py3-none-any.whl`,
+  `src/runtime/orchestration/worker_trajectory_report_consumer.py`,
+  `src/pack/pack_integrity.py`,
+  `scripts/build.py`,
+  `review/spirebound-content-expansion-full-test-acceptance-2026-07-11.md`,
+  `design_docs/stages/planning-gate/2026-07-11-logical-lane-split-vs-worker-collaboration-evidence.md`,
   `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`,
   `src/mcp/tools.py`,
   `src/mcp/server.py`,
@@ -302,6 +313,9 @@ If repository documents disagree, use this order:
 Start with these files, in order:
 
 1. `design_docs/Project Master Checklist.md`
+1. `design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md`
+1. `review/spirebound-content-expansion-full-test-acceptance-2026-07-11.md`
+1. `design_docs/stages/planning-gate/2026-07-11-logical-lane-split-vs-worker-collaboration-evidence.md`
 1. `design_docs/readback-timeline-followup-direction-analysis.md`
 1. `design_docs/stages/planning-gate/2026-07-09-readback-timeline-mcp-parity.md`
 1. `design_docs/readback-inspection-followup-direction-analysis.md`
@@ -2206,6 +2220,21 @@ Validation:
 
 ## Current Pending Todo
 
+- [ ] Before host-inversion implementation, define a facility enablement matrix
+  for two explicit operating modes. `Direct Assistant Mode` preserves the
+  current user-driven Codex / VS Code / MCP governance workflow. `Managed Mode`
+  makes DBC own scheduler/orchestration lifecycle and runs even the
+  user-facing main/leader interaction in Codex CLI; Managed Mode may disable or
+  omit VS Code extension support. Treat OpenCode and additional CLI hosts as
+  later runtime/interaction adapters. Record each existing facility as enabled,
+  disabled, replaced, or not applicable per mode; do not implement this matrix
+  in the `0.9.9` release gate. Source:
+  `design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md`.
+- [x] Fix installed-wheel worker-report schema resolution, add the missing
+  bootstrap contracts, prove isolated wheel consumption, stabilize pack hashes
+  across build outputs, and prepare the `0.9.9` release bundle. Source:
+  `design_docs/stages/planning-gate/2026-07-12-installed-worker-report-contract-release.md`.
+
 - [x] Finish this Checklist recovery-surface optimization pass.
 - [x] Align AGENTS/bootstrap/tooling guidance with the compact Checklist role.
 - [x] Finish focused and adjacent validation for
@@ -2332,9 +2361,12 @@ Validation:
   adapters / tools` boundaries, then decide whether separate installable
   packages are needed after Codex/OpenCode runtime and `.dbc` artifact-root
   behavior stabilize. Source: `pyproject.toml`.
-- [ ] Later design a unified `.dbc` artifact/log index or manifest layer for
-  generated runtime products, so scheduler/orchestration/progress-graph/log
-  readers can discover products without hardcoded path scans. Source:
+- [ ] Later design a unified `.dbc` artifact/log index or manifest layer
+  (`Readback Source Manifest / Index`) for generated runtime products, so
+  scheduler/orchestration/progress-graph/log readers can discover products
+  without hardcoded path scans. This is explicitly deferred for now, after
+  more explicit-source readback and MCP parity practice. Sources:
+  `design_docs/readback-timeline-followup-direction-analysis.md` and
   `design_docs/stages/planning-gate/2026-07-05-dbc-runtime-artifact-root-defaults.md`.
 - [ ] For later gates, consider persistent monitoring UI, distributed worker
   leases, live Codex process resume, live-provider throughput validation, or

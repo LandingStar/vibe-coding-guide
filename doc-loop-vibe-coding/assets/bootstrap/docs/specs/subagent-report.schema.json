@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "subagent-report.schema.json",
+  "title": "Subagent Report",
+  "description": "Platform-level schema for a subagent report. See docs/subagent-schemas.md for full semantics, invariants, and customization boundaries.",
+  "type": "object",
+  "required": [
+    "report_id",
+    "contract_id",
+    "status",
+    "changed_artifacts",
+    "verification_results"
+  ],
+  "properties": {
+    "report_id": {
+      "type": "string",
+      "description": "Unique identifier for the report. Must start with 'report-'.",
+      "pattern": "^report-.+"
+    },
+    "contract_id": {
+      "type": "string",
+      "description": "Identifier of the corresponding contract. Must start with 'contract-'.",
+      "pattern": "^contract-.+"
+    },
+    "status": {
+      "type": "string",
+      "description": "Execution outcome status.",
+      "enum": ["completed", "partial", "blocked"]
+    },
+    "changed_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Artifacts actually modified during execution. Should not be vague descriptions."
+    },
+    "artifact_payloads": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifactPayload" },
+      "description": "Optional structured content payloads for future writeback planning. Presence does not imply the payload has already been written back."
+    },
+    "trajectory_update": {
+      "$ref": "#/$defs/trajectoryUpdate",
+      "description": "Optional worker-authored progress/status suggestion for the leader to consume into Local Work Trajectory. Workers must not mutate localTrajectory directly."
+    },
+    "verification_results": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Verification steps executed and their results. Should not be empty descriptions."
+    },
+    "unresolved_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Open items that remain unresolved after execution."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Assumptions made during execution that the supervisor should verify."
+    },
+    "handoff": {
+      "$ref": "#/$defs/handoff",
+      "description": "Optional explicit authority-transfer evidence carried alongside the report for parent-managed terminal-bundle decisions."
+    },
+    "escalation_recommendation": {
+      "type": "string",
+      "description": "Whether escalation is recommended and to whom.",
+      "enum": ["none", "review_by_supervisor", "human_review"]
+    }
+  },
+  "$defs": {
+    "artifactPayload": {
+      "type": "object",
+      "required": ["path", "content", "operation", "content_type"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Target artifact path associated with this payload.",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "description": "Structured content candidate for future writeback consumption."
+        },
+        "operation": {
+          "type": "string",
+          "description": "First-pass writeback intent carried by the report payload.",
+          "enum": ["create", "update", "append"]
+        },
+        "content_type": {
+          "type": "string",
+          "description": "Declared content type for downstream writeback mapping.",
+          "enum": ["markdown", "json", "yaml", "text"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "trajectoryUpdate": {
+      "type": "object",
+      "required": [
+        "lane_id",
+        "task_id",
+        "event_status",
+        "summary",
+        "suggested_action"
+      ],
+      "properties": {
+        "lane_id": {
+          "type": "string",
+          "description": "Lane or context id the worker report applies to.",
+          "minLength": 1
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Scheduler task, contract, or worker task id that produced this report.",
+          "minLength": 1
+        },
+        "event_status": {
+          "type": "string",
+          "description": "Worker-observed state for leader-side trajectory integration.",
+          "enum": ["completed", "partial", "blocked", "waiting", "in_progress"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Concise worker progress/status summary for the leader.",
+          "minLength": 1
+        },
+        "suggested_action": {
+          "type": "string",
+          "description": "Suggested leader-side Local Work Trajectory action. This is advisory and does not mutate trajectory by itself.",
+          "enum": ["append", "advance", "block", "wait", "resume", "close", "none"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Artifacts, commands, or report refs that support the suggested update."
+        },
+        "leader_notes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Notes for the leader/supervisor before it mutates Local Work Trajectory."
+        }
+      },
+      "additionalProperties": false
+    },
+    "handoff": {
+      "type": "object",
+      "required": [
+        "handoff_id",
+        "from_role",
+        "to_role",
+        "reason",
+        "active_scope",
+        "authoritative_refs",
+        "carried_constraints",
+        "open_items",
+        "current_gate_state",
+        "intake_requirements"
+      ],
+      "properties": {
+        "handoff_id": {
+          "type": "string",
+          "pattern": "^handoff-.+"
+        },
+        "from_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authoritative_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "carried_constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "open_items": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "current_gate_state": {
+          "type": "string",
+          "enum": ["proposed", "waiting_review", "approved", "rejected", "revised", "applied"]
+        },
+        "intake_requirements": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

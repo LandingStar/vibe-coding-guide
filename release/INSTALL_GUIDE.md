@@ -8,12 +8,12 @@
 
 | 文件 | 包名 | 职责 |
 |------|------|------|
-| `doc_based_coding_runtime-0.9.8-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
-| `doc_loop_vibe_coding-0.9.8-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
+| `doc_based_coding_runtime-0.9.9-py3-none-any.whl` | doc-based-coding-runtime | 平台 runtime / CLI / MCP server |
+| `doc_loop_vibe_coding-0.9.9-py3-none-any.whl` | doc-loop-vibe-coding | 官方实例 pack（文档驱动工作流模板与资产） |
 | `doc-based-coding-0.2.1.vsix` | doc-based-coding VS Code extension | VS Code 扩展，内含已构建的 graph webview runtime |
 | `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz` | @note-web/knowledge-graph-engine | 固定构建输入，用户安装时无需单独安装 |
 
-依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.8,<1.0.0`）。
+依赖关系：实例包依赖 runtime 包（`doc-based-coding-runtime>=0.9.9,<1.0.0`）。
 
 ## 前置要求
 
@@ -25,7 +25,7 @@
 
 ### 1. 解压 release zip
 
-将 `doc-based-coding-v0.9.8.zip` 解压到一个临时目录。后续命令默认在该目录下执行。
+将 `doc-based-coding-v0.9.9.zip` 解压到一个临时目录。后续命令默认在该目录下执行。
 
 ### 2. 创建虚拟环境（推荐）
 
@@ -40,7 +40,7 @@ source .venv/bin/activate
 ### 3. 安装 runtime 包
 
 ```bash
-pip install --force-reinstall doc_based_coding_runtime-0.9.8-py3-none-any.whl
+pip install --force-reinstall doc_based_coding_runtime-0.9.9-py3-none-any.whl
 ```
 
 这将同时安装所有依赖（jsonschema、mcp 等）。
@@ -48,7 +48,7 @@ pip install --force-reinstall doc_based_coding_runtime-0.9.8-py3-none-any.whl
 ### 4. 安装官方实例包
 
 ```bash
-pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.8-py3-none-any.whl
+pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.9-py3-none-any.whl
 ```
 
 由于 runtime 已安装，此步骤不需要重复解析 runtime 依赖。
@@ -56,7 +56,7 @@ pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.8-py3-none-any.
 > 本地离线安装提示：如果你希望让 pip 从当前目录自动查找依赖，也可以使用：
 >
 > ```bash
-> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.8-py3-none-any.whl
+> pip install --force-reinstall --no-index --find-links . doc_loop_vibe_coding-0.9.9-py3-none-any.whl
 > ```
 
 ### 5. 安装 VS Code 扩展
@@ -114,6 +114,8 @@ doc-loop-bootstrap --target /path/to/your/project --project-name "Your Project N
 这将在目标目录中生成：
 
 - `AGENTS.md`
+- `docs/worker-trajectory-update-reporting.md`
+- `docs/specs/subagent-report.schema.json`
 - `design_docs/`
 - `.codex/`
 
@@ -188,5 +190,6 @@ MCP server 启动后，在 Copilot Chat 中可以调用以下治理工具：
 | `doc-based-coding` 命令不可用 | 虚拟环境未激活 | 运行 `activate` 脚本 |
 | `doc-based-coding info` 无 pack 输出 | 未安装实例包，或项目中缺少 `.codex/packs/` | 安装实例包或运行 `doc-loop-bootstrap` |
 | MCP server 无法启动 | `doc-based-coding-mcp` 不在 PATH 中 | 使用绝对路径或确认 venv 已激活 |
+| `consumeWorkerTrajectoryReport` 报工作区 schema 缺失 | 目标工作区未采用当前 bootstrap 合同 | 从 `doc-loop-vibe-coding` 的 bootstrap 资产恢复 `docs/specs/subagent-report.schema.json` 和对应 worker procedure 文档 |
 | VSIX 安装后图谱不可见 | 扩展未刷新或旧 VSIX 仍在运行 | 重新加载 VS Code 窗口，并确认扩展版本为 `0.2.1` |
 | `pip install` 报 "already installed" | 项目根目录有残留的 `*.egg-info` | 删除 `*.egg-info` 目录后重试 |

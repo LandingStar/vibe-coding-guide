@@ -10,10 +10,10 @@
     },
     "doc-loop-vibe-coding": {
       "name": "doc-loop-vibe-coding",
-      "version": "0.9.8",
+      "version": "0.9.9",
       "kind": "official-instance",
-      "content_hash": "sha256:814c23e421d0749357168ebda0063523db60b2ff7af8dafa2f8e9828168e6753",
-      "locked_at": "2026-07-06T00:50:11.603434+00:00"
+      "content_hash": "sha256:2933b6eff8587dd14c4983baaddcfed86424898b5b78e6a1210ea92211f8995c",
+      "locked_at": "2026-07-11T23:56:44.561564+00:00"
     }
   }
 }

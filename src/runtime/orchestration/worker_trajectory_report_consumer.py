@@ -21,13 +21,7 @@ WorkerTrajectoryReportConsumerStatus = Literal[
     "failed",
 ]
 
-_REPORT_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "docs"
-    / "specs"
-    / "subagent-report.schema.json"
-)
-_REPORT_SCHEMA: dict[str, Any] | None = None
+_REPORT_SCHEMA_RELATIVE_PATH = Path("docs") / "specs" / "subagent-report.schema.json"
 
 _DENIED_CALLER_ROLES = {
     "worker",
@@ -276,7 +270,25 @@ def consume_worker_trajectory_report(
 
     report_id = str(report.get("report_id", ""))
     contract_id = str(report.get("contract_id", ""))
-    schema_errors = _validate_report(report)
+    try:
+        schema_errors = _validate_report(report, project_root=project_root)
+    except Exception as exc:
+        schema_path = _report_schema_path(project_root)
+        return WorkerTrajectoryReportConsumerResult(
+            ok=False,
+            status="validation_failed",
+            report_path=report_path,
+            trajectory_path=target_path,
+            report_id=report_id,
+            contract_id=contract_id,
+            caller_role=request.caller_role,
+            actor=request.actor,
+            errors=(
+                f"failed to load workspace Subagent Report schema at {schema_path}: {exc}",
+                "Bootstrap or restore docs/specs/subagent-report.schema.json in the target workspace; "
+                "see docs/worker-trajectory-update-reporting.md.",
+            ),
+        )
     if schema_errors:
         return WorkerTrajectoryReportConsumerResult(
             ok=False,
@@ -580,15 +592,20 @@ def _resolve_under_root(root: Path, value: str | Path) -> Path:
     return root / path
 
 
-def _load_schema() -> dict[str, Any]:
-    global _REPORT_SCHEMA
-    if _REPORT_SCHEMA is None:
-        _REPORT_SCHEMA = json.loads(_REPORT_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return _REPORT_SCHEMA
+def _report_schema_path(project_root: Path) -> Path:
+    return (project_root / _REPORT_SCHEMA_RELATIVE_PATH).resolve()
 
 
-def _validate_report(report: dict[str, Any]) -> list[str]:
-    validator = jsonschema.Draft202012Validator(_load_schema())
+def _load_schema(project_root: Path) -> dict[str, Any]:
+    schema_path = _report_schema_path(project_root)
+    payload = json.loads(schema_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("schema root must be a JSON object")
+    return payload
+
+
+def _validate_report(report: dict[str, Any], *, project_root: Path) -> list[str]:
+    validator = jsonschema.Draft202012Validator(_load_schema(project_root))
     errors = sorted(validator.iter_errors(report), key=lambda error: list(error.path))
     return [_format_schema_error(error) for error in errors]
 

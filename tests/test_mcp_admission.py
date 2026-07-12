@@ -128,6 +128,16 @@ def _write_mcp_worker_trajectory_report(
     *,
     suggested_action: str,
 ) -> None:
+    project_root = report_path.parents[2]
+    schema_path = project_root / "docs" / "specs" / "subagent-report.schema.json"
+    schema_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "specs"
+        / "subagent-report.schema.json",
+        schema_path,
+    )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         json.dumps(

@@ -1,101 +1,99 @@
-# doc-based-coding v0.9.8 Preview Release (2026-06-07)
+# doc-based-coding v0.9.9 Preview Release (2026-07-12)
 
-This `v0.9.8` preview release closes the current Local Work Trajectory and host
-coordination slice: the VS Code extension now packages the React Flow / ELK
-local trajectory view, the MCP surface exposes the trajectory lifecycle, Codex is
-restored as the primary supported host chain, and release builds now include
-secret hygiene checks.
+`v0.9.9` is the patch release that closes the installed-layout Subagent Report
+contract defect found during the Spirebound full-workspace test. It also packages
+the current readback, orchestration, workspace relay, and `.dbc` runtime-artifact
+baseline before the project begins host-lifecycle inversion work.
 
-This package is a same-version rebuild of the `v0.9.8` batch. It does not bump
-runtime, instance, or VSIX versions. The rebuild adds the conversation-progression
-rule cleanup that removes the obsolete `askQuestions`-specific requirement from
-active rules, generated prompts, bootstrap assets, and MCP interaction metadata.
-It also promotes the Electron webview smoke into the release checklist through a
-pre-provisioned VS Code `1.93.1` gate and verifies that gate in a full release
-run.
+This release does not implement Managed Mode or invert scheduler/orchestration
+ownership around Codex. Direct Assistant Mode remains the active product path.
+The Direct/Managed facility matrix is recorded as follow-up design work.
 
 ## Package Contents
 
 | Artifact | Version | Notes |
 |---|---:|---|
-| `doc_based_coding_runtime-0.9.8-py3-none-any.whl` | 0.9.8 | Platform runtime, CLI, MCP server, PDP/PEP, workflow, pack runtime |
-| `doc_loop_vibe_coding-0.9.8-py3-none-any.whl` | 0.9.8 | Official doc-loop instance pack |
-| `doc-based-coding-0.2.1.vsix` | 0.2.1 | VS Code extension with built graph and Local Work Trajectory webview runtime |
-| `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz` | 0.1.0 | Pinned graph engine build input for audit and reproducible extension builds |
-| `doc-based-coding-v0.9.8.zip` | 0.9.8 batch | Local release bundle containing the wheels, VSIX, graph engine tarball, and install docs |
+| `doc_based_coding_runtime-0.9.9-py3-none-any.whl` | 0.9.9 | Platform runtime, CLI, MCP server, orchestration and readback surfaces |
+| `doc_loop_vibe_coding-0.9.9-py3-none-any.whl` | 0.9.9 | Official doc-loop instance and bootstrap contracts |
+| `doc-based-coding-0.2.1.vsix` | 0.2.1 | Independently versioned Direct Assistant Host UX |
+| `vscode-extension/vendor/note-web-knowledge-graph-engine-0.1.0.tgz` | 0.1.0 | Pinned graph engine build input |
+| `doc-based-coding-v0.9.9.zip` | 0.9.9 batch | Release bundle with both wheels, VSIX, graph input, and installation docs |
 
 ## Highlights
 
-### 1. Local Work Trajectory MVP
+### 1. Installed Worker Report Contract
 
-- Added the `localTrajectory` MCP lifecycle surface for starting, appending,
-  advancing, opening lanes, merging lanes, and recording explicit relations.
-- Added the VS Code Local Work Trajectory webview using React Flow + ELK.
-- Added multi-line visual mapping for lane opening, merge/fan-in, dependencies,
-  wait/sync/handoff style auxiliary relations, and lane labels.
-- Kept Local Work Trajectory as a projection artifact, not the scheduler
-  authority or a claim that lanes always equal real parallel agents.
+- `consumeWorkerTrajectoryReport` now resolves
+  `docs/specs/subagent-report.schema.json` from the target workspace supplied by
+  `project_root`, not from the runtime module checkout or `site-packages/docs`.
+- Schema loading is workspace-local on every consumption, so one long-lived
+  process cannot reuse another workspace's schema.
+- Missing or invalid workspace schema failures now identify the exact expected
+  path and point operators back to the worker-report procedure.
+- Official instance bootstrap now carries both
+  `docs/worker-trajectory-update-reporting.md` and the Subagent Report schema.
 
-### 2. Host Coordination And Codex Mainline
+### 2. Packaging And Installed-Layout Gate
 
-- Re-aligned durable rules so Codex remains the primary supported target chain:
-  `AGENTS.md` + MCP + CLI/validation.
-- Kept VS Code / Copilot as a Host UX Layer over the same backend rather than a
-  replacement for Codex support.
-- Extended host-side AI chat/tool loop integration and tests around tool result
-  handling and progress graph panel behavior.
-- Removed the stale `askQuestions` tool binding from the active conversation
-  progression contract. Current rules now require analysis/recommendation first,
-  followed by a clear forward-driving question or the host's available
-  confirmation surface.
+- Instance wheel verification requires both worker-report bootstrap assets.
+- The build installs both wheels into an isolated target, proves imports come
+  from that target rather than the source checkout, bootstraps a temporary
+  workspace, and consumes a valid worker report through the installed CLI.
+- Any missing wheel member or failed installed-layout smoke now fails the build
+  instead of producing a warning-only package.
+- Pack integrity ignores root `build/` and `dist/` outputs so a wheel build does
+  not invalidate the source pack lock; nested pack-owned content and source
+  changes remain hash inputs.
 
-### 3. Secret Hygiene And Release Guardrails
+### 3. Collaboration Evidence Semantics
 
-- Added `scripts/scan_secrets.py` and release/build integration for worktree
-  secret scanning.
-- Added the Secret Hygiene and Log Redaction standard.
-- Added scanner tests so high-confidence secrets are reported by detector and
-  location without printing matched values.
-- Refreshed `pack-lock.json` for the current official instance content.
+- Multi-lane Local Work guidance now distinguishes logical lane decomposition,
+  runtime worker dispatch, and retained auditable collaboration evidence.
+- A lane count alone is no longer treated as proof of leader-worker execution or
+  provider-level concurrency.
+- Multi-lane leader-worker work must retain worker reports, ExchangeArtifact
+  history, scheduler events, runtime invocation evidence, or an explicit
+  orchestration blocker.
 
-### 4. Graph Runtime Packaging Boundary
+### 4. Current Runtime Baseline
 
-- Preserved the pinned external `@note-web/knowledge-graph-engine` release-local
-  tarball boundary from the previous graph integration work.
-- The VSIX remains self-contained for graph webview renderer / worker runtime;
-  users do not need a separate graph engine workspace or npm install.
+- Includes unified readback inspection and explicit-source timeline projection,
+  with CLI and MCP surfaces.
+- Retains Codex and OpenCode worker runtime adapters, scheduler/daemon lifecycle,
+  ExchangeArtifact admission/history, continuous worker bindings, sandbox and
+  receipt evidence, workspace command relay, and `.dbc` runtime artifact roots.
+- Worker trajectory mutation remains leader-owned; bounded workers report
+  suggestions through `Subagent Report.trajectory_update`.
 
-### 5. Electron Smoke Release Gate
+## Explicit Boundary
 
-- Added the default release checklist gate that runs Electron smoke after VSIX
-  packaging when a repo-local VS Code `1.93.1` executable and manifest have
-  already been provisioned.
-- Kept VS Code provisioning explicit; release validation does not download VS
-  Code automatically.
-- Added `--skip-electron-smoke` as an explicit operator escape hatch.
-- Proved the gate through a full `scripts/release.py --no-isolation` run.
+- Host inversion is not part of `0.9.9`.
+- Managed Mode may later make DBC own the lifecycle below user-facing Codex CLI
+  sessions and may omit VS Code support; that mode is not enabled here.
+- OpenCode and additional CLI hosts remain adapter candidates for the later
+  managed orchestration path.
 
 ## Verification
 
 - `python release/verify_version_consistency.py`: passed
 - `python scripts/scan_secrets.py --scope worktree`: passed
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_error_recovery.py::TestPipelineInitResilience::test_no_warnings_when_all_packs_valid -q`: `3 passed`
-- `python -m pytest tests/test_doc_loop_prompts.py tests/test_mcp_tools.py tests/test_instructions_generator.py tests/test_reply_progression.py -q`: `100 passed`
+- focused worker-report consumer, bootstrap parity, lane guidance, and release
+  version tests: passed
 - `python scripts/release.py --no-isolation`: passed
-  - built both wheels
-  - ran full Python test suite: `1754 passed, 3 skipped`
-  - packaged VSIX `doc-based-coding-0.2.1.vsix`
-  - ran Electron smoke release gate: `ok=true`, `panelVisible=true`, scheduler
-    root/payload present, `lanes=4`, `events=6`, `relations=12`
-  - generated `release/doc-based-coding-v0.9.8.zip`
+  - built and verified both `0.9.9` wheels
+  - passed the isolated installed-layout worker-report smoke
+  - passed the full Python test suite: `2371 passed, 3 skipped`
+  - packaged unchanged VSIX `doc-based-coding-0.2.1.vsix`
+  - passed the pre-provisioned VS Code 1.93.1 Electron smoke gate
+  - generated `release/doc-based-coding-v0.9.9.zip`
 
 ## Install Order
 
 ```bash
-pip install --force-reinstall doc_based_coding_runtime-0.9.8-py3-none-any.whl
-pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.8-py3-none-any.whl
+pip install --force-reinstall doc_based_coding_runtime-0.9.9-py3-none-any.whl
+pip install --force-reinstall --no-deps doc_loop_vibe_coding-0.9.9-py3-none-any.whl
 ```
 
-Install the VS Code extension with "Install from VSIX" and select
-`doc-based-coding-0.2.1.vsix`. The graph engine is already embedded in the VSIX
-webview build output.
+The VSIX already embeds the graph runtime. The graph engine tarball is included
+for release provenance and reproducible extension builds, not as a separate user
+installation step.

@@ -29,6 +29,14 @@ Do not copy the full criteria into those surfaces.
 
 - Lane planning is Local Work Trajectory metadata, not dependency scheduling by
   itself.
+- A multi-lane Local Work Trajectory proves only a logical split. It does not
+  prove that leader-worker dispatch, worker runtime execution, or agent
+  communication happened.
+- When two or more lanes are present and the task is governed by leader-worker
+  mode, the leader/main agent must either produce auditable collaboration
+  evidence through worker reports, ExchangeArtifact communication history,
+  scheduler events, or runtime invocation audit, or explicitly record the
+  orchestration blocker that prevented that path.
 - Direct `localTrajectory` mutation remains leader/main/supervisor authority.
   Bounded workers must report suggestions through
   `Subagent Report.trajectory_update`.
